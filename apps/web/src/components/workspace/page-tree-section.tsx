@@ -230,11 +230,16 @@ function PageRowVisual({
   )
 }
 
-function SortablePageRow({ section, ...props }: RowVisualProps & { section: string }) {
+function SortablePageRow({
+  section,
+  moveTarget,
+  ...props
+}: RowVisualProps & { section: string; moveTarget: 'team' | 'private' | null }) {
   const data: SidebarDragData = {
     kind: 'page',
     pageId: props.item.id,
     section,
+    moveTarget,
     title: props.item.title,
     icon: props.item.icon,
   }
@@ -374,10 +379,10 @@ export function PageTreeSection({
   // extra ("pinned") collections have no `location` and so no move zone.
   const moveZoneId =
     location === 'team' ? SIDEBAR_ZONES.team : location === 'private' ? SIDEBAR_ZONES.private : null
+  const moveTarget: 'team' | 'private' | null = location ?? null
 
-  const header = (isOver: boolean, setNodeRef?: (el: HTMLElement | null) => void) => (
+  const header = (isOver: boolean) => (
     <Box
-      ref={setNodeRef}
       onClick={() => setSectionOpen((prev) => !prev)}
       sx={{
         display: 'flex',
@@ -420,8 +425,27 @@ export function PageTreeSection({
     </Box>
   )
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+  // The whole section (header + tree body) is the move droppable for the
+  // primary Команда/Личное collections, so dropping a page ANYWHERE in the
+  // section moves it there — not just on the thin header row. `isOver` is the
+  // section-level hover; the per-row SortableContext still owns same-tree
+  // reorder (the shared onDragEnd gives same-section reorder precedence).
+  const sectionContent = (
+    isOver: boolean,
+    setNodeRef?: (el: HTMLElement | null) => void,
+  ) => (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        borderRadius: 0.75,
+        outline: isOver ? '2px dashed' : 'none',
+        outlineColor: 'primary.main',
+        bgcolor: isOver ? 'action.hover' : 'transparent',
+      }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -431,13 +455,7 @@ export function PageTreeSection({
           gap: 1,
         }}
       >
-        {moveZoneId ? (
-          <SidebarDropZone zoneId={moveZoneId}>
-            {({ isOver, setNodeRef }) => header(isOver, setNodeRef)}
-          </SidebarDropZone>
-        ) : (
-          header(false)
-        )}
+        {header(isOver)}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {meetingsEnabled ? (
             <Tooltip title="Загрузить встречу">
@@ -488,7 +506,8 @@ export function PageTreeSection({
       </Box>
 
       {sectionOpen ? (
-        <Box>
+        // min-height keeps an empty/short section a usable move drop target.
+        <Box sx={{ minHeight: 8 }}>
           {mounted ? (
             <SortableContext
               items={flatItems.map((i) => i.id)}
@@ -498,6 +517,7 @@ export function PageTreeSection({
                 <SortablePageRow
                   key={item.id}
                   section={sectionId}
+                  moveTarget={moveTarget}
                   item={item}
                   workspaceId={workspaceId}
                   pages={pages}
@@ -526,4 +546,16 @@ export function PageTreeSection({
       ) : null}
     </Box>
   )
+
+  if (moveZoneId) {
+    return (
+      <SidebarDropZone
+        zoneId={moveZoneId}
+        data={{ kind: 'section', section: sectionId, moveTarget }}
+      >
+        {({ isOver, setNodeRef }) => sectionContent(isOver, setNodeRef)}
+      </SidebarDropZone>
+    )
+  }
+  return sectionContent(false)
 }

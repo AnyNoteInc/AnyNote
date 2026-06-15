@@ -132,6 +132,9 @@ function SortableFavItem(props: FavRowProps) {
     kind: 'page',
     pageId: props.page.id,
     section: FAVORITES_SECTION_ID,
+    // Favorites is not a collection move target — dropping here adds a favorite
+    // (handled by the zone:favorites header droppable), it never moves the page.
+    moveTarget: null,
     title: props.page.title,
     icon: props.page.icon,
   }
@@ -185,8 +188,18 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
     if (active.id === over.id) return
 
     const activeIdx = favPages.findIndex((p) => favDragId(p.id) === active.id)
-    const overIdx = favPages.findIndex((p) => favDragId(p.id) === over.id)
-    if (activeIdx === -1 || overIdx === -1) return
+    if (activeIdx === -1) return
+
+    // Dragging the topmost favorite upward can make the ИЗБРАННОЕ header
+    // (zone:favorites) the nearest droppable under closestCenter. Treat a drop
+    // resolved to the section (header zone, not a row) as "insert at the top"
+    // so the reorder still lands instead of being swallowed as an idempotent
+    // addFavorite no-op.
+    const overIdx =
+      (over.id as string) === SIDEBAR_ZONES.favorites
+        ? 0
+        : favPages.findIndex((p) => favDragId(p.id) === over.id)
+    if (overIdx === -1) return
 
     const reordered = [...favPages]
     const [moved] = reordered.splice(activeIdx, 1)
@@ -224,7 +237,10 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
 
   return (
     <Box>
-      <SidebarDropZone zoneId={SIDEBAR_ZONES.favorites}>
+      <SidebarDropZone
+        zoneId={SIDEBAR_ZONES.favorites}
+        data={{ kind: 'section', section: FAVORITES_SECTION_ID, moveTarget: null }}
+      >
         {({ isOver, setNodeRef }) => (
           <Box
             ref={setNodeRef}

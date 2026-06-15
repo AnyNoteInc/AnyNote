@@ -47,6 +47,9 @@ function isZoneId(id: string): id is SidebarZoneId {
   return id.startsWith('zone:')
 }
 
+/** Where a cross-collection move drop lands. `null` = the section is not a move target. */
+export type MoveTarget = 'team' | 'private' | null
+
 /** Data each draggable page row carries so the shared context can route it. */
 export type SidebarDragData = {
   kind: 'page'
@@ -59,8 +62,46 @@ export type SidebarDragData = {
   pageId: string
   /** Which list the row lives in, so a non-zone drop delegates to that list's reorder. */
   section: string
+  /**
+   * The collection a CROSS-section drop ONTO this row's section moves to. Rows
+   * are droppables too (via useSortable), so when a page from another section
+   * lands on a row, `over.data` resolves the target section's move target here.
+   */
+  moveTarget: MoveTarget
   title: string | null
   icon: string | null
+}
+
+/**
+ * Data the section-level droppable area carries so the shared `onDragEnd` can
+ * resolve which SECTION a drop landed in — and whether that section is a
+ * cross-collection move target — when the drop lands on the body background
+ * (or between rows) rather than on a specific row.
+ */
+export type SidebarSectionDropData = {
+  kind: 'section'
+  /** The section the drop landed in (matches a draggable row's `section`). */
+  section: string
+  /** The collection a cross-section drop into this area moves the page to. */
+  moveTarget: MoveTarget
+}
+
+/**
+ * Resolve the SECTION (and its move target) a drop landed in from the
+ * droppable's `data`. Works for both a page row (`kind: 'page'`) and a
+ * section-level area (`kind: 'section'`); returns null for zones / unknown.
+ */
+function resolveDropSection(
+  data: unknown,
+): { section: string; moveTarget: MoveTarget } | null {
+  if (!data || typeof data !== 'object') return null
+  const kind = (data as { kind?: unknown }).kind
+  if (kind !== 'page' && kind !== 'section') return null
+  const d = data as { section?: unknown; moveTarget?: unknown }
+  if (typeof d.section !== 'string') return null
+  const moveTarget =
+    d.moveTarget === 'team' || d.moveTarget === 'private' ? d.moveTarget : null
+  return { section: d.section, moveTarget }
 }
 
 type ReorderHandler = (active: Active, over: Over) => void
@@ -164,7 +205,33 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
     const data = active.data.current as SidebarDragData | undefined
     if (!data) return
     const pageId = data.pageId
+    const sourceSection = data.section
     const target = over.id as string
+
+    // Resolve which SECTION the drop landed in (from the droppable's data —
+    // a page row OR a section-level area), independent of `over.id`.
+    const dropSection = resolveDropSection(over.data.current)
+
+    // (1) SAME-section reorder takes precedence over any zone hit. closestCenter
+    // can pick a section header zone (e.g. zone:favorites) as the nearest
+    // droppable when dragging the topmost row upward; if the drop actually
+    // resolves to the dragged row's OWN section, reorder instead of swallowing
+    // it as an idempotent zone mutation. Delegate to that list's reorder handler
+    // (it owns the optimistic update + the reorder mutation).
+    if (dropSection && dropSection.section === sourceSection) {
+      const handler = handlers.current.get(sourceSection)
+      handler?.(active, over)
+      return
+    }
+
+    // (2) CROSS-section drop onto a section that is a move target (Команда /
+    // Личное) → MOVE the page there, even when `over` is a page row in the
+    // target tree (not the bare header zone). This makes the WHOLE section a
+    // valid move target, not just the thin header.
+    if (dropSection && dropSection.moveTarget && dropSection.section !== sourceSection) {
+      moveToCollection.mutate({ pageId, workspaceId, target: dropSection.moveTarget })
+      return
+    }
 
     if (isZoneId(target)) {
       switch (target) {
@@ -189,9 +256,12 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
       }
     }
 
-    // Not a zone → an in-list reorder. Delegate to the list the dragged row
-    // came from (it owns the optimistic update + the reorder mutation).
-    const handler = handlers.current.get(data.section)
+    // A drop that resolves to a different section that is NOT a move target
+    // (e.g. an extra "pinned" collection, or favorites→favorites already
+    // handled above) → fall back to delegating a reorder to the source list.
+    // This keeps same-tree reorder working when `over` is a row in the source
+    // tree but resolveDropSection couldn't read its data for some reason.
+    const handler = handlers.current.get(sourceSection)
     handler?.(active, over)
   }
 
@@ -240,14 +310,20 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
 /**
  * Marks a region as a cross-section drop target. Renders its children and
  * highlights (via the render-prop `isOver`) while a page hovers it.
+ *
+ * `data` lets a section-level area carry which SECTION (and move target) the
+ * drop resolves to, so the shared `onDragEnd` routes a body/between-rows drop
+ * to a move even when `over` is the area droppable rather than the header zone.
  */
 export function SidebarDropZone({
   zoneId,
+  data,
   children,
 }: Readonly<{
   zoneId: SidebarZoneId
+  data?: SidebarSectionDropData
   children: (state: { isOver: boolean; setNodeRef: (el: HTMLElement | null) => void }) => ReactNode
 }>) {
-  const { isOver, setNodeRef } = useDroppable({ id: zoneId })
+  const { isOver, setNodeRef } = useDroppable({ id: zoneId, data })
   return <>{children({ isOver, setNodeRef })}</>
 }
