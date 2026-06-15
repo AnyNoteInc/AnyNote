@@ -3,17 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragOverEvent,
-  type DragStartEvent,
-} from '@dnd-kit/core'
+import type { Active, Over } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
@@ -36,6 +26,13 @@ import { usePlanFeatures } from '@/components/workspace/plan-features-context'
 import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
+import {
+  SIDEBAR_ZONES,
+  SidebarDropZone,
+  useRegisterReorder,
+  useSidebarDnd,
+} from './sidebar-dnd-context'
+import type { SidebarDragData } from './sidebar-dnd-context'
 import { type FlatPageItem, type PageItem, flattenTree } from './types'
 
 type Props = {
@@ -233,9 +230,17 @@ function PageRowVisual({
   )
 }
 
-function SortablePageRow(props: RowVisualProps) {
+function SortablePageRow({ section, ...props }: RowVisualProps & { section: string }) {
+  const data: SidebarDragData = {
+    kind: 'page',
+    pageId: props.item.id,
+    section,
+    title: props.item.title,
+    icon: props.item.icon,
+  }
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.item.id,
+    data,
   })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -264,13 +269,17 @@ export function PageTreeSection({
 }: Props) {
   const [sectionOpen, setSectionOpen] = useState(true)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [overId, setOverId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [meetingOpen, setMeetingOpen] = useState(false)
   const router = useRouter()
   const utils = trpc.useUtils()
   const createFlow = useCreatePageFlow(workspaceId)
+  // Drag state is owned by the single hoisted DndContext (sidebar-dnd-context);
+  // this section just reads the active/over ids to paint its own drop lines.
+  const { activeId, overId } = useSidebarDnd()
+  // Stable section id so the shared onDragEnd can delegate a non-zone reorder
+  // back to THIS tree's reorder logic.
+  const sectionId = collectionId ?? location ?? 'pages'
   // The «Новый дашборд» launch: create the DASHBOARD page + its Dashboard row,
   // then navigate to it. No plan gate — the create mutation only requires a
   // writable workspace (the meeting upload is the plan-gated one).
@@ -316,32 +325,21 @@ export function PageTreeSection({
     })
   }, [])
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  // Reorder-within-this-tree. Registered with the shared DndContext, which
+  // calls it for a non-zone drop whose dragged row belongs to this section.
+  function reorderHandler(active: Active, over: Over) {
+    if (active.id === over.id) return
 
-  function onDragStart({ active }: DragStartEvent) {
-    setActiveId(active.id as string)
-  }
+    const fromIdx = flatItems.findIndex((i) => i.id === active.id)
+    const toIdx = flatItems.findIndex((i) => i.id === over.id)
+    if (fromIdx === -1 || toIdx === -1) return
 
-  function onDragOver({ over }: DragOverEvent) {
-    setOverId((over?.id as string | undefined) ?? null)
-  }
-
-  function onDragEnd({ active, over }: DragEndEvent) {
-    setActiveId(null)
-    setOverId(null)
-
-    if (!over || active.id === over.id) return
-
-    const activeIdx = flatItems.findIndex((i) => i.id === active.id)
-    const overIdx = flatItems.findIndex((i) => i.id === over.id)
-    if (activeIdx === -1 || overIdx === -1) return
-
-    const overItem = flatItems[overIdx]
+    const overItem = flatItems[toIdx]
     const draggedActiveId = active.id as string
     const draggedPage = pages.find((p) => p.id === draggedActiveId)
     if (!draggedPage || !overItem) return
 
-    const droppingBefore = activeIdx > overIdx
+    const droppingBefore = fromIdx > toIdx
     const newParentId = overItem.parentId
     const newPrevPageId = droppingBefore ? overItem.prevPageId : overItem.id
 
@@ -367,10 +365,60 @@ export function PageTreeSection({
 
     reorder.mutate({ pageId: draggedActiveId, newParentId, newPrevPageId })
   }
+  useRegisterReorder(sectionId, reorderHandler)
 
-  const activeItem = activeId ? (flatItems.find((i) => i.id === activeId) ?? null) : null
   const activeIdx = activeId ? flatItems.findIndex((i) => i.id === activeId) : -1
   const overIdx = overId ? flatItems.findIndex((i) => i.id === overId) : -1
+
+  // Only the primary Команда/Личное headers accept a cross-collection move drop;
+  // extra ("pinned") collections have no `location` and so no move zone.
+  const moveZoneId =
+    location === 'team' ? SIDEBAR_ZONES.team : location === 'private' ? SIDEBAR_ZONES.private : null
+
+  const header = (isOver: boolean, setNodeRef?: (el: HTMLElement | null) => void) => (
+    <Box
+      ref={setNodeRef}
+      onClick={() => setSectionOpen((prev) => !prev)}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        flex: 1,
+        minWidth: 0,
+        borderRadius: 0.75,
+        cursor: 'pointer',
+        color: 'text.secondary',
+        outline: isOver ? '2px dashed' : 'none',
+        outlineColor: 'primary.main',
+        bgcolor: isOver ? 'action.hover' : 'transparent',
+        '&:hover': { color: 'text.primary' },
+      }}
+    >
+      {headerIcon ? (
+        <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+          {headerIcon}
+        </Box>
+      ) : null}
+      <Typography
+        variant="overline"
+        sx={{
+          color: 'inherit',
+          flex: 1,
+          minWidth: 0,
+          letterSpacing: '0.06em',
+          lineHeight: 1.4,
+        }}
+        noWrap
+      >
+        {title ?? 'Страницы'}
+      </Typography>
+      {sectionOpen ? (
+        <ArrowDropUpIcon sx={{ fontSize: 16 }} />
+      ) : (
+        <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+      )}
+    </Box>
+  )
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -383,43 +431,13 @@ export function PageTreeSection({
           gap: 1,
         }}
       >
-        <Box
-          onClick={() => setSectionOpen((prev) => !prev)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flex: 1,
-            minWidth: 0,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            '&:hover': { color: 'text.primary' },
-          }}
-        >
-          {headerIcon ? (
-            <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
-              {headerIcon}
-            </Box>
-          ) : null}
-          <Typography
-            variant="overline"
-            sx={{
-              color: 'inherit',
-              flex: 1,
-              minWidth: 0,
-              letterSpacing: '0.06em',
-              lineHeight: 1.4,
-            }}
-            noWrap
-          >
-            {title ?? 'Страницы'}
-          </Typography>
-          {sectionOpen ? (
-            <ArrowDropUpIcon sx={{ fontSize: 16 }} />
-          ) : (
-            <ArrowDropDownIcon sx={{ fontSize: 16 }} />
-          )}
-        </Box>
+        {moveZoneId ? (
+          <SidebarDropZone zoneId={moveZoneId}>
+            {({ isOver, setNodeRef }) => header(isOver, setNodeRef)}
+          </SidebarDropZone>
+        ) : (
+          header(false)
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {meetingsEnabled ? (
             <Tooltip title="Загрузить встречу">
@@ -472,53 +490,24 @@ export function PageTreeSection({
       {sectionOpen ? (
         <Box>
           {mounted ? (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={onDragStart}
-              onDragOver={onDragOver}
-              onDragEnd={onDragEnd}
+            <SortableContext
+              items={flatItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
             >
-              <SortableContext
-                items={flatItems.map((i) => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {flatItems.map((item, idx) => (
-                  <SortablePageRow
-                    key={item.id}
-                    item={item}
-                    workspaceId={workspaceId}
-                    pages={pages}
-                    favoritePageIds={favoritePageIds}
-                    showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
-                    showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
-                    onToggleCollapse={toggleCollapse}
-                  />
-                ))}
-              </SortableContext>
-              <DragOverlay>
-                {activeItem ? (
-                  <Box
-                    sx={{
-                      pl: 0.5 + activeItem.depth * 1.5,
-                      py: 0.5,
-                      borderRadius: 0.75,
-                      bgcolor: 'background.paper',
-                      boxShadow: 3,
-                      opacity: 0.9,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    {activeItem.icon ? <PageIcon icon={activeItem.icon} size={16} /> : null}
-                    <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                      {activeItem.title ?? 'Новая страница'}
-                    </Typography>
-                  </Box>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+              {flatItems.map((item, idx) => (
+                <SortablePageRow
+                  key={item.id}
+                  section={sectionId}
+                  item={item}
+                  workspaceId={workspaceId}
+                  pages={pages}
+                  favoritePageIds={favoritePageIds}
+                  showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
+                  showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
+                  onToggleCollapse={toggleCollapse}
+                />
+              ))}
+            </SortableContext>
           ) : (
             flatItems.map((item) => (
               <PageRowVisual

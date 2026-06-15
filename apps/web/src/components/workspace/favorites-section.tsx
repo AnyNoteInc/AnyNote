@@ -3,15 +3,7 @@
 import { useEffect, useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+import type { Active, Over } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
@@ -28,7 +20,15 @@ import { trpc } from '@/trpc/client'
 import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
+import { SIDEBAR_ZONES, SidebarDropZone, useRegisterReorder } from './sidebar-dnd-context'
+import type { SidebarDragData } from './sidebar-dnd-context'
 import type { PageItem } from './types'
+
+const FAVORITES_SECTION_ID = 'favorites'
+
+// Favorites re-list pages that also live in their collection tree, so their
+// draggable ids are namespaced to stay unique under the single DndContext.
+const favDragId = (pageId: string) => `fav:${pageId}`
 
 type Props = {
   workspaceId: string
@@ -54,13 +54,7 @@ type FavRowProps = {
   dragListeners?: Record<string, unknown>
 }
 
-function FavRowVisual({
-  page,
-  onOpenMenu,
-  setNodeRef,
-  style,
-  dragListeners,
-}: FavRowProps) {
+function FavRowVisual({ page, onOpenMenu, setNodeRef, style, dragListeners }: FavRowProps) {
   const pathname = usePathname()
   const isActive = pathname === `/pages/${page.id}`
 
@@ -134,8 +128,16 @@ function FavRowVisual({
 }
 
 function SortableFavItem(props: FavRowProps) {
+  const data: SidebarDragData = {
+    kind: 'page',
+    pageId: props.page.id,
+    section: FAVORITES_SECTION_ID,
+    title: props.page.title,
+    icon: props.page.icon,
+  }
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: props.page.id,
+    id: favDragId(props.page.id),
+    data,
   })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -155,7 +157,6 @@ function SortableFavItem(props: FavRowProps) {
 export function FavoritesSection({ workspaceId, allPages: initialPages, favoritePageIds }: Props) {
   const [open, setOpen] = useState(true)
   const [mounted, setMounted] = useState(false)
-  const [activeId, setActiveId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPage, setMenuPage] = useState<PageItem | null>(null)
   const [movePage, setMovePage] = useState<PageItem | null>(null)
@@ -167,7 +168,6 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId }, { enabled: mounted })
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId }, { enabled: mounted })
   const utils = trpc.useUtils()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const reorderFavorites = trpc.page.reorderFavorites.useMutation({
     onError: () => {
@@ -179,14 +179,13 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
   const favPages = favorites.data ?? []
   const hasFavorites = favPages.length > 0 || favoritePageIds.size > 0
 
-  if (!hasFavorites && favorites.isFetched) return null
+  // Reorder-within-favorites, registered with the single hoisted DndContext.
+  // Declared before the early return so the hook order stays stable.
+  function reorderHandler(active: Active, over: Over) {
+    if (active.id === over.id) return
 
-  function onDragEnd({ active, over }: DragEndEvent) {
-    setActiveId(null)
-    if (!over || active.id === over.id) return
-
-    const activeIdx = favPages.findIndex((p) => p.id === active.id)
-    const overIdx = favPages.findIndex((p) => p.id === over.id)
+    const activeIdx = favPages.findIndex((p) => favDragId(p.id) === active.id)
+    const overIdx = favPages.findIndex((p) => favDragId(p.id) === over.id)
     if (activeIdx === -1 || overIdx === -1) return
 
     const reordered = [...favPages]
@@ -198,8 +197,9 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
     utils.page.listFavorites.setData({ workspaceId }, reordered)
     reorderFavorites.mutate({ workspaceId, orderedIds })
   }
+  useRegisterReorder(FAVORITES_SECTION_ID, reorderHandler)
 
-  const activeItem = activeId ? (favPages.find((p) => p.id === activeId) ?? null) : null
+  if (!hasFavorites && favorites.isFetched) return null
 
   const handleOpenMenu = (event: MouseEvent<HTMLElement>, page: PageItem) => {
     event.preventDefault()
@@ -224,88 +224,65 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
 
   return (
     <Box>
-      <Box
-        onClick={() => setOpen((prev) => !prev)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1,
-          py: 0.75,
-          cursor: 'pointer',
-          color: 'text.secondary',
-          '&:hover': { color: 'text.primary' },
-        }}
-      >
-        <StarIcon sx={{ fontSize: 16 }} />
-        <Typography
-          variant="overline"
-          sx={{ color: 'inherit', flex: 1, letterSpacing: '0.06em', lineHeight: 1.4 }}
-        >
-          ИЗБРАННОЕ
-        </Typography>
-        {open ? (
-          <ArrowDropUpIcon sx={{ fontSize: 16 }} />
-        ) : (
-          <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+      <SidebarDropZone zoneId={SIDEBAR_ZONES.favorites}>
+        {({ isOver, setNodeRef }) => (
+          <Box
+            ref={setNodeRef}
+            onClick={() => setOpen((prev) => !prev)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1,
+              py: 0.75,
+              borderRadius: 0.75,
+              cursor: 'pointer',
+              color: 'text.secondary',
+              outline: isOver ? '2px dashed' : 'none',
+              outlineColor: 'primary.main',
+              bgcolor: isOver ? 'action.hover' : 'transparent',
+              '&:hover': { color: 'text.primary' },
+            }}
+          >
+            <StarIcon sx={{ fontSize: 16 }} />
+            <Typography
+              variant="overline"
+              sx={{ color: 'inherit', flex: 1, letterSpacing: '0.06em', lineHeight: 1.4 }}
+            >
+              ИЗБРАННОЕ
+            </Typography>
+            {open ? (
+              <ArrowDropUpIcon sx={{ fontSize: 16 }} />
+            ) : (
+              <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+            )}
+          </Box>
         )}
-      </Box>
+      </SidebarDropZone>
 
       {open ? (
         mounted ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={({ active }) => setActiveId(active.id as string)}
-            onDragEnd={onDragEnd}
+          <SortableContext
+            items={favPages.map((p) => favDragId(p.id))}
+            strategy={verticalListSortingStrategy}
           >
-            <SortableContext
-              items={favPages.map((p) => p.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <Stack spacing={0.25}>
-                {favPages.map((fav) => {
-                  const page = resolvePage(fav)
-                  const descendants = getAllDescendants(fav.id, allPages)
-                  return (
-                    <Box key={fav.id}>
-                      <SortableFavItem page={page} onOpenMenu={handleOpenMenu} />
-                      {descendants.map((child) => (
-                        <Box key={child.id} sx={{ pl: 2 }}>
-                          <FavRowVisual page={child} onOpenMenu={handleOpenMenu} />
-                        </Box>
-                      ))}
-                    </Box>
-                  )
-                })}
-              </Stack>
-            </SortableContext>
-            <DragOverlay>
-              {activeItem ? (
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 0.75,
-                    bgcolor: 'background.paper',
-                    boxShadow: 3,
-                    opacity: 0.9,
-                    fontSize: 13,
-                    color: 'text.secondary',
-                  }}
-                >
-                  {activeItem.icon ? (
-                    <span
-                      style={{ marginRight: 6, display: 'inline-flex', verticalAlign: 'middle' }}
-                    >
-                      <PageIcon icon={activeItem.icon} size={14} />
-                    </span>
-                  ) : null}
-                  {activeItem.title ?? 'Новая страница'}
-                </Box>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+            <Stack spacing={0.25}>
+              {favPages.map((fav) => {
+                const page = resolvePage(fav)
+                const descendants = getAllDescendants(fav.id, allPages)
+                return (
+                  <Box key={fav.id}>
+                    <SortableFavItem page={page} onOpenMenu={handleOpenMenu} />
+                    {descendants.map((child) => (
+                      <Box key={child.id} sx={{ pl: 2 }}>
+                        <FavRowVisual page={child} onOpenMenu={handleOpenMenu} />
+                      </Box>
+                    ))}
+                  </Box>
+                )
+              })}
+            </Stack>
+          </SortableContext>
         ) : (
           <Stack spacing={0.25}>
             {favPages.map((fav) => {
