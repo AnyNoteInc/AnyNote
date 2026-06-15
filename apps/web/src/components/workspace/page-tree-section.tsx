@@ -372,7 +372,7 @@ export function PageTreeSection({
   const overIdx = overId ? flatItems.findIndex((i) => i.id === overId) : -1
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Box
         sx={{
           display: 'flex',
@@ -434,7 +434,7 @@ export function PageTreeSection({
         ) : null}
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+      <Box>
         {mounted ? (
           <DndContext
             sensors={sensors}

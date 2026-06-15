@@ -263,7 +263,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
               items={favPages.map((p) => p.id)}
               strategy={verticalListSortingStrategy}
             >
-              <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+              <Stack spacing={0.25}>
                 {favPages.map((fav) => {
                   const page = resolvePage(fav)
                   const descendants = getAllDescendants(fav.id, allPages)
@@ -307,7 +307,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
             </DragOverlay>
           </DndContext>
         ) : (
-          <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+          <Stack spacing={0.25}>
             {favPages.map((fav) => {
               const page = resolvePage(fav)
               const descendants = getAllDescendants(fav.id, allPages)
