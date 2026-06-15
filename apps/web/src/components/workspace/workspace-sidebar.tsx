@@ -156,7 +156,7 @@ export function WorkspaceSidebar({
         bgcolor: 'background.paper',
         px: 1.25,
         py: 1.75,
-        overflow: 'auto',
+        overflow: 'hidden',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ px: 1, pb: 1.75 }}>
@@ -300,7 +300,6 @@ export function WorkspaceSidebar({
           flexDirection: 'column',
           gap: 1,
           minHeight: 0,
-          py: 0.75,
         }}
       >
         {isGuest ? (
@@ -317,87 +316,112 @@ export function WorkspaceSidebar({
           // One DndContext for the whole pages area so a page can be dragged
           // across sections (favorite/move) and onto Archive/Trash.
           <SidebarDndProvider workspaceId={workspace.id}>
-            <FavoritesSection
-              workspaceId={workspace.id}
-              allPages={pages}
-              favoritePageIds={favoritePageIds}
-            />
-            {teamCollectionId ? (
-              <PageTreeSection
+            {/* Only the page list scrolls — from the section tabs down to the
+                pinned bottom links. Both this scroll Box and the fixed bottom
+                Box stay inside SidebarDndProvider so the Archive/Trash drop
+                zones share the one DndContext (drag across the split works). */}
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                py: 0.75,
+                // Reserve room so the (overlay) scrollbar never overlaps the
+                // section headers' "+" buttons / row affordances at the right
+                // edge — macOS overlay scrollbars take 0 layout width and paint
+                // on top, so an explicit right inset is required.
+                pr: 1.5,
+              }}
+            >
+              <FavoritesSection
                 workspaceId={workspace.id}
-                pages={pages}
+                allPages={pages}
                 favoritePageIds={favoritePageIds}
-                collectionId={teamCollectionId}
-                title="Команда"
-                location="team"
-                headerIcon={<GroupIcon sx={{ fontSize: 16 }} />}
               />
-            ) : null}
-            {personalCollectionId ? (
-              <PageTreeSection
-                workspaceId={workspace.id}
-                pages={pages}
-                favoritePageIds={favoritePageIds}
-                collectionId={personalCollectionId}
-                title="Личное"
-                location="private"
-                headerIcon={<LockIcon sx={{ fontSize: 16 }} />}
-              />
-            ) : null}
-            {/* Прикрепленные коллекции: additional collections (if any) as roots below. */}
-            {pinnedCollections.map((c) => (
-              <PageTreeSection
-                key={c.id}
-                workspaceId={workspace.id}
-                pages={pages}
-                favoritePageIds={favoritePageIds}
-                collectionId={c.id}
-                title={c.title ?? 'Коллекция'}
-                headerIcon={
-                  c.icon ? (
-                    <PageIcon icon={c.icon} size={16} />
-                  ) : (
-                    <GroupIcon sx={{ fontSize: 16 }} />
-                  )
-                }
-              />
-            ))}
-            <SharedPagesSection workspaceId={workspace.id} />
-            <Stack spacing={0.25} sx={{ pb: 1 }}>
-              <NavItem
-                icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
-                label="Маркетплейс"
-                href="/marketplace"
-                matchPrefix="/marketplace"
-                pathname={pathname}
-              />
-              <SidebarDropZone zoneId={SIDEBAR_ZONES.archive}>
-                {({ isOver, setNodeRef }) => (
-                  <NavItem
-                    icon={<Inventory2Icon sx={{ fontSize: 16 }} />}
-                    label="Архив"
-                    href="/archive"
-                    matchPrefix="/archive"
-                    pathname={pathname}
-                    dropRef={setNodeRef}
-                    isDropOver={isOver}
-                  />
-                )}
-              </SidebarDropZone>
-              <SidebarDropZone zoneId={SIDEBAR_ZONES.trash}>
-                {({ isOver, setNodeRef }) => (
-                  <NavItem
-                    icon={<DeleteIcon sx={{ fontSize: 16 }} />}
-                    label="Корзина"
-                    href="/trash"
-                    matchPrefix="/trash"
-                    pathname={pathname}
-                    dropRef={setNodeRef}
-                    isDropOver={isOver}
-                  />
-                )}
-              </SidebarDropZone>
-            </Stack>
+              {teamCollectionId ? (
+                <PageTreeSection
+                  workspaceId={workspace.id}
+                  pages={pages}
+                  favoritePageIds={favoritePageIds}
+                  collectionId={teamCollectionId}
+                  title="Команда"
+                  location="team"
+                  headerIcon={<GroupIcon sx={{ fontSize: 16 }} />}
+                />
+              ) : null}
+              {personalCollectionId ? (
+                <PageTreeSection
+                  workspaceId={workspace.id}
+                  pages={pages}
+                  favoritePageIds={favoritePageIds}
+                  collectionId={personalCollectionId}
+                  title="Личное"
+                  location="private"
+                  headerIcon={<LockIcon sx={{ fontSize: 16 }} />}
+                />
+              ) : null}
+              {/* Прикрепленные коллекции: additional collections (if any) as roots below. */}
+              {pinnedCollections.map((c) => (
+                <PageTreeSection
+                  key={c.id}
+                  workspaceId={workspace.id}
+                  pages={pages}
+                  favoritePageIds={favoritePageIds}
+                  collectionId={c.id}
+                  title={c.title ?? 'Коллекция'}
+                  headerIcon={
+                    c.icon ? (
+                      <PageIcon icon={c.icon} size={16} />
+                    ) : (
+                      <GroupIcon sx={{ fontSize: 16 }} />
+                    )
+                  }
+                />
+              ))}
+              <SharedPagesSection workspaceId={workspace.id} />
+            </Box>
+            {/* Pinned bottom links — never scroll; sit above the profile footer. */}
+            <Box sx={{ flexShrink: 0 }}>
+              <Stack spacing={0.25} sx={{ pt: 0.75 }}>
+                <NavItem
+                  icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
+                  label="Маркетплейс"
+                  href="/marketplace"
+                  matchPrefix="/marketplace"
+                  pathname={pathname}
+                />
+                <SidebarDropZone zoneId={SIDEBAR_ZONES.archive}>
+                  {({ isOver, setNodeRef }) => (
+                    <NavItem
+                      icon={<Inventory2Icon sx={{ fontSize: 16 }} />}
+                      label="Архив"
+                      href="/archive"
+                      matchPrefix="/archive"
+                      pathname={pathname}
+                      dropRef={setNodeRef}
+                      isDropOver={isOver}
+                    />
+                  )}
+                </SidebarDropZone>
+                <SidebarDropZone zoneId={SIDEBAR_ZONES.trash}>
+                  {({ isOver, setNodeRef }) => (
+                    <NavItem
+                      icon={<DeleteIcon sx={{ fontSize: 16 }} />}
+                      label="Корзина"
+                      href="/trash"
+                      matchPrefix="/trash"
+                      pathname={pathname}
+                      dropRef={setNodeRef}
+                      isDropOver={isOver}
+                    />
+                  )}
+                </SidebarDropZone>
+              </Stack>
+            </Box>
           </SidebarDndProvider>
         ) : null}
       </Box>
