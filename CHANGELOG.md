@@ -1,3 +1,28 @@
+# [1.25.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.24.0...v1.25.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* **editor:** datetime node — make time selectable, not just date ([4782b8a](https://github.com/AnyNoteInc/AnyNote/commit/4782b8a17b704b97ccea845e7296d34f57d41728))
+* **editor:** persist async-picker slash inserts (synced block, db, meeting, drawio) ([c00b74f](https://github.com/AnyNoteInc/AnyNote/commit/c00b74fa52384751e2ba4205c3d09f3c5089f669))
+* **web:** make page-title add-icon/add-cover buttons visible (text variant, hover contrast) ([29b5d77](https://github.com/AnyNoteInc/AnyNote/commit/29b5d77544ad9e33da6fcbde062f1ed964ae40ef))
+* **web:** move /notifications under (active) so it gets the workspace toolbar ([1a57416](https://github.com/AnyNoteInc/AnyNote/commit/1a57416106fefea3bf2040c5f699b6b4983fef81))
+* **web:** profile 'Перейти' switches active workspace before navigating ([c10a19f](https://github.com/AnyNoteInc/AnyNote/commit/c10a19ffa44a0048c9072a74d281b749d1b52bb9))
+* **web:** sidebar scroll runs through the page list only, pin tabs + bottom links ([6eeeb32](https://github.com/AnyNoteInc/AnyNote/commit/6eeeb32695ec347f6a2e10ae6a40d6445bf5f5a0))
+* **web:** single scroll region for the pages sidebar ([0b094df](https://github.com/AnyNoteInc/AnyNote/commit/0b094df0c5223b409d50486afc95458011cce928))
+* **web:** whole-section move drop zones + same-section reorder precedence in sidebar DnD ([4834ec0](https://github.com/AnyNoteInc/AnyNote/commit/4834ec05894c38078a3e4efacb1eb17fa2f07648))
+
+
+### Features
+
+* **integration:** show only implemented (Telegram) integration on settings page ([799b69d](https://github.com/AnyNoteInc/AnyNote/commit/799b69d2ce566de2159f2bb0586d3e7dea5b8c8c))
+* **web:** API key expiry uses a Select; 'Никогда' → 'Бессрочный' ([300cac9](https://github.com/AnyNoteInc/AnyNote/commit/300cac94f76bd2629bef8730df3cbbce942f6de6))
+* **web:** create dashboards and upload meetings from the unified '+' menu ([17cc3a9](https://github.com/AnyNoteInc/AnyNote/commit/17cc3a9a73886aa928e12c5e4bf821104c17c26e))
+* **web:** favorites/team/personal as first-level sidebar tree roots, pinned collections below ([9eb953a](https://github.com/AnyNoteInc/AnyNote/commit/9eb953a03b6149fbaee7bdb8db6433062f52269b))
+* **web:** page cover spans full content-area width, flush under breadcrumbs ([ad9093c](https://github.com/AnyNoteInc/AnyNote/commit/ad9093cca029cc8144763534b93af200bb50a56e))
+* **web:** show active workspace / create-space link in app user menu ([092ecfd](https://github.com/AnyNoteInc/AnyNote/commit/092ecfdae5d42881bf6b4bc7e264fecb2948ed02))
+* **web:** sidebar drag-and-drop — favorite/move/archive/trash drop zones ([6e75e70](https://github.com/AnyNoteInc/AnyNote/commit/6e75e7052c8928f9a06c8a150a02534e2bfe8280))
+
 # [1.24.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.23.0...v1.24.0) (2026-06-14)
 
 
