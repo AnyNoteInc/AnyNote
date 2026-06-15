@@ -46,7 +46,7 @@ function formatDate(d: string | null): string {
 }
 
 function formatExpires(d: string | null): string {
-  if (!d) return 'никогда'
+  if (!d) return 'Бессрочно'
   return formatDate(d)
 }
 
