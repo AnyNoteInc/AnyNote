@@ -13,7 +13,9 @@ test('create, reveal once, list masked, revoke', async ({ page }) => {
 
   await page.getByTestId('api-key-create-button').click()
   await page.getByTestId('api-key-name-input').fill('Cursor laptop')
-  await page.getByRole('radio', { name: '30 дней' }).check()
+  // Expiry is a MUI Select now (was a RadioGroup); pick "30 дней" explicitly.
+  await page.getByRole('combobox', { name: 'Срок действия' }).click()
+  await page.getByRole('option', { name: '30 дней' }).click()
   await page.getByTestId('api-key-create-submit').click()
 
   const fullKey = await page
