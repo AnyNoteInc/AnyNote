@@ -91,16 +91,13 @@ export type SidebarSectionDropData = {
  * droppable's `data`. Works for both a page row (`kind: 'page'`) and a
  * section-level area (`kind: 'section'`); returns null for zones / unknown.
  */
-function resolveDropSection(
-  data: unknown,
-): { section: string; moveTarget: MoveTarget } | null {
+function resolveDropSection(data: unknown): { section: string; moveTarget: MoveTarget } | null {
   if (!data || typeof data !== 'object') return null
   const kind = (data as { kind?: unknown }).kind
   if (kind !== 'page' && kind !== 'section') return null
   const d = data as { section?: unknown; moveTarget?: unknown }
   if (typeof d.section !== 'string') return null
-  const moveTarget =
-    d.moveTarget === 'team' || d.moveTarget === 'private' ? d.moveTarget : null
+  const moveTarget = d.moveTarget === 'team' || d.moveTarget === 'private' ? d.moveTarget : null
   return { section: d.section, moveTarget }
 }
 
@@ -169,22 +166,27 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
     void utils.page.listShared.invalidate({ workspaceId })
     void utils.collection.list.invalidate({ workspaceId })
   }
-  const invalidateAll = () => {
+  // Matches use-page-actions' `invalidate`: favorite/trash both change which
+  // lists the page appears in AND its own page view, so the per-page getById is
+  // refreshed too (pageId comes from the drop, since onSuccess only sees it via
+  // the mutation variables).
+  const invalidateAll = (pageId: string) => {
     void utils.page.listByWorkspace.invalidate({ workspaceId })
     void utils.page.listFavorites.invalidate({ workspaceId })
     void utils.page.listTrashed.invalidate({ workspaceId })
+    void utils.page.getById.invalidate({ id: pageId })
   }
 
   const addFavorite = trpc.page.addFavorite.useMutation({
-    onSuccess: () => {
-      void utils.page.listFavorites.invalidate({ workspaceId })
-    },
+    onSuccess: (_data, { pageId }) => invalidateAll(pageId),
   })
   const moveToCollection = trpc.page.moveToCollection.useMutation({
     onSuccess: invalidateCollections,
   })
   const archive = trpc.page.archive.useMutation({ onSuccess: invalidateCollections })
-  const softDelete = trpc.page.softDelete.useMutation({ onSuccess: invalidateAll })
+  const softDelete = trpc.page.softDelete.useMutation({
+    onSuccess: (_data, { id }) => invalidateAll(id),
+  })
 
   function onDragStart({ active }: DragStartEvent) {
     setActiveId(active.id as string)

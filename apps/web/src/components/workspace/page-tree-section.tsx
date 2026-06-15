@@ -430,10 +430,7 @@ export function PageTreeSection({
   // section moves it there — not just on the thin header row. `isOver` is the
   // section-level hover; the per-row SortableContext still owns same-tree
   // reorder (the shared onDragEnd gives same-section reorder precedence).
-  const sectionContent = (
-    isOver: boolean,
-    setNodeRef?: (el: HTMLElement | null) => void,
-  ) => (
+  const sectionContent = (isOver: boolean, setNodeRef?: (el: HTMLElement | null) => void) => (
     <Box
       ref={setNodeRef}
       sx={{
