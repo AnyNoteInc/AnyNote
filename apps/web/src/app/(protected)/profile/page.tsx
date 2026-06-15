@@ -14,6 +14,7 @@ import {
 } from '@repo/ui/components'
 
 import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
+import { SwitchWorkspaceButton } from '@/components/profile/switch-workspace-button'
 import { requireSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
 
@@ -133,11 +134,7 @@ export default async function ProfilePage() {
                       {workspace.name}
                     </Typography>
                   </Stack>
-                  <Link href="/app" style={{ textDecoration: 'none' }}>
-                    <Button size="small" variant="outlined">
-                      Перейти
-                    </Button>
-                  </Link>
+                  <SwitchWorkspaceButton workspaceId={workspace.id} />
                 </Paper>
               ))}
             </Stack>
