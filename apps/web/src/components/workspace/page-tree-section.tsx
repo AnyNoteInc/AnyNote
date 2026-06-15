@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -18,6 +18,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import {
   AddIcon,
+  ArrowDropDownIcon,
+  ArrowDropUpIcon,
   Box,
   ChevronRightIcon,
   DashboardIcon,
@@ -44,6 +46,8 @@ type Props = {
   title?: string
   /** Collection kind this section represents, so the root "+" creates in the right place. */
   location?: 'team' | 'private'
+  /** Optional leading icon, so the section reads as a first-level sidebar tree root. */
+  headerIcon?: ReactNode
 }
 
 function DropLine({ depth }: { depth: number }) {
@@ -256,7 +260,9 @@ export function PageTreeSection({
   collectionId,
   title,
   location,
+  headerIcon,
 }: Props) {
+  const [sectionOpen, setSectionOpen] = useState(true)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -299,10 +305,7 @@ export function PageTreeSection({
     },
   })
 
-  const flatItems = useMemo(
-    () => flattenTree(pages, null, 0, collapsedIds),
-    [pages, collapsedIds],
-  )
+  const flatItems = useMemo(() => flattenTree(pages, null, 0, collapsedIds), [pages, collapsedIds])
 
   const toggleCollapse = useCallback((id: string) => {
     setCollapsedIds((prev) => {
@@ -349,9 +352,7 @@ export function PageTreeSection({
       const currentNextSiblingId = old.find((p) => p.prevPageId === draggedActiveId)?.id
       const pageAtInsertPointId = old.find(
         (p) =>
-          p.prevPageId === newPrevPageId &&
-          p.parentId === newParentId &&
-          p.id !== draggedActiveId,
+          p.prevPageId === newPrevPageId && p.parentId === newParentId && p.id !== draggedActiveId,
       )?.id
       return old.map((p) => {
         if (p.id === draggedActiveId)
@@ -382,9 +383,43 @@ export function PageTreeSection({
           gap: 1,
         }}
       >
-        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.06em' }}>
-          {title ?? 'Страницы'}
-        </Typography>
+        <Box
+          onClick={() => setSectionOpen((prev) => !prev)}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flex: 1,
+            minWidth: 0,
+            cursor: 'pointer',
+            color: 'text.secondary',
+            '&:hover': { color: 'text.primary' },
+          }}
+        >
+          {headerIcon ? (
+            <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+              {headerIcon}
+            </Box>
+          ) : null}
+          <Typography
+            variant="overline"
+            sx={{
+              color: 'inherit',
+              flex: 1,
+              minWidth: 0,
+              letterSpacing: '0.06em',
+              lineHeight: 1.4,
+            }}
+            noWrap
+          >
+            {title ?? 'Страницы'}
+          </Typography>
+          {sectionOpen ? (
+            <ArrowDropUpIcon sx={{ fontSize: 16 }} />
+          ) : (
+            <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+          )}
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {meetingsEnabled ? (
             <Tooltip title="Загрузить встречу">
@@ -434,70 +469,72 @@ export function PageTreeSection({
         ) : null}
       </Box>
 
-      <Box>
-        {mounted ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={flatItems.map((i) => i.id)}
-              strategy={verticalListSortingStrategy}
+      {sectionOpen ? (
+        <Box>
+          {mounted ? (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDragEnd={onDragEnd}
             >
-              {flatItems.map((item, idx) => (
-                <SortablePageRow
-                  key={item.id}
-                  item={item}
-                  workspaceId={workspaceId}
-                  pages={pages}
-                  favoritePageIds={favoritePageIds}
-                  showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
-                  showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
-                  onToggleCollapse={toggleCollapse}
-                />
-              ))}
-            </SortableContext>
-            <DragOverlay>
-              {activeItem ? (
-                <Box
-                  sx={{
-                    pl: 0.5 + activeItem.depth * 1.5,
-                    py: 0.5,
-                    borderRadius: 0.75,
-                    bgcolor: 'background.paper',
-                    boxShadow: 3,
-                    opacity: 0.9,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                  }}
-                >
-                  {activeItem.icon ? <PageIcon icon={activeItem.icon} size={16} /> : null}
-                  <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                    {activeItem.title ?? 'Новая страница'}
-                  </Typography>
-                </Box>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        ) : (
-          flatItems.map((item) => (
-            <PageRowVisual
-              key={item.id}
-              item={item}
-              workspaceId={workspaceId}
-              pages={pages}
-              favoritePageIds={favoritePageIds}
-              showDropBefore={false}
-              showDropAfter={false}
-              onToggleCollapse={toggleCollapse}
-            />
-          ))
-        )}
-      </Box>
+              <SortableContext
+                items={flatItems.map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {flatItems.map((item, idx) => (
+                  <SortablePageRow
+                    key={item.id}
+                    item={item}
+                    workspaceId={workspaceId}
+                    pages={pages}
+                    favoritePageIds={favoritePageIds}
+                    showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
+                    showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
+                    onToggleCollapse={toggleCollapse}
+                  />
+                ))}
+              </SortableContext>
+              <DragOverlay>
+                {activeItem ? (
+                  <Box
+                    sx={{
+                      pl: 0.5 + activeItem.depth * 1.5,
+                      py: 0.5,
+                      borderRadius: 0.75,
+                      bgcolor: 'background.paper',
+                      boxShadow: 3,
+                      opacity: 0.9,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    {activeItem.icon ? <PageIcon icon={activeItem.icon} size={16} /> : null}
+                    <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+                      {activeItem.title ?? 'Новая страница'}
+                    </Typography>
+                  </Box>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            flatItems.map((item) => (
+              <PageRowVisual
+                key={item.id}
+                item={item}
+                workspaceId={workspaceId}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                showDropBefore={false}
+                showDropAfter={false}
+                onToggleCollapse={toggleCollapse}
+              />
+            ))
+          )}
+        </Box>
+      ) : null}
     </Box>
   )
 }

@@ -16,10 +16,12 @@ import {
   DeleteIcon,
   Divider,
   GroupAddIcon,
+  GroupIcon,
   HomeIcon,
   IconButton,
   Inventory2Icon,
   KeyboardDoubleArrowLeftIcon,
+  LockIcon,
   Menu,
   MenuItem,
   SearchIcon,
@@ -31,6 +33,7 @@ import {
 
 import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 import { NotificationsBell } from '../notifications/notifications-bell'
 import {
@@ -94,6 +97,19 @@ export function WorkspaceSidebar({
   )
   const teamCollectionId = collections.data?.find((c) => c.kind === 'TEAM')?.id ?? null
   const personalCollectionId = collections.data?.find((c) => c.kind === 'PERSONAL')?.id ?? null
+
+  // "Прикрепленные коллекции": there is no pin flag in the data model — a
+  // workspace bootstraps exactly one primary TEAM («Команда») and the user's
+  // PERSONAL («Личное») collection, both already rendered as roots above.
+  // Render any OTHER collection the user can see (extra team/site collections,
+  // should they ever exist) as additional first-level roots BELOW the three.
+  const pinnedCollections = useMemo(
+    () =>
+      (collections.data ?? []).filter(
+        (c) => c.id !== teamCollectionId && c.id !== personalCollectionId,
+      ),
+    [collections.data, teamCollectionId, personalCollectionId],
+  )
 
   const allWorkspaces = trpc.workspace.listMine.useQuery()
 
@@ -311,6 +327,7 @@ export function WorkspaceSidebar({
                 collectionId={teamCollectionId}
                 title="Команда"
                 location="team"
+                headerIcon={<GroupIcon sx={{ fontSize: 16 }} />}
               />
             ) : null}
             {personalCollectionId ? (
@@ -321,8 +338,27 @@ export function WorkspaceSidebar({
                 collectionId={personalCollectionId}
                 title="Личное"
                 location="private"
+                headerIcon={<LockIcon sx={{ fontSize: 16 }} />}
               />
             ) : null}
+            {/* Прикрепленные коллекции: additional collections (if any) as roots below. */}
+            {pinnedCollections.map((c) => (
+              <PageTreeSection
+                key={c.id}
+                workspaceId={workspace.id}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                collectionId={c.id}
+                title={c.title ?? 'Коллекция'}
+                headerIcon={
+                  c.icon ? (
+                    <PageIcon icon={c.icon} size={16} />
+                  ) : (
+                    <GroupIcon sx={{ fontSize: 16 }} />
+                  )
+                }
+              />
+            ))}
             <SharedPagesSection workspaceId={workspace.id} />
             <Stack spacing={0.25} sx={{ pb: 1 }}>
               <NavItem
