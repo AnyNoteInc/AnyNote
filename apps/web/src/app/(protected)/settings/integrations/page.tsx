@@ -36,14 +36,15 @@ export default async function IntegrationsSettingsPage() {
         }}
       >
         <TelegramLinkCard />
-        {providers.map((p) => (
-          <IntegrationCard
-            key={p.id}
-            provider={p}
-            integration={integrationByProvider.get(p.id) ?? null}
-            defaultWorkspaceId={defaultWs?.id ?? null}
-          />
-        ))}
+        {providers.length > 0 &&
+          providers.map((p) => (
+            <IntegrationCard
+              key={p.id}
+              provider={p}
+              integration={integrationByProvider.get(p.id) ?? null}
+              defaultWorkspaceId={defaultWs?.id ?? null}
+            />
+          ))}
       </Box>
     </Stack>
   )
