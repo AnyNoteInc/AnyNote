@@ -132,6 +132,9 @@ export function WorkspaceLayoutClient({
     if (pathname.includes('/trash')) {
       return [{ label: 'Корзина' }]
     }
+    if (pathname.includes('/notifications')) {
+      return [{ label: 'Уведомления' }]
+    }
     const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
     if (pageIdMatch) {
       const base = { label: 'Страницы' }
