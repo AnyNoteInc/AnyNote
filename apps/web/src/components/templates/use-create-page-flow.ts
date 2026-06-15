@@ -4,13 +4,16 @@ import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { trpc } from '@/trpc/client'
+import { usePlanFeaturesOptional } from '@/components/workspace/plan-features-context'
 
 import type { CreatablePageType } from './page-type-registry'
 
 /**
  * Shared logic for the "create page" entry points (the Страницы header and each
- * page row's `+`). Owns the dialog open state, both create mutations, tree
- * invalidation, and navigation, so call sites only pass the target parentId.
+ * page row's `+`). Owns the dialog open state, the create mutations (blank page,
+ * from-template, and the special DASHBOARD create), the meeting-upload dialog
+ * state, tree invalidation, and navigation, so call sites only pass the target
+ * parentId.
  */
 type CreateLocation = 'team' | 'private'
 
@@ -20,6 +23,12 @@ export function useCreatePageFlow(workspaceId: string) {
   const [open, setOpen] = useState(false)
   const [parentId, setParentId] = useState<string | null>(null)
   const [location, setLocation] = useState<CreateLocation | undefined>(undefined)
+  const [meetingOpen, setMeetingOpen] = useState(false)
+
+  // The «Загрузить встречу» tile is gated on the plan flag (the meeting create
+  // mutation also 403s server-side). Optional read: the create flow only mounts
+  // inside the protected app where the provider exists, but stay null-safe.
+  const meetingsEnabled = usePlanFeaturesOptional()?.meetingsEnabled ?? false
 
   const onCreated = useCallback(
     async (data: { id: string }) => {
@@ -33,6 +42,15 @@ export function useCreatePageFlow(workspaceId: string) {
   const createPage = trpc.page.create.useMutation({ onSuccess: onCreated })
   const createFromTemplate = trpc.template.createPageFromTemplate.useMutation({
     onSuccess: onCreated,
+  })
+  // DASHBOARD pages run their own create (page + Dashboard row) and return a
+  // pageId, so they get a dedicated mutation rather than the generic page.create.
+  const createDashboard = trpc.dashboard.create.useMutation({
+    onSuccess: async (result) => {
+      await utils.page.listByWorkspace.invalidate({ workspaceId })
+      setOpen(false)
+      router.push(`/pages/${result.pageId}`)
+    },
   })
 
   const openFor = useCallback(
@@ -68,12 +86,31 @@ export function useCreatePageFlow(workspaceId: string) {
     [createFromTemplate, workspaceId, parentId],
   )
 
+  // DASHBOARD pages are always team-scoped roots (the create mutation hardcodes
+  // location: 'team'); ignore parentId/location from the create flow.
+  const handleCreateDashboard = useCallback(() => {
+    createDashboard.mutate({ workspaceId })
+  }, [createDashboard, workspaceId])
+
+  // Selecting «Загрузить встречу» swaps the create dialog for the upload dialog.
+  const openMeetingUpload = useCallback(() => {
+    setOpen(false)
+    setMeetingOpen(true)
+  }, [])
+
+  const closeMeetingUpload = useCallback(() => setMeetingOpen(false), [])
+
   return {
     open,
     openFor,
     close,
     handleCreatePage,
     handleCreateFromTemplate,
-    isCreating: createPage.isPending || createFromTemplate.isPending,
+    handleCreateDashboard,
+    meetingsEnabled,
+    meetingOpen,
+    openMeetingUpload,
+    closeMeetingUpload,
+    isCreating: createPage.isPending || createFromTemplate.isPending || createDashboard.isPending,
   }
 }

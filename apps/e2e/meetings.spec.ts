@@ -21,9 +21,10 @@ import { loadEnvFromRoot, signUpAndAuthAs } from './helpers/auth'
  *
  * Workspace creation goes through the UI form (the page-sharing / media-embeds
  * precedent): only that path provisions the TEAM/PERSONAL Collections the sidebar
- * page-tree section (and its «Новая страница» / «Загрузить встречу» buttons)
- * render under — a raw Prisma `workspace.create` has no collections and the
- * sidebar section stays hidden.
+ * page-tree section (and its «Новая страница» create button) render under — a raw
+ * Prisma `workspace.create` has no collections and the sidebar section stays
+ * hidden. «Загрузить встречу» now lives as a tile inside the «Новая страница»
+ * («Создание страницы») create dialog rather than a standalone sidebar button.
  *
  * Plan gating: `getWorkspaceFeatures` resolves the WORKSPACE OWNER's ACTIVE
  * subscription plan; `meetingsEnabled` is the `'meetings'` token in
@@ -273,16 +274,16 @@ test.describe('Phase 9E — meetings / transcription', () => {
     // plan — the upload entry is gated on the workspace owner's plan.
     await page.reload()
 
-    // The «Загрузить встречу» launch entry is visible on a meetings-enabled plan.
-    // The sidebar renders one PageTreeSection per collection (Команда / Личное),
-    // so the button appears twice — open the dialog from the first.
-    const uploadButton = page.getByTestId('upload-meeting-button').first()
-    await expect(uploadButton).toBeVisible({ timeout: 30_000 })
-    await uploadButton.click()
+    // «Загрузить встречу» now lives inside the unified «Новая страница» create
+    // dialog. Open it from the first PageTreeSection (one per collection), then
+    // pick the meeting tile — visible only on a meetings-enabled plan.
+    await page.getByRole('button', { name: 'Новая страница' }).first().click()
+    const createDialog = page.getByRole('dialog', { name: 'Создание страницы' })
+    await expect(createDialog).toBeVisible({ timeout: 30_000 })
+    await createDialog.getByRole('button', { name: 'Создать страницу: Загрузить встречу' }).click()
 
-    // Only the section whose button was clicked opens its dialog (MUI Dialog is
-    // unmounted when closed), so scoping the controls to the open dialog keeps
-    // the locators single-match even though each section mounts its own dialog.
+    // The create dialog hands off to the meeting upload dialog; scope the
+    // controls to it (MUI unmounts closed dialogs, keeping locators single-match).
     const dialog = page.getByTestId('meeting-upload-dialog')
     await expect(dialog).toBeVisible()
 
@@ -321,12 +322,19 @@ test.describe('Phase 9E — meetings / transcription', () => {
     // entry must be hidden. We DON'T flip the subscription here.
     await signUpAndCreateWorkspace(page, 'meeting-planoff', 'No Meetings')
 
-    // The start page already shows the sidebar (TEAM/PERSONAL sections). Wait for
-    // the «Новая страница» create control so we know the page-tree section has
-    // rendered before asserting the meeting entry's absence.
-    await expect(page.getByRole('button', { name: 'Новая страница' }).first()).toBeVisible({
-      timeout: 30_000,
-    })
-    await expect(page.getByTestId('upload-meeting-button')).toHaveCount(0)
+    // The start page already shows the sidebar (TEAM/PERSONAL sections). Open the
+    // «Новая страница» create dialog and assert the meeting tile is absent while a
+    // non-gated tile («Дашборд») is present, so we know the grid actually rendered.
+    const createBtn = page.getByRole('button', { name: 'Новая страница' }).first()
+    await expect(createBtn).toBeVisible({ timeout: 30_000 })
+    await createBtn.click()
+    const createDialog = page.getByRole('dialog', { name: 'Создание страницы' })
+    await expect(createDialog).toBeVisible()
+    await expect(
+      createDialog.getByRole('button', { name: 'Создать страницу: Дашборд' }),
+    ).toBeVisible()
+    await expect(
+      createDialog.getByRole('button', { name: 'Создать страницу: Загрузить встречу' }),
+    ).toHaveCount(0)
   })
 })

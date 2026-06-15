@@ -48,22 +48,62 @@ export interface PageTypeDescriptor {
  */
 export const CREATABLE_PAGE_TYPES: PageTypeDescriptor[] = [
   { type: 'TEXT', label: 'Текст', Icon: DescriptionIcon, keywords: ['текст', 'заметка', 'text'] },
-  { type: 'EXCALIDRAW', label: 'Холст', Icon: BrushIcon, keywords: ['холст', 'excalidraw', 'рисунок', 'canvas'] },
-  { type: 'DRAWIO', label: 'Draw.io', Icon: SchemaIcon, keywords: ['drawio', 'диаграмма', 'схема'] },
-  { type: 'GENOGRAM', label: 'Генограмма', Icon: AccountTreeIcon, keywords: ['генограмма', 'genogram', 'семья'] },
-  { type: 'KANBAN', label: 'Канбан', Icon: ViewKanbanIcon, keywords: ['канбан', 'kanban', 'доска', 'задачи'] },
-  { type: 'DATABASE', label: 'База данных', Icon: StorageIcon, keywords: ['база данных', 'database', 'таблица', 'table'] },
-  { type: 'MERMAID', label: 'MermaidJS', Icon: SchemaIcon, keywords: ['mermaid', 'диаграмма', 'схема'] },
-  { type: 'PLANTUML', label: 'PlantUML', Icon: SchemaIcon, keywords: ['plantuml', 'uml', 'диаграмма'] },
-  { type: 'LIKEC4', label: 'LikeC4', Icon: SchemaIcon, keywords: ['likec4', 'c4', 'архитектура', 'диаграмма'] },
+  {
+    type: 'EXCALIDRAW',
+    label: 'Холст',
+    Icon: BrushIcon,
+    keywords: ['холст', 'excalidraw', 'рисунок', 'canvas'],
+  },
+  {
+    type: 'DRAWIO',
+    label: 'Draw.io',
+    Icon: SchemaIcon,
+    keywords: ['drawio', 'диаграмма', 'схема'],
+  },
+  {
+    type: 'GENOGRAM',
+    label: 'Генограмма',
+    Icon: AccountTreeIcon,
+    keywords: ['генограмма', 'genogram', 'семья'],
+  },
+  {
+    type: 'KANBAN',
+    label: 'Канбан',
+    Icon: ViewKanbanIcon,
+    keywords: ['канбан', 'kanban', 'доска', 'задачи'],
+  },
+  {
+    type: 'DATABASE',
+    label: 'База данных',
+    Icon: StorageIcon,
+    keywords: ['база данных', 'database', 'таблица', 'table'],
+  },
+  {
+    type: 'MERMAID',
+    label: 'MermaidJS',
+    Icon: SchemaIcon,
+    keywords: ['mermaid', 'диаграмма', 'схема'],
+  },
+  {
+    type: 'PLANTUML',
+    label: 'PlantUML',
+    Icon: SchemaIcon,
+    keywords: ['plantuml', 'uml', 'диаграмма'],
+  },
+  {
+    type: 'LIKEC4',
+    label: 'LikeC4',
+    Icon: SchemaIcon,
+    keywords: ['likec4', 'c4', 'архитектура', 'диаграмма'],
+  },
 ]
 
 /**
- * Page types that have an icon/label but are NOT user-creatable from the page-type
- * grid (the FORM precedent). MEETING pages are only born from the «Загрузить
- * встречу» upload flow, and DASHBOARD pages from the «Новый дашборд» launch
- * action, so both need a display icon/label everywhere a page is listed
- * (sidebar, search, history) without appearing in the create grid.
+ * Page types that have an icon/label for *listing* (sidebar, search, history) but
+ * are NOT created via the generic `page.create` path (the FORM precedent). MEETING
+ * pages are born from a recording-upload flow, and DASHBOARD pages from a dedicated
+ * `dashboard.create` mutation — so `pageTypeLabel`/`pageTypeIcon` still need their
+ * display meta everywhere a page is listed.
  */
 const NON_CREATABLE_PAGE_TYPE_META: Partial<
   Record<PageType, { label: string; Icon: IconComponent }>
@@ -71,6 +111,27 @@ const NON_CREATABLE_PAGE_TYPE_META: Partial<
   MEETING: { label: 'Встреча', Icon: MicIcon },
   DASHBOARD: { label: 'Дашборд', Icon: DashboardIcon },
 }
+
+/**
+ * Page types offered in the "+" create grid that DON'T go through the generic
+ * `page.create` path: DASHBOARD runs its own `dashboard.create` mutation, MEETING
+ * opens the recording-upload dialog. The dialog special-cases these in its select
+ * handler, so they live here rather than in `CREATABLE_PAGE_TYPES` (which means
+ * "creatable via plain page.create"). MEETING carries an action-flavoured tile
+ * label («Загрузить встречу») distinct from its listing label («Встреча»).
+ */
+export type SpecialCreateType = Extract<PageType, 'DASHBOARD' | 'MEETING'>
+
+export interface SpecialCreateTile {
+  type: SpecialCreateType
+  label: string
+  Icon: IconComponent
+}
+
+export const SPECIAL_CREATE_TILES: SpecialCreateTile[] = [
+  { type: 'DASHBOARD', label: NON_CREATABLE_PAGE_TYPE_META.DASHBOARD!.label, Icon: DashboardIcon },
+  { type: 'MEETING', label: 'Загрузить встречу', Icon: MicIcon },
+]
 
 /** Icon component for a page type, for rendering template cards/results. */
 export function pageTypeIcon(type: PageType): IconComponent {

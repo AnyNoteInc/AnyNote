@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import type { Active, Over } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -12,17 +12,13 @@ import {
   ArrowDropUpIcon,
   Box,
   ChevronRightIcon,
-  DashboardIcon,
   IconButton,
-  MicIcon,
   MoreHorizIcon,
-  Tooltip,
   Typography,
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import { CreatePageDialog, useCreatePageFlow } from '@/components/templates'
 import { MeetingUploadDialog } from '@/components/meeting/MeetingUploadDialog'
-import { usePlanFeatures } from '@/components/workspace/plan-features-context'
 import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
@@ -206,7 +202,15 @@ function PageRowVisual({
         workspaceId={workspaceId}
         onCreatePage={createFlow.handleCreatePage}
         onCreateFromTemplate={createFlow.handleCreateFromTemplate}
+        onCreateDashboard={createFlow.handleCreateDashboard}
+        onUploadMeeting={createFlow.openMeetingUpload}
+        meetingsEnabled={createFlow.meetingsEnabled}
         isCreating={createFlow.isCreating}
+      />
+      <MeetingUploadDialog
+        open={createFlow.meetingOpen}
+        onClose={createFlow.closeMeetingUpload}
+        workspaceId={workspaceId}
       />
       <PageContextMenu
         anchorEl={menuAnchor}
@@ -275,9 +279,10 @@ export function PageTreeSection({
   const [sectionOpen, setSectionOpen] = useState(true)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [mounted, setMounted] = useState(false)
-  const [meetingOpen, setMeetingOpen] = useState(false)
-  const router = useRouter()
   const utils = trpc.useUtils()
+  // Dashboard create and the «Загрузить встречу» upload now live in the unified
+  // "+" create flow (see use-create-page-flow); this section just hosts the
+  // entry points via `createFlow`.
   const createFlow = useCreatePageFlow(workspaceId)
   // Drag state is owned by the single hoisted DndContext (sidebar-dnd-context);
   // this section just reads the active/over ids to paint its own drop lines.
@@ -285,19 +290,6 @@ export function PageTreeSection({
   // Stable section id so the shared onDragEnd can delegate a non-zone reorder
   // back to THIS tree's reorder logic.
   const sectionId = collectionId ?? location ?? 'pages'
-  // The «Новый дашборд» launch: create the DASHBOARD page + its Dashboard row,
-  // then navigate to it. No plan gate — the create mutation only requires a
-  // writable workspace (the meeting upload is the plan-gated one).
-  const createDashboard = trpc.dashboard.create.useMutation({
-    onSuccess: async (result) => {
-      await utils.page.listByWorkspace.invalidate({ workspaceId })
-      router.push(`/pages/${result.pageId}`)
-    },
-  })
-  // The «Загрузить встречу» launch action is gated on the plan flag: hidden when
-  // the workspace's tier lacks meeting transcription (the create mutation also
-  // 403s server-side, this just keeps the entry out of sight).
-  const { meetingsEnabled } = usePlanFeatures()
 
   useEffect(() => {
     setMounted(true)
@@ -454,29 +446,6 @@ export function PageTreeSection({
       >
         {header(isOver)}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {meetingsEnabled ? (
-            <Tooltip title="Загрузить встречу">
-              <IconButton
-                aria-label="Загрузить встречу"
-                size="small"
-                data-testid="upload-meeting-button"
-                onClick={() => setMeetingOpen(true)}
-              >
-                <MicIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          ) : null}
-          <Tooltip title="Новый дашборд">
-            <IconButton
-              aria-label="Новый дашборд"
-              size="small"
-              data-testid="new-dashboard-button"
-              disabled={createDashboard.isPending}
-              onClick={() => createDashboard.mutate({ workspaceId })}
-            >
-              <DashboardIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
           <IconButton
             aria-label="Новая страница"
             size="small"
@@ -491,15 +460,16 @@ export function PageTreeSection({
           workspaceId={workspaceId}
           onCreatePage={createFlow.handleCreatePage}
           onCreateFromTemplate={createFlow.handleCreateFromTemplate}
+          onCreateDashboard={createFlow.handleCreateDashboard}
+          onUploadMeeting={createFlow.openMeetingUpload}
+          meetingsEnabled={createFlow.meetingsEnabled}
           isCreating={createFlow.isCreating}
         />
-        {meetingsEnabled ? (
-          <MeetingUploadDialog
-            open={meetingOpen}
-            onClose={() => setMeetingOpen(false)}
-            workspaceId={workspaceId}
-          />
-        ) : null}
+        <MeetingUploadDialog
+          open={createFlow.meetingOpen}
+          onClose={createFlow.closeMeetingUpload}
+          workspaceId={workspaceId}
+        />
       </Box>
 
       {sectionOpen ? (
