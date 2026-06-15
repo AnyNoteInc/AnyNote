@@ -29,7 +29,7 @@ const guestLinks: NavLink[] = [
   { label: 'Регистрация', href: '/sign-up', color: 'primary', variant: 'contained' },
 ]
 
-type WorkspaceSummary = { id: string; name: string; icon: string | null }
+export type WorkspaceSummary = { name: string; icon: string | null }
 
 export type AppUserMenuProps = {
   session?: SessionType

@@ -1,3 +1,4 @@
+import type { WorkspaceSummary } from '@/components/app/app-user-menu'
 import { PublicFooter } from '@/components/public/public-footer'
 import { PublicHeader } from '@/components/public/public-header'
 import { CookieBanner } from '@/components/public/cookie-banner'
@@ -36,13 +37,15 @@ export default async function HomePage() {
   const primaryHref = session ? '/app' : '/registration'
   const primaryLabel = session ? 'Открыть рабочее пространство' : 'Начать бесплатно'
 
-  let activeWorkspace: { id: string; name: string; icon: string | null } | null = null
+  let activeWorkspace: WorkspaceSummary | null = null
   let hasAnyWorkspace = false
   if (session) {
     const trpc = await getServerTRPC()
-    const ws = await trpc.workspace.getActive().catch(() => null)
-    if (ws) activeWorkspace = { id: ws.id, name: ws.name, icon: ws.icon ?? null }
-    const mine = await trpc.workspace.listMine().catch(() => [])
+    const [ws, mine] = await Promise.all([
+      trpc.workspace.getActive().catch(() => null),
+      trpc.workspace.listMine().catch(() => []),
+    ])
+    if (ws) activeWorkspace = { name: ws.name, icon: ws.icon ?? null }
     hasAnyWorkspace = mine.length > 0
   }
 
