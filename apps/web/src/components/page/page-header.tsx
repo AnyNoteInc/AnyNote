@@ -41,8 +41,15 @@ const ghostButtonSx = {
   color: 'text.secondary',
   textTransform: 'none',
   opacity: 0,
-  transition: 'opacity .15s',
-  '&:focus-visible': { opacity: 1 },
+  transition: 'opacity .15s, color .15s, background-color .15s',
+  // The parent title Stack flips opacity to 1 on hover to reveal these. Once
+  // revealed the label must clearly contrast the page background in BOTH the
+  // light and dark themes — bare text.secondary reads as a washed-out, near
+  // invisible label (the reported "не видны" bug), so on direct hover/focus we
+  // darken to text.primary and back it with an action.hover chip. Both colors
+  // are palette tokens, so they stay legible in either theme.
+  '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+  '&:focus-visible': { opacity: 1, color: 'text.primary', bgcolor: 'action.hover' },
 } as const
 
 const coverActionSx = {
@@ -190,6 +197,7 @@ export function PageHeader({
           {!icon ? (
             <Button
               className="page-header__add-action"
+              variant="text"
               size="small"
               data-testid="page-icon-add"
               onClick={openIconPicker}
@@ -202,6 +210,7 @@ export function PageHeader({
           {!hasCover ? (
             <Button
               className="page-header__add-action"
+              variant="text"
               size="small"
               data-testid="page-cover-add"
               onClick={openCoverPicker}
