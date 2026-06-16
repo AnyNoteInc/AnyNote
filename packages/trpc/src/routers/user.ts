@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
 import { auth, withVerificationResendContext } from '@repo/auth'
+import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../trpc'
 
@@ -16,14 +17,30 @@ export const userRouter = router({
 
   // GitHub-style activity: per-day counts of the caller's own page edits
   // (PageRevision rows where actor_id = caller) over the last 12 months, plus a
-  // short list of the most recent actions for a feed. Soft-deleted pages are
-  // excluded from the recent-actions list.
+  // short list of the most recent actions for a feed.
+  //
+  // Tenant-boundary: BOTH queries are gated by current workspace membership, so
+  // an ex-member can no longer see page titles or edit counts from a workspace
+  // they have LEFT. Soft-deleted pages are excluded from both surfaces.
+  //
+  // The grid raw SQL gates on membership + soft-delete only (per-day counts, no
+  // titles), so it deliberately does NOT replicate buildPageVisibilityWhere's
+  // PERSONAL/share nuances — membership is the tenant boundary that matters for
+  // a leak. recentActions (which DOES expose titles) gets the full visibility
+  // predicate via buildPageVisibilityWhere.
   activity: protectedProcedure.query(async ({ ctx }) => {
     const rows = await ctx.prisma.$queryRaw<{ day: Date | string; count: bigint }[]>`
-      SELECT date_trunc('day', created_at)::date AS day, count(*)::bigint AS count
-      FROM page_revisions
-      WHERE actor_id = ${ctx.user.id}::uuid
-        AND created_at >= now() - interval '12 months'
+      SELECT date_trunc('day', pr.created_at)::date AS day, count(*)::bigint AS count
+      FROM page_revisions pr
+      JOIN pages pg ON pg.id = pr.page_id
+      WHERE pr.actor_id = ${ctx.user.id}::uuid
+        AND pg.deleted_at IS NULL
+        AND pr.created_at >= now() - interval '12 months'
+        AND EXISTS (
+          SELECT 1 FROM workspace_members wm
+          WHERE wm.workspace_id = pg.workspace_id
+            AND wm.user_id = ${ctx.user.id}::uuid
+        )
       GROUP BY day
       ORDER BY day
     `
@@ -33,7 +50,14 @@ export const userRouter = router({
     }))
 
     const recentRaw = await ctx.prisma.pageRevision.findMany({
-      where: { actorId: ctx.user.id, page: { deletedAt: null } },
+      where: {
+        actorId: ctx.user.id,
+        page: {
+          deletedAt: null,
+          workspace: { members: { some: { userId: ctx.user.id } } },
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 15,
       select: {

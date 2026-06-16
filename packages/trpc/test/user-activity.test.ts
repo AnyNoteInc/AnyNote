@@ -129,4 +129,31 @@ describe('user.activity', () => {
     const pageIds = res.recentActions.map((a) => a.pageId)
     expect(pageIds).not.toContain(deletedPage.id)
   })
+
+  it('excludes activity in a workspace the caller has LEFT (no cross-tenant leak)', async () => {
+    const user = await makeUser('exmember')
+    const ws = await makeWorkspace(user.id, 'WS')
+    const page = await makePage(ws.id, user.id, 'Left Workspace Page')
+    await makeRevision(page.id, user.id, new Date('2026-06-10T10:00:00Z'))
+
+    const caller = makeCaller(user.id, user.email)
+
+    // While a member, the activity is visible in both surfaces.
+    const before = await caller.activity()
+    const beforeCounts = new Map(before.grid.map((g) => [g.date, g.count]))
+    expect(beforeCounts.get('2026-06-10')).toBe(1)
+    expect(before.recentActions.map((a) => a.pageId)).toContain(page.id)
+
+    // The user leaves (is removed from) the workspace.
+    await prisma.workspaceMember.deleteMany({
+      where: { workspaceId: ws.id, userId: user.id },
+    })
+
+    // Now the activity must NOT leak the workspace's page titles or edit counts.
+    const after = await caller.activity()
+    const afterCounts = new Map(after.grid.map((g) => [g.date, g.count]))
+    expect(afterCounts.get('2026-06-10')).toBeUndefined()
+    expect(after.recentActions.map((a) => a.pageId)).not.toContain(page.id)
+    expect(after.recentActions.map((a) => a.pageTitle)).not.toContain('Left Workspace Page')
+  })
 })
