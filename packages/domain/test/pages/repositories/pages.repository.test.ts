@@ -139,7 +139,11 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
     baseCreate.mockResolvedValue({ id: 'db-1', type: 'DATABASE', workspaceId: 'w1' })
     const repo = makeRepo()
     const provision = makeProvision()
-    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'DATABASE' }, provision)
+    await repo.createPageTx(
+      'u1',
+      { workspaceId: 'w1', parentId: null, type: 'DATABASE' },
+      provision,
+    )
     expect(provision.onDatabase).toHaveBeenCalledWith('db-1', 'w1')
     expect(provision.onKanban).not.toHaveBeenCalled()
   })
@@ -393,7 +397,10 @@ describe('PageRepository.duplicatePageTx — sibling re-link + (копия)', ()
     )
     await repo.duplicatePageTx('u1', original as never)
     expect(pageUpdate).toHaveBeenCalledWith({ where: { id: 'next-1' }, data: { prevPageId: null } })
-    expect(pageUpdate).toHaveBeenCalledWith({ where: { id: 'next-1' }, data: { prevPageId: 'copy-1' } })
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'next-1' },
+      data: { prevPageId: 'copy-1' },
+    })
   })
 })
 
@@ -478,9 +485,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     ).rejects.toBeInstanceOf(DomainError)
     // The cycle fires AFTER detach step 1 (nextSibling lookup) but BEFORE the update
     // — pageUpdate is only called for nextSibling detach, not for the move itself
-    expect(pageUpdate).not.toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'p1' } }),
-    )
+    expect(pageUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'p1' } }))
   })
 
   it('inserts moved page at head of new parent list', async () => {
@@ -531,7 +536,12 @@ describe('PageRepository.softDeletePageTx — recursive BFS soft-delete', () => 
     const outboxCreate = vi.fn(async () => ({}))
     const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const uow = makeUow({
-      page: { findFirst: txFindFirst, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany },
+      page: {
+        findFirst: txFindFirst,
+        update: txUpdate,
+        updateMany: txUpdateMany,
+        findMany: txFindMany,
+      },
       outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
     return { uow, txFindFirst, txFindMany, txUpdate, txUpdateMany, outboxCreate, outboxCreateMany }
@@ -575,8 +585,8 @@ describe('PageRepository.softDeletePageTx — recursive BFS soft-delete', () => 
     const { uow, txFindMany, txUpdateMany } = makeTrashUow()
     txFindMany
       .mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }]) // layer 1
-      .mockResolvedValueOnce([{ id: 'gc1' }])              // layer 2
-      .mockResolvedValueOnce([])                            // stop
+      .mockResolvedValueOnce([{ id: 'gc1' }]) // layer 2
+      .mockResolvedValueOnce([]) // stop
     const repo = new PageRepository(uow)
     await repo.softDeletePageTx('u1', page as never, { id: 'p1', workspaceId: 'w1' })
     expect(txUpdateMany).toHaveBeenCalledWith(
@@ -603,7 +613,12 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
     const outboxCreate = vi.fn(async () => ({}))
     const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const uow = makeUow({
-      page: { findFirst: txFindFirst, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany },
+      page: {
+        findFirst: txFindFirst,
+        update: txUpdate,
+        updateMany: txUpdateMany,
+        findMany: txFindMany,
+      },
       outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
     return { uow, txUpdate, txUpdateMany, outboxCreate, outboxCreateMany }
@@ -611,11 +626,14 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
 
   it('throws NOT_FOUND when page is not in trash', async () => {
     const txFindFirst = vi.fn(async () => ({ id: 'p1', deletedAt: null, parentId: null }))
-    const { uow } = makeRestoreUow(txFindFirst, vi.fn(async () => []))
+    const { uow } = makeRestoreUow(
+      txFindFirst,
+      vi.fn(async () => []),
+    )
     const repo = new PageRepository(uow)
-    await expect(
-      repo.restorePageTx('u1', { id: 'p1', workspaceId: 'w1' }),
-    ).rejects.toBeInstanceOf(DomainError)
+    await expect(repo.restorePageTx('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(
+      DomainError,
+    )
   })
 
   it('restores the page and enqueues page.upserted', async () => {
@@ -662,10 +680,19 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
   })
 
   it('falls back to root when parent is still deleted', async () => {
-    const txFindFirst = vi.fn()
-      .mockResolvedValueOnce({ id: 'p1', workspaceId: 'w1', parentId: 'par1', deletedAt: new Date() })
+    const txFindFirst = vi
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'p1',
+        workspaceId: 'w1',
+        parentId: 'par1',
+        deletedAt: new Date(),
+      })
       .mockResolvedValueOnce(null) // parent check: par1 still deleted
-    const { uow, txUpdate } = makeRestoreUow(txFindFirst, vi.fn(async () => []))
+    const { uow, txUpdate } = makeRestoreUow(
+      txFindFirst,
+      vi.fn(async () => []),
+    )
     const repo = new PageRepository(uow)
     await repo.restorePageTx('u1', { id: 'p1', workspaceId: 'w1' })
     expect(txUpdate).toHaveBeenCalledWith(
@@ -683,7 +710,8 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
       parentId: null,
       deletedAt: new Date(),
     }))
-    const txFindMany = vi.fn()
+    const txFindMany = vi
+      .fn()
       .mockResolvedValueOnce([{ id: 'dc1' }])
       .mockResolvedValueOnce([])
     const { uow, txUpdateMany } = makeRestoreUow(txFindFirst, txFindMany)
@@ -753,7 +781,9 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
         outboxEvent: { create: vi.fn() },
       }),
     )
-    await expect(repo.hardDeletePageTx({ id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
+    await expect(repo.hardDeletePageTx({ id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(
+      DomainError,
+    )
   })
 })
 
@@ -858,6 +888,136 @@ describe('PageRepository.reorderPageTx — 3-step linked-list relink', () => {
             eventType: 'page.moved',
             aggregateType: 'telegram_event',
             aggregateId: 'p1',
+          }),
+        ],
+      }),
+    )
+  })
+})
+
+// ── moveToCollectionTx ────────────────────────────────────────────────────────
+
+describe('PageRepository.moveToCollectionTx — detach + splice', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('(a) positioned splice: detaches from old list and re-points the insert point', async () => {
+    // Moved page p1 currently sits in collection A after 'a1'.
+    const findUnique = vi.fn(async () => ({ prevPageId: 'a1', parentId: null }))
+    // findFirst is consulted twice: the old next-sibling (by prevPageId 'p1')
+    // and the insert-point page (by prevPageId 'b1' in the target collection).
+    const findFirst = vi.fn(
+      async (arg: { where?: { prevPageId?: string | null; collectionId?: string | null } }) => {
+        if (arg?.where?.prevPageId === 'p1') return { id: 'a-next' } // old next sibling
+        if (arg?.where?.prevPageId === 'b1') return { id: 'b-next' } // insert-point page
+        return null
+      },
+    )
+    const pageUpdate = vi.fn(async () => ({}))
+    const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
+    const repo = new PageRepository(
+      makeUow({
+        page: { findUnique, findFirst, update: pageUpdate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
+      }),
+    )
+
+    const result = await repo.moveToCollectionTx('u1', 'p1', 'colB', 'w1', {
+      newParentId: null,
+      newPrevPageId: 'b1',
+    })
+    expect(result).toEqual({ id: 'p1' })
+
+    // Step 0: lift the moved page out (free its UNIQUE prev_page_id slot).
+    expect(pageUpdate).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { prevPageId: null } })
+    // Step 1: old next sibling adopts the moved page's old prev ('a1').
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'a-next' },
+      data: { prevPageId: 'a1' },
+    })
+    // Step 2: the page currently at the insert point re-points to us.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'b-next' },
+      data: { prevPageId: 'p1' },
+    })
+    // Final: moved page lands in colB at the requested position.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { collectionId: 'colB', parentId: null, prevPageId: 'b1', updatedById: 'u1' },
+    })
+  })
+
+  it('(b) head insert (no position): moved page becomes the new head and re-points the old head', async () => {
+    const findUnique = vi.fn(async () => ({ prevPageId: 'a1', parentId: null }))
+    const findFirst = vi.fn(async (arg: { where?: { prevPageId?: string | null } }) => {
+      if (arg?.where?.prevPageId === 'p1') return null // no old next sibling
+      if (arg?.where?.prevPageId === null) return { id: 'head-1' } // current head of target
+      return null
+    })
+    const pageUpdate = vi.fn(async () => ({}))
+    const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
+    const repo = new PageRepository(
+      makeUow({
+        page: { findUnique, findFirst, update: pageUpdate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
+      }),
+    )
+
+    await repo.moveToCollectionTx('u1', 'p1', 'colB', 'w1') // no position arg
+
+    // The current head of the target collection re-points after us.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'head-1' },
+      data: { prevPageId: 'p1' },
+    })
+    // Final: moved page becomes the head (prevPageId null) of colB.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { collectionId: 'colB', parentId: null, prevPageId: null, updatedById: 'u1' },
+    })
+  })
+
+  it('(c) emits page.upserted + page.moved integration fan-out with scope:collection', async () => {
+    const findUnique = vi.fn(async () => ({ prevPageId: null, parentId: null }))
+    const findFirst = vi.fn(async () => null)
+    const pageUpdate = vi.fn(async () => ({}))
+    const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
+    const repo = new PageRepository(
+      makeUow({
+        page: { findUnique, findFirst, update: pageUpdate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
+      }),
+    )
+
+    await repo.moveToCollectionTx('u1', 'p1', 'colB', 'w1')
+
+    expect(outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: 'p1',
+          workspaceId: 'w1',
+        }),
+      }),
+    )
+    expect(outboxCreateMany).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+            payload: expect.objectContaining({ hints: { scope: 'collection' } }),
+          }),
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+            payload: expect.objectContaining({ hints: { scope: 'collection' } }),
           }),
         ],
       }),

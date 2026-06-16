@@ -74,6 +74,8 @@ export const moveToCollectionInput = z.object({
   pageId: z.string().uuid(),
   workspaceId: z.string().uuid(),
   target: z.enum(['team', 'private']),
+  newParentId: z.string().uuid().nullable().optional(),
+  newPrevPageId: z.string().uuid().nullable().optional(),
 })
 export type MoveToCollectionInput = z.infer<typeof moveToCollectionInput>
 

@@ -32,8 +32,7 @@ const ICON_URL_PREFIX = 'url:'
 const ICON_PLAIN_MAX_CODEPOINTS = 32
 const APPEARANCE_URL_MAX = 1024
 // Same-origin uploaded-file path: exactly /api/files/<uuid> (public-by-id).
-const FILE_URL_RE =
-  /^\/api\/files\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const FILE_URL_RE = /^\/api\/files\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** A same-origin `/api/files/<uuid>` path or an https URL, length-capped. */
 function isAppearanceUrl(value: string): boolean {
@@ -192,15 +191,21 @@ export class PageService {
       input.target === 'team'
         ? await this.repo.findTeamCollectionId(input.workspaceId)
         : await this.repo.findPersonalCollectionId(input.workspaceId, actorUserId)
+    const hasPosition = input.newParentId !== undefined || input.newPrevPageId !== undefined
     return this.uow.transaction(() =>
-      this.repo.moveToCollectionTx(actorUserId, input.pageId, target, input.workspaceId),
+      this.repo.moveToCollectionTx(
+        actorUserId,
+        input.pageId,
+        target,
+        input.workspaceId,
+        hasPosition
+          ? { newParentId: input.newParentId ?? null, newPrevPageId: input.newPrevPageId ?? null }
+          : undefined,
+      ),
     )
   }
 
-  async archive(
-    actorUserId: string,
-    input: ArchivePageInput,
-  ): Promise<CreateResultDto> {
+  async archive(actorUserId: string, input: ArchivePageInput): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(async () => {
       const result = await this.repo.archivePageTx(actorUserId, input.id, input.workspaceId)
@@ -214,10 +219,7 @@ export class PageService {
     })
   }
 
-  async unarchive(
-    actorUserId: string,
-    input: UnarchivePageInput,
-  ): Promise<CreateResultDto> {
+  async unarchive(actorUserId: string, input: UnarchivePageInput): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(async () => {
       const result = await this.repo.unarchivePageTx(actorUserId, input.id, input.workspaceId)
@@ -231,10 +233,7 @@ export class PageService {
     })
   }
 
-  async rename(
-    actorUserId: string,
-    input: RenamePageInput,
-  ): Promise<RenameResultDto> {
+  async rename(actorUserId: string, input: RenamePageInput): Promise<RenameResultDto> {
     assertValidIcon(input.icon)
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(async () => {
@@ -249,27 +248,18 @@ export class PageService {
     })
   }
 
-  async update(
-    actorUserId: string,
-    input: UpdatePageInput,
-  ): Promise<RenameResultDto> {
+  async update(actorUserId: string, input: UpdatePageInput): Promise<RenameResultDto> {
     const normalized = withValidatedAppearance(input)
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(() => this.repo.updatePageTx(actorUserId, normalized))
   }
 
-  async duplicate(
-    actorUserId: string,
-    input: DuplicatePageInput,
-  ): Promise<CreateResultDto> {
+  async duplicate(actorUserId: string, input: DuplicatePageInput): Promise<CreateResultDto> {
     const page = await this.assertAccess(actorUserId, input.pageId)
     return this.uow.transaction(() => this.repo.duplicatePageTx(actorUserId, page))
   }
 
-  async move(
-    actorUserId: string,
-    input: MovePageInput,
-  ): Promise<CreateResultDto> {
+  async move(actorUserId: string, input: MovePageInput): Promise<CreateResultDto> {
     const page = await this.assertAccess(actorUserId, input.pageId)
     // Ownership: must be creator or workspace OWNER
     await this.assertOwnership(actorUserId, input.pageId)
@@ -285,10 +275,7 @@ export class PageService {
     })
   }
 
-  async reorder(
-    actorUserId: string,
-    input: ReorderPageInput,
-  ): Promise<CreateResultDto> {
+  async reorder(actorUserId: string, input: ReorderPageInput): Promise<CreateResultDto> {
     // Top-level self-reference check (matches original: before any I/O)
     if (input.newPrevPageId === input.pageId) {
       throw badRequest('Страница не может ссылаться на себя')
@@ -312,18 +299,12 @@ export class PageService {
     return this.uow.transaction(() => this.repo.reorderPageTx(actorUserId, pageRow, input))
   }
 
-  async softDelete(
-    actorUserId: string,
-    input: SoftDeletePageInput,
-  ): Promise<CreateResultDto> {
+  async softDelete(actorUserId: string, input: SoftDeletePageInput): Promise<CreateResultDto> {
     const page = await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(() => this.repo.softDeletePageTx(actorUserId, page, input))
   }
 
-  async restore(
-    actorUserId: string,
-    input: RestorePageInput,
-  ): Promise<CreateResultDto> {
+  async restore(actorUserId: string, input: RestorePageInput): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(async () => {
       const result = await this.repo.restorePageTx(actorUserId, input)
@@ -337,18 +318,12 @@ export class PageService {
     })
   }
 
-  async hardDelete(
-    actorUserId: string,
-    input: HardDeletePageInput,
-  ): Promise<CreateResultDto> {
+  async hardDelete(actorUserId: string, input: HardDeletePageInput): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(() => this.repo.hardDeletePageTx(input))
   }
 
-  async emptyTrash(
-    actorUserId: string,
-    input: EmptyTrashInput,
-  ): Promise<CountResultDto> {
+  async emptyTrash(actorUserId: string, input: EmptyTrashInput): Promise<CountResultDto> {
     const member = await this.repo.findMembership(actorUserId, input.workspaceId)
     if (!member) throw forbidden('Вы не являетесь участником воркспейса')
     if (member.role !== 'OWNER') {

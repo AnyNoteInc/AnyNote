@@ -117,10 +117,7 @@ export class PageRepository {
     }
   }
 
-  async findMembership(
-    userId: string,
-    workspaceId: string,
-  ): Promise<{ role: string } | null> {
+  async findMembership(userId: string, workspaceId: string): Promise<{ role: string } | null> {
     return this.uow.client().workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
       select: { role: true },
@@ -143,12 +140,10 @@ export class PageRepository {
       if (currentId === pageId) {
         throw badRequest('Невозможно переместить страницу в собственного потомка')
       }
-      const ancestor: { parentId: string | null } | null = await this.uow
-        .client()
-        .page.findFirst({
-          where: { id: currentId, deletedAt: null },
-          select: { parentId: true },
-        })
+      const ancestor: { parentId: string | null } | null = await this.uow.client().page.findFirst({
+        where: { id: currentId, deletedAt: null },
+        select: { parentId: true },
+      })
       currentId = ancestor?.parentId ?? null
     }
   }
@@ -376,10 +371,7 @@ export class PageRepository {
     return c?.id ?? null
   }
 
-  async findPersonalCollectionId(
-    workspaceId: string,
-    userId: string,
-  ): Promise<string | null> {
+  async findPersonalCollectionId(workspaceId: string, userId: string): Promise<string | null> {
     const c = await this.uow.client().collection.findFirst({
       where: { workspaceId, kind: 'PERSONAL', ownerId: userId },
       select: { id: true },
@@ -400,10 +392,81 @@ export class PageRepository {
     pageId: string,
     collectionId: string | null,
     workspaceId: string,
+    position?: { newParentId: string | null; newPrevPageId: string | null },
   ): Promise<CreateResultDto> {
+    const moved = await this.uow.client().page.findUnique({
+      where: { id: pageId },
+      select: { prevPageId: true, parentId: true },
+    })
+    const oldPrevPageId = moved?.prevPageId ?? null
+
+    // Step 0: lift the moved page out so its prev_page_id UNIQUE slot is free
+    // (two rows can't hold the same prev_page_id during the relink shuffle).
+    if (oldPrevPageId !== null) {
+      await this.uow.client().page.update({ where: { id: pageId }, data: { prevPageId: null } })
+    }
+
+    // Step 1: detach — the moved page's old next sibling adopts its old prev,
+    // closing the gap the move leaves in the SOURCE collection's list.
+    const oldNext = await this.uow.client().page.findFirst({
+      where: { prevPageId: pageId, deletedAt: null },
+    })
+    if (oldNext) {
+      await this.uow.client().page.update({
+        where: { id: oldNext.id },
+        data: { prevPageId: oldPrevPageId },
+      })
+    }
+
+    const newParentId = position?.newParentId ?? null
+    let newPrevPageId = position?.newPrevPageId ?? null
+    if (!position) {
+      // Head insert: the current head of (collection, parent) re-points at us.
+      const head = await this.uow.client().page.findFirst({
+        where: {
+          workspaceId,
+          collectionId,
+          parentId: newParentId,
+          prevPageId: null,
+          id: { not: pageId },
+          deletedAt: null,
+        },
+      })
+      if (head) {
+        await this.uow
+          .client()
+          .page.update({ where: { id: head.id }, data: { prevPageId: pageId } })
+      }
+      newPrevPageId = null
+    } else {
+      // Positioned insert: the row currently at newPrevPageId re-points to us.
+      const pageAtInsertPoint = await this.uow.client().page.findFirst({
+        where: {
+          prevPageId: newPrevPageId,
+          workspaceId,
+          collectionId,
+          parentId: newParentId,
+          deletedAt: null,
+          id: { not: pageId },
+        },
+      })
+      if (pageAtInsertPoint) {
+        await this.uow.client().page.update({
+          where: { id: pageAtInsertPoint.id },
+          data: { prevPageId: pageId },
+        })
+      }
+    }
+
+    // Final: set collection + position on the moved page.
     await this.uow.client().page.update({
       where: { id: pageId },
-      data: { collectionId, updatedById: actorUserId },
+      data: {
+        collectionId,
+        parentId: newParentId,
+        prevPageId: newPrevPageId,
+        updatedById: actorUserId,
+      },
     })
     await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
@@ -422,10 +485,7 @@ export class PageRepository {
     return { id: pageId }
   }
 
-  async renamePageTx(
-    actorUserId: string,
-    input: RenamePageInput,
-  ): Promise<RenameResultDto> {
+  async renamePageTx(actorUserId: string, input: RenamePageInput): Promise<RenameResultDto> {
     const data: { title: string; icon?: string | null; updatedById: string } = {
       title: input.title,
       updatedById: actorUserId,
@@ -453,10 +513,7 @@ export class PageRepository {
     return updated
   }
 
-  async updatePageTx(
-    actorUserId: string,
-    input: UpdatePageInput,
-  ): Promise<RenameResultDto> {
+  async updatePageTx(actorUserId: string, input: UpdatePageInput): Promise<RenameResultDto> {
     const data: {
       title?: string
       icon?: string | null
@@ -503,10 +560,7 @@ export class PageRepository {
     return updated
   }
 
-  async duplicatePageTx(
-    actorUserId: string,
-    page: PageRowDto,
-  ): Promise<CreateResultDto> {
+  async duplicatePageTx(actorUserId: string, page: PageRowDto): Promise<CreateResultDto> {
     // 1. Detach old next sibling first (prevPageId is unique)
     const oldNext = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id, deletedAt: null },
@@ -775,10 +829,7 @@ export class PageRepository {
     return { id: page.id }
   }
 
-  async restorePageTx(
-    actorUserId: string,
-    input: RestorePageInput,
-  ): Promise<CreateResultDto> {
+  async restorePageTx(actorUserId: string, input: RestorePageInput): Promise<CreateResultDto> {
     // Interleaved check: must be inside the tx (woven into the I/O sequence)
     const page = await this.uow.client().page.findFirst({
       where: { id: input.id, workspaceId: input.workspaceId },
@@ -865,9 +916,7 @@ export class PageRepository {
     return { id: page.id }
   }
 
-  async hardDeletePageTx(
-    input: HardDeletePageInput,
-  ): Promise<CreateResultDto> {
+  async hardDeletePageTx(input: HardDeletePageInput): Promise<CreateResultDto> {
     // Interleaved check: must be inside the tx (woven into the I/O sequence).
     // deletedAt guard: hard-delete is only reachable from the trash — a live
     // page must be soft-deleted first (the UI contract).
@@ -940,14 +989,10 @@ export class PageRepository {
 
   // ── Pre-tx check: parent exists (used by service before opening tx) ─────────
 
-  async findParentPage(
-    parentId: string,
-    workspaceId: string,
-  ): Promise<{ id: string } | null> {
+  async findParentPage(parentId: string, workspaceId: string): Promise<{ id: string } | null> {
     return this.uow.client().page.findFirst({
       where: { id: parentId, workspaceId, deletedAt: null },
       select: { id: true },
     })
   }
-
 }
