@@ -13,6 +13,11 @@
       "import": "./src/render-types.ts",
       "default": "./src/render-types.ts"
     },
+    "./sanitize-svg": {
+      "types": "./src/sanitize-svg.ts",
+      "import": "./src/sanitize-svg.ts",
+      "default": "./src/sanitize-svg.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",
@@ -45,6 +50,7 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "eslint": "^9.39.1",
+    "jsdom": "^26.1.0",
     "next": "^16.0.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

@@ -33,6 +33,7 @@
     "@hocuspocus/provider": "^3.4.4",
     "@mui/icons-material": "^7.3.10",
     "@mui/material": "^7.3.11",
+    "@repo/diagram-board": "workspace:*",
     "@repo/mermaid": "workspace:*",
     "@repo/plantuml": "workspace:*",
     "@repo/ui": "workspace:*",

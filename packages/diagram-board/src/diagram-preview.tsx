@@ -8,10 +8,15 @@ import FitScreenIcon from '@mui/icons-material/FitScreen'
 import DownloadIcon from '@mui/icons-material/Download'
 import ImageIcon from '@mui/icons-material/Image'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
+import {
+  TransformWrapper,
+  TransformComponent,
+  type ReactZoomPanPinchRef,
+} from 'react-zoom-pan-pinch'
 import type * as Y from 'yjs'
 
 import { downloadFilename, svgStringToDataUrl, svgToPngBlob, triggerDownload } from './export'
+import { sanitizeSvg } from './sanitize-svg'
 import type { ColorMode, DiagramRenderAuth, DiagramRenderer } from './render-types'
 
 type Props = {
@@ -40,8 +45,9 @@ export function DiagramPreview({ ytext, mode, render, idPrefix, renderAuth }: Pr
       if (genRef.current !== gen) return // superseded by a newer render
       if (result.ok) {
         setError(null)
-        lastGoodSvg.current = result.svg
-        if (containerRef.current) containerRef.current.innerHTML = result.svg
+        const clean = sanitizeSvg(result.svg)
+        lastGoodSvg.current = clean
+        if (containerRef.current) containerRef.current.innerHTML = clean
       } else {
         setError(result.error)
       }
@@ -97,34 +103,72 @@ export function DiagramPreview({ ytext, mode, render, idPrefix, renderAuth }: Pr
       <Stack
         direction="row"
         spacing={0.5}
-        sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1, p: 0.5 }}
+        sx={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          zIndex: 2,
+          bgcolor: 'background.paper',
+          borderRadius: 1,
+          boxShadow: 1,
+          p: 0.5,
+        }}
       >
         <Tooltip title="Уменьшить">
-          <IconButton size="small" onClick={() => zoomRef.current?.zoomOut()}><RemoveIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => zoomRef.current?.zoomOut()}>
+            <RemoveIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Увеличить">
-          <IconButton size="small" onClick={() => zoomRef.current?.zoomIn()}><AddIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => zoomRef.current?.zoomIn()}>
+            <AddIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="По размеру">
-          <IconButton size="small" onClick={() => zoomRef.current?.resetTransform()}><FitScreenIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => zoomRef.current?.resetTransform()}>
+            <FitScreenIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Скачать SVG">
-          <IconButton size="small" onClick={exportSvg} data-testid={`${idPrefix}-export-svg`}><DownloadIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={exportSvg} data-testid={`${idPrefix}-export-svg`}>
+            <DownloadIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Скачать PNG">
-          <IconButton size="small" onClick={() => void exportPng()}><ImageIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => void exportPng()}>
+            <ImageIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
         <Tooltip title="Копировать PNG">
-          <IconButton size="small" onClick={() => void copyPng()}><ContentCopyIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={() => void copyPng()}>
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
       </Stack>
 
-      <TransformWrapper ref={zoomRef} minScale={0.2} maxScale={5} centerOnInit limitToBounds={false}>
-        <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
+      <TransformWrapper
+        ref={zoomRef}
+        minScale={0.2}
+        maxScale={5}
+        centerOnInit
+        limitToBounds={false}
+      >
+        <TransformComponent
+          wrapperStyle={{ width: '100%', height: '100%' }}
+          contentStyle={{ width: '100%', height: '100%' }}
+        >
           <Box
             ref={containerRef}
             data-testid={`${idPrefix}-preview`}
-            sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, '& svg': { maxWidth: 'none' } }}
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 2,
+              '& svg': { maxWidth: 'none' },
+            }}
           />
         </TransformComponent>
       </TransformWrapper>
@@ -132,9 +176,21 @@ export function DiagramPreview({ ytext, mode, render, idPrefix, renderAuth }: Pr
       {error && (
         <Box
           data-testid={`${idPrefix}-error`}
-          sx={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 2, bgcolor: 'error.main', color: 'error.contrastText', borderRadius: 1, p: 1 }}
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            right: 8,
+            zIndex: 2,
+            bgcolor: 'error.main',
+            color: 'error.contrastText',
+            borderRadius: 1,
+            p: 1,
+          }}
         >
-          <Typography variant="caption" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{error}</Typography>
+          <Typography variant="caption" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+            {error}
+          </Typography>
         </Box>
       )}
     </Box>

@@ -1,4 +1,5 @@
 export { DiagramBoard } from './board'
+export { sanitizeSvg } from './sanitize-svg'
 export { configureMonaco } from './monaco-env'
 export { monacoThemeForMode } from './theme'
 export * from './export'

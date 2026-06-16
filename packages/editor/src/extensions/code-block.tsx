@@ -2,13 +2,27 @@
 
 import CheckIcon from '@mui/icons-material/Check'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { Box, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material'
+import {
+  Box,
+  IconButton,
+  MenuItem,
+  Select,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+} from '@mui/material'
 import type { SelectChangeEvent } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import CodeBlockLowlight, { type CodeBlockLowlightOptions } from '@tiptap/extension-code-block-lowlight'
+import CodeBlockLowlight, {
+  type CodeBlockLowlightOptions,
+} from '@tiptap/extension-code-block-lowlight'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useEffect, useState } from 'react'
+// Deep-import the pure leaf, not the package barrel: the barrel re-exports the
+// Monaco-based DiagramBoard, which would drag monaco-editor into this module's
+// graph and break node-env vitest resolution for code-block.test.ts.
+import { sanitizeSvg } from '@repo/diagram-board/sanitize-svg'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 import { renderPlantuml, type PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 
@@ -122,7 +136,7 @@ function CodeBlockView({
     void render(renderId, source, mode, renderAuth).then((result: RenderResult) => {
       if (cancelled) return
       if (result.ok) {
-        setSvg(result.svg)
+        setSvg(sanitizeSvg(result.svg))
         setError(null)
       } else {
         setError(result.error)
@@ -134,7 +148,10 @@ function CodeBlockView({
   }, [showPreview, isPlantuml, source, mode, extension.options.plantumlRenderAuth])
 
   return (
-    <NodeViewWrapper className="anynote-code-block" data-language={node.attrs.language ?? undefined}>
+    <NodeViewWrapper
+      className="anynote-code-block"
+      data-language={node.attrs.language ?? undefined}
+    >
       <Box
         className="anynote-code-block__toolbar"
         contentEditable={false}
