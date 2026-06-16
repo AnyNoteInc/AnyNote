@@ -1,4 +1,27 @@
+import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { defineConfig } from '@playwright/test'
+
+// Load the root .env so DATABASE_URL and other required vars are available
+// when Playwright spawns the Next.js webServer child process.
+function loadDotEnv(): Record<string, string> {
+  const envPath = join(__dirname, '.env')
+  if (!existsSync(envPath)) return {}
+  const result: Record<string, string> = {}
+  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const key = trimmed.slice(0, eqIdx).trim()
+    const raw = trimmed.slice(eqIdx + 1).trim()
+    result[key] = raw.replace(/^["']|["']$/g, '')
+  }
+  return result
+}
+
+const dotEnv = loadDotEnv()
 
 export default defineConfig({
   testDir: './apps/e2e',
@@ -10,6 +33,9 @@ export default defineConfig({
       url: 'http://localhost:3100',
       reuseExistingServer: false,
       env: {
+        // Spread the root .env first so all infra vars (DATABASE_URL, etc.) are
+        // present; explicit overrides below take precedence.
+        ...dotEnv,
         BETTER_AUTH_URL: 'http://localhost:3100',
         NEXT_PUBLIC_BASE_URL: 'http://localhost:3100',
         PLAYWRIGHT: 'true',

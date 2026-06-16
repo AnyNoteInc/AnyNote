@@ -35,7 +35,7 @@ const ghostButtonSx = {
   textTransform: 'none',
   opacity: 0,
   transition: 'opacity .15s, color .15s, background-color .15s',
-  // The parent title Stack flips opacity to 1 on hover to reveal these. Once
+  // The parent header box flips opacity to 1 on hover to reveal these. Once
   // revealed the label must clearly contrast the page background in BOTH the
   // light and dark themes — bare text.secondary reads as a washed-out, near
   // invisible label (the reported "не видны" bug), so on direct hover/focus we
@@ -235,21 +235,27 @@ export function PageHeader({
             ) : null}
           </Box>
         ) : null}
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Box sx={{ position: 'relative' }}>
           {icon ? (
             <IconButton
               aria-label="Изменить иконку"
               onClick={openIconPicker}
               sx={{
+                position: 'absolute',
+                // Hang the 56 px icon button into the left gutter so it sits to
+                // the LEFT of the title without displacing it. -64 ≈ icon (56) +
+                // ~8 px gap; keeps the icon's right edge just inside the 48 px
+                // padding boundary.
+                left: -64,
+                // -36 pulls the icon up over the cover's bottom edge
+                // (Notion-style overlap; matches the old flex layout's
+                // mt:'-36px'). With no cover it sits flush with the title top.
+                top: hasCover ? -36 : 0,
                 width: 56,
                 height: 56,
                 p: 0.5,
                 borderRadius: 1,
-                flexShrink: 0,
-                // Notion-style: the icon overlaps the cover's bottom edge.
-                ...(hasCover
-                  ? { alignSelf: 'flex-start', mt: '-36px', position: 'relative', zIndex: 1 }
-                  : {}),
+                zIndex: 1,
               }}
             >
               <PageIcon icon={icon} size={44} />
@@ -289,7 +295,6 @@ export function PageHeader({
               variant="h3"
               onClick={startEdit}
               sx={{
-                flex: 1,
                 fontSize: '2.25rem',
                 fontWeight: 700,
                 lineHeight: 1.2,
@@ -304,7 +309,7 @@ export function PageHeader({
               {title || UNTITLED_PLACEHOLDER}
             </Typography>
           )}
-        </Stack>
+        </Box>
         <IconPickerPopover
           anchorEl={iconAnchor}
           open={Boolean(iconAnchor)}
