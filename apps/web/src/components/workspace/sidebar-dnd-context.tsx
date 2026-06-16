@@ -103,6 +103,14 @@ function resolveDropSection(data: unknown): { section: string; moveTarget: MoveT
 
 type ReorderHandler = (active: Active, over: Over) => void
 
+/**
+ * Same shape as a reorder handler, but the TARGET section owns it: a
+ * cross-collection drop is delegated to the destination section's handler so
+ * it can splice the page into its OWN linked list (it knows its flatItems /
+ * pages / collectionId) at the dropped position, optimistically.
+ */
+type MoveIntoHandler = (active: Active, over: Over) => void
+
 type SidebarDndContextValue = {
   activeId: string | null
   overId: string | null
@@ -137,6 +145,31 @@ export function useRegisterReorder(section: string, handler: ReorderHandler): vo
   }, [registry, section, stable])
 }
 
+const MoveIntoRegistryCtx = createContext<{
+  register: (section: string, handler: MoveIntoHandler) => () => void
+} | null>(null)
+
+/**
+ * The DESTINATION section (Команда / Личное) registers a "move into" handler
+ * keyed by its section id. The shared `onDragEnd` looks it up by the DROP
+ * section so a cross-collection drop splices the page into that section's own
+ * linked list at the dropped position — optimistically, with no blink. Mirrors
+ * `useRegisterReorder` exactly.
+ */
+export function useRegisterMoveInto(section: string, handler: MoveIntoHandler): void {
+  const registry = useContext(MoveIntoRegistryCtx)
+  const handlerRef = useRef(handler)
+  handlerRef.current = handler
+  const stable = useCallback<MoveIntoHandler>(
+    (active, over) => handlerRef.current(active, over),
+    [],
+  )
+  useEffect(() => {
+    if (!registry) return
+    return registry.register(section, stable)
+  }, [registry, section, stable])
+}
+
 type Props = Readonly<{
   workspaceId: string
   children: ReactNode
@@ -152,6 +185,15 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
     handlers.current.set(section, handler)
     return () => {
       if (handlers.current.get(section) === handler) handlers.current.delete(section)
+    }
+  }, [])
+
+  const moveIntoHandlers = useRef(new Map<string, MoveIntoHandler>())
+  const registerMoveInto = useCallback((section: string, handler: MoveIntoHandler) => {
+    moveIntoHandlers.current.set(section, handler)
+    return () => {
+      if (moveIntoHandlers.current.get(section) === handler)
+        moveIntoHandlers.current.delete(section)
     }
   }, [])
 
@@ -229,8 +271,17 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
     // (2) CROSS-section drop onto a section that is a move target (Команда /
     // Личное) → MOVE the page there, even when `over` is a page row in the
     // target tree (not the bare header zone). This makes the WHOLE section a
-    // valid move target, not just the thin header.
+    // valid move target, not just the thin header. Delegate to the DESTINATION
+    // section's moveInto handler, which splices the page at the dropped position
+    // optimistically (no refetch → no blink); only a header-zone drop with no
+    // registered handler falls back to a head-insert + refetch.
     if (dropSection && dropSection.moveTarget && dropSection.section !== sourceSection) {
+      const handler = moveIntoHandlers.current.get(dropSection.section)
+      if (handler) {
+        handler(active, over)
+        return
+      }
+      // Fallback: header-zone / no registered handler → head insert (no position).
       moveToCollection.mutate({ pageId, workspaceId, target: dropSection.moveTarget })
       return
     }
@@ -268,43 +319,46 @@ export function SidebarDndProvider({ workspaceId, children }: Props) {
   }
 
   const registry = useMemo(() => ({ register }), [register])
+  const moveIntoRegistry = useMemo(() => ({ register: registerMoveInto }), [registerMoveInto])
   const value = useMemo<SidebarDndContextValue>(() => ({ activeId, overId }), [activeId, overId])
 
   return (
     <ReorderRegistryCtx.Provider value={registry}>
-      <SidebarDndCtx.Provider value={value}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDragEnd={onDragEnd}
-        >
-          {children}
-          <DragOverlay>
-            {activeData ? (
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 0.75,
-                  bgcolor: 'background.paper',
-                  boxShadow: 3,
-                  opacity: 0.9,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                }}
-              >
-                {activeData.icon ? <PageIcon icon={activeData.icon} size={16} /> : null}
-                <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                  {activeData.title ?? 'Новая страница'}
-                </Typography>
-              </Box>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </SidebarDndCtx.Provider>
+      <MoveIntoRegistryCtx.Provider value={moveIntoRegistry}>
+        <SidebarDndCtx.Provider value={value}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+          >
+            {children}
+            <DragOverlay>
+              {activeData ? (
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 0.75,
+                    bgcolor: 'background.paper',
+                    boxShadow: 3,
+                    opacity: 0.9,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  {activeData.icon ? <PageIcon icon={activeData.icon} size={16} /> : null}
+                  <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+                    {activeData.title ?? 'Новая страница'}
+                  </Typography>
+                </Box>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </SidebarDndCtx.Provider>
+      </MoveIntoRegistryCtx.Provider>
     </ReorderRegistryCtx.Provider>
   )
 }

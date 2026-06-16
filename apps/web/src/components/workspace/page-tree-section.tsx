@@ -25,6 +25,7 @@ import { MovePageDialog } from './move-page-dialog'
 import {
   SIDEBAR_ZONES,
   SidebarDropZone,
+  useRegisterMoveInto,
   useRegisterReorder,
   useSidebarDnd,
 } from './sidebar-dnd-context'
@@ -311,6 +312,16 @@ export function PageTreeSection({
     },
   })
 
+  // Cross-collection move INTO this section. Deliberately does NOT refetch on
+  // success: the optimistic splice below is the authoritative state, so the
+  // moved page lands in place instantly with no vanish-then-reappear blink.
+  // Roll back only on a real server error.
+  const moveInto = trpc.page.moveToCollection.useMutation({
+    onError: () => {
+      void utils.page.listByWorkspace.invalidate({ workspaceId })
+    },
+  })
+
   const flatItems = useMemo(() => flattenTree(pages, null, 0, collapsedIds), [pages, collapsedIds])
 
   const toggleCollapse = useCallback((id: string) => {
@@ -363,6 +374,68 @@ export function PageTreeSection({
     reorder.mutate({ pageId: draggedActiveId, newParentId, newPrevPageId })
   }
   useRegisterReorder(sectionId, reorderHandler)
+
+  // Cross-collection move INTO this section at the dropped position. Registered
+  // with the shared DndContext, which delegates here when a page from ANOTHER
+  // section is dropped onto this (move-target) section. Mirrors reorderHandler's
+  // position math, but also flips the page's collectionId and resolves `target`
+  // from this section's `location`.
+  function moveIntoHandler(active: Active, over: Over) {
+    // Only the primary Команда/Личное sections register this, so they always
+    // have a concrete collectionId + location.
+    if (!location || collectionId == null) return
+    const targetCollectionId = collectionId // narrowed to string
+    const draggedActiveId = active.id as string
+    const draggedPage = allPages.find((p) => p.id === draggedActiveId)
+    if (!draggedPage) return
+
+    // Resolve the drop position within THIS section's flat list.
+    const toIdx = flatItems.findIndex((i) => i.id === over.id)
+    const overItem = toIdx >= 0 ? flatItems[toIdx] : undefined
+
+    // Default = head of this collection (drop on the bare body / header zone).
+    let newParentId: string | null = null
+    let newPrevPageId: string | null = null
+    if (overItem) {
+      newParentId = overItem.parentId
+      // Cross-collection drops insert AFTER the hovered row: the page is new to
+      // this list, so there's no fromIdx ordering to compare against.
+      newPrevPageId = overItem.id
+    }
+
+    // Optimistic: move the page into this collection at the computed position
+    // and repair the two affected back-pointers (the page's old next sibling +
+    // the page that previously sat at the insert point).
+    utils.page.listByWorkspace.setData({ workspaceId }, (old) => {
+      if (!old) return old
+      const oldNextId = old.find((p) => p.prevPageId === draggedActiveId)?.id
+      const insertPointId = old.find(
+        (p) =>
+          p.prevPageId === newPrevPageId && p.parentId === newParentId && p.id !== draggedActiveId,
+      )?.id
+      return old.map((p) => {
+        if (p.id === draggedActiveId)
+          return {
+            ...p,
+            collectionId: targetCollectionId,
+            parentId: newParentId,
+            prevPageId: newPrevPageId,
+          }
+        if (oldNextId && p.id === oldNextId) return { ...p, prevPageId: draggedPage.prevPageId }
+        if (insertPointId && p.id === insertPointId) return { ...p, prevPageId: draggedActiveId }
+        return p
+      })
+    })
+
+    moveInto.mutate({
+      pageId: draggedActiveId,
+      workspaceId,
+      target: location, // 'team' | 'private'
+      newParentId,
+      newPrevPageId,
+    })
+  }
+  useRegisterMoveInto(sectionId, moveIntoHandler)
 
   const activeIdx = activeId ? flatItems.findIndex((i) => i.id === activeId) : -1
   const overIdx = overId ? flatItems.findIndex((i) => i.id === overId) : -1
@@ -425,6 +498,11 @@ export function PageTreeSection({
   const sectionContent = (isOver: boolean, setNodeRef?: (el: HTMLElement | null) => void) => (
     <Box
       ref={setNodeRef}
+      // Stable hook so a drop test can scope page rows to one section's subtree
+      // ('team' / 'private' for the primary collections, else the collection id) —
+      // sections share generated MUI class names, so there is no other reliable
+      // selector.
+      data-page-section={location ?? sectionId}
       sx={{
         display: 'flex',
         flexDirection: 'column',
