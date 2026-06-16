@@ -62,6 +62,24 @@ export class MarkdownParser {
         return [{ type: 'horizontalRule' }]
       case 'space':
         return []
+      case 'table': {
+        const t = token as Tokens.Table
+        const headerRow: TiptapNode = {
+          type: 'tableRow',
+          content: t.header.map((cell) => ({
+            type: 'tableHeader',
+            content: [{ type: 'paragraph', content: this.parseInline(cell.tokens) }],
+          })),
+        }
+        const bodyRows: TiptapNode[] = t.rows.map((row) => ({
+          type: 'tableRow',
+          content: row.map((cell) => ({
+            type: 'tableCell',
+            content: [{ type: 'paragraph', content: this.parseInline(cell.tokens) }],
+          })),
+        }))
+        return [{ type: 'table', content: [headerRow, ...bodyRows] }]
+      }
       default: {
         const inlineTokens = (token as { tokens?: Token[] }).tokens
         if (inlineTokens) return [{ type: 'paragraph', content: this.parseInline(inlineTokens) }]

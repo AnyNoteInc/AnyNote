@@ -216,6 +216,27 @@ describe('MarkdownParser', () => {
     })
   })
 
+  it('parses GFM tables into tiptap table nodes', () => {
+    const doc = parser.parse('| a | b |\n|---|---|\n| **1** | 2 |')
+    expect(doc.content).toHaveLength(1)
+    const table = doc.content[0]!
+    expect(table.type).toBe('table')
+    const rows = table.content!
+    expect(rows).toHaveLength(2)
+    // header row
+    expect(rows[0]!.content).toHaveLength(2) // two header columns
+    expect(rows[0]!.content![0]!.type).toBe('tableHeader')
+    expect(rows[0]!.content![0]!.content).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'a' }] },
+    ])
+    // body row, bold cell
+    expect(rows[1]!.content).toHaveLength(2) // two body columns
+    expect(rows[1]!.content![0]!.type).toBe('tableCell')
+    expect(rows[1]!.content![0]!.content).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: '1', marks: [{ type: 'bold' }] }] },
+    ])
+  })
+
   it('round-trips through MarkdownRenderer for supported nodes', async () => {
     const { MarkdownRenderer } = await import('./markdown-renderer.service.js')
     const renderer = new MarkdownRenderer()
