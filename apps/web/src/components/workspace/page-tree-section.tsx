@@ -411,7 +411,10 @@ export function PageTreeSection({
       const oldNextId = old.find((p) => p.prevPageId === draggedActiveId)?.id
       const insertPointId = old.find(
         (p) =>
-          p.prevPageId === newPrevPageId && p.parentId === newParentId && p.id !== draggedActiveId,
+          p.prevPageId === newPrevPageId &&
+          p.parentId === newParentId &&
+          p.collectionId === targetCollectionId &&
+          p.id !== draggedActiveId,
       )?.id
       return old.map((p) => {
         if (p.id === draggedActiveId)

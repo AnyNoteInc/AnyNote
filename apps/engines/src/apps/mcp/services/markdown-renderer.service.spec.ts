@@ -169,4 +169,61 @@ describe('MarkdownRenderer', () => {
     })
     expect(md).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
   })
+
+  it('escapes pipes and collapses newlines in table cells', () => {
+    const md = renderer.render({
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableHeader',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'h' }] }],
+                },
+                {
+                  type: 'tableHeader',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'h' }] }],
+                },
+              ],
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a | b' }] }],
+                },
+                {
+                  type: 'tableCell',
+                  content: [
+                    {
+                      type: 'paragraph',
+                      content: [
+                        { type: 'text', text: 'one' },
+                        { type: 'hardBreak' },
+                        { type: 'text', text: 'two' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const rows = md.split('\n')
+    // 3 rows: header, separator, body. The hardBreak must NOT add a 4th line.
+    expect(rows).toHaveLength(3)
+    // Literal pipe inside a cell is escaped so it doesn't split the column.
+    expect(md).toContain(String.raw`a \| b`)
+    // Hard break collapsed (no raw newline inside the body row).
+    expect(rows[2]).not.toContain('\n')
+    expect(rows[2]).toContain('one')
+    expect(rows[2]).toContain('two')
+  })
 })

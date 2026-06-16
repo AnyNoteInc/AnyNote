@@ -63,6 +63,8 @@ export class MarkdownRenderer {
         .map((n) => this.renderNode(n))
         .join(' ')
         .trim()
+        .replace(/\|/g, '\\|')
+        .replace(/\r?\n/g, ' ')
     const lines: string[] = []
     rows.forEach((row, rowIdx) => {
       const cells = (row.content ?? []).map(cellText)
