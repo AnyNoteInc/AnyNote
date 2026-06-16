@@ -14,6 +14,45 @@ export const userRouter = router({
     })
   }),
 
+  // GitHub-style activity: per-day counts of the caller's own page edits
+  // (PageRevision rows where actor_id = caller) over the last 12 months, plus a
+  // short list of the most recent actions for a feed. Soft-deleted pages are
+  // excluded from the recent-actions list.
+  activity: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await ctx.prisma.$queryRaw<{ day: Date | string; count: bigint }[]>`
+      SELECT date_trunc('day', created_at)::date AS day, count(*)::bigint AS count
+      FROM page_revisions
+      WHERE actor_id = ${ctx.user.id}::uuid
+        AND created_at >= now() - interval '12 months'
+      GROUP BY day
+      ORDER BY day
+    `
+    const grid = rows.map((r) => ({
+      date: typeof r.day === 'string' ? r.day : r.day.toISOString().slice(0, 10),
+      count: Number(r.count),
+    }))
+
+    const recentRaw = await ctx.prisma.pageRevision.findMany({
+      where: { actorId: ctx.user.id, page: { deletedAt: null } },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: {
+        action: true,
+        createdAt: true,
+        page: { select: { id: true, title: true, type: true } },
+      },
+    })
+    const recentActions = recentRaw.map((r) => ({
+      action: r.action,
+      createdAt: r.createdAt,
+      pageId: r.page.id,
+      pageTitle: r.page.title,
+      pageType: r.page.type,
+    }))
+
+    return { grid, recentActions }
+  }),
+
   // Search registered platform users to grant page access to people who are
   // NOT workspace members. Anti-enumeration: min 3 chars, prefix match,
   // capped results, display-only fields, excludes the caller.
