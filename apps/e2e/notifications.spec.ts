@@ -14,6 +14,12 @@ test('notifications page renders empty state for a fresh user', async ({ page })
   await page.goto('/notifications')
   await expect(page.getByRole('heading', { name: 'Уведомления' })).toBeVisible()
   await expect(page.getByText(/Здесь будут ваши уведомления/i)).toBeVisible()
+
+  // The standalone page renders the public home-page header (PublicHeader)…
+  await expect(page.getByRole('link', { name: 'На главную' })).toBeVisible()
+  await expect(page.getByText('Любые заметки')).toBeVisible()
+  // …and NOT the per-workspace shell (no sidebar "Скрыть" toggle).
+  await expect(page.getByRole('button', { name: 'Скрыть' })).toHaveCount(0)
 })
 
 test('preferences matrix renders on /settings/general', async ({ page }) => {
