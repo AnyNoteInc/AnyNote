@@ -423,7 +423,8 @@ export class PageRepository {
     // collection changes); a positioned DnD drop explicitly sets the target
     // parent. Defaulting to null here would orphan a nested page to the root.
     const newParentId = position ? (position.newParentId ?? null) : oldParentId
-    let newPrevPageId = position?.newPrevPageId ?? null
+    // No-position head-insert lands at prevPageId=null; positioned uses the drop point.
+    const newPrevPageId = position?.newPrevPageId ?? null
     if (!position) {
       // Head insert: the current head of (collection, parent) re-points at us.
       const head = await this.uow.client().page.findFirst({
@@ -441,7 +442,6 @@ export class PageRepository {
           .client()
           .page.update({ where: { id: head.id }, data: { prevPageId: pageId } })
       }
-      newPrevPageId = null
     } else {
       // Positioned insert: the row currently at newPrevPageId re-points to us.
       const pageAtInsertPoint = await this.uow.client().page.findFirst({

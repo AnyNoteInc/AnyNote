@@ -29,49 +29,51 @@ export const userRouter = router({
   // a leak. recentActions (which DOES expose titles) gets the full visibility
   // predicate via buildPageVisibilityWhere.
   activity: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.prisma.$queryRaw<{ day: Date | string; count: bigint }[]>`
-      SELECT date_trunc('day', pr.created_at)::date AS day, count(*)::bigint AS count
-      FROM page_revisions pr
-      JOIN pages pg ON pg.id = pr.page_id
-      WHERE pr.actor_id = ${ctx.user.id}::uuid
-        AND pg.deleted_at IS NULL
-        AND pr.created_at >= now() - interval '12 months'
-        AND EXISTS (
-          SELECT 1 FROM workspace_members wm
-          WHERE wm.workspace_id = pg.workspace_id
-            AND wm.user_id = ${ctx.user.id}::uuid
-        )
-      GROUP BY day
-      ORDER BY day
-    `
+    // The two queries are independent — run them concurrently (one wall-clock wait).
+    const [rows, recentRaw] = await Promise.all([
+      ctx.prisma.$queryRaw<{ day: Date | string; count: bigint }[]>`
+        SELECT date_trunc('day', pr.created_at)::date AS day, count(*)::bigint AS count
+        FROM page_revisions pr
+        JOIN pages pg ON pg.id = pr.page_id
+        WHERE pr.actor_id = ${ctx.user.id}::uuid
+          AND pg.deleted_at IS NULL
+          AND pr.created_at >= now() - interval '12 months'
+          AND EXISTS (
+            SELECT 1 FROM workspace_members wm
+            WHERE wm.workspace_id = pg.workspace_id
+              AND wm.user_id = ${ctx.user.id}::uuid
+          )
+        GROUP BY day
+        ORDER BY day
+      `,
+      ctx.prisma.pageRevision.findMany({
+        where: {
+          actorId: ctx.user.id,
+          page: {
+            deletedAt: null,
+            workspace: { members: { some: { userId: ctx.user.id } } },
+            AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+        select: {
+          action: true,
+          createdAt: true,
+          page: { select: { id: true, title: true } },
+        },
+      }),
+    ])
+
     const grid = rows.map((r) => ({
       date: typeof r.day === 'string' ? r.day : r.day.toISOString().slice(0, 10),
       count: Number(r.count),
     }))
-
-    const recentRaw = await ctx.prisma.pageRevision.findMany({
-      where: {
-        actorId: ctx.user.id,
-        page: {
-          deletedAt: null,
-          workspace: { members: { some: { userId: ctx.user.id } } },
-          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-      select: {
-        action: true,
-        createdAt: true,
-        page: { select: { id: true, title: true, type: true } },
-      },
-    })
     const recentActions = recentRaw.map((r) => ({
       action: r.action,
       createdAt: r.createdAt,
       pageId: r.page.id,
       pageTitle: r.page.title,
-      pageType: r.page.type,
     }))
 
     return { grid, recentActions }
