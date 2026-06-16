@@ -1,3 +1,28 @@
+# [1.26.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.25.0...v1.26.0) (2026-06-16)
+
+
+### Bug Fixes
+
+* **diagram:** sanitize foreignObject geometry in inline SVG + add page error boundary ([9c9a597](https://github.com/AnyNoteInc/AnyNote/commit/9c9a59749ad7953a6dbbbadee01767f5a767d345))
+* **domain:** moveToCollection detaches and splices at the drop position ([2aca3cc](https://github.com/AnyNoteInc/AnyNote/commit/2aca3cc464a67097a39d43b2c69b7efbab5026cc))
+* **domain:** moveToCollection preserves parentId on plain move + adds cycle/self-ref guards ([2ba328e](https://github.com/AnyNoteInc/AnyNote/commit/2ba328eb5c7ec67471097447c8e659b93ae92da5))
+* **engines:** parse GFM tables in MCP markdown parser ([36d3bd0](https://github.com/AnyNoteInc/AnyNote/commit/36d3bd020826385e402539db046fbd649d55e921))
+* **engines:** render table nodes to GFM markdown in MCP renderer ([8e85705](https://github.com/AnyNoteInc/AnyNote/commit/8e85705d04ed6c4444b59aba43903f3b830d32bb))
+* **engines:** serialize MCP tables into contentYjs via table extensions ([a4737c4](https://github.com/AnyNoteInc/AnyNote/commit/a4737c4f165a01ac8343f86fb27ecaeb872475d0))
+* scope optimistic move-into to target collection, escape table cells, drop dead SwitchWorkspaceButton ([a3706c9](https://github.com/AnyNoteInc/AnyNote/commit/a3706c931d9edfffb59e9128a00b62cd90fb1af7))
+* **trpc:** scope user.activity to current workspace memberships (no cross-tenant leak) ([db62416](https://github.com/AnyNoteInc/AnyNote/commit/db6241636d607928d8b9adccc78b16ba068beac7))
+* **web:** drag into Личное/Команда splices at the drop position, optimistically ([6a68e10](https://github.com/AnyNoteInc/AnyNote/commit/6a68e109e4e2102807227560fbcf841d0a1d1a4a))
+* **web:** hang page icon in the left gutter, keep title position fixed ([c0356d5](https://github.com/AnyNoteInc/AnyNote/commit/c0356d571c72261473fbf257f2fb4d37843148ba))
+* **web:** order pages by the linked-list chain within each collection ([711d52e](https://github.com/AnyNoteInc/AnyNote/commit/711d52efd0fb547ebd059ebeb0f00144d4025fca))
+* **web:** vertically center the right outline nav ([771846f](https://github.com/AnyNoteInc/AnyNote/commit/771846f803b5947c9eb85b19d1300ba2281c6cd2))
+
+
+### Features
+
+* **trpc:** user.activity per-day PageRevision counts + recent actions ([51ee3ba](https://github.com/AnyNoteInc/AnyNote/commit/51ee3bab178f0f0cc2a8a692401943c1dbd6953f))
+* **web:** move /notifications to a standalone page with the public header ([447516f](https://github.com/AnyNoteInc/AnyNote/commit/447516f09dedf7c504385a33fa7730f15f8db559))
+* **web:** replace profile workspaces with activity grid + recent actions ([806c24b](https://github.com/AnyNoteInc/AnyNote/commit/806c24b740c14dcb8270b2a4aa72db26a9c0894c))
+
 # [1.25.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.24.0...v1.25.0) (2026-06-15)
 
 
