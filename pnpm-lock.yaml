@@ -91,6 +91,18 @@ importers:
       '@repo/yookassa':
         specifier: workspace:*
         version: link:../../packages/yookassa
+      '@tiptap/extension-table':
+        specifier: 3.22.3
+        version: 3.22.3(@tiptap/core@3.22.5(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3)
+      '@tiptap/extension-table-cell':
+        specifier: 3.22.3
+        version: 3.22.3(@tiptap/extension-table@3.22.3(@tiptap/core@3.22.5(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3))
+      '@tiptap/extension-table-header':
+        specifier: 3.22.3
+        version: 3.22.3(@tiptap/extension-table@3.22.3(@tiptap/core@3.22.5(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3))
+      '@tiptap/extension-table-row':
+        specifier: 3.22.3
+        version: 3.22.3(@tiptap/extension-table@3.22.3(@tiptap/core@3.22.5(@tiptap/pm@3.22.3))(@tiptap/pm@3.22.3))
       '@tiptap/starter-kit':
         specifier: ^3.22.3
         version: 3.22.3

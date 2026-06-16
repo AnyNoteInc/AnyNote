@@ -1,14 +1,13 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common'
-import { TiptapTransformer } from '@hocuspocus/transformer'
 import type { PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
 import type { Domain } from '@repo/domain'
-import StarterKit from '@tiptap/starter-kit'
 import * as Y from 'yjs'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
+import { buildContentYjs } from './content-yjs.js'
 
 export type CreatePageInput = {
   userId: string
@@ -140,7 +139,8 @@ export class PageWriter {
         select: { id: true, workspaceId: true, type: true, content: true },
       })
       if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
-      if (page.type !== 'TEXT') throw new BadRequestException('appendToPage supports only TEXT pages')
+      if (page.type !== 'TEXT')
+        throw new BadRequestException('appendToPage supports only TEXT pages')
       const current = (page.content as TiptapDoc | null) ?? { type: 'doc', content: [] }
       const appendedDoc = input.appended as TiptapDoc
       const merged: TiptapDoc = {
@@ -149,7 +149,11 @@ export class PageWriter {
       }
       await tx.page.update({
         where: { id: input.pageId },
-        data: { content: merged as never, contentYjs: buildContentYjs(merged), updatedById: input.userId },
+        data: {
+          content: merged as never,
+          contentYjs: buildContentYjs(merged),
+          updatedById: input.userId,
+        },
       })
       await tx.outboxEvent.create({
         data: {
@@ -217,7 +221,13 @@ export class PageWriter {
         select: { id: true },
       })
       await tx.outboxEvent.create({
-        data: { eventType: 'page.upserted', aggregateType: 'page', aggregateId: page.id, workspaceId: input.workspaceId, payload: {} },
+        data: {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: page.id,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
       })
       return page.id
     })
@@ -239,10 +249,19 @@ export class PageWriter {
       if (!docName) throw new BadRequestException('Page is not a diagram page')
       await tx.page.update({
         where: { id: input.pageId },
-        data: { contentYjs: buildDiagramContentYjs(input.source, docName), updatedById: input.userId },
+        data: {
+          contentYjs: buildDiagramContentYjs(input.source, docName),
+          updatedById: input.userId,
+        },
       })
       await tx.outboxEvent.create({
-        data: { eventType: 'page.upserted', aggregateType: 'page', aggregateId: input.pageId, workspaceId: input.workspaceId, payload: {} },
+        data: {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: input.pageId,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
       })
     })
   }
@@ -261,14 +280,6 @@ export class PageWriter {
       throw new PageNotFoundError(parentId)
     }
   }
-}
-
-function buildContentYjs(content: unknown): Uint8Array<ArrayBuffer> {
-  const ydoc = TiptapTransformer.toYdoc(content, 'default', [StarterKit])
-  const src = Y.encodeStateAsUpdate(ydoc)
-  const contentYjs = new Uint8Array(new ArrayBuffer(src.byteLength))
-  contentYjs.set(src)
-  return contentYjs
 }
 
 /**

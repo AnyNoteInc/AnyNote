@@ -12,12 +12,12 @@ import { makeFakeDomain } from './__testutils__/fake-domain.js'
 function makePageWriterDomain(): Domain & {
   __mocks: { pagesCreate: ReturnType<typeof jest.fn>; pagesReorder: ReturnType<typeof jest.fn> }
 } {
-  const pagesCreate = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(
-    async () => ({ id: 'new-1' }),
-  )
-  const pagesReorder = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(
-    async () => ({ id: 'p1' }),
-  )
+  const pagesCreate = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(async () => ({
+    id: 'new-1',
+  }))
+  const pagesReorder = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(async () => ({
+    id: 'p1',
+  }))
   return Object.assign(
     makeFakeDomain({
       pages: { create: pagesCreate, reorder: pagesReorder } as unknown as Domain['pages'],
@@ -29,18 +29,20 @@ function makePageWriterDomain(): Domain & {
 function makeMockPrisma() {
   const txUpdate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({}))
   const outboxCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({}))
-  const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(
-    async () => ({ id: 'p1', workspaceId: 'w1' }),
-  )
-  const txFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(
-    async () => ({ id: 'p1', workspaceId: 'w1' }),
-  )
+  const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+    id: 'p1',
+    workspaceId: 'w1',
+  }))
+  const txFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+    id: 'p1',
+    workspaceId: 'w1',
+  }))
   const tx = {
     page: { findUnique: txFindUnique, update: txUpdate },
     outboxEvent: { create: outboxCreate },
   }
-  const $transaction = jest.fn<(...a: unknown[]) => Promise<unknown>>(
-    async (fn: unknown) => (fn as (t: typeof tx) => unknown)(tx),
+  const $transaction = jest.fn<(...a: unknown[]) => Promise<unknown>>(async (fn: unknown) =>
+    (fn as (t: typeof tx) => unknown)(tx),
   )
   return {
     page: { findUnique: pageFindUnique },
@@ -73,20 +75,38 @@ describe('PageWriter', () => {
     expect(fakeDomain.__mocks.pagesCreate).toHaveBeenCalledTimes(1)
     const [userId, input] = fakeDomain.__mocks.pagesCreate.mock.calls[0] as [string, unknown]
     expect(userId).toBe('u1')
-    expect(input).toMatchObject({ workspaceId: 'w1', parentId: null, title: 'Note', ownership: 'TEXT', type: 'TEXT' })
+    expect(input).toMatchObject({
+      workspaceId: 'w1',
+      parentId: null,
+      title: 'Note',
+      ownership: 'TEXT',
+      type: 'TEXT',
+    })
   })
 
   it('createPage passes contentYjs built from content to domain.pages.create', async () => {
     const content = { type: 'doc', content: [] }
     await writer.createPage({ userId: 'u1', workspaceId: 'w1', title: 'Note', content })
-    const [, input] = fakeDomain.__mocks.pagesCreate.mock.calls[0] as [string, Record<string, unknown>]
+    const [, input] = fakeDomain.__mocks.pagesCreate.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ]
     expect(input['contentYjs']).toBeInstanceOf(Uint8Array)
   })
 
   it('movePage delegates to domain.pages.reorder: calls reorder with correct pageId + parent/prev', async () => {
-    await writer.movePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', newParentId: 'parent-2', prevPageId: null })
+    await writer.movePage({
+      userId: 'u1',
+      workspaceId: 'w1',
+      pageId: 'p1',
+      newParentId: 'parent-2',
+      prevPageId: null,
+    })
     expect(fakeDomain.__mocks.pagesReorder).toHaveBeenCalledTimes(1)
-    const [userId, input] = fakeDomain.__mocks.pagesReorder.mock.calls[0] as [string, Record<string, unknown>]
+    const [userId, input] = fakeDomain.__mocks.pagesReorder.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ]
     expect(userId).toBe('u1')
     expect(input).toMatchObject({ pageId: 'p1', newParentId: 'parent-2', newPrevPageId: null })
   })
@@ -94,7 +114,13 @@ describe('PageWriter', () => {
   it('movePage throws when the page is not in the given workspace (engines cross-workspace guard)', async () => {
     mockPrisma.__mocks.pageFindUnique!.mockResolvedValue({ id: 'p1', workspaceId: 'OTHER' })
     await expect(
-      writer.movePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', newParentId: null, prevPageId: null }),
+      writer.movePage({
+        userId: 'u1',
+        workspaceId: 'w1',
+        pageId: 'p1',
+        newParentId: null,
+        prevPageId: null,
+      }),
     ).rejects.toThrow()
     // domain.pages.reorder must NOT be called if the guard throws
     expect(fakeDomain.__mocks.pagesReorder).not.toHaveBeenCalled()
@@ -109,7 +135,10 @@ describe('PageWriter', () => {
   })
 
   it('updatePage rebuilds contentYjs when content changes (editor loads from contentYjs)', async () => {
-    const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'баня' }] }] }
+    const content = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'баня' }] }],
+    }
     await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', content })
     const [args] = mockPrisma.__mocks.txUpdate!.mock.calls[0] as [{ data: Record<string, unknown> }]
     expect(args.data['content']).toBe(content)
