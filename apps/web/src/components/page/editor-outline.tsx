@@ -225,7 +225,8 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
         onMouseLeave={scheduleClose}
         sx={{
           position: 'fixed',
-          top: 80,
+          top: '50%',
+          transform: 'translateY(-50%)',
           right: 16 + rightOffset,
           transition: 'right 0.15s ease',
           zIndex: 5,
