@@ -35,8 +35,14 @@ describe('MarkdownParser', () => {
       {
         type: 'bulletList',
         content: [
-          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] },
-          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }] },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+          },
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }],
+          },
         ],
       },
     ])
@@ -47,8 +53,14 @@ describe('MarkdownParser', () => {
     expect(doc.content[0]).toMatchObject({
       type: 'orderedList',
       content: [
-        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first' }] }] },
-        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'second' }] }] },
+        {
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first' }] }],
+        },
+        {
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'second' }] }],
+        },
       ],
     })
   })
@@ -146,7 +158,11 @@ describe('MarkdownParser', () => {
       type: 'paragraph',
       content: [
         { type: 'text', text: 'see ' },
-        { type: 'text', text: 'docs', marks: [{ type: 'link', attrs: { href: 'https://example.com' } }] },
+        {
+          type: 'text',
+          text: 'docs',
+          marks: [{ type: 'link', attrs: { href: 'https://example.com' } }],
+        },
         { type: 'text', text: ' please' },
       ],
     })

@@ -129,4 +129,44 @@ describe('MarkdownRenderer', () => {
   it('renders horizontal rule', () => {
     expect(renderer.render({ type: 'doc', content: [{ type: 'horizontalRule' }] })).toBe('---')
   })
+
+  it('renders a table node back to a GFM markdown table', () => {
+    const md = renderer.render({
+      type: 'doc',
+      content: [
+        {
+          type: 'table',
+          content: [
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableHeader',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }],
+                },
+                {
+                  type: 'tableHeader',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }],
+                },
+              ],
+            },
+            {
+              type: 'tableRow',
+              content: [
+                {
+                  type: 'tableCell',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: '1' }] }],
+                },
+                {
+                  type: 'tableCell',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: '2' }] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    expect(md).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
+  })
 })

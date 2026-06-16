@@ -42,6 +42,8 @@ export class MarkdownRenderer {
           '```' + lang + '\n' + (node.content?.map((c) => c.text ?? '').join('') ?? '') + '\n```'
         )
       }
+      case 'table':
+        return this.renderTable(node)
       case 'horizontalRule':
         return '---'
       case 'hardBreak':
@@ -51,6 +53,23 @@ export class MarkdownRenderer {
       default:
         return this.renderInline(node.content ?? [])
     }
+  }
+
+  private renderTable(node: Node): string {
+    const rows = node.content ?? []
+    if (rows.length === 0) return ''
+    const cellText = (cell: Node): string =>
+      (cell.content ?? [])
+        .map((n) => this.renderNode(n))
+        .join(' ')
+        .trim()
+    const lines: string[] = []
+    rows.forEach((row, rowIdx) => {
+      const cells = (row.content ?? []).map(cellText)
+      lines.push(`| ${cells.join(' | ')} |`)
+      if (rowIdx === 0) lines.push(`| ${cells.map(() => '---').join(' | ')} |`)
+    })
+    return lines.join('\n')
   }
 
   private renderListItem(li: Node): string {

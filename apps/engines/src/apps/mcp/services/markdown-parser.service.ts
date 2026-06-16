@@ -132,9 +132,7 @@ export class MarkdownParser {
       case 'link': {
         const t = token as Tokens.Link
         const linkMark: Mark = { type: 'link', attrs: { href: t.href } }
-        return t.tokens.flatMap((nested) =>
-          this.parseInlineToken(nested, [...marks, linkMark]),
-        )
+        return t.tokens.flatMap((nested) => this.parseInlineToken(nested, [...marks, linkMark]))
       }
       case 'br':
         return [{ type: 'hardBreak', ...(marks.length ? { marks } : {}) }]
