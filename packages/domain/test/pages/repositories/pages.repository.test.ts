@@ -1023,4 +1023,47 @@ describe('PageRepository.moveToCollectionTx — detach + splice', () => {
       }),
     )
   })
+
+  it('(d) no position: preserves the current parentId (does not orphan to root)', async () => {
+    // A nested page p1 currently sits under parent 'par1', after sibling 'x'.
+    const findUnique = vi.fn(async () => ({ prevPageId: 'x', parentId: 'par1' }))
+    // Head-insert lookup must scope by the PRESERVED parent ('par1'), not null.
+    const findFirst = vi.fn(
+      async (arg: { where?: { prevPageId?: string | null; parentId?: string | null } }) => {
+        if (arg?.where?.prevPageId === 'p1') return null // no old next sibling
+        if (arg?.where?.prevPageId === null && arg?.where?.parentId === 'par1') {
+          return { id: 'head-1' } // current head of (colB, par1)
+        }
+        return null
+      },
+    )
+    const pageUpdate = vi.fn(async () => ({}))
+    const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
+    const repo = new PageRepository(
+      makeUow({
+        page: { findUnique, findFirst, update: pageUpdate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
+      }),
+    )
+
+    await repo.moveToCollectionTx('u1', 'p1', 'colB', 'w1') // no position arg
+
+    // Head-insert lookup scoped by the preserved parent.
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ parentId: 'par1', prevPageId: null }),
+      }),
+    )
+    // Current head of (colB, par1) re-points after us.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'head-1' },
+      data: { prevPageId: 'p1' },
+    })
+    // Final: parentId PRESERVED ('par1'), collection changed, head of its list.
+    expect(pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'p1' },
+      data: { collectionId: 'colB', parentId: 'par1', prevPageId: null, updatedById: 'u1' },
+    })
+  })
 })

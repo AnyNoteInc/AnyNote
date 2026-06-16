@@ -36,12 +36,18 @@ function makeRepo(
     findMembership: vi.fn(async () => ({ role: 'OWNER' as const })),
     findParentPage: vi.fn(async () => ({ id: 'par1' })),
     createPageTx: vi.fn(async () => ({ id: 'new-1' })),
-    renamePageTx: vi.fn(async () => ({ id: 'p1', title: 'New', icon: null, updatedAt: new Date() })),
+    renamePageTx: vi.fn(async () => ({
+      id: 'p1',
+      title: 'New',
+      icon: null,
+      updatedAt: new Date(),
+    })),
     updatePageTx: vi.fn(async () => ({ id: 'p1', title: null, icon: null, updatedAt: new Date() })),
     duplicatePageTx: vi.fn(async () => ({ id: 'copy-1' })),
     archivePageTx: vi.fn(async () => ({ id: 'p1' })),
     unarchivePageTx: vi.fn(async () => ({ id: 'p1' })),
     movePageTx: vi.fn(async () => ({ id: 'p1' })),
+    moveToCollectionTx: vi.fn(async () => ({ id: 'p1' })),
     reorderPageTx: vi.fn(async () => ({ id: 'p1' })),
     softDeletePageTx: vi.fn(async () => ({ id: 'p1' })),
     restorePageTx: vi.fn(async () => ({ id: 'p1' })),
@@ -299,7 +305,8 @@ describe('PageService.update — cover validation', () => {
       svc.update('u1', { ...base, coverUrl: 'http://example.com/cover.jpg' }),
     ).rejects.toMatchObject({
       httpStatus: 400,
-      message: 'Обложка должна быть ссылкой вида /api/files/<id> или https-ссылкой не длиннее 1024 символов',
+      message:
+        'Обложка должна быть ссылкой вида /api/files/<id> или https-ссылкой не длиннее 1024 символов',
     })
     expect(repo.updatePageTx).not.toHaveBeenCalled()
   })
@@ -419,7 +426,9 @@ describe('PageService.move', () => {
       findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
     })
     const svc = makePageService(repo)
-    await expect(svc.move('u1', { pageId: 'p1', newParentId: null })).rejects.toBeInstanceOf(DomainError)
+    await expect(svc.move('u1', { pageId: 'p1', newParentId: null })).rejects.toBeInstanceOf(
+      DomainError,
+    )
   })
 })
 
@@ -467,7 +476,11 @@ describe('PageService.reorder', () => {
 
   it('calls assertNotReorderingIntoOwnDescendant then reorderPageTx', async () => {
     const repo = makeRepo({
-      findActivePageById: vi.fn(async () => ({ ...basePageRow, parentId: 'old-par', prevPageId: null })),
+      findActivePageById: vi.fn(async () => ({
+        ...basePageRow,
+        parentId: 'old-par',
+        prevPageId: null,
+      })),
     })
     const svc = makePageService(repo)
     await svc.reorder('u1', { pageId: 'p1', newParentId: 'new-par', newPrevPageId: null })
@@ -492,6 +505,64 @@ describe('PageService.reorder', () => {
   })
 })
 
+// ── moveToCollection ──────────────────────────────────────────────────────────
+
+describe('PageService.moveToCollection', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws BAD_REQUEST for positioned self-reference (newPrevPageId === pageId)', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.moveToCollection('u1', {
+        pageId: 'p1',
+        workspaceId: 'w1',
+        target: 'team',
+        newParentId: null,
+        newPrevPageId: 'p1',
+      }),
+    ).rejects.toBeInstanceOf(DomainError)
+    expect(repo.moveToCollectionTx).not.toHaveBeenCalled()
+  })
+
+  it('calls assertNotReorderingIntoOwnDescendant for a positioned move with newParentId', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.moveToCollection('u1', {
+      pageId: 'p1',
+      workspaceId: 'w1',
+      target: 'team',
+      newParentId: 'new-par',
+      newPrevPageId: null,
+    })
+    expect(repo.assertNotReorderingIntoOwnDescendant).toHaveBeenCalledWith('p1', 'new-par')
+    expect(repo.moveToCollectionTx).toHaveBeenCalledOnce()
+  })
+
+  it('propagates BAD_REQUEST from the cycle check (move into own descendant)', async () => {
+    const repo = makeRepo({
+      assertNotReorderingIntoOwnDescendant: vi.fn(async () => {
+        throw Object.assign(new Error('Нельзя вложить страницу в собственного потомка'), {
+          code: 'BAD_REQUEST',
+          httpStatus: 400,
+          name: 'DomainError',
+        })
+      }),
+    })
+    const svc = makePageService(repo)
+    await expect(
+      svc.moveToCollection('u1', {
+        pageId: 'p1',
+        workspaceId: 'w1',
+        target: 'team',
+        newParentId: 'desc-1',
+        newPrevPageId: null,
+      }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.moveToCollectionTx).not.toHaveBeenCalled()
+  })
+})
+
 // ── softDelete ────────────────────────────────────────────────────────────────
 
 describe('PageService.softDelete', () => {
@@ -509,7 +580,9 @@ describe('PageService.softDelete', () => {
       findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
     })
     const svc = makePageService(repo)
-    await expect(svc.softDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
+    await expect(svc.softDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(
+      DomainError,
+    )
   })
 })
 
@@ -608,7 +681,9 @@ describe('PageService.hardDelete', () => {
   it('throws NOT_FOUND when page is inaccessible', async () => {
     const repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
     const svc = makePageService(repo)
-    await expect(svc.hardDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
+    await expect(svc.hardDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(
+      DomainError,
+    )
   })
 })
 

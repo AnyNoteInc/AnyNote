@@ -399,6 +399,7 @@ export class PageRepository {
       select: { prevPageId: true, parentId: true },
     })
     const oldPrevPageId = moved?.prevPageId ?? null
+    const oldParentId = moved?.parentId ?? null
 
     // Step 0: lift the moved page out so its prev_page_id UNIQUE slot is free
     // (two rows can't hold the same prev_page_id during the relink shuffle).
@@ -418,7 +419,10 @@ export class PageRepository {
       })
     }
 
-    const newParentId = position?.newParentId ?? null
+    // No-position move keeps the page in its CURRENT parent subtree (only the
+    // collection changes); a positioned DnD drop explicitly sets the target
+    // parent. Defaulting to null here would orphan a nested page to the root.
+    const newParentId = position ? (position.newParentId ?? null) : oldParentId
     let newPrevPageId = position?.newPrevPageId ?? null
     if (!position) {
       // Head insert: the current head of (collection, parent) re-points at us.

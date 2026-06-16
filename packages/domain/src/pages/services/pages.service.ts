@@ -192,6 +192,17 @@ export class PageService {
         ? await this.repo.findTeamCollectionId(input.workspaceId)
         : await this.repo.findPersonalCollectionId(input.workspaceId, actorUserId)
     const hasPosition = input.newParentId !== undefined || input.newPrevPageId !== undefined
+    if (hasPosition) {
+      // Self-reference guard (mirror reorder): a page can't sit after itself.
+      if (input.newPrevPageId === input.pageId) {
+        throw badRequest('Страница не может ссылаться на себя')
+      }
+      // Cycle guard (mirror reorder, before the tx): the target parent must not
+      // be a descendant of the moved page, or the page vanishes from the tree.
+      if (input.newParentId != null) {
+        await this.repo.assertNotReorderingIntoOwnDescendant(input.pageId, input.newParentId)
+      }
+    }
     return this.uow.transaction(() =>
       this.repo.moveToCollectionTx(
         actorUserId,
