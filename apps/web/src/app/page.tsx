@@ -10,6 +10,7 @@ import { organizationSchema } from '@/lib/seo/schemas/organization'
 import { softwareAppSchema } from '@/lib/seo/schemas/software-app'
 import { websiteSchema } from '@/lib/seo/schemas/website'
 
+import { HomeDownload } from '@/components/public/home/home-download'
 import { HomeHero } from '@/components/public/home/home-hero'
 import { HomeMarketFit } from '@/components/public/home/home-market-fit'
 import { HomeModes } from '@/components/public/home/home-modes'
@@ -58,6 +59,7 @@ export default async function HomePage() {
         hasAnyWorkspace={hasAnyWorkspace}
       />
       <main>
+        <HomeDownload />
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
         <HomeMarketFit />
         <HomeModes />
