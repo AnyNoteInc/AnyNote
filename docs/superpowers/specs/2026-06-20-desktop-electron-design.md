@@ -151,3 +151,16 @@ A new `HomeDownload` component becomes the **first** section on
    v1; signing is the documented follow-up.
 3. CI matrix build time / runner cost on every `v*` tag. Acceptable; same
    cadence as Deploy.
+
+## Follow-ups (post-v1)
+
+- **Auto-update UX.** v1 uses `autoUpdater.autoDownload = true` +
+  `checkForUpdatesAndNotify()` (native OS notification). There is no in-app
+  "restart to update" banner. Add an `update-downloaded` IPC → main-window
+  banner when we control more of the shell chrome.
+- **Code signing / notarization** (mac codesign + notarize, win signtool) —
+  needs certs/secrets; v1 ships unsigned (Gatekeeper/SmartScreen warnings).
+- **Google OAuth fallback** — only if the embedded webview is blocked (see
+  Authentication); system browser + `anynote://` deep-link.
+- **Electron upgrades** — track the supported-major cadence (started on 37);
+  a thin client loading remote origins should not run an EOL Chromium.
