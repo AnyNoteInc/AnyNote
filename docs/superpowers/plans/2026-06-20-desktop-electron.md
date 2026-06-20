@@ -148,6 +148,19 @@ release/
 node_modules/
 ```
 
+- [ ] **Step 4b: Create `apps/desktop/eslint.config.mjs`** (flat config, mirrors `apps/yjs`)
+
+The `lint` script needs a flat config to resolve. `@repo/eslint-config` exports a named `config` from `./base`:
+
+```js
+import { config } from '@repo/eslint-config/base'
+
+/** @type {import("eslint").Linter.Config[]} */
+export default config
+```
+
+Also add `@types/node`, `eslint`, and `typescript` to `devDependencies` (matching `apps/yjs`) so `lint` and `check-types` resolve their tools and `types: ["node"]` is satisfied.
+
 - [ ] **Step 5: Install and verify the workspace picks up the new package**
 
 Run: `pnpm install`
@@ -242,13 +255,18 @@ export function isValidServerUrl(input: string): boolean {
 }
 ```
 
-Note: `isValidServerUrl('')` normalizes to the default, which is valid — but the test asserts `false` for `''`. Guard explicitly:
+Important: empty input AND explicit non-http schemes both need guarding. `normalizeServerUrl('ftp://x')` wraps into `https://ftp://x` (no `https?://` prefix matched), which `new URL` parses as valid `https:` → would wrongly pass. Reject explicit non-http(s) schemes before normalizing:
 
 ```ts
 export function isValidServerUrl(input: string): boolean {
-  if (input.trim() === '') return false
+  const trimmed = input.trim()
+  if (trimmed === '') return false
+  // Reject any explicit scheme that is not http(s); otherwise the missing-scheme
+  // path would wrap e.g. "ftp://x" into "https://ftp://x" and wrongly pass.
+  const explicitScheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(trimmed)
+  if (explicitScheme && !/^https?$/i.test(explicitScheme[1]!)) return false
   try {
-    const url = new URL(normalizeServerUrl(input))
+    const url = new URL(normalizeServerUrl(trimmed))
     return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
     return false
@@ -256,7 +274,7 @@ export function isValidServerUrl(input: string): boolean {
 }
 ```
 
-Also `'not a url'` → `normalizeServerUrl` returns `https://not a url`; `new URL` throws on the space → `false`. Correct.
+`'not a url'` → `normalizeServerUrl` returns `https://not a url`; `new URL` throws on the space → `false`. Correct.
 
 - [ ] **Step 4: Run test to verify it passes**
 
