@@ -344,16 +344,42 @@ Expected: FAIL — cannot resolve `../src/main/health-check`.
 // apps/desktop/src/main/health-check.ts
 type FetchFn = (input: string, init?: { method?: string; signal?: AbortSignal }) => Promise<Response>
 
-export async function pingHealth(serverUrl: string, fetchFn: FetchFn): Promise<boolean> {
+// timeoutMs aborts the request so the connect button never hangs on a
+// firewalled host that accepts the connection but never responds.
+export async function pingHealth(
+  serverUrl: string,
+  fetchFn: FetchFn,
+  timeoutMs = 8000,
+): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetchFn(`${serverUrl}/api/health`, { method: 'GET' })
+    const res = await fetchFn(`${serverUrl}/api/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    })
     if (!res.ok) return false
     const body = (await res.json()) as { status?: string }
     return body.status === 'ok'
   } catch {
     return false
+  } finally {
+    clearTimeout(timer)
   }
 }
+```
+
+Add a 5th test asserting the timeout path:
+
+```ts
+  it('returns false when the request exceeds the timeout', async () => {
+    const fetchFn = vi.fn().mockImplementation((_url, init?: { signal?: AbortSignal }) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      }),
+    )
+    await expect(pingHealth('https://slow.invalid', fetchFn, 10)).resolves.toBe(false)
+  })
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -642,8 +668,17 @@ export function createMainWindow(serverUrl: string): BrowserWindow {
   applyUserAgent(win)
 
   // Open external (non-server-origin) links in the system browser.
+  // Compare parsed ORIGINS, not string prefixes — a prefix check would let
+  // https://anynote.ru.evil.com through.
+  const serverOrigin = new URL(serverUrl).origin
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(serverUrl)) {
+    let sameOrigin = false
+    try {
+      sameOrigin = new URL(url).origin === serverOrigin
+    } catch {
+      sameOrigin = false
+    }
+    if (!sameOrigin) {
       void shell.openExternal(url)
       return { action: 'deny' }
     }
@@ -663,6 +698,7 @@ export function createSelectionWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   })
   void win.loadFile(join(__dirname, '../renderer/selection.html'))
@@ -719,7 +755,8 @@ Plain HTML + vanilla TS (no React needed for one screen). Verified manually in T
     <input id="url" type="text" value="https://anynote.ru" autocomplete="off" />
     <button id="connect">Подключиться</button>
     <div class="error" id="error"></div>
-    <script type="module" src="./selection.js"></script>
+    <!-- IIFE bundle (see esbuild renderer entry); NOT type="module" -->
+    <script src="./selection.js"></script>
   </body>
 </html>
 ```
@@ -879,10 +916,16 @@ ipcMain.handle('anynote:connect', async (_event, raw: string) => {
   return { ok: true }
 })
 
-ipcMain.on('anynote:change-server', () => void changeServer())
+ipcMain.on('anynote:change-server', () => {
+  changeServer().catch((err) => console.error('[change-server]', err))
+})
 
 app.whenReady().then(() => {
-  Menu.setApplicationMenu(buildAppMenu(() => void changeServer()))
+  Menu.setApplicationMenu(
+    buildAppMenu(() => {
+      changeServer().catch((err) => console.error('[change-server]', err))
+    }),
+  )
   initAutoUpdates()
 
   const saved = getServerUrl()
@@ -944,7 +987,9 @@ const common = {
 const entries = [
   { entryPoints: ['src/main/index.ts'], outfile: 'dist/main/index.js' },
   { entryPoints: ['src/preload/index.ts'], outfile: 'dist/preload/index.js' },
-  { entryPoints: ['src/renderer/selection.ts'], outfile: 'dist/renderer/selection.js', platform: 'browser' },
+  // Renderer MUST be iife, not the shared cjs format — it's loaded by a plain
+  // <script> tag in a browser context; a cjs bundle would throw at runtime.
+  { entryPoints: ['src/renderer/selection.ts'], outfile: 'dist/renderer/selection.js', platform: 'browser', format: 'iife' },
 ]
 
 async function copyStatic() {
