@@ -32,8 +32,25 @@ export function withVerificationResendContext<T>(fn: () => Promise<T>): Promise<
 
 const VERIFY_EXPIRES_S = 60 * 60 * 3
 
+/**
+ * Authoritative public origin for links baked into transactional emails.
+ *
+ * `BETTER_AUTH_URL` is the source of truth: it is a server-side runtime var
+ * (read fresh from the rendered `.env` in prod), whereas `NEXT_PUBLIC_BASE_URL`
+ * is inlined at BUILD time and behind a reverse proxy better-auth would
+ * otherwise derive the request origin as `localhost:3000`. Prefer
+ * `BETTER_AUTH_URL`, keep `NEXT_PUBLIC_BASE_URL` as a fallback, then localhost
+ * for dev. Trailing slashes are trimmed so `${appUrl()}/path` never doubles.
+ */
 function appUrl(): string {
-  return process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+  // An empty/whitespace env var is treated as unset (it would otherwise win
+  // the `??` chain and yield a broken `/path`-only link).
+  const pick = (v: string | undefined): string | undefined => v?.trim() || undefined
+  const raw =
+    pick(process.env.BETTER_AUTH_URL) ??
+    pick(process.env.NEXT_PUBLIC_BASE_URL) ??
+    'http://localhost:3000'
+  return raw.replace(/\/+$/, '')
 }
 
 /**
@@ -87,6 +104,11 @@ export function isSignupEmailAllowed(email: string, envValue: string | null | un
 }
 
 const auth = betterAuth({
+  // Pin the public origin so the verification/reset links better-auth builds
+  // itself (the `url` it passes to sendVerificationEmail) use the configured
+  // domain instead of the request origin, which resolves to localhost:3000
+  // behind the Docker reverse proxy. Same authoritative value as appUrl().
+  baseURL: appUrl(),
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),

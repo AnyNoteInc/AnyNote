@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { renderInApp } from '../src/templates/in-app.ts'
 import { renderPushPayload } from '../src/templates/push.ts'
@@ -106,5 +106,37 @@ describe('renderEmailForEvent', () => {
   it('returns null for events without an email template (e.g. ROLE_CHANGED)', () => {
     const result = renderEmailForEvent('ROLE_CHANGED', {})
     expect(result).toBeNull()
+  })
+
+  describe('REMINDER_DUE baseUrl resolution', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs()
+    })
+
+    const renderReminder = () =>
+      renderEmailForEvent('REMINDER_DUE', {
+        reminderId: 'rem',
+        pageId: 'page',
+        workspaceId: 'ws',
+        dueAt: '2026-06-15T11:00:00.000Z',
+        offsetMinutes: 0,
+      }) as { kind: string; data: { baseUrl: string } }
+
+    it('prefers BETTER_AUTH_URL over NEXT_PUBLIC_BASE_URL for the email link', () => {
+      vi.stubEnv('BETTER_AUTH_URL', 'https://anynote.ru')
+      vi.stubEnv('NEXT_PUBLIC_BASE_URL', 'http://localhost:3000')
+      expect(renderReminder().data.baseUrl).toBe('https://anynote.ru')
+    })
+
+    it('falls back to NEXT_PUBLIC_BASE_URL when BETTER_AUTH_URL is unset', () => {
+      vi.stubEnv('BETTER_AUTH_URL', '')
+      vi.stubEnv('NEXT_PUBLIC_BASE_URL', 'https://fallback.example')
+      expect(renderReminder().data.baseUrl).toBe('https://fallback.example')
+    })
+
+    it('trims trailing slashes so the link never doubles', () => {
+      vi.stubEnv('BETTER_AUTH_URL', 'https://anynote.ru/')
+      expect(renderReminder().data.baseUrl).toBe('https://anynote.ru')
+    })
   })
 })

@@ -78,10 +78,22 @@ export function getYookassaClient(): YookassaClient {
   return client
 }
 
+/**
+ * Public origin used for links minted server-side in the tRPC context:
+ * invite/join/guest-invite/share emails AND the YooKassa payment return URL.
+ *
+ * Prefer `BETTER_AUTH_URL` (the authoritative runtime origin) so emailed links
+ * never carry the build-time `localhost:3000`. `YOOKASSA_RETURN_URL_BASE` is
+ * kept as a fallback for the rare case it must diverge from the auth domain,
+ * then `NEXT_PUBLIC_BASE_URL`, then localhost for dev. Empty/whitespace values
+ * are treated as unset and trailing slashes trimmed so `${base}/path` is clean.
+ */
 export function getReturnUrlBase(): string {
-  return (
-    process.env.YOOKASSA_RETURN_URL_BASE ??
-    process.env.NEXT_PUBLIC_BASE_URL ??
+  const pick = (v: string | undefined): string | undefined => v?.trim() || undefined
+  const raw =
+    pick(process.env.BETTER_AUTH_URL) ??
+    pick(process.env.YOOKASSA_RETURN_URL_BASE) ??
+    pick(process.env.NEXT_PUBLIC_BASE_URL) ??
     'http://localhost:3000'
-  )
+  return raw.replace(/\/+$/, '')
 }
