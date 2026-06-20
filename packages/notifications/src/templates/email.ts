@@ -3,6 +3,18 @@ import type { NotificationEventType } from '@repo/db'
 
 export type EmailRendered = { kind: MailKind; data: MailPayloads[MailKind] }
 
+/**
+ * Authoritative public origin for links baked into transactional emails.
+ * Prefers `BETTER_AUTH_URL` (a server-side runtime var) over the build-time
+ * `NEXT_PUBLIC_BASE_URL`; an empty/whitespace value is treated as unset so it
+ * doesn't win and produce a path-only link. Trailing slashes are trimmed.
+ */
+function resolveEmailBaseUrl(): string {
+  const pick = (v: string | undefined): string | undefined => v?.trim() || undefined
+  const raw = pick(process.env.BETTER_AUTH_URL) ?? pick(process.env.NEXT_PUBLIC_BASE_URL) ?? ''
+  return raw.replace(/\/+$/, '')
+}
+
 export function renderEmailForEvent(
   type: NotificationEventType,
   payload: Record<string, unknown>,
@@ -109,7 +121,11 @@ export function renderEmailForEvent(
           label: typeof p.label === 'string' ? p.label : null,
           dueAtIso: p.dueAt ?? '',
           offsetMinutes: offset,
-          baseUrl: process.env.NEXT_PUBLIC_BASE_URL ?? '',
+          // Prefer BETTER_AUTH_URL (server-side runtime origin) over the
+          // build-time NEXT_PUBLIC_BASE_URL so email links use the configured
+          // domain, not localhost behind the reverse proxy. Empty/whitespace
+          // is treated as unset so it doesn't win and yield a path-only link.
+          baseUrl: resolveEmailBaseUrl(),
         },
       }
     }

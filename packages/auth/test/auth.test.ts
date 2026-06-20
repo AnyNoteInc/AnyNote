@@ -268,6 +268,29 @@ describe('auth callbacks', () => {
     expect(jwtPlugin?.options?.jwt?.audience).toBe('anynote-yjs-test')
   })
 
+  it('baseURL is built from BETTER_AUTH_URL so email links use the configured domain', async () => {
+    vi.resetModules()
+    vi.stubEnv('BETTER_AUTH_URL', 'https://anynote.ru')
+    vi.stubEnv('NEXT_PUBLIC_BASE_URL', 'http://localhost:3000')
+    const { auth: scopedAuth } = await import('../src/auth.js')
+    expect(scopedAuth.options.baseURL).toBe('https://anynote.ru')
+  })
+
+  it('baseURL falls back to NEXT_PUBLIC_BASE_URL when BETTER_AUTH_URL is unset', async () => {
+    vi.resetModules()
+    vi.stubEnv('BETTER_AUTH_URL', '')
+    vi.stubEnv('NEXT_PUBLIC_BASE_URL', 'https://fallback.example')
+    const { auth: scopedAuth } = await import('../src/auth.js')
+    expect(scopedAuth.options.baseURL).toBe('https://fallback.example')
+  })
+
+  it('baseURL trims trailing slashes so links never double', async () => {
+    vi.resetModules()
+    vi.stubEnv('BETTER_AUTH_URL', 'https://anynote.ru/')
+    const { auth: scopedAuth } = await import('../src/auth.js')
+    expect(scopedAuth.options.baseURL).toBe('https://anynote.ru')
+  })
+
   it('stores long OAuth tokens for social accounts', async () => {
     const email = `long-oauth-token${TAG}`
     const user = await prisma.user.create({
