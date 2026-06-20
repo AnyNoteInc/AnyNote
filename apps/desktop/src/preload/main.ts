@@ -12,6 +12,3 @@ contextBridge.exposeInMainWorld(
 contextBridge.exposeInMainWorld('anynoteBridge', {
   changeServer: () => ipcRenderer.send('anynote:change-server'),
 })
-contextBridge.exposeInMainWorld('anynoteSetup', {
-  connect: (url: string) => ipcRenderer.invoke('anynote:connect', url),
-})

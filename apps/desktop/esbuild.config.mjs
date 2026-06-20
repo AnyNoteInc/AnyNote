@@ -12,7 +12,8 @@ const common = {
 }
 const entries = [
   { entryPoints: ['src/main/index.ts'], outfile: 'dist/main/index.js' },
-  { entryPoints: ['src/preload/index.ts'], outfile: 'dist/preload/index.js' },
+  { entryPoints: ['src/preload/main.ts'], outfile: 'dist/preload/main.js' },
+  { entryPoints: ['src/preload/setup.ts'], outfile: 'dist/preload/setup.js' },
   {
     entryPoints: ['src/renderer/selection.ts'],
     outfile: 'dist/renderer/selection.js',

@@ -1,5 +1,6 @@
 appId: ru.anynote.desktop
 productName: AnyNote
+artifactName: '${productName}.${ext}'
 directories:
   output: release
 files:
@@ -17,6 +18,7 @@ mac:
 win:
   target:
     - nsis
+  artifactName: '${productName}-Setup.${ext}'
 linux:
   target:
     - AppImage
