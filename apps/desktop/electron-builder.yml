@@ -1,0 +1,24 @@
+appId: ru.anynote.desktop
+productName: AnyNote
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+publish:
+  provider: github
+  owner: AnyNoteInc
+  repo: AnyNote
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Office
