@@ -37,10 +37,16 @@ ipcMain.handle('anynote:connect', async (_event, raw: string) => {
   return { ok: true }
 })
 
-ipcMain.on('anynote:change-server', () => void changeServer())
+ipcMain.on('anynote:change-server', () => {
+  changeServer().catch((err) => console.error('[change-server]', err))
+})
 
 app.whenReady().then(() => {
-  Menu.setApplicationMenu(buildAppMenu(() => void changeServer()))
+  Menu.setApplicationMenu(
+    buildAppMenu(() => {
+      changeServer().catch((err) => console.error('[change-server]', err))
+    }),
+  )
   initAutoUpdates()
   const saved = getServerUrl()
   if (saved) showMain(saved)

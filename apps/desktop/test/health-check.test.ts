@@ -26,4 +26,12 @@ describe('pingHealth', () => {
     const fetchFn = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
     await expect(pingHealth('https://nope.invalid', fetchFn)).resolves.toBe(false)
   })
+  it('returns false when the request exceeds the timeout', async () => {
+    const fetchFn = vi.fn().mockImplementation((_url, init?: { signal?: AbortSignal }) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+      }),
+    )
+    await expect(pingHealth('https://slow.invalid', fetchFn, 10)).resolves.toBe(false)
+  })
 })

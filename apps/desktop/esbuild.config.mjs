@@ -17,6 +17,7 @@ const entries = [
     entryPoints: ['src/renderer/selection.ts'],
     outfile: 'dist/renderer/selection.js',
     platform: 'browser',
+    format: 'iife',
   },
 ]
 

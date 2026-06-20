@@ -31,8 +31,15 @@ export function createMainWindow(serverUrl: string): BrowserWindow {
     },
   })
   applyUserAgent(win)
+  const serverOrigin = new URL(serverUrl).origin
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(serverUrl)) {
+    let sameOrigin = false
+    try {
+      sameOrigin = new URL(url).origin === serverOrigin
+    } catch {
+      sameOrigin = false
+    }
+    if (!sameOrigin) {
       void shell.openExternal(url)
       return { action: 'deny' }
     }
@@ -51,6 +58,7 @@ export function createSelectionWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   })
   void win.loadFile(join(__dirname, '../renderer/selection.html'))
