@@ -1,0 +1,49 @@
+name: Desktop
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Builds the Electron thin-client installers for all three desktop platforms
+# on each release tag and publishes them to the matching GitHub Release.
+# Runs independently of (and in parallel with) the Deploy workflow, which also
+# triggers on v* tags.
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: dist:mac
+          - os: windows-latest
+            target: dist:win
+          - os: ubuntu-latest
+            target: dist:linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    permissions:
+      contents: write # publish installer assets to the release
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and publish desktop installer
+        # electron-builder publishes to the GitHub Release for the current tag
+        # (publish config lives in apps/desktop/electron-builder.yml). With
+        # --publish always it uploads to the release matching this tag,
+        # creating it if it does not yet exist. GH_TOKEN drives the publisher;
+        # the job's contents:write permission is sufficient to attach assets.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter desktop run ${{ matrix.target }} -- --publish always
