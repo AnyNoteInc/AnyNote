@@ -20,5 +20,11 @@ export default defineConfig({
     include: ['test/**/*.test.{ts,tsx}'],
     globalSetup: ['test/setup.ts'],
     setupFiles: ['test/setup.jsdom.ts'],
+    // Async route/interaction tests await real macrotasks; on a CI runner
+    // saturated by the parallel monorepo test run the event loop is starved and
+    // an await can exceed vitest's default 5000ms per-test budget even though
+    // it resolves in a few ms locally (the known files-upload-kinds GATE-flake).
+    // Give them headroom under load.
+    testTimeout: 20000,
   },
 })
