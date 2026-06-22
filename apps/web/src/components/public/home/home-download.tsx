@@ -7,6 +7,7 @@ import { Box, Button, Container, Stack, Typography } from '@repo/ui/components'
 import { DESKTOP_PLATFORMS, type DesktopOS, detectOS, downloadUrl } from '@/lib/download-links'
 
 import { homeBaseSx } from './home-tokens'
+import { MacGatekeeperHelp } from './mac-gatekeeper-help'
 
 const LABEL: Record<DesktopOS, string> = { mac: 'macOS', win: 'Windows', linux: 'Linux' }
 
@@ -80,6 +81,13 @@ export function HomeDownload() {
                 </Typography>
               ))}
             </Stack>
+          )}
+          {/* Unsigned app: macOS Gatekeeper blocks first launch. Show the
+              workaround to Mac users (and when the OS is still unknown). */}
+          {(primary === 'mac' || primary === null) && (
+            <Box sx={{ pt: 1, width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <MacGatekeeperHelp />
+            </Box>
           )}
         </Stack>
       </Container>
