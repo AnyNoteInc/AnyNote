@@ -6,9 +6,11 @@ on:
   workflow_dispatch:
 
 # Builds the Electron thin-client installers for all three desktop platforms
-# on each release tag and publishes them to the matching GitHub Release.
-# Runs independently of (and in parallel with) the Deploy workflow, which also
-# triggers on v* tags.
+# on each release tag and uploads them to the public S3/MinIO bucket under
+# `desktop/`, where the web app's /api/download/[os] route streams them to
+# anonymous visitors. The repo (and its GitHub Releases) are private, so we do
+# NOT publish release assets — visitors could not download them.
+# Runs independently of (and in parallel with) the Deploy workflow.
 jobs:
   build:
     strategy:
@@ -17,14 +19,15 @@ jobs:
         include:
           - os: macos-latest
             target: dist:mac
+            asset: AnyNote.dmg
           - os: windows-latest
             target: dist:win
+            asset: AnyNote-Setup.exe
           - os: ubuntu-latest
             target: dist:linux
+            asset: AnyNote.AppImage
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    permissions:
-      contents: write # publish installer assets to the release
     steps:
       - uses: actions/checkout@v5
 
@@ -38,12 +41,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and publish desktop installer
-        # electron-builder publishes to the GitHub Release for the current tag
-        # (publish config lives in apps/desktop/electron-builder.yml). With
-        # --publish always it uploads to the release matching this tag,
-        # creating it if it does not yet exist. GH_TOKEN drives the publisher;
-        # the job's contents:write permission is sufficient to attach assets.
+      - name: Build desktop installer
+        # electron-builder writes installers to apps/desktop/release/ (output
+        # dir in apps/desktop/electron-builder.yml). No --publish: we ship via
+        # S3, not GitHub Releases.
+        run: pnpm --filter desktop run ${{ matrix.target }}
+
+      - name: Upload installer to S3
+        # aws CLI is preinstalled on all GitHub-hosted runners. Path-style
+        # addressing + custom endpoint target MinIO. The `desktop/` prefix is
+        # served by the web app at /api/download/<os>.
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm --filter desktop run ${{ matrix.target }} -- --publish always
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.S3_REGION }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          aws s3 cp \
+            "apps/desktop/release/${{ matrix.asset }}" \
+            "s3://${S3_BUCKET}/desktop/${{ matrix.asset }}" \
+            --endpoint-url "${S3_ENDPOINT}"

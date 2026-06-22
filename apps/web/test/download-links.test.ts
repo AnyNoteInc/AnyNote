@@ -19,10 +19,10 @@ describe('detectOS', () => {
 })
 
 describe('downloadUrl', () => {
-  it('builds a local /downloads asset path per platform', () => {
-    expect(downloadUrl('mac')).toBe('/downloads/AnyNote.dmg')
-    expect(downloadUrl('win')).toBe('/downloads/AnyNote-Setup.exe')
-    expect(downloadUrl('linux')).toBe('/downloads/AnyNote.AppImage')
+  it('points at the /api/download proxy route per platform', () => {
+    expect(downloadUrl('mac')).toBe('/api/download/mac')
+    expect(downloadUrl('win')).toBe('/api/download/win')
+    expect(downloadUrl('linux')).toBe('/api/download/linux')
   })
   it('DESKTOP_PLATFORMS lists all three platforms with labels', () => {
     expect(DESKTOP_PLATFORMS.map((p) => p.id)).toEqual(['mac', 'win', 'linux'])
