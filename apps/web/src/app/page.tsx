@@ -59,7 +59,6 @@ export default async function HomePage() {
         hasAnyWorkspace={hasAnyWorkspace}
       />
       <main>
-        <HomeDownload />
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
         <HomeMarketFit />
         <HomeModes />
@@ -69,6 +68,7 @@ export default async function HomePage() {
         <HomePricing />
         <HomeContact />
         <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />
+        <HomeDownload />
       </main>
       <PublicFooter />
       <CookieBanner />

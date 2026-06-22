@@ -10,10 +10,11 @@
     "lint": "eslint --max-warnings 0 src",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
-    "dist": "pnpm build && electron-builder",
-    "dist:mac": "pnpm build && electron-builder --mac",
-    "dist:win": "pnpm build && electron-builder --win",
-    "dist:linux": "pnpm build && electron-builder --linux"
+    "dist": "pnpm build && electron-builder && pnpm copy-to-web",
+    "dist:mac": "pnpm build && electron-builder --mac && pnpm copy-to-web",
+    "dist:win": "pnpm build && electron-builder --win && pnpm copy-to-web",
+    "dist:linux": "pnpm build && electron-builder --linux && pnpm copy-to-web",
+    "copy-to-web": "node scripts/copy-to-web.mjs"
   },
   "dependencies": {
     "electron-store": "^10.0.0",

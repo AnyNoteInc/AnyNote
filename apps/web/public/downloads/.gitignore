@@ -1,0 +1,13 @@
+# Desktop installers are build artifacts — never commit them.
+# They are copied here by `pnpm --filter desktop dist` (scripts/copy-to-web.mjs).
+*.dmg
+*.exe
+*.AppImage
+*.zip
+*.deb
+*.blockmap
+
+# but keep the folder + docs tracked
+!.gitignore
+!.gitkeep
+!README.md

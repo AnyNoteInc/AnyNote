@@ -1,6 +1,8 @@
 export type DesktopOS = 'mac' | 'win' | 'linux'
 
-const RELEASE_BASE = 'https://github.com/AnyNoteInc/AnyNote/releases/latest/download'
+// Binaries are served locally from apps/web/public/downloads/ (populated by the
+// desktop `dist` build via scripts/copy-to-web.mjs), not from GitHub releases.
+const RELEASE_BASE = '/downloads'
 
 const ASSET: Record<DesktopOS, string> = {
   mac: 'AnyNote.dmg',

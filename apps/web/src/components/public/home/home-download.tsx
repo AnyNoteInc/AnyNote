@@ -21,7 +21,7 @@ export function HomeDownload() {
       component="section"
       sx={{
         ...homeBaseSx,
-        borderBottom: '1px solid',
+        borderTop: '1px solid',
         borderColor: 'divider',
         py: { xs: 5, md: 7 },
       }}
@@ -36,13 +36,30 @@ export function HomeDownload() {
             self-hosted сервером.
           </Typography>
           {primary ? (
-            <Button component="a" href={downloadUrl(primary)} variant="contained" size="large">
+            <Button
+              component="a"
+              href={downloadUrl(primary)}
+              download
+              variant="contained"
+              size="large"
+              // Inline style: unlayered, beats the global `a { color: inherit }`.
+              // (MUI's sx color lands in @layer mui and loses to that reset.)
+              style={{ color: '#fff' }}
+            >
               Скачать для {LABEL[primary]}
             </Button>
           ) : (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               {DESKTOP_PLATFORMS.map((p) => (
-                <Button key={p.id} component="a" href={downloadUrl(p.id)} variant="contained">
+                <Button
+                  key={p.id}
+                  component="a"
+                  href={downloadUrl(p.id)}
+                  download
+                  variant="contained"
+                  // Inline style: unlayered, beats the global `a { color: inherit }`.
+                  style={{ color: '#fff' }}
+                >
                   Скачать для {p.label}
                 </Button>
               ))}
@@ -55,6 +72,7 @@ export function HomeDownload() {
                   key={p.id}
                   component="a"
                   href={downloadUrl(p.id)}
+                  download
                   variant="body2"
                   sx={{ color: 'text.secondary', textDecoration: 'underline' }}
                 >
