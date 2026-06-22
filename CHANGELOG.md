@@ -1,3 +1,10 @@
+## [1.28.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.3...v1.28.4) (2026-06-22)
+
+
+### Bug Fixes
+
+* **desktop:** set homepage/author in package.json, not electron-builder.yml ([588ec18](https://github.com/AnyNoteInc/AnyNote/commit/588ec1841bc0fd0ad15be180b94588b21c1b854f))
+
 ## [1.28.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.2...v1.28.3) (2026-06-22)
 
 
