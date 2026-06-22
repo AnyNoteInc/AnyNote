@@ -1,3 +1,31 @@
+# [1.27.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.26.0...v1.27.0) (2026-06-22)
+
+
+### Bug Fixes
+
+* **auth:** use BETTER_AUTH_URL for transactional email links ([f7ed19e](https://github.com/AnyNoteInc/AnyNote/commit/f7ed19eef73267937cebbc3496cab0c0a21c680b))
+* **desktop:** emit .cjs main/preload and lazy electron-store init ([c144a76](https://github.com/AnyNoteInc/AnyNote/commit/c144a7684ed81545337dcf7797d4e6525f6b09e5))
+* **desktop:** origin-check external links, sandbox selection window, ping timeout, iife renderer, log change-server errors ([737919b](https://github.com/AnyNoteInc/AnyNote/commit/737919bb36109995f16fc4c313009166673e83de))
+* **desktop:** pin installer artifact names, split preload to isolate setup bridge, bump electron ([d688efe](https://github.com/AnyNoteInc/AnyNote/commit/d688efea182822209bb7715907a95d3aef8c1fe8))
+
+
+### Features
+
+* **auth:** hide Google sign-in from the site; add proprietary LICENSE ([ad56a24](https://github.com/AnyNoteInc/AnyNote/commit/ad56a2419755f8657ecb9eaaad6d8099356282cf))
+* **desktop:** app entry, menu, connect IPC, auto-update ([cdae79b](https://github.com/AnyNoteInc/AnyNote/commit/cdae79bd458103311ef0d3a75cf8589e9c10307f))
+* **desktop:** desktop user-agent builder ([10cb117](https://github.com/AnyNoteInc/AnyNote/commit/10cb117da298c001d6841a3c6f7aaee8075847d2))
+* **desktop:** electron-store server-url config ([68e9b5c](https://github.com/AnyNoteInc/AnyNote/commit/68e9b5cb59895bcc2278fbc2657e0760c08c3133))
+* **desktop:** health-check ping with injectable fetch ([242ba9c](https://github.com/AnyNoteInc/AnyNote/commit/242ba9c6185d47c887d4e7a8f54df3e8d1b2f54b))
+* **desktop:** local server-selection screen ([ffa4164](https://github.com/AnyNoteInc/AnyNote/commit/ffa41643b0625c1a2b7709791d6c2dc79dd841c6))
+* **desktop:** main window with custom UA and external-link handling ([9bd758a](https://github.com/AnyNoteInc/AnyNote/commit/9bd758adc27e4cd2c91e2847dad6ad6db90fa313))
+* **desktop:** preload contextBridge for window.anynote ([2d0ed62](https://github.com/AnyNoteInc/AnyNote/commit/2d0ed62d0a6468b05513acda44f95abb4c184627))
+* **desktop:** server-url normalization and validation ([3c28d91](https://github.com/AnyNoteInc/AnyNote/commit/3c28d916008d76981ac669ab887f323a5b2f050c))
+* **desktop:** window.anynote api shape ([55d0cce](https://github.com/AnyNoteInc/AnyNote/commit/55d0cce11a8e6c2bbb7abaa6e24231a17b8264e2))
+* **web:** desktop download-link helpers ([16f99d7](https://github.com/AnyNoteInc/AnyNote/commit/16f99d7add3a3de458d2af41d31dabb4a291316f))
+* **web:** HomeDownload section component ([190b584](https://github.com/AnyNoteInc/AnyNote/commit/190b5842a31addead01c545787420bbdb1507d03))
+* **web:** recognize AnyNote desktop client in session list ([c8b69c9](https://github.com/AnyNoteInc/AnyNote/commit/c8b69c996e8acfe20eeb8c45045db1c06eeed5d7))
+* **web:** show desktop download section first on home page ([2d16950](https://github.com/AnyNoteInc/AnyNote/commit/2d169500ebd875d7c58c2d0a70c1edb6de1f7c62))
+
 # [1.26.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.25.0...v1.26.0) (2026-06-16)
 
 
