@@ -19,16 +19,10 @@ describe('detectOS', () => {
 })
 
 describe('downloadUrl', () => {
-  it('builds a GitHub latest-release asset URL per platform', () => {
-    expect(downloadUrl('mac')).toBe(
-      'https://github.com/AnyNoteInc/AnyNote/releases/latest/download/AnyNote.dmg',
-    )
-    expect(downloadUrl('win')).toBe(
-      'https://github.com/AnyNoteInc/AnyNote/releases/latest/download/AnyNote-Setup.exe',
-    )
-    expect(downloadUrl('linux')).toBe(
-      'https://github.com/AnyNoteInc/AnyNote/releases/latest/download/AnyNote.AppImage',
-    )
+  it('builds a local /downloads asset path per platform', () => {
+    expect(downloadUrl('mac')).toBe('/downloads/AnyNote.dmg')
+    expect(downloadUrl('win')).toBe('/downloads/AnyNote-Setup.exe')
+    expect(downloadUrl('linux')).toBe('/downloads/AnyNote.AppImage')
   })
   it('DESKTOP_PLATFORMS lists all three platforms with labels', () => {
     expect(DESKTOP_PLATFORMS.map((p) => p.id)).toEqual(['mac', 'win', 'linux'])
