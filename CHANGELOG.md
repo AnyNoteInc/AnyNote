@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.4...v1.29.0) (2026-06-22)
+
+
+### Features
+
+* **web:** explain the macOS "app is damaged" Gatekeeper block ([95a7012](https://github.com/AnyNoteInc/AnyNote/commit/95a701236648f116229f03ff12a4253b0860094e))
+
 ## [1.28.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.3...v1.28.4) (2026-06-22)
 
 
