@@ -1,3 +1,10 @@
+## [1.28.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.2...v1.28.3) (2026-06-22)
+
+
+### Bug Fixes
+
+* **desktop:** push installers into internal MinIO over SSH; fix linux build ([15fa351](https://github.com/AnyNoteInc/AnyNote/commit/15fa3515fe7da77a754f796027b00fcdd6ab7fd9))
+
 ## [1.28.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.1...v1.28.2) (2026-06-22)
 
 
