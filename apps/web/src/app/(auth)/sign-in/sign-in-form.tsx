@@ -49,11 +49,6 @@ export function SignInForm() {
     }
   }
 
-  const handleGoogle = async (): Promise<void> => {
-    setErrorMessage(null)
-    await signIn.social({ provider: 'google', callbackURL: safeRedirectTarget() })
-  }
-
   // Resolve the opaque ssoProviderId for the email's domain, then start the
   // better-auth flow (POST /api/auth/sign-in/sso → { url, redirect } — the
   // client auto-navigates to the IdP). Uniform `{available: false}` covers
@@ -92,7 +87,6 @@ export function SignInForm() {
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       <LoginForm
         onSubmit={handleSubmit}
-        onGoogle={handleGoogle}
         onSso={handleSso}
         ssoError={ssoError}
         isSubmitting={isSubmitting}

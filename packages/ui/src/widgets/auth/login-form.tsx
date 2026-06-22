@@ -95,18 +95,23 @@ export function LoginForm({
   return (
     <Stack spacing={3} component="form" onSubmit={handleFormSubmit}>
       <AuthHeader title="Вход в учётную запись" />
-      <Divider />
-      <Button
-        variant="outlined"
-        size="large"
-        onClick={() => onGoogle?.()}
-        disabled={submitting}
-        fullWidth
-      >
-        Войти через Google
-      </Button>
+      {onGoogle ? (
+        <>
+          <Divider />
+          <Button
+            variant="outlined"
+            size="large"
+            onClick={() => onGoogle?.()}
+            disabled={submitting}
+            fullWidth
+          >
+            Войти через Google
+          </Button>
+        </>
+      ) : null}
       {onSso ? (
         <>
+          {onGoogle ? null : <Divider />}
           <Button
             variant="text"
             size="large"
@@ -155,7 +160,7 @@ export function LoginForm({
           ) : null}
         </>
       ) : null}
-      <Divider />
+      {onGoogle || onSso ? <Divider /> : null}
       <Stack spacing={2.5}>
         <TextField
           {...register('email', {

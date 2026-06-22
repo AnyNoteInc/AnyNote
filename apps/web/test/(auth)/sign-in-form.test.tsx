@@ -51,13 +51,10 @@ describe('SignInForm', () => {
     )
   })
 
-  it('Google button calls signIn.social', async () => {
+  it('does not render the Google sign-in button', () => {
     render(<SignInForm />)
-    await userEvent.click(screen.getByRole('button', { name: /войти через google/i }))
-
-    expect(mocks.signInSocial).toHaveBeenCalledWith({
-      provider: 'google',
-      callbackURL: '/app',
-    })
+    expect(
+      screen.queryByRole('button', { name: /войти через google/i }),
+    ).not.toBeInTheDocument()
   })
 })
