@@ -1,3 +1,10 @@
+## [1.28.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.1...v1.28.2) (2026-06-22)
+
+
+### Bug Fixes
+
+* **desktop:** disable GitHub publish in electron-builder (ship via S3) ([6badb6a](https://github.com/AnyNoteInc/AnyNote/commit/6badb6aeefe92e1c02d2d129707556163169ce39))
+
 ## [1.28.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.0...v1.28.1) (2026-06-22)
 
 
