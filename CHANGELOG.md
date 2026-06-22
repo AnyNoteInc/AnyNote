@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.27.0...v1.28.0) (2026-06-22)
+
+
+### Features
+
+* **web:** serve desktop installers locally and move download to page end ([c923d5b](https://github.com/AnyNoteInc/AnyNote/commit/c923d5b28a40ac88ed59444da88bdde94c155b53))
+
 # [1.27.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.26.0...v1.27.0) (2026-06-22)
 
 
