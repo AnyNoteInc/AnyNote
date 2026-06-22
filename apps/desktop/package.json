@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "AnyNote desktop app",
+  "homepage": "https://anynote.ru",
+  "author": "AnyNote <support@anynote.ru>",
   "main": "dist/main/index.cjs",
   "scripts": {
     "build": "node esbuild.config.mjs",

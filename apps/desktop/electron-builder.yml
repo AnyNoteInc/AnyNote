@@ -1,10 +1,6 @@
 appId: ru.anynote.desktop
 productName: AnyNote
 artifactName: '${productName}.${ext}'
-# Linux AppImage/deb targets require homepage + maintainer metadata or the
-# build fails with "Please specify project homepage". Not read from
-# package.json (no homepage field there), so set it here explicitly.
-homepage: https://anynote.ru
 directories:
   output: release
 files:
