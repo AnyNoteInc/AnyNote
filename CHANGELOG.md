@@ -1,3 +1,10 @@
+## [1.28.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.0...v1.28.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **web:** serve desktop installers from S3 via /api/download proxy ([42bb4c5](https://github.com/AnyNoteInc/AnyNote/commit/42bb4c5fcccc4a5296039c9a60e8be041d3eac1a))
+
 # [1.28.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.27.0...v1.28.0) (2026-06-22)
 
 
