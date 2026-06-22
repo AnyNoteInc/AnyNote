@@ -10,10 +10,16 @@ const common = {
   external: ['electron'],
   sourcemap: true,
 }
+// The root package.json is "type": "module", but esbuild emits CommonJS for the
+// Electron main/preload (Electron's `require('electron')` only works in CJS).
+// Emitting .cjs files makes Node treat them as CommonJS regardless of the root
+// "type", avoiding a dist-local package.json shim that confused Electron's app
+// entry resolution. The renderer is a browser IIFE loaded by a <script> tag, so
+// its extension is irrelevant — kept .js for the existing selection.html ref.
 const entries = [
-  { entryPoints: ['src/main/index.ts'], outfile: 'dist/main/index.js' },
-  { entryPoints: ['src/preload/main.ts'], outfile: 'dist/preload/main.js' },
-  { entryPoints: ['src/preload/setup.ts'], outfile: 'dist/preload/setup.js' },
+  { entryPoints: ['src/main/index.ts'], outfile: 'dist/main/index.cjs' },
+  { entryPoints: ['src/preload/main.ts'], outfile: 'dist/preload/main.cjs' },
+  { entryPoints: ['src/preload/setup.ts'], outfile: 'dist/preload/setup.cjs' },
   {
     entryPoints: ['src/renderer/selection.ts'],
     outfile: 'dist/renderer/selection.js',

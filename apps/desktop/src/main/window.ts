@@ -23,7 +23,7 @@ export function createMainWindow(serverUrl: string): BrowserWindow {
     minHeight: 600,
     webPreferences: {
       partition: PARTITION,
-      preload: join(__dirname, '../preload/main.js'),
+      preload: join(__dirname, '../preload/main.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -55,7 +55,7 @@ export function createSelectionWindow(): BrowserWindow {
     height: 420,
     resizable: false,
     webPreferences: {
-      preload: join(__dirname, '../preload/setup.js'),
+      preload: join(__dirname, '../preload/setup.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
