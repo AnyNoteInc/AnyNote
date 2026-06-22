@@ -6,10 +6,13 @@ directories:
 files:
   - dist/**
   - package.json
-publish:
-  provider: github
-  owner: AnyNoteInc
-  repo: AnyNote
+# No publish provider: installers are uploaded to S3 by the Desktop CI workflow
+# (.github/workflows/desktop.yml), not published to GitHub Releases. Leaving a
+# `provider: github` block here makes electron-builder attempt to publish on
+# build and fail with "GH_TOKEN is not set". `publish: null` disables it.
+# (Auto-update via electron-updater is a separate post-v1 follow-up; it would
+# need its own generic/S3 feed config.)
+publish: null
 mac:
   category: public.app-category.productivity
   target:
