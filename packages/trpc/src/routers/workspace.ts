@@ -28,6 +28,27 @@ async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } 
   }
 }
 
+// The single source of truth for the CREATE decision: "may this user create
+// another workspace". `workspace.create` enforces it (and throws);
+// `workspace.canCreate` reads it (so the UI never offers a creation form that
+// the mutation will reject). Both MUST stay on this one helper — divergence is
+// exactly the bug this fixes (Pro + 3 workspaces ⇒ no active workspace ⇒ pushed
+// to /workspaces/new ⇒ FORBIDDEN dead-end).
+//
+// NOTE: this is distinct from `requireWritableWorkspace`
+// (@repo/domain billing.service) which gates WRITES to ALREADY-created
+// workspaces using a different "older-workspaces-by-createdAt" predicate (the
+// soft-downgrade freeze). That one does not run on the create path; do not
+// conflate the two.
+async function resolveWorkspaceCreateGate(ctx: { prisma: PrismaClient; user: { id: string } }) {
+  const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
+  const owned = await ctx.prisma.workspaceMember.count({
+    where: { userId: ctx.user.id, role: 'OWNER' },
+  })
+  const allowed = plan.maxWorkspaces === null || owned < plan.maxWorkspaces
+  return { allowed, owned, maxWorkspaces: plan.maxWorkspaces, plan }
+}
+
 export const workspaceRouter = router({
   create: protectedProcedure
     .input(
@@ -37,17 +58,12 @@ export const workspaceRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
-      if (plan.maxWorkspaces !== null) {
-        const owned = await ctx.prisma.workspaceMember.count({
-          where: { userId: ctx.user.id, role: 'OWNER' },
+      const gate = await resolveWorkspaceCreateGate(ctx)
+      if (!gate.allowed) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: `На тарифе ${getPlanDisplayName(gate.plan)} можно создать не больше ${gate.maxWorkspaces} пространств`,
         })
-        if (owned >= plan.maxWorkspaces) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: `На тарифе ${getPlanDisplayName(plan)} можно создать не больше ${plan.maxWorkspaces} пространств`,
-          })
-        }
       }
 
       const result = await ctx.prisma.$transaction(async (tx) => {
@@ -98,6 +114,19 @@ export const workspaceRouter = router({
       })
       return result
     }),
+
+  // Can this user create another workspace on their current plan? The
+  // /workspaces/new page reads this to redirect plan-maxed users back into an
+  // existing workspace instead of showing a form that `create` would reject.
+  canCreate: protectedProcedure.query(async ({ ctx }) => {
+    const gate = await resolveWorkspaceCreateGate(ctx)
+    return {
+      allowed: gate.allowed,
+      owned: gate.owned,
+      maxWorkspaces: gate.maxWorkspaces,
+      planName: getPlanDisplayName(gate.plan),
+    }
+  }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
