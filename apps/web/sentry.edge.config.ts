@@ -5,5 +5,5 @@ import { commonInitOptions } from './src/lib/sentry-shared'
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   ...commonInitOptions(),
-  initialScope: { tags: { service: 'web-server' } },
+  initialScope: { tags: { service: 'web-edge' } },
 })

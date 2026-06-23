@@ -11,6 +11,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Suppressed in development by the shared beforeSend; console.error below is the local fallback.
     Sentry.captureException(error)
     console.error(error)
   }, [error])
