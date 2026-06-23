@@ -4,7 +4,7 @@ import { commonInitOptions } from './src/lib/sentry-shared'
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  ...commonInitOptions(),
+  ...commonInitOptions('browser'),
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),

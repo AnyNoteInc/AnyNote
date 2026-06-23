@@ -66,19 +66,19 @@ ENV NEXT_PUBLIC_YJS_URL=ws://localhost:1234
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
-# Sentry: NEXT_PUBLIC_SENTRY_DSN and the environment/release/traces vars are
-# read by instrumentation-client.ts → commonInitOptions() in the *client*
-# bundle, so Next.js inlines them at build time (no runtime swap path). They
-# must be supplied as build-args in the deploy workflow; empty/default values
-# keep `pnpm build` working locally and disable client error reporting.
+# Sentry: the NEXT_PUBLIC_* values are read by instrumentation-client.ts →
+# commonInitOptions('browser') in the *client* bundle, so Next.js inlines them
+# into the client bundle at build time (no runtime swap path). They must be
+# supplied as build-args in the deploy workflow; empty/default values keep
+# `pnpm build` working locally and disable client error reporting.
 ARG NEXT_PUBLIC_SENTRY_DSN=""
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
-ARG SENTRY_ENVIRONMENT=""
-ENV SENTRY_ENVIRONMENT=$SENTRY_ENVIRONMENT
-ARG SENTRY_RELEASE=""
-ENV SENTRY_RELEASE=$SENTRY_RELEASE
-ARG SENTRY_TRACES_SAMPLE_RATE=""
-ENV SENTRY_TRACES_SAMPLE_RATE=$SENTRY_TRACES_SAMPLE_RATE
+ARG NEXT_PUBLIC_SENTRY_ENVIRONMENT=""
+ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
+ARG NEXT_PUBLIC_SENTRY_RELEASE=""
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$NEXT_PUBLIC_SENTRY_RELEASE
+ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=""
+ENV NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=$NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
 
 RUN pnpm --filter @repo/db prisma:generate
 # The Next.js 16 production build of apps/web exceeds Node's default heap on
