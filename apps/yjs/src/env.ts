@@ -4,6 +4,9 @@ type Env = {
   jwksUrl: string
   jwtAudience: string | undefined
   shareTokenSecret: string
+  sentryDsn: string | undefined
+  sentryEnvironment: string
+  sentryTracesSampleRate: number
 }
 
 function required(name: string): string {
@@ -22,5 +25,8 @@ export function loadEnv(): Env {
     jwksUrl: `${authBaseUrl}/api/auth/jwks`,
     jwtAudience: process.env.BETTER_AUTH_JWT_AUDIENCE,
     shareTokenSecret: required('YJS_SHARE_TOKEN_SECRET'),
+    sentryDsn: process.env.SENTRY_DSN,
+    sentryEnvironment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
+    sentryTracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? '0.1'),
   }
 }
