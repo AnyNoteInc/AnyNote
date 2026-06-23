@@ -32,6 +32,7 @@ dependencies = [
     "pyjwt>=2.9",
     "mcp>=1.10",
     "aioboto3>=15.5.0",
+    "sentry-sdk[fastapi]>=2",
 ]
 
 [dependency-groups]

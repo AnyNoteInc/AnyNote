@@ -23,6 +23,8 @@ class SettingsSchema(CoreSettingsSchema):
     s3_access_key: str | None = None
     s3_secret_key: str | None = None
     s3_bucket: str | None = None
+    sentry_environment: str = 'development'
+    sentry_traces_sample_rate: float = 0.1
 
 
 settings = SettingsSchema()  # pyright: ignore[reportCallIssue]  # all fields populated from env
