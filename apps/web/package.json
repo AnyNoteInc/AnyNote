@@ -8,7 +8,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=6144 next build --webpack",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit",
+    "check-types": "next typegen && NODE_OPTIONS=--max-old-space-size=6144 tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
