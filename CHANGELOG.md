@@ -1,3 +1,31 @@
+# [1.30.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.29.1...v1.30.0) (2026-06-23)
+
+
+### Bug Fixes
+
+* **agents:** quiet expected ERROR-log noise + set service tag on global scope ([974944d](https://github.com/AnyNoteInc/AnyNote/commit/974944d5c6188cff040a22cb1a8bc27fe9da2e99))
+* **agents:** type-annotate Sentry before_send hook for mypy ([a72a6dd](https://github.com/AnyNoteInc/AnyNote/commit/a72a6dde11aa1ebefc5ac8cb58437c9b97b96b37))
+* **sentry:** drop dev events on engines/yjs/agents for free-tier parity with web ([8b5aa21](https://github.com/AnyNoteInc/AnyNote/commit/8b5aa21c4b37fb179d725f7ee5a792c73bc09bf8))
+* **web:** prevent Sentry source-map build OOM (gate generation on token + raise heap) ([4cfdac4](https://github.com/AnyNoteInc/AnyNote/commit/4cfdac40274ea934e881134a85c14eddf2286924))
+* **web:** raise tsc heap to fix check-types OOM on CI runners ([fe4c076](https://github.com/AnyNoteInc/AnyNote/commit/fe4c0760e10007442be4e879af8c85f3508b1479))
+* **web:** read NEXT_PUBLIC_SENTRY_* in browser Sentry config (Next only inlines public env) ([464d1fe](https://github.com/AnyNoteInc/AnyNote/commit/464d1feddc8317db1c9b38120d1d71215675caf9))
+* **yjs:** await onLoadDocument capture + exclude normal token-denial from Sentry ([eef2bb8](https://github.com/AnyNoteInc/AnyNote/commit/eef2bb866201e70c4369b0e972a12eb31f5199e3))
+
+
+### Features
+
+* **agents:** direct sentry_sdk init with tracing + service tag ([e356444](https://github.com/AnyNoteInc/AnyNote/commit/e3564446130bbd526848ded9c0a5bfe2d2915841))
+* **agents:** tag Sentry with LLM provider/model + capture config/run errors ([4a654ec](https://github.com/AnyNoteInc/AnyNote/commit/4a654ec9a8a9f1fae62bb08a90bd1a6a1f987e46))
+* **engines:** capture cron-worker errors in Sentry (global filter misses scheduled jobs) ([f4f9873](https://github.com/AnyNoteInc/AnyNote/commit/f4f9873edd6d099e5c1da443e121bcb1fca44b01))
+* **engines:** capture per-subscription renewal failures in Sentry ([c39bf0b](https://github.com/AnyNoteInc/AnyNote/commit/c39bf0b8145dc1e03696df85067abcb1192e3c0a))
+* **engines:** initialize Sentry before module load + SentryModule ([c569baf](https://github.com/AnyNoteInc/AnyNote/commit/c569baf4ec01abe12ff84bdd906c73fcd46e01d4))
+* **trpc:** attach authenticated user to Sentry scope in context ([d085ff7](https://github.com/AnyNoteInc/AnyNote/commit/d085ff787e38cd0fb28f6dbd767741b635a6e4ed))
+* **web:** capture YooKassa webhook processing failures in Sentry ([fa7d4f9](https://github.com/AnyNoteInc/AnyNote/commit/fa7d4f9dbfa3cbf98de52bd0a4ada952493b5ded))
+* **web:** Sentry init for browser, server, edge + global-error boundary ([05e2fc7](https://github.com/AnyNoteInc/AnyNote/commit/05e2fc7f51265948993c2f0bd0484363031636db))
+* **web:** set Sentry user on the browser scope ([153fc1f](https://github.com/AnyNoteInc/AnyNote/commit/153fc1f08f9362fcc1de3867e44d0b7cad4453ee))
+* **web:** shared Sentry init options with dev-drop + noise filter ([e46c1dc](https://github.com/AnyNoteInc/AnyNote/commit/e46c1dc8e498f50f7a60a002900685a4bea03419))
+* **yjs:** initialize Sentry + capture unexpected auth/persist failures ([8ce2072](https://github.com/AnyNoteInc/AnyNote/commit/8ce20728ddf26323739fd9ae9ff78de2644fe1a0))
+
 ## [1.29.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.29.0...v1.29.1) (2026-06-23)
 
 
