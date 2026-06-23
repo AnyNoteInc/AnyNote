@@ -1092,7 +1092,7 @@ importers:
         version: link:../diagram-board
       likec4:
         specifier: 1.57.0
-        version: 1.57.0(@types/node@22.19.17)(jiti@2.6.1)(picomatch@4.0.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rollup@4.60.2)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
+        version: 1.57.0(@types/node@22.19.17)(jiti@2.6.1)(picomatch@4.0.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rollup@4.62.2)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
@@ -1361,6 +1361,9 @@ importers:
       '@repo/yookassa':
         specifier: workspace:*
         version: link:../yookassa
+      '@sentry/nextjs':
+        specifier: ^10.59.0
+        version: 10.59.0(@opentelemetry/core@2.8.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.1))(encoding@0.1.13)(next@16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(sass@1.51.0))(react@19.2.5)(vite@7.3.2(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3))(webpack@5.106.0(esbuild@0.24.2))
       '@tiptap/core':
         specifier: ^3.22.3
         version: 3.22.5(@tiptap/pm@3.22.3)
@@ -22394,7 +22397,7 @@ snapshots:
       lightningcss-win32-arm64-msvc: 1.32.0
       lightningcss-win32-x64-msvc: 1.32.0
 
-  likec4@1.57.0(@types/node@22.19.17)(jiti@2.6.1)(picomatch@4.0.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rollup@4.60.2)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3):
+  likec4@1.57.0(@types/node@22.19.17)(jiti@2.6.1)(picomatch@4.0.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(rollup@4.62.2)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3):
     dependencies:
       '@hpcc-js/wasm-graphviz': 1.21.2
       '@likec4/core': 1.57.0
@@ -22414,7 +22417,7 @@ snapshots:
       type-fest: 4.41.0
       use-sync-external-store: 1.6.0(react@19.2.5)
       vite: 8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
-      vite-plugin-singlefile: 2.3.3(rollup@4.60.2)(vite@8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3))
+      vite-plugin-singlefile: 2.3.3(rollup@4.62.2)(vite@8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3))
       yargs: 17.7.2
     transitivePeerDependencies:
       - '@rolldown/plugin-babel'
@@ -25991,12 +25994,12 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-singlefile@2.3.3(rollup@4.60.2)(vite@8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)):
+  vite-plugin-singlefile@2.3.3(rollup@4.62.2)(vite@8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)):
     dependencies:
       micromatch: 4.0.8
       vite: 8.0.14(@types/node@22.19.17)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
     optionalDependencies:
-      rollup: 4.60.2
+      rollup: 4.62.2
 
   vite@7.3.2(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3):
     dependencies:
