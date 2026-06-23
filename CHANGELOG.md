@@ -1,3 +1,10 @@
+## [1.30.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.30.0...v1.30.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **trpc:** route plan-maxed users out of the create-workspace dead-end ([8a56857](https://github.com/AnyNoteInc/AnyNote/commit/8a56857c6909e8cc1b4000932a647112fab41aa8))
+
 # [1.30.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.29.1...v1.30.0) (2026-06-23)
 
 
