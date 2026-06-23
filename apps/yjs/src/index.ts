@@ -1,5 +1,6 @@
 import { Server } from '@hocuspocus/server'
 import * as Sentry from '@sentry/node'
+import { errors as joseErrors } from 'jose'
 
 import { loadEnv } from './env.js'
 import {
@@ -39,9 +40,16 @@ Sentry.init({
 initJwks(env.jwksUrl)
 
 // Deliberate access-denial throws are normal traffic, not errors worth reporting.
-const EXPECTED_AUTH_MESSAGES = new Set(['Missing auth token', 'Forbidden'])
+const EXPECTED_AUTH_MESSAGES = new Set([
+  'Missing auth token',
+  'Forbidden',
+  'Malformed share token',
+  'JWT missing subject (userId)',
+])
 
 function captureUnexpected(err: unknown, context: Record<string, unknown>): void {
+  // Expired/invalid/malformed tokens are normal websocket reconnect traffic, not bugs.
+  if (err instanceof joseErrors.JOSEError) return
   if (err instanceof Error && EXPECTED_AUTH_MESSAGES.has(err.message)) return
   Sentry.captureException(err, { extra: context })
 }
@@ -156,9 +164,9 @@ const server = new Server({
   async onLoadDocument({ documentName }) {
     try {
       const parsed = parseDocumentName(documentName)
-      return parsed.kind === 'syncedBlock'
+      return await (parsed.kind === 'syncedBlock'
         ? loadSyncedBlockDocument(parsed.id)
-        : loadPageDocument(parsed.id)
+        : loadPageDocument(parsed.id))
     } catch (err) {
       Sentry.captureException(err, { extra: { documentName, where: 'onLoadDocument' } })
       throw err
