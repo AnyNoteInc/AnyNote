@@ -36,6 +36,9 @@ Sentry.init({
   tracesSampleRate: env.sentryTracesSampleRate,
   sendDefaultPii: false,
   initialScope: { tags: { service: 'yjs' } },
+  // Drop dev events so local work never eats the free-tier quota (SENTRY_DEBUG=1 to opt in).
+  beforeSend: (event) =>
+    env.sentryEnvironment === 'development' && process.env.SENTRY_DEBUG !== '1' ? null : event,
 })
 initJwks(env.jwksUrl)
 

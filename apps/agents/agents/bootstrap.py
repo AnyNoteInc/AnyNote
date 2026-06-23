@@ -1,4 +1,5 @@
 import logging
+import os
 from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
 
@@ -47,11 +48,19 @@ def create_app(use_routes: Iterable[Callable[[FastAPI], None]]) -> FastAPI:
     ContainerManager.init_for_fastapi(app)
 
     use_logging(settings)
+
+    def _drop_dev_events(event, _hint):
+        """Drop events in development unless SENTRY_DEBUG=1 (free-tier quota guard)."""
+        if settings.sentry_environment == 'development' and os.environ.get('SENTRY_DEBUG') != '1':
+            return None
+        return event
+
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         environment=settings.sentry_environment,
         traces_sample_rate=settings.sentry_traces_sample_rate,
         send_default_pii=False,
+        before_send=_drop_dev_events,
         integrations=[
             # Capture ERROR logs as breadcrumbs only; this LLM gateway logs many
             # EXPECTED failures at ERROR (provider 4xx, MCP tool errors, SSE
