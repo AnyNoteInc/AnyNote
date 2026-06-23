@@ -73,4 +73,10 @@ export default withSentryConfig(withMDX(nextConfig), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: {
+    // Generating source maps is memory-heavy and only useful when we also
+    // upload them. Skip generation entirely when no upload token is set
+    // (local/CI without Sentry creds) to avoid OOM-ing the webpack build.
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+  },
 })
