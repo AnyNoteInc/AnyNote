@@ -31,6 +31,9 @@ export function makeBeforeSend({
 /** Shared init fragment used by browser/server/edge configs. */
 export function commonInitOptions() {
   const environment = process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development'
+  // SENTRY_DEBUG is honored on every runtime; NEXT_PUBLIC_SENTRY_DEBUG is only
+  // inlined into the client bundle by Next, so it has effect in the browser
+  // config and is inert (always undefined) on the server/edge runtimes.
   const debug = process.env.SENTRY_DEBUG === '1' || process.env.NEXT_PUBLIC_SENTRY_DEBUG === '1'
   return {
     environment,
