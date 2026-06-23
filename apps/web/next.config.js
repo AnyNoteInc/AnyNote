@@ -1,6 +1,8 @@
+/* global process */
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import createMDX from '@next/mdx'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const docsDir = path.resolve(__dirname, '../../docs')
@@ -63,4 +65,14 @@ const nextConfig = {
   },
 }
 
-export default withMDX(nextConfig)
+// org/project/authToken are only needed for source-map upload and are read from
+// env (CI-only). Absent locally → the wrapper is a passthrough: the app still
+// builds and the SDK still captures errors, just with minified stack traces.
+export default withSentryConfig(withMDX(nextConfig), {
+  silent: !process.env.CI,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Smaller client bundle; we accept ad-blocker drop on the free tier.
+  disableLogger: true,
+})
