@@ -13,6 +13,7 @@ from fast_clean.utils.toml import use_toml_info
 from fastapi import FastAPI
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.types import Event, Hint
 
 from .settings import SettingsSchema
 
@@ -49,7 +50,7 @@ def create_app(use_routes: Iterable[Callable[[FastAPI], None]]) -> FastAPI:
 
     use_logging(settings)
 
-    def _drop_dev_events(event, _hint):
+    def _drop_dev_events(event: Event, _hint: Hint) -> Event | None:
         """Drop events in development unless SENTRY_DEBUG=1 (free-tier quota guard)."""
         if settings.sentry_environment == 'development' and os.environ.get('SENTRY_DEBUG') != '1':
             return None
