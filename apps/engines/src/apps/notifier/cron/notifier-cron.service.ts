@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import type { PrismaClient } from '@repo/db'
 import { runDispatcherTick } from '@repo/notifications/worker'
 
@@ -26,6 +27,7 @@ export class NotifierCronService {
       })
     } catch (err) {
       this.logger.error('dispatcher tick failed', err)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'notifier' } })
     }
   }
 }

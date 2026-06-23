@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import type { PrismaClient } from '@repo/db'
 import { DEFAULT_MAX_ATTEMPTS } from '@repo/webhooks'
 import { runDeliveryTick, runFanOutTick } from '@repo/webhooks/worker'
@@ -30,6 +31,7 @@ export class WebhookCronService {
       })
     } catch (err) {
       this.logger.error('webhook tick failed', err)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'webhook' } })
     }
   }
 }

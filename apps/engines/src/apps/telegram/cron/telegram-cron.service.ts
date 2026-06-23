@@ -2,6 +2,7 @@ import { hostname } from 'node:os'
 
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import type { PrismaClient } from '@repo/db'
 import { runTelegramDeliveryTick, runTelegramFanOutTick } from '@repo/telegram/worker'
 
@@ -32,6 +33,7 @@ export class TelegramCronService {
       })
     } catch (err) {
       this.logger.error('telegram tick failed', err)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'telegram' } })
     }
   }
 }
