@@ -73,6 +73,4 @@ export default withSentryConfig(withMDX(nextConfig), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  // Smaller client bundle; we accept ad-blocker drop on the free tier.
-  disableLogger: true,
 })
