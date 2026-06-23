@@ -1,3 +1,4 @@
+import './instrument.js'
 import 'reflect-metadata'
 import 'dotenv/config'
 

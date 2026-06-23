@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { parseWebhookEvent, verifyTrustedIp } from '@repo/yookassa/next'
 import { prisma } from '@repo/db'
 import { getYookassaClient } from '@/server/yookassa'
@@ -25,18 +26,27 @@ export async function POST(req: NextRequest) {
   }
 
   const ctx = { yookassa: getYookassaClient(), prisma }
-  switch (event.event) {
-    case 'payment.succeeded':
-      await handlePaymentSucceeded(ctx, event.object)
-      break
-    case 'payment.canceled':
-      await handlePaymentCanceled(ctx, event.object)
-      break
-    case 'refund.succeeded':
-      await handleRefundSucceeded(ctx, event.object)
-      break
-    case 'payment.waiting_for_capture':
-      break
+  try {
+    switch (event.event) {
+      case 'payment.succeeded':
+        await handlePaymentSucceeded(ctx, event.object)
+        break
+      case 'payment.canceled':
+        await handlePaymentCanceled(ctx, event.object)
+        break
+      case 'refund.succeeded':
+        await handleRefundSucceeded(ctx, event.object)
+        break
+      case 'payment.waiting_for_capture':
+        break
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { service: 'web-server', integration: 'yookassa' },
+      extra: { eventType: event.event, paymentId: event.object?.id },
+    })
+    // Return 500 so YooKassa retries delivery; the error is now visible in Sentry.
+    return NextResponse.json({ error: 'processing failed' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

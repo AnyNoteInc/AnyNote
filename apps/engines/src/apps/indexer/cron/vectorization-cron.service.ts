@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import { parseAiProviderConnection, type PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
 
@@ -210,6 +211,7 @@ export class VectorizationCronService implements OnModuleInit {
       await this.markDone(row.id)
     } catch (err) {
       this.log.error(`Indexing failed for page ${row.page_id}: ${(err as Error).message}`)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'indexer' } })
       await this.markFailedOrRetry(row.id, err as Error)
     }
   }

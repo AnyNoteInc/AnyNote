@@ -4,9 +4,11 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any
 
+import sentry_sdk
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
+from agents.apps.agent.errors import InvalidPayloadError
 from agents.apps.agent.schemas import (
     AgentContext,
     AgentResumeRequestSchema,
@@ -112,7 +114,17 @@ class ResumeAgentUseCase:
                 ),
             )
 
-        llm = self.llm_factory(model_config)
+        # Tag the scope so every subsequent event (incl. graph errors) carries
+        # the provider/model that produced them.
+        sentry_sdk.set_tag('provider', str(model_config.provider))
+        sentry_sdk.set_tag('model', model_config.name)
+
+        try:
+            llm = self.llm_factory(model_config)
+        except InvalidPayloadError as exc:
+            sentry_sdk.capture_exception(exc)
+            yield ServerEventSchema.error('INVALID_PAYLOAD', str(exc), recoverable=False)
+            return
 
         graph = build_agent_graph(
             checkpointer=self.checkpointer,
@@ -139,6 +151,7 @@ class ResumeAgentUseCase:
             ):
                 yield event
         except Exception as exc:
+            sentry_sdk.capture_exception(exc)
             log.exception('agent resume failed')
             yield ServerEventSchema.error('INTERNAL_ERROR', str(exc), recoverable=False)
             return

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import { Pool } from 'pg'
 
 @Injectable()
@@ -14,6 +15,7 @@ export class CleanupService {
       this.log.log(`purged ${n} orphaned interrupted checkpoints`)
     } catch (err) {
       this.log.error('purgeOrphanedInterrupts failed', err as Error)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'cleanup' } })
     }
   }
 

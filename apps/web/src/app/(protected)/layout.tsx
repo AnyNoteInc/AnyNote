@@ -13,6 +13,7 @@ import { TRPCReactProvider } from '@/trpc/client'
 import { ServiceWorkerMount } from '@/components/notifications/service-worker-mount'
 import { InstallPromptBanner } from '@/components/pwa/install-prompt-banner'
 import { PwaInstallProvider } from '@/components/pwa/pwa-install-context'
+import { SentryIdentity } from '@/components/sentry-identity'
 
 export { NOINDEX_METADATA as metadata } from '@/lib/seo/build-metadata'
 
@@ -31,6 +32,7 @@ export default async function ProtectedLayout({ children }: Readonly<{ children:
   }
   return (
     <TRPCReactProvider>
+      <SentryIdentity userId={session.user.id} workspaceId={null} />
       <EditorThemeBridge />
       <ServiceWorkerMount />
       <PwaInstallProvider>

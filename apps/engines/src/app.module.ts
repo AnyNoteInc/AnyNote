@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { APP_FILTER } from '@nestjs/core'
 import { ScheduleModule } from '@nestjs/schedule'
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup'
 
 import { ApiModule } from './apps/api/api.module.js'
 import { BillingModule } from './apps/billing/billing.module.js'
@@ -18,6 +20,7 @@ import { DomainModule } from './infra/domain/domain.module.js'
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     DbModule,
@@ -33,6 +36,12 @@ import { DomainModule } from './infra/domain/domain.module.js'
     McpModule,
     ApiModule,
     HealthModule,
+  ],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
   ],
 })
 export class AppModule {}

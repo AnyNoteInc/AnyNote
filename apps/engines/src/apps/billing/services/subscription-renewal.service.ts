@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import * as Sentry from '@sentry/nestjs'
 import { prisma, type Prisma } from '@repo/db'
 import {
   applySeatRenewalTx,
@@ -87,6 +88,10 @@ export class SubscriptionRenewalService {
         await this.renewOne(subscription.id)
       } catch (err) {
         this.logger.error(`renewOne(${subscription.id}) failed`, err)
+        Sentry.captureException(err, {
+          tags: { service: 'engines', worker: 'billing-renewal', integration: 'billing' },
+          extra: { subscriptionId: subscription.id },
+        })
       }
     }
   }
@@ -175,6 +180,10 @@ export class SubscriptionRenewalService {
       )
     } catch (err) {
       this.logger.error('chargeWithSavedMethod threw', err)
+      Sentry.captureException(err, {
+        tags: { service: 'engines', worker: 'billing-renewal', integration: 'billing' },
+        extra: { subscriptionId: subscription.id, orderId: order.id },
+      })
       await prisma.$transaction([
         prisma.order.update({
           where: { id: order.id },

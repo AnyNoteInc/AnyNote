@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError } from '@trpc/server'
+import * as Sentry from '@sentry/nextjs'
 
 import { prisma } from '@repo/db'
 import { getUserFromRequest } from '@repo/auth'
@@ -30,6 +31,11 @@ export const createContext = async ({
   jobs,
 }: CreateContextOptions) => {
   const user = await getUserFromRequest(req, resHeaders)
+  // Tag every Sentry event raised during this call with who/where. Safe no-op
+  // when the SDK isn't initialized (e.g. RSC server-caller without a DSN).
+  if (user) {
+    Sentry.setUser({ id: user.id })
+  }
   return {
     prisma,
     user,

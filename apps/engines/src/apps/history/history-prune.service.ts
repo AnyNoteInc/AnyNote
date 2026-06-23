@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import * as Sentry from '@sentry/nestjs'
 import type { PrismaClient } from '@repo/db'
 
 import { PRISMA } from '../../infra/db/db.providers.js'
@@ -27,6 +28,7 @@ export class HistoryPruneService {
       this.logger.log(`page-revision prune deleted ${total} expired revisions`)
     } catch (err) {
       this.logger.error('page-revision prune failed', err as Error)
+      Sentry.captureException(err, { tags: { service: 'engines', worker: 'history-prune' } })
     }
   }
 

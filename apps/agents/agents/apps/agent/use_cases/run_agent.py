@@ -4,8 +4,10 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any
 
+import sentry_sdk
 from langchain_core.runnables import RunnableConfig
 
+from agents.apps.agent.errors import InvalidPayloadError
 from agents.apps.agent.schemas import (
     AgentContext,
     AgentRunRequestSchema,
@@ -87,7 +89,17 @@ class RunAgentUseCase:
             )
         log.info('Total tools count=%d (incl. internal)', len(tools))
 
-        llm = self.llm_factory(request.model_config_, reasoning=request.reasoning)
+        # Tag the scope so every subsequent event (incl. graph errors) carries
+        # the provider/model that produced them.
+        sentry_sdk.set_tag('provider', str(request.model_config_.provider))
+        sentry_sdk.set_tag('model', request.model_config_.name)
+
+        try:
+            llm = self.llm_factory(request.model_config_, reasoning=request.reasoning)
+        except InvalidPayloadError as exc:
+            sentry_sdk.capture_exception(exc)
+            yield ServerEventSchema.error('INVALID_PAYLOAD', str(exc), recoverable=False)
+            return
 
         graph = build_agent_graph(
             checkpointer=self.checkpointer,
@@ -122,6 +134,7 @@ class RunAgentUseCase:
             async for event in self.streaming_service.stream(graph, initial, config, initial):
                 yield event
         except Exception as exc:
+            sentry_sdk.capture_exception(exc)
             log.exception('agent run failed')
             yield ServerEventSchema.error('INTERNAL_ERROR', str(exc), recoverable=False)
             return
