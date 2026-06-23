@@ -1,3 +1,10 @@
+## [1.29.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.29.0...v1.29.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **desktop:** ad-hoc sign the mac app so it stops showing "damaged" ([39d19be](https://github.com/AnyNoteInc/AnyNote/commit/39d19bef555f6402eb775e6178bc3080df5da50b))
+
 # [1.29.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.28.4...v1.29.0) (2026-06-22)
 
 
