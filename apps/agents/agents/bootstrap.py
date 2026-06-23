@@ -53,11 +53,17 @@ def create_app(use_routes: Iterable[Callable[[FastAPI], None]]) -> FastAPI:
         traces_sample_rate=settings.sentry_traces_sample_rate,
         send_default_pii=False,
         integrations=[
-            LoggingIntegration(level=logging.DEBUG, event_level=logging.ERROR),
+            # Capture ERROR logs as breadcrumbs only; this LLM gateway logs many
+            # EXPECTED failures at ERROR (provider 4xx, MCP tool errors, SSE
+            # disconnects). Genuine unhandled exceptions are still captured by
+            # FastApiIntegration; explicit capture_exception covers the AI paths.
+            LoggingIntegration(level=logging.INFO, event_level=None),
             FastApiIntegration(),
         ],
     )
-    sentry_sdk.set_tag('service', 'agents')
+    # service is a process-wide constant → set on the global scope so it survives
+    # the per-request isolation-scope forks the ASGI middleware creates.
+    sentry_sdk.get_global_scope().set_tag('service', 'agents')
 
     use_middleware(app, settings.cors_origins)
     use_monitoring(app, app_name=project_info.name)
