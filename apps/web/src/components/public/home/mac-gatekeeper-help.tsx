@@ -17,11 +17,11 @@ import {
 
 import { homeTokens } from './home-tokens'
 
-// The desktop app is not yet signed with an Apple Developer ID, so macOS
-// Gatekeeper blocks it on first launch with a misleading "приложение
-// повреждено" ("app is damaged") message — especially on Apple Silicon, which
-// refuses unsigned apps downloaded from the internet (Safari tags them with
-// com.apple.quarantine). The file is fine; the quarantine flag must be removed.
+// The desktop app is ad-hoc signed but not notarized with an Apple Developer ID,
+// so macOS Gatekeeper blocks the first launch with the standard "от
+// неустановленного разработчика" ("unidentified developer") prompt. The simple
+// fix is right-click → «Открыть». The Terminal command below is a fallback (e.g.
+// if macOS still shows «повреждено» on an older cached download).
 const QUARANTINE_CMD = 'xattr -dr com.apple.quarantine /Applications/AnyNote.app'
 
 export function MacGatekeeperHelp() {
@@ -53,15 +53,23 @@ export function MacGatekeeperHelp() {
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Typography variant="body2" fontWeight={600}>
-          macOS пишет, что приложение «повреждено»?
+          macOS не даёт открыть приложение?
         </Typography>
       </AccordionSummary>
       <AccordionDetails>
         <Stack spacing={1.5} textAlign="left">
           <Typography variant="body2" color="text.secondary">
-            Файл не повреждён. Приложение пока не подписано сертификатом Apple Developer ID, поэтому
-            на Mac (особенно на Apple Silicon — M1/M2/M3) macOS блокирует первый запуск. Снимите
-            «карантин» одной командой в Терминале:
+            Приложение подписано, но ещё не нотаризовано в Apple, поэтому при первом запуске macOS
+            показывает предупреждение «от неустановленного разработчика». Самый простой способ:{' '}
+            <Box component="strong" sx={{ color: 'text.primary' }}>
+              правый клик по AnyNote → «Открыть»
+            </Box>{' '}
+            и подтвердите «Открыть» в диалоге. Это нужно один раз.
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary">
+            Если macOS всё равно пишет «повреждено» (например, для раньше скачанного файла), снимите
+            «карантин» командой в Терминале:
           </Typography>
 
           <Box
@@ -87,14 +95,9 @@ export function MacGatekeeperHelp() {
             </Tooltip>
           </Box>
 
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" color="text.disabled">
             После этого приложение откроется обычным двойным щелчком. Команда предполагает, что вы уже
             перетащили AnyNote в папку «Программы» (Applications).
-          </Typography>
-
-          <Typography variant="caption" color="text.disabled">
-            Альтернатива без Терминала: правый клик по приложению → «Открыть», затем подтвердите
-            «Открыть» в диалоге. Если появляется именно «повреждено», надёжнее команда выше.
           </Typography>
         </Stack>
       </AccordionDetails>

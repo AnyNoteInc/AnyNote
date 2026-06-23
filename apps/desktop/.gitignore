@@ -1,3 +1,9 @@
 dist/
 release/
 node_modules/
+
+# The root .gitignore ignores any `build` dir (build outputs). Our entitlements
+# are tracked source, not output — keep build/ ignored but un-ignore the file.
+!build/
+build/*
+!build/entitlements.mac.plist
