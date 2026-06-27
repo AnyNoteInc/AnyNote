@@ -30,6 +30,7 @@ export default async function ActiveWorkspaceLayout({ children }: { children: Re
       <WorkspaceLayoutClient
         workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
         accessKind={accessKind}
+        role={myRole}
         features={features}
         pages={pages}
         user={{

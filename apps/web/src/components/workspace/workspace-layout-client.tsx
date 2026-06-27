@@ -18,6 +18,7 @@ import { HistorySidebar } from '@/components/page/history/history-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 
+import type { RoleType } from '@repo/db'
 import type { PlanFeatures } from '@repo/trpc'
 
 import { SearchDialogProvider } from '../search/search-dialog-provider'
@@ -33,15 +34,17 @@ import type { PageItem } from './types'
 
 export type WorkspaceAccessKind = 'member' | 'guest'
 
-type Props = {
+type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
   /** 'guest' = page-grant holder without a member row (people spec §3/§5). */
   accessKind: WorkspaceAccessKind
+  /** Member role resolved server-side (null for guests); gates the history UI. */
+  role: RoleType | null
   features: PlanFeatures
   pages: PageItem[]
   user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
   children: ReactNode
-}
+}>
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
@@ -57,6 +60,7 @@ function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection |
 export function WorkspaceLayoutClient({
   workspace,
   accessKind,
+  role,
   features,
   pages: initialPages,
   user,
@@ -202,10 +206,10 @@ export function WorkspaceLayoutClient({
   const activePageType = activePageId ? pages.find((p) => p.id === activePageId)?.type : undefined
 
   // Document history is edit-gated server-side; surface the toggle only to
-  // workspace editors (OWNER/ADMIN/EDITOR). The history tRPC calls re-check the
-  // page-level edit access on every request, so this is purely the UI gate.
-  const myRoleQ = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
-  const role = myRoleQ.data
+  // workspace editors (OWNER/ADMIN/EDITOR). The role is resolved server-side and
+  // prop-drilled from the (active) layout, so no client round-trip is needed.
+  // The history tRPC calls re-check the page-level edit access on every request,
+  // so this is purely the UI gate.
   const historyEnabled = role === 'OWNER' || role === 'ADMIN' || role === 'EDITOR'
 
   const [fullWidth] = useFullWidth(activePageId ?? '')

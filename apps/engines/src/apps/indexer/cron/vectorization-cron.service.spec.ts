@@ -1,5 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals'
 
+import { encryptSecret } from '@repo/auth/secret-encryption.ts'
+
 import { AgentsClient } from '../services/agents-client.service.js'
 import { PageContentReader } from '../services/page-content-reader.service.js'
 import { PlanFeaturesService } from '../services/plan-features.service.js'
@@ -98,6 +100,62 @@ describe('VectorizationCronService', () => {
       modelSlug: 'nomic-embed-text',
       vectorSize: 768,
       connection: { provider: 'ollama', baseUrl: 'http://ollama:11434' },
+    })
+  })
+
+  it('decrypts connectionEnc when the plaintext connection is empty (workspace-configured provider)', async () => {
+    const rows = [
+      {
+        id: BigInt(9),
+        page_id: 'p9',
+        workspace_id: 'w9',
+        event_type: 'page.upserted',
+      },
+    ]
+    const page = {
+      id: 'p9',
+      type: 'TEXT',
+      deletedAt: null,
+      title: 'T',
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
+      },
+      workspaceId: 'w9',
+    }
+    const connectionEnc = encryptSecret(JSON.stringify({ baseUrl: 'http://ollama:11434' }))
+    const prisma = makePrismaMock({
+      rows,
+      page,
+      aiSettings: {
+        embeddingsModel: {
+          ...embeddingsModel,
+          provider: {
+            slug: 'ollama',
+            workspaceId: 'w9',
+            connection: {},
+            connectionEnc,
+          },
+        },
+      },
+    })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
+    const svc = new VectorizationCronService(
+      prisma as never,
+      new PageContentReader(),
+      agents,
+      makePlanFeaturesMock(true),
+    )
+    await svc.tick()
+    expect(vectorize).toHaveBeenCalledTimes(1)
+    const arg = (vectorize.mock.calls[0] as unknown as [{ embedding: { connection: unknown } }])[0]
+    expect(arg.embedding.connection).toEqual({
+      provider: 'ollama',
+      baseUrl: 'http://ollama:11434',
     })
   })
 

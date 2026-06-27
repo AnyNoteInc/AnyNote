@@ -83,14 +83,28 @@ export function flattenTree(
   depth = 0,
   collapsedIds: Set<string> = new Set(),
 ): FlatPageItem[] {
-  const siblings = orderSiblings(pages.filter((p) => p.parentId === parentId))
+  // Bucket children by parentId ONCE (O(n)) instead of re-scanning the full
+  // page set at every recursion level (the old O(n²) behaviour). Each bucket
+  // is exactly `pages.filter((p) => p.parentId === pid)` in original input
+  // order, so `orderSiblings` receives an identical input and its chain-order /
+  // dangling-prev-head / cycle semantics are preserved byte-for-byte.
+  const childrenByParent = new Map<string | null, PageItem[]>()
+  for (const page of pages) {
+    const key = page.parentId
+    const bucket = childrenByParent.get(key)
+    if (bucket) bucket.push(page)
+    else childrenByParent.set(key, [page])
+  }
+
   const result: FlatPageItem[] = []
-  for (const page of siblings) {
-    const collapsed = collapsedIds.has(page.id)
-    result.push({ ...page, depth, collapsed })
-    if (!collapsed) {
-      result.push(...flattenTree(pages, page.id, depth + 1, collapsedIds))
+  const walk = (pid: string | null, d: number): void => {
+    const siblings = orderSiblings(childrenByParent.get(pid) ?? [])
+    for (const page of siblings) {
+      const collapsed = collapsedIds.has(page.id)
+      result.push({ ...page, depth: d, collapsed })
+      if (!collapsed) walk(page.id, d + 1)
     }
   }
+  walk(parentId, depth)
   return result
 }

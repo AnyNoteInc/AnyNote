@@ -62,6 +62,43 @@ async def test_ensure_collection_creates_when_missing() -> None:
 
 
 @pytest.mark.asyncio
+async def test_ensure_collection_creates_payload_indexes() -> None:
+    from qdrant_client.http.models import PayloadSchemaType
+
+    client = AsyncMock()
+    client.create_collection = AsyncMock()
+    client.create_payload_index = AsyncMock()
+    repo = _make_repo(client=client)
+
+    await repo.ensure_collection(COLLECTION, VECTOR_SIZE)
+
+    indexed_fields = {
+        call.kwargs.get('field_name', call.args[1] if len(call.args) > 1 else None)
+        for call in client.create_payload_index.call_args_list
+    }
+    assert {'workspaceId', 'pageId'} <= indexed_fields
+    # Guard against a regression to a TEXT (or other) schema, which would not
+    # support exact-match filtering on these per-tenant keys.
+    for call in client.create_payload_index.call_args_list:
+        schema = call.kwargs.get('field_schema', call.args[2] if len(call.args) > 2 else None)
+        assert schema == PayloadSchemaType.KEYWORD
+
+
+@pytest.mark.asyncio
+async def test_ensure_collection_swallows_payload_index_failure() -> None:
+    client = AsyncMock()
+    client.create_collection = AsyncMock()
+    client.create_payload_index = AsyncMock(side_effect=RuntimeError('qdrant down'))
+    repo = _make_repo(client=client)
+
+    # An index failure is a perf-only concern and must not break the write path.
+    await repo.ensure_collection(COLLECTION, VECTOR_SIZE)  # should not raise
+
+    client.create_collection.assert_awaited_once()
+    assert client.create_payload_index.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_ensure_collection_swallows_already_exists() -> None:
     from qdrant_client.http.exceptions import UnexpectedResponse
 

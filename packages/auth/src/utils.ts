@@ -1,4 +1,4 @@
-import { auth, type Session } from './auth'
+import { auth, type Session } from './auth.ts'
 
 export type AuthUser = Session['user']
 

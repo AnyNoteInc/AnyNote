@@ -5,3 +5,5 @@ process.env.S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || "test"
 process.env.S3_SECRET_KEY = process.env.S3_SECRET_KEY || "test"
 process.env.S3_BUCKET = process.env.S3_BUCKET || "storage"
 process.env.S3_FORCE_PATH_STYLE = process.env.S3_FORCE_PATH_STYLE || "true"
+process.env.SECRETS_ENCRYPTION_KEY =
+  process.env.SECRETS_ENCRYPTION_KEY || Buffer.alloc(32).toString("base64")

@@ -36,10 +36,28 @@ function createPrismaMock(args: {
       }),
     },
     chatMessage: {
-      findMany: vi.fn(async ({ where }: { where: { chatId: string; status?: string } }) => {
-        const all = args.messagesByChat[where.chatId] ?? []
-        return where.status ? all.filter((m) => m.status === where.status) : all
-      }),
+      findMany: vi.fn(
+        async ({
+          where,
+          orderBy,
+          take,
+        }: {
+          where: { chatId: string; status?: string }
+          orderBy?: { createdAt?: 'asc' | 'desc' }
+          take?: number
+        }) => {
+          const all = args.messagesByChat[where.chatId] ?? []
+          let rows = where.status ? all.filter((m) => m.status === where.status) : all
+          rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          if (orderBy?.createdAt === 'desc') {
+            rows.reverse()
+          }
+          if (typeof take === 'number') {
+            rows = rows.slice(0, take)
+          }
+          return rows
+        },
+      ),
     },
   }
 }
@@ -294,6 +312,40 @@ describe('buildChatHistoryMessages', () => {
       where: { id: 'root', workspaceId: 'w' },
       select: { id: true, parentId: true },
     })
+  })
+
+  it('bounds the per-chat fetch with take and returns first + last 10 for a 30-message chat', async () => {
+    const messages = makeMessages(30, 'USER')
+    const prisma = createPrismaMock({
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
+      messagesByChat: { c1: messages },
+    })
+
+    const result = await buildChatHistoryMessages({
+      prisma: prisma as never,
+      chatId: 'c1',
+      workspaceId: 'w',
+    })
+
+    // The fetch must be bounded: at least one findMany call carries a `take`.
+    const calls = prisma.chatMessage.findMany.mock.calls as Array<[{ take?: number }]>
+    expect(calls.some(([arg]) => typeof arg.take === 'number')).toBe(true)
+
+    // Output is still exactly [first message] + [last 10], no duplication, length 11.
+    expect(result).toHaveLength(11)
+    expect(result.map((m) => m.content)).toEqual([
+      'm0',
+      'm20',
+      'm21',
+      'm22',
+      'm23',
+      'm24',
+      'm25',
+      'm26',
+      'm27',
+      'm28',
+      'm29',
+    ])
   })
 
   it('concatenates the last 10 messages including first when count = 11', async () => {

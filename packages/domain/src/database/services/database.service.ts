@@ -3,7 +3,7 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
 // Enum values are re-exported through the dto barrel so the service never
 // imports `@repo/db` as a value (domain-services-no-db-value rule).
-import { DatabasePropertyType, DatabaseViewType } from '../dto/database.dto.ts'
+import { DatabasePropertyType, DatabaseViewType, MAX_BOARD_ROWS } from '../dto/database.dto.ts'
 import type {
   AccessRuleView,
   CreateAccessRuleInput,
@@ -1371,8 +1371,17 @@ export class DatabaseService {
     const accessWhere = buildRowAccessWhere(accessCtx, rules)
     const groupingWhere =
       accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
-    const fetched = await this.repo.findRowsForGrouping({ sourceId: source.id, where: groupingWhere })
-    const rows = this.filterViewableRows(accessCtx, rules, fetched)
+    // Cap the scan: over-fetch by one (MAX_BOARD_ROWS + 1) to detect truncation,
+    // then slice to the cap before grouping/augmentRows — mirrors the dashboard
+    // widget path (which probes the SAME repo method with MAX_WIDGET_ROWS + 1).
+    const fetched = await this.repo.findRowsForGrouping({
+      sourceId: source.id,
+      where: groupingWhere,
+      take: MAX_BOARD_ROWS + 1,
+    })
+    const truncated = fetched.length > MAX_BOARD_ROWS
+    const capped = truncated ? fetched.slice(0, MAX_BOARD_ROWS) : fetched
+    const rows = this.filterViewableRows(accessCtx, rules, capped)
 
     // Resolve computed cells for the whole board in one batched pass, then bucket.
     const augmented = await this.augmentRows(actorUserId, properties, rows)
@@ -1405,7 +1414,7 @@ export class DatabaseService {
       }
     })
 
-    return { groups }
+    return { groups, truncated }
   }
 
   async createRow(actorUserId: string, input: CreateRowInput): Promise<{ rowId: string; pageId: string }> {

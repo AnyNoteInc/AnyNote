@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import { DomainError } from '../../../src/shared/errors.ts'
 import { DatabaseService } from '../../../src/database/services/database.service.ts'
+import { MAX_BOARD_ROWS } from '../../../src/database/dto/database.dto.ts'
 import type { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
 import type { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
@@ -696,6 +697,81 @@ describe('DatabaseService.listGroupedRows', () => {
     await expect(
       makeService(repo).listGroupedRows('u1', { pageId: 'db-page', viewId: 'board1' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('caps the board at MAX_BOARD_ROWS and flags truncated when more rows match', async () => {
+    // The repo returns MAX_BOARD_ROWS + 1 rows (the over-fetch probe), all in one
+    // bucket. The board must over-fetch by one, slice to the cap, and report it.
+    const many = Array.from({ length: MAX_BOARD_ROWS + 1 }, (_, i) =>
+      makeRow(`r${i}`, { 'p-status': 'opt-doing' }, i),
+    )
+    const fetchSpy = vi.fn(async () => many)
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'board1',
+          type: 'BOARD',
+          title: 'Доска',
+          position: 0,
+          settings: { groupBy: { propertyId: 'p-status' } },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        {
+          id: 'p-status',
+          type: 'STATUS',
+          name: 'Статус',
+          position: 0,
+          settings: { options: STATUS_OPTIONS },
+        },
+      ]),
+      findRowsForGrouping: fetchSpy,
+    })
+    const result = await makeService(repo).listGroupedRows('u1', {
+      pageId: 'db-page',
+      viewId: 'board1',
+    })
+    // (a) the repo was asked to fetch with a cap of MAX_BOARD_ROWS + 1
+    expect(fetchSpy).toHaveBeenCalledWith(expect.objectContaining({ take: MAX_BOARD_ROWS + 1 }))
+    // (b) truncation is honest
+    expect(result.truncated).toBe(true)
+    // (c) the board was sliced to exactly MAX_BOARD_ROWS rows across all groups
+    const total = result.groups.reduce((n, g) => n + g.rows.length, 0)
+    expect(total).toBe(MAX_BOARD_ROWS)
+  })
+
+  it('truncated is false when exactly MAX_BOARD_ROWS match (pins the off-by-one)', async () => {
+    const exactly = Array.from({ length: MAX_BOARD_ROWS }, (_, i) =>
+      makeRow(`r${i}`, { 'p-status': 'opt-doing' }, i),
+    )
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'board1',
+          type: 'BOARD',
+          title: 'Доска',
+          position: 0,
+          settings: { groupBy: { propertyId: 'p-status' } },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        {
+          id: 'p-status',
+          type: 'STATUS',
+          name: 'Статус',
+          position: 0,
+          settings: { options: STATUS_OPTIONS },
+        },
+      ]),
+      findRowsForGrouping: vi.fn(async () => exactly),
+    })
+    const result = await makeService(repo).listGroupedRows('u1', {
+      pageId: 'db-page',
+      viewId: 'board1',
+    })
+    expect(result.truncated).toBe(false)
+    const total = result.groups.reduce((n, g) => n + g.rows.length, 0)
+    expect(total).toBe(MAX_BOARD_ROWS)
   })
 })
 

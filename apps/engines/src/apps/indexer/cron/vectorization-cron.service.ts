@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
 import * as Sentry from '@sentry/nestjs'
+import { resolveProviderConnection } from '@repo/auth/provider-connection.ts'
 import { parseAiProviderConnection, type PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
 
@@ -165,7 +166,14 @@ export class VectorizationCronService implements OnModuleInit {
             select: {
               slug: true,
               vectorSize: true,
-              provider: { select: { slug: true, connection: true } },
+              provider: {
+                select: {
+                  slug: true,
+                  workspaceId: true,
+                  connection: true,
+                  connectionEnc: true,
+                },
+              },
             },
           },
         },
@@ -194,7 +202,11 @@ export class VectorizationCronService implements OnModuleInit {
         return
       }
 
-      const connection = parseAiProviderConnection(model.provider.slug, model.provider.connection)
+      // Workspace-configured providers store real creds in connectionEnc with an
+      // empty plaintext connection; resolve (and decrypt) before validating so
+      // those pages don't fail parse and silently never index (audit X1).
+      const resolved = resolveProviderConnection(model.provider)
+      const connection = parseAiProviderConnection(model.provider.slug, resolved)
       await this.agents.vectorize({
         pageId: row.page_id,
         workspaceId: row.workspace_id,

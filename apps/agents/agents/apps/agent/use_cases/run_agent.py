@@ -6,6 +6,7 @@ from typing import Any
 
 import sentry_sdk
 from langchain_core.runnables import RunnableConfig
+from langgraph.errors import GraphRecursionError
 
 from agents.apps.agent.errors import InvalidPayloadError
 from agents.apps.agent.schemas import (
@@ -25,6 +26,10 @@ from agents.apps.agent.services.internal_tools import (
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
 
 log = logging.getLogger(__name__)
+
+# Double the LangGraph default (25) for headroom on deep tool loops, but stay
+# bounded so a runaway graph degrades rather than spins.
+_GRAPH_RECURSION_LIMIT = 50
 
 
 @dataclass
@@ -53,8 +58,9 @@ class RunAgentUseCase:
         from agents.apps.agent.services.nodes.tool_runner import tool_runner_node
 
         # Discover MCP tools up front so planner sees descriptions.
-        log.info('MCP servers in payload count=%d names=%s', len(request.mcp_servers),
-                 [s.name for s in request.mcp_servers])
+        log.info(
+            'MCP servers in payload count=%d names=%s', len(request.mcp_servers), [s.name for s in request.mcp_servers]
+        )
         discovered = await self.mcp_client.discover_all(request.mcp_servers)
         log.info('MCP discover_all: %s', {k: len(v) for k, v in discovered.items()})
         tools = self.mcp_client.build_langchain_tools(discovered, request.mcp_servers)
@@ -106,33 +112,56 @@ class RunAgentUseCase:
             router_node=functools.partial(route_node, llm=llm, renderer=self.renderer),
             planner_node=functools.partial(planner_node, llm=llm, renderer=self.renderer),
             executor_node=functools.partial(
-                executor_node, llm=llm, tools=tools, renderer=self.renderer,
+                executor_node,
+                llm=llm,
+                tools=tools,
+                renderer=self.renderer,
             ),
             tool_runner_node=functools.partial(
-                tool_runner_node, tools=tools, tool_registry=tool_registry,
+                tool_runner_node,
+                tools=tools,
+                tool_registry=tool_registry,
             ),
             critic_node=functools.partial(critic_node, llm=llm, renderer=self.renderer),
             memory_writer_node=functools.partial(
-                memory_writer_node, memory_client=self.memory_writer_client, jwt=jwt,
+                memory_writer_node,
+                memory_client=self.memory_writer_client,
+                jwt=jwt,
             ),
         )
-        config: RunnableConfig = {'configurable': {'thread_id': str(request.chat_id)}}
+        config: RunnableConfig = {
+            'configurable': {'thread_id': str(request.chat_id)},
+            'recursion_limit': _GRAPH_RECURSION_LIMIT,
+        }
 
-        initial = AgentState.model_validate({
-            'context': context.model_dump(),
-            'user_message': request.user_message,
-            'chat_history': [m.model_dump() for m in trim_chat_history(request.chat_history)],
-            'model': request.model_config_.model_dump(by_alias=True),
-            'embedding_config': request.embedding_config.model_dump() if request.embedding_config else None,
-            'mcp_servers': [s.model_dump() for s in request.mcp_servers],
-            'agent_system_prompt': request.agent_system_prompt,
-            'long_term_memories': [m.model_dump() for m in request.long_term_memories],
-            'attachments': [a.model_dump() for a in request.attachments],
-        })
+        initial = AgentState.model_validate(
+            {
+                'context': context.model_dump(),
+                'user_message': request.user_message,
+                'chat_history': [m.model_dump() for m in trim_chat_history(request.chat_history)],
+                'model': request.model_config_.model_dump(by_alias=True),
+                'embedding_config': request.embedding_config.model_dump() if request.embedding_config else None,
+                'mcp_servers': [s.model_dump() for s in request.mcp_servers],
+                'agent_system_prompt': request.agent_system_prompt,
+                'long_term_memories': [m.model_dump() for m in request.long_term_memories],
+                'attachments': [a.model_dump() for a in request.attachments],
+            }
+        )
 
         try:
             async for event in self.streaming_service.stream(graph, initial, config, initial):
                 yield event
+        except GraphRecursionError as exc:
+            # Hit the bounded step ceiling: degrade gracefully so the client can
+            # retry/continue instead of treating it as a hard, unrecoverable fault.
+            sentry_sdk.capture_exception(exc)
+            log.warning('agent hit recursion limit')
+            yield ServerEventSchema.error(
+                'RECURSION_LIMIT',
+                'The assistant reached its step limit before finishing. Try narrowing the request.',
+                recoverable=True,
+            )
+            return
         except Exception as exc:
             sentry_sdk.capture_exception(exc)
             log.exception('agent run failed')
