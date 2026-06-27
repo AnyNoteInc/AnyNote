@@ -474,9 +474,9 @@ export class DatabaseRepository {
    * Fetch matching rows + cells for grouping (BOARD) / dashboard-widget
    * aggregation. No keyset pagination — a focused board view is bounded in
    * practice (documented MVP limit). Merges the planner `where` (filters only;
-   * grouping/sorting handled in the service). An optional `take` caps the scan
-   * (the dashboard widget passes `MAX_WIDGET_ROWS + 1` to detect truncation);
-   * BOARD grouping omits it (unbounded, as before).
+   * grouping/sorting handled in the service). An optional `take` caps the scan:
+   * both the dashboard widget (`MAX_WIDGET_ROWS + 1`) and BOARD grouping
+   * (`MAX_BOARD_ROWS + 1`) pass it to over-fetch by one and detect truncation.
    */
   async findRowsForGrouping(args: {
     sourceId: string

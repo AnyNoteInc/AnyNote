@@ -440,6 +440,10 @@ export interface ListRowsResult {
   nextCursor: string | null
 }
 
+// A focused BOARD scans at most MAX_BOARD_ROWS rows; over that the result is
+// truncated. Focused-board MVP cap — boards are smaller than dashboards' 5000.
+export const MAX_BOARD_ROWS = 1000
+
 /** Grouped rows for the BOARD layout: one bucket per groupBy option + a null group. */
 export interface GroupedRowsResult {
   groups: Array<{
@@ -448,4 +452,6 @@ export interface GroupedRowsResult {
     color: string | null
     rows: DatabaseRowView[]
   }>
+  /** true when more than MAX_BOARD_ROWS matched and the board was truncated. */
+  truncated: boolean
 }
