@@ -4,9 +4,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from agents.apps.agent.schemas import AgentRunRequestSchema, ServerEventSchema
 from agents.apps.agent.services.graph_streaming import GraphStreamingService
-from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
+from agents.apps.agent.use_cases.run_agent import (
+    _GRAPH_RECURSION_LIMIT,
+    RunAgentUseCase,
+)
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.errors import GraphRecursionError
 
 from tests.apps.agent.factories import make_context
 
@@ -55,13 +59,14 @@ async def test_run_agent_streams_router_decision_first() -> None:
     )
 
     context = make_context()
-    request = AgentRunRequestSchema.model_validate({
-        'chat_id': str(context.chat_id),
-        'user_message': 'hi',
-        'chat_history': [],
-        'model': {'provider': 'openai', 'name': 'gpt-4o-mini',
-                  'connection': {'api_key': 'sk'}, 'settings': {}},
-    })
+    request = AgentRunRequestSchema.model_validate(
+        {
+            'chat_id': str(context.chat_id),
+            'user_message': 'hi',
+            'chat_history': [],
+            'model': {'provider': 'openai', 'name': 'gpt-4o-mini', 'connection': {'api_key': 'sk'}, 'settings': {}},
+        }
+    )
 
     events: list[ServerEventSchema] = []
     async for ev in use_case(request=request, context=context, jwt='jwt'):
@@ -70,3 +75,50 @@ async def test_run_agent_streams_router_decision_first() -> None:
     types = [e.type for e in events]
     assert types[0] == 'router_decision'
     assert 'done' in types
+
+
+@pytest.mark.asyncio
+async def test_run_agent_emits_recoverable_error_on_recursion_limit() -> None:
+    # When the graph blows past its super-step ceiling, the use case must set an
+    # explicit recursion_limit on the config AND degrade gracefully: a RECOVERABLE
+    # error event, not the hard unrecoverable INTERNAL_ERROR.
+    class RecursionStreamingService:
+        async def stream(self, graph, initial, config, init):
+            assert config.get('recursion_limit') == _GRAPH_RECURSION_LIMIT
+            raise GraphRecursionError('Recursion limit reached')
+            # Unreachable yield makes this an async generator; the raise above fires first.
+            yield
+
+    use_case = RunAgentUseCase(
+        llm_factory=lambda model, reasoning=None: MagicMock(),
+        mcp_client=AsyncMock(
+            discover_all=AsyncMock(return_value={}),
+            build_langchain_tools=lambda d, s: [],
+        ),
+        rag_service=AsyncMock(retrieve=AsyncMock(return_value=[])),
+        memory_writer_client=AsyncMock(write_batch=AsyncMock(return_value=None)),
+        action_log_repo=AsyncMock(write_batch=AsyncMock(return_value=None)),
+        renderer=MagicMock(),
+        checkpointer=MemorySaver(),
+        streaming_service=RecursionStreamingService(),
+    )
+
+    context = make_context()
+    request = AgentRunRequestSchema.model_validate(
+        {
+            'chat_id': str(context.chat_id),
+            'user_message': 'hi',
+            'chat_history': [],
+            'model': {'provider': 'openai', 'name': 'gpt-4o-mini', 'connection': {'api_key': 'sk'}, 'settings': {}},
+        }
+    )
+
+    events: list[ServerEventSchema] = []
+    async for ev in use_case(request=request, context=context, jwt='jwt'):
+        events.append(ev)
+
+    error_events = [e for e in events if e.type == 'error']
+    assert error_events, 'expected an error event'
+    assert any(e.recoverable is True for e in error_events)
+    # The hard unrecoverable INTERNAL_ERROR path must NOT be taken here.
+    assert not any(e.code == 'INTERNAL_ERROR' for e in error_events)
