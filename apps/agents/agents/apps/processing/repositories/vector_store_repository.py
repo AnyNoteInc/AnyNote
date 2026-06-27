@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -10,9 +11,12 @@ from qdrant_client.http.models import (
     FieldCondition,
     Filter,
     MatchValue,
+    PayloadSchemaType,
     PointStruct,
     VectorParams,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -44,6 +48,22 @@ class VectorStoreRepository:
             # 409: collection already exists — idempotent, safe to ignore.
             if e.status_code != 409:
                 raise
+
+        # Every collection is shared across all workspaces using the same embedding
+        # model, and every RAG search filters by workspaceId / every per-page delete
+        # filters by pageId. Without a payload index those filters are full payload
+        # scans. KEYWORD indexes turn them into indexed lookups. create_payload_index
+        # is idempotent, so this runs unconditionally to also backfill the index on
+        # collections that already existed before this change landed.
+        for field in ('workspaceId', 'pageId'):
+            try:
+                await self.client.create_payload_index(
+                    collection_name=name,
+                    field_name=field,
+                    field_schema=PayloadSchemaType.KEYWORD,
+                )
+            except Exception:  # the index is a query-perf optimization; never block the write path
+                logger.warning('failed to create payload index %s on %s', field, name, exc_info=True)
 
     async def delete_by_page(self, collection_name: str, page_id: str) -> None:
         if not await self.collection_exists(collection_name):
