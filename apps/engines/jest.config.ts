@@ -13,6 +13,10 @@ const config: Config = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@repo/db$': '<rootDir>/../../packages/db/src/index.ts',
+    '^@repo/auth/secret-encryption(\\.ts)?$':
+      '<rootDir>/../../packages/auth/src/secret-encryption.ts',
+    '^@repo/auth/provider-connection(\\.ts)?$':
+      '<rootDir>/../../packages/auth/src/provider-connection.ts',
   },
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: './coverage',

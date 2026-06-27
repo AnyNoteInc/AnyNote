@@ -1,7 +1,4 @@
-export * from './auth'
-export * from './utils'
-export {
-  encryptSecret,
-  decryptSecret,
-  type EncryptedPayload,
-} from './secret-encryption'
+export * from './auth.ts'
+export * from './utils.ts'
+export { encryptSecret, decryptSecret, type EncryptedPayload } from './secret-encryption.ts'
+export { resolveProviderConnection } from './provider-connection.ts'
