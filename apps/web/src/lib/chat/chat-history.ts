@@ -47,16 +47,44 @@ function extractText(parts: Prisma.JsonValue): string {
     .trim()
 }
 
-function pickHistory(messages: MessageRow[], lastCount: number): MessageRow[] {
-  if (messages.length === 0) {
-    return []
+// Bound the per-chat fetch using the (chatId, createdAt) index: pull the
+// last-N window (DESC + take) and the conversation's first message
+// (ASC + take:1) separately, then merge into the [first, ...last] shape the
+// old in-JS pickHistory produced — without scanning every message row.
+// Assumes lastCount >= 1 (callers pass 10 / 4); at lastCount === 0 the last-N
+// window is empty and the output collapses to just [first].
+async function fetchBoundedHistory(
+  prisma: PrismaLike,
+  chatId: string,
+  lastCount: number,
+): Promise<MessageRow[]> {
+  const where: Prisma.ChatMessageWhereInput = {
+    chatId,
+    status: 'DONE' satisfies ChatMessageStatus,
   }
-  if (messages.length <= 1 + lastCount) {
-    return messages
+  const select = { id: true, role: true, parts: true, createdAt: true } as const
+
+  const [lastDesc, firstRows] = await Promise.all([
+    prisma.chatMessage.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: lastCount,
+      select,
+    }) as Promise<MessageRow[]>,
+    prisma.chatMessage.findMany({
+      where,
+      orderBy: { createdAt: 'asc' },
+      take: 1,
+      select,
+    }) as Promise<MessageRow[]>,
+  ])
+
+  const lastAsc = [...lastDesc].reverse()
+  const first = firstRows[0]
+  if (!first) {
+    return lastAsc
   }
-  const first = messages[0]!
-  const tail = messages.slice(-lastCount).filter((m) => m.id !== first.id)
-  return [first, ...tail]
+  return [first, ...lastAsc.filter((m) => m.id !== first.id)]
 }
 
 function mapRole(role: ChatMessageRole): AgentConversationMessage['role'] {
@@ -91,14 +119,9 @@ export async function buildChatHistoryMessages(args: {
     const isCurrent = i === chain.length - 1
     const lastCount = isCurrent ? CURRENT_CHAT_LAST_COUNT : ANCESTOR_LAST_COUNT
 
-    const messages = (await args.prisma.chatMessage.findMany({
-      where: { chatId: chain[i], status: 'DONE' satisfies ChatMessageStatus },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, role: true, parts: true, createdAt: true },
-    })) as MessageRow[]
+    const messages = await fetchBoundedHistory(args.prisma, chain[i]!, lastCount)
 
-    const picked = pickHistory(messages, lastCount)
-    for (const message of picked) {
+    for (const message of messages) {
       const content = extractText(message.parts)
       if (!content) continue
       conversation.push({ role: mapRole(message.role), content })
