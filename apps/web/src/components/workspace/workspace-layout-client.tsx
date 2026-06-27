@@ -34,7 +34,7 @@ import type { PageItem } from './types'
 
 export type WorkspaceAccessKind = 'member' | 'guest'
 
-type Props = {
+type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
   /** 'guest' = page-grant holder without a member row (people spec §3/§5). */
   accessKind: WorkspaceAccessKind
@@ -44,7 +44,7 @@ type Props = {
   pages: PageItem[]
   user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
   children: ReactNode
-}
+}>
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'

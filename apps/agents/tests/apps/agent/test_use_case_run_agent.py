@@ -85,9 +85,12 @@ async def test_run_agent_emits_recoverable_error_on_recursion_limit() -> None:
     class RecursionStreamingService:
         async def stream(self, graph, initial, config, init):
             assert config.get('recursion_limit') == _GRAPH_RECURSION_LIMIT
+            # `if False: yield` makes this an async generator (so the use case
+            # consumes it with `async for`) without any unreachable code: the
+            # yield is never executed, and the raise below is the live behaviour.
+            if False:
+                yield
             raise GraphRecursionError('Recursion limit reached')
-            # Unreachable yield makes this an async generator; the raise above fires first.
-            yield
 
     use_case = RunAgentUseCase(
         llm_factory=lambda model, reasoning=None: MagicMock(),
