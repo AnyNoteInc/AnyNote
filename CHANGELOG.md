@@ -1,3 +1,26 @@
+# [1.31.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.30.1...v1.31.0) (2026-06-27)
+
+
+### Bug Fixes
+
+* **billing:** capture @Cron renewal failures to Sentry ([501232d](https://github.com/AnyNoteInc/AnyNote/commit/501232da9cc2f9a9d6af333424872ca1d3a9fdb9))
+* **indexer:** resolve connectionEnc before vectorizing workspace pages ([1c9d791](https://github.com/AnyNoteInc/AnyNote/commit/1c9d79120668f9377335f1df2d9f1521f52c5a25))
+* resolve SonarCloud quality-gate findings on the audit quick-wins ([093d6b3](https://github.com/AnyNoteInc/AnyNote/commit/093d6b35a365f9336a3826e5745f1b2f2e54abc3))
+
+
+### Features
+
+* **agents:** bound graph recursion and degrade recoverably on limit ([a7ed451](https://github.com/AnyNoteInc/AnyNote/commit/a7ed4514740cf7c55db7c5fd905087f146bb4a07))
+
+
+### Performance Improvements
+
+* **agents:** index workspaceId/pageId payloads in Qdrant collections ([ee4e0f3](https://github.com/AnyNoteInc/AnyNote/commit/ee4e0f3a10b010449c2c5ff1c881665451c6535f))
+* **chat:** bound per-chat message fetch in chat history builder ([f5534ac](https://github.com/AnyNoteInc/AnyNote/commit/f5534ac3dd269aefb285950cc30ac9c6245b2e7e))
+* **database:** cap BOARD grouping fetch + surface truncated flag ([e753457](https://github.com/AnyNoteInc/AnyNote/commit/e753457e036603e6e28e1c3c98514bba7390e11e))
+* **sidebar:** rewrite flattenTree from O(n²) to O(n) ([cb4c248](https://github.com/AnyNoteInc/AnyNote/commit/cb4c2483eaef7d56d9981e53219f69028b7d6714))
+* **web:** drop redundant getMyRole client query in workspace layout ([ac4a695](https://github.com/AnyNoteInc/AnyNote/commit/ac4a69521a9a8670a526fe903c086f31448cd872))
+
 ## [1.30.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.30.0...v1.30.1) (2026-06-23)
 
 
