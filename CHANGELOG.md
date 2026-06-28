@@ -1,3 +1,10 @@
+## [1.31.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.31.0...v1.31.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **deploy:** prune superseded images after bring-up to free host disk ([c945bfd](https://github.com/AnyNoteInc/AnyNote/commit/c945bfd2fe9ba121a425b592a1cc7dfd6f012592))
+
 # [1.31.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.30.1...v1.31.0) (2026-06-27)
 
 
