@@ -196,13 +196,22 @@ jobs:
         # up project name "anynote" automatically — no --project-name needed.
         # traefik hot-reloads dynamic/*.yml via watch: true; static config
         # changes (rare) need a manual restart.
+        #
+        # `docker image prune -af` runs AFTER `up -d` succeeds: at that point the
+        # running stack references the just-deployed images, so prune reclaims
+        # only the now-superseded tagged images from prior releases. Without it,
+        # old per-release tags accumulate until the host disk fills and the next
+        # `compose pull` dies with "no space left on device" (happened on
+        # v1.31.0). It only runs on a successful bring-up (chained with &&), and
+        # `|| true` keeps a prune hiccup from failing an otherwise-good deploy.
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; cd /opt/anynote && \
              echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
              docker compose pull && \
              docker compose up -d --remove-orphans && \
-             docker logout ghcr.io"
+             docker logout ghcr.io && \
+             docker image prune -af || true"
 
       - name: Show container status on failure
         if: failure()
