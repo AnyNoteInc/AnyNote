@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.32.0...v1.33.0) (2026-07-05)
+
+
+### Features
+
+* **web:** add «Мои пространства» / «Последние действия» tabs to profile page ([872f987](https://github.com/AnyNoteInc/AnyNote/commit/872f987be248b50c937af9deca5721b8046a7275))
+
 # [1.32.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.31.1...v1.32.0) (2026-07-05)
 
 
