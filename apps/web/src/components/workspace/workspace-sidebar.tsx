@@ -50,6 +50,7 @@ import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import type { WorkspaceAccessKind, WorkspaceSidebarSection } from './workspace-layout-client'
+import { WorkspaceAvatar } from './workspace-avatar'
 import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
 import { useSettingsDialog } from './settings/settings-dialog-provider'
@@ -558,26 +559,6 @@ function SectionButton({
   )
   if (active) return button
   return <Tooltip title={tooltip}>{button}</Tooltip>
-}
-
-function WorkspaceAvatar({ icon, size = 24 }: { icon: string | null; size?: number }) {
-  return (
-    <Box
-      sx={{
-        width: size,
-        height: size,
-        borderRadius: 0.75,
-        background: 'linear-gradient(135deg,#0f766e,#155e75)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: Math.round(size * 0.58),
-        flexShrink: 0,
-      }}
-    >
-      {icon ?? '📒'}
-    </Box>
-  )
 }
 
 function NavItem({

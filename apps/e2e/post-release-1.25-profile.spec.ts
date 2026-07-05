@@ -53,15 +53,29 @@ async function renameViaSidebar(page: Page, pageId: string, newTitle: string): P
   await expect(dialog).toBeHidden({ timeout: 10_000 })
 }
 
-test('/profile shows the activity grid and not the workspaces list', async ({ page }) => {
+test('/profile shows «Мои пространства» (default) and «Последние действия» tabs', async ({
+  page,
+}) => {
   await signUpAndAuthAs(page, {
     email: `profile-${Date.now()}@example.com`,
     password,
   })
   await page.goto('/profile')
-  await expect(page.getByText('Рабочие пространства')).toHaveCount(0)
   await expect(page.getByText('Активность', { exact: true })).toBeVisible()
-  await expect(page.getByText('Последние действия')).toBeVisible()
+
+  // Both tabs render; «Мои пространства» is selected by default.
+  const workspacesTab = page.getByTestId('profile-tab-workspaces')
+  await expect(workspacesTab).toBeVisible()
+  await expect(workspacesTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('profile-tab-activity')).toBeVisible()
+
+  // A fresh user has no workspaces yet: empty state + create CTA.
+  await expect(page.getByText('У вас пока нет пространств')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Создать пространство' })).toBeVisible()
+
+  // Switching to «Последние действия» shows the (empty) activity list.
+  await page.getByTestId('profile-tab-activity').click()
+  await expect(page.getByText('Пока нет активности')).toBeVisible()
 })
 
 /**
@@ -101,8 +115,24 @@ test('/profile renders recent actions for a user WITH activity (no 500)', async 
   await expect(page.getByText('Последние действия')).toBeVisible()
   await expect(page.getByText('Что-то пошло не так')).toHaveCount(0)
 
+  // The default «Мои пространства» tab lists the workspace created above.
+  await expect(
+    page.getByTestId('profile-workspace-card').filter({ hasText: 'Profile Activity WS' }),
+  ).toBeVisible({ timeout: 15_000 })
+
   // The renamed page surfaces as a recent action under «Последние действия»,
   // proving the Date-carrying `recentActions` array crossed the RSC→client
   // boundary successfully (a serialized `createdAt`, not a raw Prisma Date).
+  await page.getByTestId('profile-tab-activity').click()
   await expect(page.getByText(pageTitle).first()).toBeVisible({ timeout: 15_000 })
+
+  // Clicking the workspace card routes back into the app (the card is the
+  // switch-workspace entry point; for the already-active workspace it just
+  // navigates to /app, which resolves to the workspace start route).
+  await page.getByTestId('profile-tab-workspaces').click()
+  await page
+    .getByTestId('profile-workspace-card')
+    .filter({ hasText: 'Profile Activity WS' })
+    .click()
+  await page.waitForURL(/\/(app|pages|chats)/, { timeout: 30_000 })
 })

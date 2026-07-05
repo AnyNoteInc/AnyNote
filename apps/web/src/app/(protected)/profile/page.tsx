@@ -1,7 +1,6 @@
 import Link from 'next/link'
 
 import {
-  Box,
   Container,
   NotificationsIcon,
   Paper,
@@ -12,7 +11,7 @@ import {
 
 import { ActivityGrid } from '@/components/profile/activity-grid'
 import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
-import { RecentActivity } from '@/components/profile/recent-activity'
+import { ProfileTabs } from '@/components/profile/profile-tabs'
 import { requireSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
 
@@ -21,7 +20,11 @@ export const metadata = { title: 'Мой профиль' }
 export default async function ProfilePage() {
   const session = await requireSession()
   const trpc = await getServerTRPC()
-  const activity = await trpc.user.activity()
+  const [activity, workspaces, activeWorkspace] = await Promise.all([
+    trpc.user.activity(),
+    trpc.workspace.listMine(),
+    trpc.workspace.getActive(),
+  ])
 
   const initials =
     `${session.user.firstName.charAt(0)}${session.user.lastName.charAt(0)}`.toUpperCase()
@@ -76,19 +79,21 @@ export default async function ProfilePage() {
 
         <ActivityGrid grid={activity.grid} />
 
-        <Box sx={{ width: '100%', pt: 2 }}>
-          <Typography variant="overline" color="text.secondary">
-            Последние действия
-          </Typography>
-          <RecentActivity
-            actions={activity.recentActions.map((a) => ({
-              action: a.action,
-              pageId: a.pageId,
-              pageTitle: a.pageTitle,
-              createdAt: a.createdAt.toISOString(),
-            }))}
-          />
-        </Box>
+        <ProfileTabs
+          workspaces={workspaces.map((w) => ({
+            id: w.id,
+            name: w.name,
+            icon: w.icon,
+            accessKind: w.accessKind,
+          }))}
+          activeWorkspaceId={activeWorkspace?.id ?? null}
+          actions={activity.recentActions.map((a) => ({
+            action: a.action,
+            pageId: a.pageId,
+            pageTitle: a.pageTitle,
+            createdAt: a.createdAt.toISOString(),
+          }))}
+        />
       </Stack>
     </Container>
   )
