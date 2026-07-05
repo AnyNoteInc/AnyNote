@@ -1,11 +1,13 @@
 'use client'
 
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { Editor } from '@tiptap/core'
 import type { ResolvedPos } from '@tiptap/pm/model'
 
 import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material'
+import CheckIcon from '@mui/icons-material/Check'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import ControlPointDuplicateIcon from '@mui/icons-material/ControlPointDuplicate'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FormatPaintOutlinedIcon from '@mui/icons-material/FormatPaintOutlined'
 import ShortcutIcon from '@mui/icons-material/Shortcut'
@@ -18,6 +20,7 @@ import {
   CONVERSION_LABELS,
   type ConversionTarget,
 } from '../lib/block-conversion'
+import { blockToMarkdown } from '../lib/block-to-markdown'
 import { duplicateBlock } from '../lib/block-duplicate'
 import {
   BACKGROUND_COLOR_KEYS,
@@ -75,6 +78,15 @@ function taskItemDeleteRange(
 export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }: Props) {
   const [submenu, setSubmenu] = useState<Submenu>(null)
   const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null)
+  const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<number | null>(null)
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current != null) window.clearTimeout(copyTimerRef.current)
+    },
+    [],
+  )
 
   const node = useMemo(
     () => (pos == null ? null : (editor.state.doc.resolve(pos).nodeAfter ?? null)),
@@ -84,6 +96,11 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   const convertible = node ? isConvertible(node) : false
 
   const handleClose = () => {
+    if (copyTimerRef.current != null) {
+      window.clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = null
+    }
+    setCopied(false)
     setSubmenu(null)
     setSubmenuAnchor(null)
     onClose()
@@ -92,6 +109,24 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   const handleOpenSubmenu = (kind: 'convert' | 'color') => (e: MouseEvent<HTMLElement>) => {
     setSubmenu(kind)
     setSubmenuAnchor(e.currentTarget)
+  }
+
+  const handleCopyText = () => {
+    if (!node || copied) return
+    const markdown = blockToMarkdown(editor.schema, node)
+    const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard
+    if (!clipboard?.writeText) {
+      // Insecure context (plain HTTP) — nothing to flash, just close.
+      handleClose()
+      return
+    }
+    void clipboard
+      .writeText(markdown)
+      .then(() => {
+        setCopied(true)
+        copyTimerRef.current = window.setTimeout(handleClose, 900)
+      })
+      .catch(() => handleClose())
   }
 
   const handleConvert = (target: ConversionTarget) => {
@@ -190,9 +225,20 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
         <Divider />
 
+        <MenuItem onClick={handleCopyText} data-testid="block-copy-text">
+          <ListItemIcon>
+            {copied ? (
+              <CheckIcon fontSize="small" color="success" />
+            ) : (
+              <ContentCopyIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          <ListItemText>{copied ? 'Скопировано' : 'Копировать текст'}</ListItemText>
+        </MenuItem>
+
         <MenuItem onClick={handleDuplicate}>
           <ListItemIcon>
-            <ContentCopyIcon fontSize="small" />
+            <ControlPointDuplicateIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Дубликат</ListItemText>
         </MenuItem>
