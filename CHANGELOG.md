@@ -1,3 +1,11 @@
+# [1.32.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.31.1...v1.32.0) (2026-07-05)
+
+
+### Features
+
+* **editor:** add blockToMarkdown block serializer ([ff23a29](https://github.com/AnyNoteInc/AnyNote/commit/ff23a296a59d211a39009ca79db0a339c8d35c1e))
+* **editor:** add Копировать текст (copy block as markdown) to block menu ([ea3dd9a](https://github.com/AnyNoteInc/AnyNote/commit/ea3dd9a52e7bb937278d55b4a346b6bdee6eb231))
+
 ## [1.31.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.31.0...v1.31.1) (2026-06-28)
 
 
