@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.33.0...v1.34.0) (2026-07-05)
+
+
+### Features
+
+* retire Electron desktop app and its download flow ([cdd22dd](https://github.com/AnyNoteInc/AnyNote/commit/cdd22ddf32d5d79bad64078516471c4491ac32e8))
+
 # [1.33.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.32.0...v1.33.0) (2026-07-05)
 
 
