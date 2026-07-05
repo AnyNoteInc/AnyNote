@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-AnyNote is a pnpm/Turbo monorepo. Application code lives in `apps/`: `web` is the Next.js product UI, `yjs` handles collaborative editing, `agents` is the FastAPI/LangGraph LLM service, `engines` is the NestJS MCP/vectorization service, `desktop` is the Electron thin-client that loads the remote server (macOS/Windows/Linux), and `e2e` contains Playwright specs. Shared TypeScript packages live in `packages/`, including `db`, `domain` (framework-agnostic business logic shared by `trpc` and `engines`), `auth`, `trpc`, `ui`, `editor`, `excalidraw`, `genogram`, `storage`, `mail`, and `yookassa`. Architecture notes and implementation plans belong in `docs/`; Docker support lives in `docker/`.
+AnyNote is a pnpm/Turbo monorepo. Application code lives in `apps/`: `web` is the Next.js product UI, `yjs` handles collaborative editing, `agents` is the FastAPI/LangGraph LLM service, `engines` is the NestJS MCP/vectorization service, and `e2e` contains Playwright specs. Shared TypeScript packages live in `packages/`, including `db`, `domain` (framework-agnostic business logic shared by `trpc` and `engines`), `auth`, `trpc`, `ui`, `editor`, `excalidraw`, `genogram`, `storage`, `mail`, and `yookassa`. Architecture notes and implementation plans belong in `docs/`; Docker support lives in `docker/`.
 
 ## Build, Test, and Development Commands
 

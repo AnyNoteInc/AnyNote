@@ -153,12 +153,3 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run Deploy --ref "${{ steps.post.outputs.tag }}"
-
-      # Same GITHUB_TOKEN-push caveat as Deploy above: the tag semantic-release
-      # pushes won't fire Desktop's `on.push.tags` listener, so dispatch it
-      # explicitly. Desktop builds the installers and uploads them to S3.
-      - name: Trigger Desktop build on new tag
-        if: steps.post.outputs.tag != '' && steps.post.outputs.tag != steps.pre.outputs.tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run Desktop --ref "${{ steps.post.outputs.tag }}"

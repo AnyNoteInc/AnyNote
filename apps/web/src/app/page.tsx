@@ -10,7 +10,6 @@ import { organizationSchema } from '@/lib/seo/schemas/organization'
 import { softwareAppSchema } from '@/lib/seo/schemas/software-app'
 import { websiteSchema } from '@/lib/seo/schemas/website'
 
-import { HomeDownload } from '@/components/public/home/home-download'
 import { HomeHero } from '@/components/public/home/home-hero'
 import { HomeMarketFit } from '@/components/public/home/home-market-fit'
 import { HomeModes } from '@/components/public/home/home-modes'
@@ -68,7 +67,6 @@ export default async function HomePage() {
         <HomePricing />
         <HomeContact />
         <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />
-        <HomeDownload />
       </main>
       <PublicFooter />
       <CookieBanner />
