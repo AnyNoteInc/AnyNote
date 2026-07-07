@@ -63,7 +63,13 @@ export const landingPricingCards = [
     slug: 'max',
     name: 'МАКС',
     price: 'от 5900 ₽/мес',
-    features: ['∞ пространств', 'До 20 участников', 'Индексация', 'Собственные LLM-модели', 'MCP-серверы'],
+    features: [
+      '∞ пространств',
+      'До 20 участников',
+      'Индексация',
+      'Собственные LLM-модели',
+      'MCP-серверы',
+    ],
   },
   {
     slug: 'custom',
@@ -117,7 +123,11 @@ export const homeCapabilities = [
     icon: '🗂️',
     title: 'Базы данных и дашборды',
     body: 'Таблицы, доски, календарь и списки на одном источнике: свойства, фильтры, группировки, формулы, связи и роллапы. Дашборды собирают графики и виджеты с общими фильтрами.',
-    points: ['Таблица · доска · календарь · список', 'Формулы, связи, роллапы', 'Графики и виджеты'],
+    points: [
+      'Таблица · доска · календарь · список',
+      'Формулы, связи, роллапы',
+      'Графики и виджеты',
+    ],
     span: 2 as const,
   },
   {
@@ -161,6 +171,11 @@ export const publicContact = {
   email: 'anynote@yandex.ru',
   phone: '+7(910)716-61-68',
   telegram: '@anynote_support',
+} as const
+
+export const publicRepo = {
+  label: 'github.com/AnyNoteInc/AnyNote',
+  url: 'https://github.com/AnyNoteInc/AnyNote',
 } as const
 
 export const integrationCards = [

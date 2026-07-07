@@ -11,7 +11,15 @@ test.describe('Home page (redesign)', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Рабочая память команды')
 
     // Section anchors
-    for (const anchor of ['why', 'modes', 'search', 'features', 'pricing', 'contact']) {
+    for (const anchor of [
+      'why',
+      'modes',
+      'search',
+      'features',
+      'opensource',
+      'pricing',
+      'contact',
+    ]) {
       await expect(page.locator(`#${anchor}`)).toBeVisible()
     }
 
@@ -21,8 +29,9 @@ test.describe('Home page (redesign)', () => {
     // Footer brand
     await expect(page.locator('footer')).toContainText('Любые заметки')
 
-    // No "AnyNote" anywhere
-    await expect(page.locator('body')).not.toContainText('AnyNote')
+    // "AnyNote" appears only as the public GitHub repo address, never as product branding
+    const bodyText = await page.locator('body').innerText()
+    expect(bodyText.replaceAll('github.com/AnyNoteInc/AnyNote', '')).not.toContain('AnyNote')
   })
 
   test('contact form submits and shows success', async ({ page, context }) => {
@@ -37,6 +46,8 @@ test.describe('Home page (redesign)', () => {
     await contact.getByLabel(/^Email/).fill('victor@example.ru')
     await contact.getByLabel(/^Телефон/).fill('+74951234567')
     await contact.getByLabel(/^Что нужно/).fill('On-prem на 200 пользователей')
+    await contact.getByTestId('contact-form-consent').locator('input').check()
+    await contact.getByTestId('contact-form-marketing').locator('input').check()
     await contact.getByRole('button', { name: 'Отправить запрос' }).click()
 
     await expect(contact.getByText('Заявка отправлена')).toBeVisible()

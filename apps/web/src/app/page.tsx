@@ -16,6 +16,7 @@ import { HomeModes } from '@/components/public/home/home-modes'
 import { HomeCapabilities } from '@/components/public/home/home-capabilities'
 import { HomeSearch } from '@/components/public/home/home-search'
 import { HomeFeatures } from '@/components/public/home/home-features'
+import { HomeOpenSource } from '@/components/public/home/home-open-source'
 import { HomePricing } from '@/components/public/home/home-pricing'
 import { HomeContact } from '@/components/public/home/home-contact'
 import { HomeFinalCta } from '@/components/public/home/home-final-cta'
@@ -64,6 +65,7 @@ export default async function HomePage() {
         <HomeCapabilities />
         <HomeSearch />
         <HomeFeatures />
+        <HomeOpenSource />
         <HomePricing />
         <HomeContact />
         <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />

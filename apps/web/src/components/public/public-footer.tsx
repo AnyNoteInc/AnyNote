@@ -4,13 +4,14 @@ import {
   Box,
   Container,
   EmailIcon,
+  GitHubIcon,
   LocalPhoneIcon,
   Stack,
   TelegramIcon,
   Typography,
 } from '@repo/ui/components'
 
-import { publicContact, publicFooterSections } from './content'
+import { publicContact, publicFooterSections, publicRepo } from './content'
 import { Origami } from './home/origami'
 import { homeTokens } from './home/home-tokens'
 
@@ -137,7 +138,18 @@ export function PublicFooter() {
           sx={{ pt: 3, fontSize: 12, color: 'rgba(240,238,230,0.45)' }}
         >
           <span>© {new Date().getFullYear()} «Любые заметки». Все права защищены.</span>
-          <Stack direction="row" spacing={2.25}>
+          <Stack direction="row" spacing={2.25} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Stack direction="row" alignItems="center" spacing={0.75}>
+              <GitHubIcon sx={{ fontSize: 15, opacity: 0.8 }} />
+              <a
+                href={publicRepo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'inherit', textDecoration: 'none' }}
+              >
+                {publicRepo.label}
+              </a>
+            </Stack>
             {[
               { label: 'Политика конфиденциальности', href: '/terms/privacy-policy' },
               { label: 'Оферта', href: '/terms/public-offer' },
