@@ -10,15 +10,20 @@ async function setupPlantumlPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('PlantUML WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 15_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  const createPageButton = page.getByRole('button', { name: 'Новая страница' })
+  // Workspace creation already left us on the seeded welcome page (/pages/…),
+  // so wait for the URL to change to the NEW page — otherwise we'd extract the
+  // welcome page's id instead of the PlantUML page's.
+  const welcomeUrl = page.url()
+  const createPageButton = page.getByRole('button', { name: 'Новая страница' }).first()
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
-  await page.getByRole('menuitem', { name: 'Диаграмма' }).click()
   await page.getByRole('button', { name: 'Создать страницу: PlantUML' }).click()
-  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.waitForURL(
+    (url) => /\/pages\/[a-f0-9-]+/.test(url.toString()) && url.toString() !== welcomeUrl,
+    { timeout: 15_000 },
+  )
   const pageId = /\/pages\/([a-f0-9-]+)/.exec(page.url())?.[1]
   expect(pageId).toBeTruthy()
   return pageId!
@@ -55,8 +60,13 @@ test('anonymous public share renders a plantuml diagram', async ({ page, browser
   await expect(page.getByRole('button', { name: 'Копировать ссылку' })).toBeVisible({
     timeout: 15_000,
   })
-  await page.getByRole('combobox').first().click()
-  await page.getByRole('option', { name: 'Всем, у кого есть ссылка' }).click()
+  // The diagram-board toolbar contributes its own comboboxes, so target the
+  // share dialog's access select by its current value instead of .first().
+  await page
+    .getByRole('combobox')
+    .filter({ hasText: 'Доступ ограничен' })
+    .click({ timeout: 15_000 })
+  await page.getByRole('option', { name: 'Всем, у кого есть ссылка' }).click({ timeout: 15_000 })
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
@@ -67,8 +77,10 @@ test('anonymous public share renders a plantuml diagram', async ({ page, browser
     data: { contentYjs: Y.encodeStateAsUpdate(ydoc) },
   })
 
+  // MUI's Select shows the picked label optimistically, so the setAccess
+  // mutation can still be in flight here — poll generously for the PUBLIC row.
   let shareId: string | undefined
-  for (let i = 0; i < 50; i += 1) {
+  for (let i = 0; i < 100; i += 1) {
     const row = await prisma.pageShare.findUnique({
       where: { pageId },
       select: { shareId: true, access: true },

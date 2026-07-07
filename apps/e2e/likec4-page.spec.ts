@@ -37,13 +37,11 @@ async function setupLikec4Page(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('LikeC4 WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 15_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  const createPageButton = page.getByRole('button', { name: 'Новая страница' })
+  const createPageButton = page.getByRole('button', { name: 'Новая страница' }).first()
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
-  await page.getByRole('menuitem', { name: 'Диаграмма' }).click()
   await page.getByRole('button', { name: 'Создать страницу: LikeC4' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 }

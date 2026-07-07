@@ -9,10 +9,9 @@ async function createDrawioPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Drawio WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 15_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  const createPageButton = page.getByRole('button', { name: 'Новая страница' })
+  const createPageButton = page.getByRole('button', { name: 'Новая страница' }).first()
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
   await page.getByRole('button', { name: 'Создать страницу: Draw.io' }).click()

@@ -8,18 +8,14 @@ async function setupMermaidPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Mermaid WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  // The new workspace redirects to its /chats route; wait for that redirect to
-  // settle BEFORE switching sections, otherwise the pathname-driven section sync
-  // reverts our switch to Pages back to Chats mid-click.
-  await page.waitForURL(/\/chats/, { timeout: 30_000 })
+  // Workspace creation redirects to the seeded welcome page; the sidebar shows
+  // the page tree with a «Новая страница» button, which opens the flat
+  // page-type grid (no «Диаграмма» submenu anymore).
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
-  // The redesigned sidebar opens on the Chats section; switch to the Pages
-  // section, then open the root create-page menu and pick the Mermaid type.
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  const createPageButton = page.getByRole('button', { name: 'Новая страница' })
+  const createPageButton = page.getByRole('button', { name: 'Новая страница' }).first()
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
-  await page.getByRole('menuitem', { name: 'Диаграмма' }).click()
   await page.getByRole('button', { name: 'Создать страницу: MermaidJS' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 }

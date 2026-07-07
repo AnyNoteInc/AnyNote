@@ -7,17 +7,13 @@ const password = 'SuperSecure123!'
 async function createWorkspace(page: Page) {
   await page.getByRole('textbox', { name: 'Название' }).fill('Ordering WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 }
 
 async function openPagesSection(page: Page) {
-  // Click the sidebar nav button (exact match to avoid colliding with the
-  // page-actions toolbar's "Действия страницы" button which contains
-  // "Страницы" as a substring).
-  await page.getByRole('button', { name: 'Страницы', exact: true }).click()
-  // PageTreeSection's "Новая страница" header IconButton appears once the
-  // pages section is mounted.
-  await expect(page.getByRole('button', { name: 'Новая страница' })).toBeVisible({
+  // The sidebar always shows the page tree now (no «Страницы» section switch);
+  // just wait for its «Новая страница» header IconButton to mount.
+  await expect(page.getByRole('button', { name: 'Новая страница' }).first()).toBeVisible({
     timeout: 15_000,
   })
 }

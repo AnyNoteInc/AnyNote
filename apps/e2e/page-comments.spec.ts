@@ -9,12 +9,11 @@ const commentText = 'Это вопрос'
 async function createWorkspace(page: Page) {
   await page.getByRole('textbox', { name: 'Название' }).fill('Comments WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 }
 
 async function createTextPage(page: Page) {
   const previousUrl = page.url()
-  await page.getByRole('button', { name: 'Страницы' }).click()
   await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
@@ -70,6 +69,11 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   expect(pageId).toBeTruthy()
 
   await editor.click()
+  // A heading is required for the outline (TOC) nav to render at all — it
+  // returns null on heading-less docs, and the doc does not survive reload
+  // without a yjs server, so the outline checks below run pre-reload.
+  await page.keyboard.type('# Оглавление')
+  await page.keyboard.press('Enter')
   await page.keyboard.type(selectedText)
   await dragSelectEditorText(page, editor, selectedText)
   await page.getByRole('button', { name: 'Комментировать' }).click()
@@ -138,10 +142,9 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await popover.getByRole('button', { name: 'Решить' }).click()
   await expect(popover).toBeHidden({ timeout: 5_000 })
 
-  await page.reload()
-  await expect(editor).toBeVisible({ timeout: 15_000 })
-
-  // (b) The toolbar icon opens the full sidebar list, without hiding the left sidebar.
+  // (b) The toolbar icon opens the full sidebar list, without hiding the left
+  // sidebar. Outline-related checks run pre-reload: the outline nav renders
+  // only while the live doc still has its heading (see above).
   await page.getByRole('button', { name: 'Комментарии', exact: true }).click()
   await expect(page.locator('.workspace-sidebar')).toHaveCount(1)
   const commentsSidebar = page.locator('.comments-sidebar')
@@ -156,7 +159,29 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   expect(contentBox).not.toBeNull()
   expect(sidebarBox!.y).toBeLessThan(contentBox!.y)
 
-  // The thread was resolved from the popover (fix #2), so it now lives under "Решённые".
+  // (fix #3) The comments sidebar stacks above the outline nav.
+  const stackOrder = await page.evaluate(() => {
+    const sidebar = document.querySelector('.comments-sidebar')
+    const outline = document.querySelector('nav[aria-label="Содержание страницы"]')
+    if (!(sidebar instanceof HTMLElement) || !(outline instanceof HTMLElement)) return null
+    return {
+      sidebarZ: window.getComputedStyle(sidebar).zIndex,
+      outlineZ: window.getComputedStyle(outline).zIndex,
+    }
+  })
+  expect(stackOrder).not.toBeNull()
+  expect(Number(stackOrder!.sidebarZ)).toBeGreaterThan(Number(stackOrder!.outlineZ))
+  await page.getByRole('button', { name: 'Закрыть комментарии' }).click()
+  await expect(commentsSidebar).toBeHidden()
+
+  await page.reload()
+  await expect(editor).toBeVisible({ timeout: 15_000 })
+
+  // Post-reload the thread survives via tRPC (the doc text does not — no yjs
+  // server in this env). It was resolved from the popover (fix #2), so it now
+  // lives under "Решённые".
+  await page.getByRole('button', { name: 'Комментарии', exact: true }).click()
+  await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
   await commentsSidebar.getByRole('button', { name: 'Решённые' }).click()
   await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
   await expect(commentsSidebar.getByText('Тест Тест')).toBeVisible()
@@ -169,16 +194,5 @@ test('a member adds an inline comment that persists', async ({ page }) => {
     window.location.hash = `#comment-${id}`
   }, threadId!)
   await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
-  const stackOrder = await page.evaluate(() => {
-    const sidebar = document.querySelector('.comments-sidebar')
-    const outline = document.querySelector('nav[aria-label="Содержание страницы"]')
-    if (!(sidebar instanceof HTMLElement) || !(outline instanceof HTMLElement)) return null
-    return {
-      sidebarZ: window.getComputedStyle(sidebar).zIndex,
-      outlineZ: window.getComputedStyle(outline).zIndex,
-    }
-  })
-  expect(stackOrder).not.toBeNull()
-  expect(Number(stackOrder!.sidebarZ)).toBeGreaterThan(Number(stackOrder!.outlineZ))
   await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
 })

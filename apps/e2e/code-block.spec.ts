@@ -8,12 +8,10 @@ async function setupTextPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('CodeBlock WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  // Wait for the /chats redirect to settle before switching sections (the
-  // pathname→section sync would otherwise revert the section mid-click).
-  await page.waitForURL(/\/chats/, { timeout: 30_000 })
+  // Workspace creation redirects to the seeded welcome page.
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  const createBtn = page.getByRole('button', { name: 'Новая страница' })
+  const createBtn = page.getByRole('button', { name: 'Новая страница' }).first()
   await expect(createBtn).toBeVisible()
   await createBtn.click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
