@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.34.0...v1.35.0) (2026-07-07)
+
+
+### Features
+
+* **web:** add GitHub repo link to footer and Open Source landing section ([52ec41a](https://github.com/AnyNoteInc/AnyNote/commit/52ec41a8cac8a6099ddf9204b56c08e4b87346cb)), closes [#opensource](https://github.com/AnyNoteInc/AnyNote/issues/opensource)
+
 # [1.34.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.33.0...v1.34.0) (2026-07-05)
 
 
