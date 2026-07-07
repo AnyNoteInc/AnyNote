@@ -10,12 +10,11 @@ async function signUp(page: import('@playwright/test').Page, tag: string) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Экст', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Ext Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 }
 
 async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
-  await page.getByRole('button', { name: 'Страницы' }).click()
   await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
@@ -37,6 +36,12 @@ test('slash menu inserts details and hidden blocks', async ({ page }) => {
   await editor.press('/')
   await page.getByText('Переключатель', { exact: true }).click()
   await expect(page.locator('.anynote-editor .anynote-details[data-type="details"]')).toBeVisible()
+  // The insert must leave the summary title selected so typing replaces it —
+  // regression: the caret used to land in the hidden detailsContent paragraph.
+  await page.keyboard.type('Мой переключатель')
+  await expect(page.locator('.anynote-editor .anynote-details__summary')).toHaveText(
+    'Мой переключатель',
+  )
 
   await editor.click()
   await editor.press('End')

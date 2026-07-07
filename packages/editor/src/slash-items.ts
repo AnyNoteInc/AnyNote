@@ -1,4 +1,5 @@
 import { createElement } from 'react'
+import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import AudiotrackIcon from '@mui/icons-material/Audiotrack'
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
@@ -62,6 +63,37 @@ export type SlashMediaHandlers = {
   // chosen meetingArtifactId. Omitted when the host editor has no picker (then the
   // slash item is hidden).
   openMeetingPicker?: (range: SlashRange) => void
+}
+
+// insertContent leaves the caret inside detailsContent's paragraph — DOM the
+// Details node view mounts with the `hidden` attribute and un-hides only a
+// macrotask later, so the caret sits in invisible content and typing misses the
+// title. Select the seeded summary text instead (the library's own setDetails
+// also ends with an explicit selection into the summary) so the toggle title is
+// focused and the first keystroke replaces «Заголовок».
+const selectDetailsSummary = (tr: Transaction): void => {
+  const { $from } = tr.selection
+  let detailsPos: number | null = null
+  // The insert placed the caret inside the new details node (empty-paragraph
+  // replacement)…
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === 'details') {
+      detailsPos = $from.before(depth)
+      break
+    }
+  }
+  // …or right after it (the source paragraph was split around the insert).
+  if (detailsPos === null && $from.depth > 0) {
+    const $block = tr.doc.resolve($from.before($from.depth))
+    if ($block.nodeBefore?.type.name === 'details') {
+      detailsPos = $block.pos - $block.nodeBefore.nodeSize
+    }
+  }
+  if (detailsPos === null) return
+  const summary = tr.doc.nodeAt(detailsPos)?.firstChild
+  if (summary?.type.name !== 'detailsSummary') return
+  const start = detailsPos + 2
+  tr.setSelection(TextSelection.create(tr.doc, start, start + summary.content.size))
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -231,6 +263,11 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
             },
             { type: 'detailsContent', content: [{ type: 'paragraph' }] },
           ],
+        })
+        .command(({ tr }) => {
+          // Never fails the chain: worst case the default caret position stays.
+          selectDetailsSummary(tr)
+          return true
         })
         .run(),
   },
