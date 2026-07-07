@@ -1,3 +1,10 @@
+## [1.35.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.35.0...v1.35.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **editor:** place caret in toggle summary after slash insert ([3401c2a](https://github.com/AnyNoteInc/AnyNote/commit/3401c2a80cfab7608f8a51dae8dc35bc0cafe9e0))
+
 # [1.35.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.34.0...v1.35.0) (2026-07-07)
 
 
