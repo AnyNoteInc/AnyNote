@@ -41,7 +41,7 @@
     "@tiptap/extension-task-item": "^3.27.3",
     "@tiptap/extension-task-list": "^3.27.3",
     "@tiptap/extension-text": "^3.27.3",
-    "@types/node": "^22.19.1",
+    "@types/node": "^26.1.1",
     "prisma": "^7.8.0",
     "tsx": "^4.23.0",
     "typescript": "^5.9.2",
