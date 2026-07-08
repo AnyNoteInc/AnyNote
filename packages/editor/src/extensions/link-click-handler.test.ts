@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
 import { attachLinkClickHandler, findClickedLink, shouldOpenLink } from './link-click-handler'
 
@@ -74,8 +74,7 @@ function makeEditor(dom: HTMLElement, isEditable: boolean) {
 }
 
 describe('attachLinkClickHandler', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let openSpy: ReturnType<typeof vi.spyOn<any, any>>
+  let openSpy: MockInstance<typeof globalThis.open>
 
   beforeEach(() => {
     openSpy = vi.spyOn(globalThis, 'open').mockImplementation(() => null)

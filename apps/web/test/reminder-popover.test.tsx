@@ -77,11 +77,11 @@ const initial: ReminderFormValue = {
 function renderReminderPopover({
   mode = 'create',
   initialValue = initial,
-  onSave = vi.fn(),
+  onSave = vi.fn<(value: ReminderFormValue) => void>(),
 }: {
   mode?: 'create' | 'edit'
   initialValue?: ReminderFormValue
-  onSave?: ReturnType<typeof vi.fn>
+  onSave?: (value: ReminderFormValue) => void
 } = {}) {
   const anchorEl = document.createElement('button')
   document.body.appendChild(anchorEl)
@@ -111,7 +111,7 @@ describe('ReminderPopover', () => {
 
   it('keeps only required fields on the main tab and localizes DateTimePicker actions', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({ onSave })
 
@@ -156,7 +156,7 @@ describe('ReminderPopover', () => {
 
   it('moves postpone controls to the main edit tab and replaces delete with a done toggle button', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({ mode: 'edit', onSave })
 
@@ -172,7 +172,7 @@ describe('ReminderPopover', () => {
 
   it('highlights the done toggle and switches it to not done when reminder is completed', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({
       mode: 'edit',

@@ -3,6 +3,12 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // Vitest 4 switched its default transformer to OXC, which ignores the
+  // top-level `esbuild` options below and does not enable the automatic JSX
+  // runtime for these .tsx tests ("Unexpected JSX expression"). Disable OXC so
+  // Vitest falls back to esbuild, honouring the jsx config — the same
+  // esbuild-JSX setup that worked before the bump.
+  oxc: false,
   esbuild: {
     jsx: 'automatic',
     jsxImportSource: 'react',

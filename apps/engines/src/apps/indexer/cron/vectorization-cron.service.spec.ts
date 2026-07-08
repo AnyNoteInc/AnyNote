@@ -204,8 +204,8 @@ describe('VectorizationCronService', () => {
       },
     ]
     const prisma = makePrismaMock({ rows, page: null, aiSettings: null })
-    const vectorize = jest.fn(async () => undefined)
-    const deletePageVectors = jest.fn(async () => undefined)
+    const vectorize = jest.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined)
+    const deletePageVectors = jest.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined)
     const agents = { vectorize, deletePageVectors } as unknown as AgentsClient
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(
