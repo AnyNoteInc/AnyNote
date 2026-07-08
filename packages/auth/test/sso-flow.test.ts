@@ -30,6 +30,8 @@ vi.mock('@repo/mail', async () => {
 })
 
 import { prisma } from '@repo/db'
+// Trust the loopback mock IdP BEFORE auth.ts bakes its trustedOrigins at init.
+import './trust-loopback-idp.js'
 import { auth, withDerivedNameParts } from '../src/auth.js'
 
 const RUN = `${Date.now()}`

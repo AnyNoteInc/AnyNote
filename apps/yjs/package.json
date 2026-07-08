@@ -17,9 +17,9 @@
     "@hocuspocus/transformer": "^3.4.4",
     "@repo/db": "workspace:*",
     "@repo/domain": "workspace:*",
-    "@sentry/node": "^10.60.0",
-    "jose": "^6.2.2",
-    "yjs": "^13.6.30"
+    "@sentry/node": "^10.64.0",
+    "jose": "^6.2.3",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
@@ -29,8 +29,8 @@
     "@types/node": "^22.19.1",
     "eslint": "^9.39.1",
     "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
-    "tsx": "^4.21.0",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.23.0",
     "typescript": "^5.9.2"
   }
 }
