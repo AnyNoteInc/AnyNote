@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.1",
-    "@hocuspocus/provider": "^3.4.4",
+    "@hocuspocus/provider": "^4.3.0",
     "@mui/material": "^9.2.0",
     "@timephy/y-excalidraw": "^2.0.15",
     "react": "^19.2.7",

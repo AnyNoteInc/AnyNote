@@ -176,9 +176,9 @@ const server = new Server({
     }
   },
 
-  async onStoreDocument({ documentName, document, context }) {
+  async onStoreDocument({ documentName, document, lastContext }) {
     try {
-      const ctx = context as AuthContext
+      const ctx = lastContext as AuthContext
       if (ctx.kind === 'syncedBlock') {
         await storeSyncedBlockDocument({ blockId: ctx.blockId, document })
         return

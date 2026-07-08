@@ -13,8 +13,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@hocuspocus/server": "^3.4.4",
-    "@hocuspocus/transformer": "^3.4.4",
+    "@hocuspocus/server": "^4.3.0",
+    "@hocuspocus/transformer": "^4.3.0",
     "@repo/db": "workspace:*",
     "@repo/domain": "workspace:*",
     "@sentry/node": "^10.64.0",

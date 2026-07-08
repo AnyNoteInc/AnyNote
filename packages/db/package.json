@@ -31,7 +31,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@hocuspocus/transformer": "^3.4.4",
+    "@hocuspocus/transformer": "^4.3.0",
     "@repo/typescript-config": "workspace:*",
     "@tiptap/extension-code": "^3.27.3",
     "@tiptap/extension-document": "^3.27.3",

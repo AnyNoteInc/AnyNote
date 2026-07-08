@@ -16,7 +16,7 @@
     "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts"
   },
   "dependencies": {
-    "@hocuspocus/transformer": "^3.4.4",
+    "@hocuspocus/transformer": "^4.3.0",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.28",

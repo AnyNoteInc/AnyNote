@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hocuspocus/provider": "^3.4.4",
+    "@hocuspocus/provider": "^4.3.0",
     "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",

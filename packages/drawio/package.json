@@ -21,7 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@hocuspocus/provider": "^3.4.4",
+    "@hocuspocus/provider": "^4.3.0",
     "@mui/material": "^9.2.0",
     "react": "^19.2.7",
     "react-drawio": "^1.0.7",
