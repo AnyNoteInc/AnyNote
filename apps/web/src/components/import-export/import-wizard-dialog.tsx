@@ -80,7 +80,7 @@ const CSV_TYPE_OPTIONS: { value: ColumnPick; label: string }[] = [
 function SourceCardContent({ card }: { card: SourceCard }) {
   return (
     <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5 }}>
+      <Stack direction="row" spacing={0.5} sx={{ mb: 0.5, alignItems: 'center' }}>
         <Typography variant="subtitle2">{card.label}</Typography>
         {card.badge ? <Chip label={card.badge} size="small" /> : null}
       </Stack>

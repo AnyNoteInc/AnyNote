@@ -29,7 +29,13 @@ export function NoteForm({ initialText = '', onCancel, onSubmit }: Props) {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          justifyContent: 'flex-end',
+        }}
+      >
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
         <Button
           variant="contained"

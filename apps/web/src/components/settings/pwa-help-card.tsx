@@ -22,7 +22,7 @@ export function PwaHelpCard() {
         backgroundColor: 'background.paper',
       }}
     >
-      <Typography variant="subtitle1" fontWeight={700}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
         Приложение AnyNote
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

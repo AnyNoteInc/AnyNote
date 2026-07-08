@@ -103,9 +103,12 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
           {part.title}
         </Typography>
         <Typography
-          color="text.secondary"
           component="span"
-          sx={{ flexShrink: 0, fontSize: 12.5 }}
+          sx={{
+            color: 'text.secondary',
+            flexShrink: 0,
+            fontSize: 12.5,
+          }}
         >
           {detail.tool ?? ''}
         </Typography>
@@ -121,7 +124,6 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
           />
         ) : null}
       </ButtonBase>
-
       {hasDetails ? (
         <Collapse in={open} unmountOnExit>
           <Stack spacing={1} sx={{ pt: 0.75, px: 0.5 }}>
@@ -136,7 +138,14 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                <Typography component="pre" fontFamily="monospace" m={0} variant="caption">
+                <Typography
+                  component="pre"
+                  variant="caption"
+                  sx={{
+                    fontFamily: 'monospace',
+                    m: 0,
+                  }}
+                >
                   {JSON.stringify(argsPreview, null, 2)}
                 </Typography>
               </Box>
@@ -154,7 +163,14 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                <Typography component="pre" fontFamily="monospace" m={0} variant="body2">
+                <Typography
+                  component="pre"
+                  variant="body2"
+                  sx={{
+                    fontFamily: 'monospace',
+                    m: 0,
+                  }}
+                >
                   {part.result}
                 </Typography>
               </Box>

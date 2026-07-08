@@ -109,18 +109,31 @@ function BookmarkView({ node, deleteNode, editor, selected }: NodeViewProps) {
             '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' },
           }}
         >
-          <Box sx={{ minWidth: 0, flex: 1, px: 1.5, py: 1.25, display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+          <Box
+            sx={{
+              minWidth: 0,
+              flex: 1,
+              px: 1.5,
+              py: 1.25,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.25,
+            }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
               {safeFavicon ? (
                 <Box
                   component="img"
                   src={safeFavicon}
                   alt=""
-                  width={16}
-                  height={16}
-                  sx={{ flexShrink: 0, borderRadius: 0.5 }}
                   onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                     e.currentTarget.style.display = 'none'
+                  }}
+                  sx={{
+                    width: 16,
+                    height: 16,
+                    flexShrink: 0,
+                    borderRadius: 0.5,
                   }}
                 />
               ) : (
@@ -141,8 +154,8 @@ function BookmarkView({ node, deleteNode, editor, selected }: NodeViewProps) {
             {attrs.description ? (
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
+                  color: 'text.secondary',
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
@@ -154,8 +167,13 @@ function BookmarkView({ node, deleteNode, editor, selected }: NodeViewProps) {
             ) : null}
             <Typography
               variant="caption"
-              color="text.secondary"
-              sx={{ mt: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              sx={{
+                color: 'text.secondary',
+                mt: 'auto',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
             >
               {host}
             </Typography>

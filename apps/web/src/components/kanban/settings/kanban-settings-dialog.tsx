@@ -40,12 +40,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'participants', label: 'Участники' },
 ]
 
-export function KanbanSettingsDialog({
-  pageId,
-  board,
-  open,
-  onClose,
-}: KanbanSettingsDialogProps) {
+export function KanbanSettingsDialog({ pageId, board, open, onClose }: KanbanSettingsDialogProps) {
   const [tab, setTab] = useState<TabKey>('types')
   const utils = trpc.useUtils()
   const invalidate = () => utils.kanban.board.getBoard.invalidate({ pageId })
@@ -74,8 +69,15 @@ export function KanbanSettingsDialog({
   const reorderColumn = trpc.kanban.column.reorder.useMutation({ onSuccess: invalidate })
   const deleteColumn = trpc.kanban.column.delete.useMutation({ onSuccess: invalidate })
 
-  function asItems(rows: Array<{ id: string; title: string; position: number; color?: string | null }>): SortableItem[] {
-    return rows.map((r) => ({ id: r.id, title: r.title, position: r.position, color: r.color ?? null }))
+  function asItems(
+    rows: Array<{ id: string; title: string; position: number; color?: string | null }>,
+  ): SortableItem[] {
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      position: r.position,
+      color: r.color ?? null,
+    }))
   }
 
   return (
@@ -137,7 +139,7 @@ export function KanbanSettingsDialog({
               >
                 {KANBAN_LABEL_COLORS.map((c) => (
                   <MenuItem key={c.hex} value={c.hex}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.hex }} />
                       <span>{c.name}</span>
                     </Stack>
@@ -150,9 +152,16 @@ export function KanbanSettingsDialog({
 
         {tab === 'labels' ? (
           <SortableList
-            items={board.labels.map((l) => ({ id: l.id, title: l.name, position: l.position, color: l.color }))}
+            items={board.labels.map((l) => ({
+              id: l.id,
+              title: l.name,
+              position: l.position,
+              color: l.color,
+            }))}
             addPlaceholder="Новая метка"
-            onAdd={(title) => createLabel.mutateAsync({ pageId, name: title, color: KANBAN_LABEL_COLORS[0]!.hex })}
+            onAdd={(title) =>
+              createLabel.mutateAsync({ pageId, name: title, color: KANBAN_LABEL_COLORS[0]!.hex })
+            }
             onRename={(id, title) => updateLabel.mutateAsync({ pageId, id, name: title })}
             onReorder={(id, beforeId, afterId) =>
               reorderLabel.mutateAsync({ pageId, id, beforeId, afterId })
@@ -169,7 +178,7 @@ export function KanbanSettingsDialog({
               >
                 {KANBAN_LABEL_COLORS.map((c) => (
                   <MenuItem key={c.hex} value={c.hex}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                       <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.hex }} />
                       <span>{c.name}</span>
                     </Stack>
@@ -182,7 +191,12 @@ export function KanbanSettingsDialog({
 
         {tab === 'statuses' ? (
           <SortableList
-            items={board.columns.map((c) => ({ id: c.id, title: c.title, position: c.position, color: c.color }))}
+            items={board.columns.map((c) => ({
+              id: c.id,
+              title: c.title,
+              position: c.position,
+              color: c.color,
+            }))}
             addPlaceholder="Новая колонка"
             onAdd={(title) => createColumn.mutateAsync({ pageId, title, kind: 'ACTIVE' })}
             onRename={(id, title) => updateColumn.mutateAsync({ pageId, id, title })}

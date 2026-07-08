@@ -3,7 +3,7 @@
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Box, IconButton, Paper, Tooltip, Typography } from '@mui/material'
-import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 
 import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
@@ -112,49 +112,55 @@ function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
             },
           }}
         >
-        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-          <Icon width={32} height={32} />
-        </Box>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            component="div"
-            variant="body2"
+          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+            <Icon width={32} height={32} />
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              component="div"
+              variant="body2"
+              sx={{
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {attrs.name}
+            </Typography>
+            <Typography
+              component="div"
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
+              {formatBytes(attrs.size)}
+            </Typography>
+          </Box>
+          <Box
+            component="a"
+            className="download-link"
+            href={attrs.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download={attrs.name}
+            aria-label={`Скачать ${attrs.name}`}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             sx={{
-              fontWeight: 500,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              color: 'text.secondary',
+              opacity: 0.6,
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 1,
+              p: 0.5,
+              transition: 'opacity .15s, background-color .15s',
+              '&:hover': { backgroundColor: 'action.hover' },
             }}
           >
-            {attrs.name}
-          </Typography>
-          <Typography component="div" variant="caption" color="text.secondary">
-            {formatBytes(attrs.size)}
-          </Typography>
-        </Box>
-        <Box
-          component="a"
-          className="download-link"
-          href={attrs.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          download={attrs.name}
-          aria-label={`Скачать ${attrs.name}`}
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-          sx={{
-            color: 'text.secondary',
-            opacity: 0.6,
-            display: 'flex',
-            alignItems: 'center',
-            borderRadius: 1,
-            p: 0.5,
-            transition: 'opacity .15s, background-color .15s',
-            '&:hover': { backgroundColor: 'action.hover' },
-          }}
-        >
-          <DownloadIcon width={18} height={18} />
-        </Box>
+            <DownloadIcon width={18} height={18} />
+          </Box>
         </Box>
       </Box>
     </NodeViewWrapper>

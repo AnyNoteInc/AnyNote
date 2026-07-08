@@ -61,7 +61,7 @@ export function CommentsSidebar() {
         p: 1.5,
       }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+      <Stack direction="row" sx={{ mb: 1, alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="subtitle2">Комментарии</Typography>
         <IconButton size="small" onClick={closePanel} aria-label="Закрыть комментарии">
           <CloseIcon fontSize="small" />
@@ -69,7 +69,11 @@ export function CommentsSidebar() {
       </Stack>
 
       <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-        <Button size="small" variant={tab === 'active' ? 'contained' : 'text'} onClick={() => setTab('active')}>
+        <Button
+          size="small"
+          variant={tab === 'active' ? 'contained' : 'text'}
+          onClick={() => setTab('active')}
+        >
           Активные
         </Button>
         <Button

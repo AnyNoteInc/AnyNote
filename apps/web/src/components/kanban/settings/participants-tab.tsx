@@ -73,11 +73,8 @@ export function ParticipantsTab({ pageId, board }: ParticipantsTabProps) {
         </Typography>
         <Stack spacing={0.5} sx={{ mt: 0.5 }}>
           {board.members.map((m) => (
-            <Stack key={m.user.id} direction="row" alignItems="center" spacing={1}>
-              <Avatar
-                src={m.user.image ?? undefined}
-                sx={{ width: 28, height: 28, fontSize: 12 }}
-              >
+            <Stack key={m.user.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Avatar src={m.user.image ?? undefined} sx={{ width: 28, height: 28, fontSize: 12 }}>
                 {participantInitials(memberAsParticipant(m))}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -137,20 +134,20 @@ export function ParticipantsTab({ pageId, board }: ParticipantsTabProps) {
 
       <Divider />
 
-      <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <TextField
           size="small"
           label="ФИО"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          inputProps={{ maxLength: 64 }}
+          slotProps={{ htmlInput: { maxLength: 64 } }}
         />
         <TextField
           size="small"
           label="Компания"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
-          inputProps={{ maxLength: 64 }}
+          slotProps={{ htmlInput: { maxLength: 64 } }}
         />
         <Button variant="contained" onClick={addGuest} disabled={create.isPending}>
           Добавить
@@ -179,24 +176,26 @@ function GuestRow({ name, company, initials, onSave, onDelete }: GuestRowProps) 
   }
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       <Avatar sx={{ width: 28, height: 28, fontSize: 12 }}>{initials}</Avatar>
       <TextField
         size="small"
         value={editName}
         onChange={(e) => setEditName(e.target.value)}
         onBlur={commit}
-        inputProps={{ maxLength: 64 }}
+
         sx={{ flex: 1 }}
+        slotProps={{ htmlInput: { maxLength: 64 } }}
       />
       <TextField
         size="small"
         value={editCompany}
         onChange={(e) => setEditCompany(e.target.value)}
         onBlur={commit}
-        inputProps={{ maxLength: 64 }}
+
         placeholder="Компания"
         sx={{ flex: 1 }}
+        slotProps={{ htmlInput: { maxLength: 64 } }}
       />
       <IconButton size="small" color="error" onClick={onDelete} aria-label="Удалить участника">
         <DeleteIcon fontSize="small" />

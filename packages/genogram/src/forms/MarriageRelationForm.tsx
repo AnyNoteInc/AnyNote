@@ -104,7 +104,6 @@ export function MarriageRelationForm({
         <ToggleButton value="marriage">{RU.fields.marriage}</ToggleButton>
         <ToggleButton value="cohabitation">{RU.fields.cohabitation}</ToggleButton>
       </ToggleButtonGroup>
-
       {kind === 'marriage' ? (
         <>
           <PartialDateInput
@@ -146,9 +145,14 @@ export function MarriageRelationForm({
           )}
         </>
       )}
-
       {!embedded && (
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            justifyContent: 'flex-end',
+          }}
+        >
           <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
           <Button variant="contained" onClick={submit}>
             {submitLabel}

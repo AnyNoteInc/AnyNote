@@ -88,12 +88,7 @@ export function SyncedBlockEmbed({
   // returns 'unsynced' with content and the host is editable, inline the content
   // and remove this node locally. Guard with a flag so the post-detach re-render
   // (the node may briefly still exist) doesn't fire it twice.
-  if (
-    !autoDetached &&
-    editorEditable &&
-    data?.status === 'unsynced' &&
-    data.content != null
-  ) {
+  if (!autoDetached && editorEditable && data?.status === 'unsynced' && data.content != null) {
     setAutoDetached(true)
     const detachContent = data.content
     // Defer to a microtask so we don't dispatch a transaction during render.
@@ -192,7 +187,12 @@ export function SyncedBlockEmbed({
             </IconButton>
           </Tooltip>
           <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)}>
-            <MenuItem onClick={() => { setMenuEl(null); onOpenOrigin(data.originPageId) }}>
+            <MenuItem
+              onClick={() => {
+                setMenuEl(null)
+                onOpenOrigin(data.originPageId)
+              }}
+            >
               <OpenInNewIcon fontSize="small" sx={{ mr: 1 }} />
               Открыть оригинал
             </MenuItem>
@@ -211,7 +211,6 @@ export function SyncedBlockEmbed({
           </Menu>
         </>
       ) : null}
-
       {liveEditable ? (
         <SyncedBlockNestedEditor
           blockId={blockId}

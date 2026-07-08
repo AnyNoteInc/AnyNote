@@ -27,14 +27,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
   const title = pageQ.data?.title ?? null
   const rawType = pageQ.data?.type
   const pageType:
-    | 'TEXT'
-    | 'EXCALIDRAW'
-    | 'GENOGRAM'
-    | 'MERMAID'
-    | 'PLANTUML'
-    | 'LIKEC4'
-    | 'DRAWIO'
-    | 'KANBAN' =
+    'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'DRAWIO' | 'KANBAN' =
     rawType === 'EXCALIDRAW' ||
     rawType === 'GENOGRAM' ||
     rawType === 'MERMAID' ||
@@ -49,7 +42,12 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
   const movedPage = pages.find((p) => p.id === pageId)
 
   return (
-    <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
+    <Stack
+      direction="row"
+      spacing={0.5}
+      className="page-actions-toolbar"
+      sx={{ alignItems: 'center' }}
+    >
       <ShareButton pageId={pageId} />
       <CommentToggleButton />
       <HistoryToggleButton />

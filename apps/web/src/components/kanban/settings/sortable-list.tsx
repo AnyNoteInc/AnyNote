@@ -8,15 +8,7 @@ import {
   type DraggableProvided,
   type DropResult,
 } from '@hello-pangea/dnd'
-import {
-  AddIcon,
-  Box,
-  Button,
-  CloseIcon,
-  IconButton,
-  Stack,
-  TextField,
-} from '@repo/ui/components'
+import { AddIcon, Box, Button, CloseIcon, IconButton, Stack, TextField } from '@repo/ui/components'
 
 export interface SortableItem {
   id: string
@@ -107,7 +99,7 @@ function SortableRow({
       ref={provided.innerRef}
       {...provided.draggableProps}
       direction="row"
-      alignItems="center"
+
       spacing={1}
       sx={{
         py: 1,
@@ -117,6 +109,7 @@ function SortableRow({
         border: 1,
         borderColor: 'divider',
         mb: 0.5,
+        alignItems: 'center',
       }}
     >
       <Box {...provided.dragHandleProps} sx={{ cursor: 'grab', color: 'text.disabled' }}>

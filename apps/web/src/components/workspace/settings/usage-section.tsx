@@ -64,11 +64,8 @@ export function UsageSection({ limits, usage, ownerPlanSlug }: Props) {
         </Alert>
       ) : null}
 
-      <SettingsCard
-        title="Участники"
-        description="Сколько участников в этом пространстве."
-      >
-        <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+      <SettingsCard title="Участники" description="Сколько участников в этом пространстве.">
+        <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Typography variant="body2" color="text.secondary">
             {usage.memberCount} из {limits.maxMembers}
           </Typography>
@@ -90,7 +87,7 @@ export function UsageSection({ limits, usage, ownerPlanSlug }: Props) {
         title="Хранилище файлов"
         description="Объём активных файлов в этом пространстве."
       >
-        <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+        <Stack direction="row" sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Typography variant="body2" color="text.secondary">
             {formatBytes(usedBytes)} из {formatBytes(maxBytes)}
           </Typography>

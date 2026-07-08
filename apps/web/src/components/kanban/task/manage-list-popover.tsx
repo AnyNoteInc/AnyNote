@@ -70,9 +70,7 @@ function ManageListBody({
   onDelete,
 }: ManageListPopoverProps) {
   const [draft, setDraft] = useState('')
-  const [draftColor, setDraftColor] = useState<string>(
-    KANBAN_LABEL_COLORS[0]?.hex ?? '#6B7280',
-  )
+  const [draftColor, setDraftColor] = useState<string>(KANBAN_LABEL_COLORS[0]?.hex ?? '#6B7280')
 
   function submit() {
     const trimmed = draft.trim()
@@ -106,22 +104,24 @@ function ManageListBody({
           placeholder={addPlaceholder}
           size="small"
           fullWidth
-          InputProps={{
-            endAdornment: (
-              <IconButton
-                aria-label="Добавить"
-                size="small"
-                onClick={submit}
-                disabled={!draft.trim()}
-                edge="end"
-              >
-                <AddIcon fontSize="small" />
-              </IconButton>
-            ),
+          slotProps={{
+            input: {
+              endAdornment: (
+                <IconButton
+                  aria-label="Добавить"
+                  size="small"
+                  onClick={submit}
+                  disabled={!draft.trim()}
+                  edge="end"
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              ),
+            },
           }}
         />
         {withColor ? (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ rowGap: 0.5 }}>
+          <Stack direction="row" spacing={0.5} useFlexGap sx={{ rowGap: 0.5, flexWrap: 'wrap' }}>
             {KANBAN_LABEL_COLORS.map((c) => (
               <Box
                 key={c.hex}
@@ -177,13 +177,7 @@ interface VirtualizedRowsProps {
   readonly onDelete?: (id: string) => void
 }
 
-function VirtualizedRows({
-  items,
-  mode,
-  selectedIds,
-  onToggle,
-  onDelete,
-}: VirtualizedRowsProps) {
+function VirtualizedRows({ items, mode, selectedIds, onToggle, onDelete }: VirtualizedRowsProps) {
   const [scrollTop, setScrollTop] = useState(0)
   const viewportHeight = Math.min(LIST_MAX_HEIGHT, items.length * ROW_HEIGHT)
   const firstIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN)
@@ -226,19 +220,11 @@ interface ListRowProps {
   readonly height?: number
 }
 
-function ListRow({
-  item,
-  mode,
-  selected,
-  onToggle,
-  onDelete,
-  top,
-  height,
-}: ListRowProps) {
+function ListRow({ item, mode, selected, onToggle, onDelete, top, height }: ListRowProps) {
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={0.5}
       sx={{
         ...(top === undefined ? {} : { position: 'absolute', top, left: 0, right: 0 }),
@@ -248,6 +234,7 @@ function ListRow({
         borderRadius: 1,
         bgcolor: selected ? 'action.selected' : 'transparent',
         '&:hover': { bgcolor: 'action.hover' },
+        alignItems: 'center',
       }}
     >
       {mode === 'multi' ? (
@@ -258,12 +245,7 @@ function ListRow({
           sx={{ p: 0.5 }}
         />
       ) : (
-        <Radio
-          checked={selected}
-          size="small"
-          onChange={() => onToggle(item.id)}
-          sx={{ p: 0.5 }}
-        />
+        <Radio checked={selected} size="small" onChange={() => onToggle(item.id)} sx={{ p: 0.5 }} />
       )}
       {item.color ? (
         <Box

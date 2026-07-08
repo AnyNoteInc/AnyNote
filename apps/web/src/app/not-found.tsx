@@ -25,14 +25,14 @@ export default function NotFound() {
             backgroundColor: 'background.paper',
           }}
         >
-          <Stack spacing={2.5} alignItems="center">
+          <Stack spacing={2.5} sx={{ alignItems: 'center' }}>
             <Typography variant="overline" color="text.secondary">
               404
             </Typography>
-            <Typography variant="h4" fontWeight={700}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
               Страница не найдена
             </Typography>
-            <Typography color="text.secondary" maxWidth={440}>
+            <Typography color="text.secondary" sx={{ maxWidth: 440 }}>
               Похоже, вы свернули не туда. Проверьте адрес или вернитесь на главную — приложение
               продолжит работу с любого раздела.
             </Typography>

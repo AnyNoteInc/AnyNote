@@ -48,7 +48,13 @@ export function OwnerDataForm({ mode, initial, onSubmit, onCancel }: Props) {
         value={draft.birthDate ?? {}}
         onChange={(v: PartialDate) => update('birthDate', Object.keys(v).length ? v : undefined)}
       />
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          justifyContent: 'flex-end',
+        }}
+      >
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
         <Button variant="contained" onClick={() => onSubmit(draft)}>
           {mode === 'create' ? RU.drawer.create : RU.drawer.save}

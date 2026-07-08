@@ -74,7 +74,7 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
   if (!fileId) {
     if (!editable) return <span style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>—</span>
     return (
-      <Stack direction="row" alignItems="center" spacing={0.5}>
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
         <Chip
           size="small"
           variant="outlined"
@@ -103,7 +103,7 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
   }
 
   return (
-    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
+    <Stack direction="row" spacing={0.75} sx={{ minWidth: 0, alignItems: 'center' }}>
       {isImage ? (
         <Box
           component="a"

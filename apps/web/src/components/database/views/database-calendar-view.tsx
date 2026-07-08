@@ -135,9 +135,9 @@ export function DatabaseCalendarView({
 
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={1}
-        sx={{ px: 2, py: 0.75, borderBottom: 1, borderColor: 'divider' }}
+        sx={{ px: 2, py: 0.75, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
       >
         <IconButton
           size="small"
@@ -190,8 +190,8 @@ export function DatabaseCalendarView({
         <Box
           sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}
         >
-          <Stack spacing={2} alignItems="center">
-            <Typography color="text.secondary" textAlign="center">
+          <Stack spacing={2} sx={{ alignItems: 'center' }}>
+            <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
               Чтобы построить календарь, выберите свойство типа «Дата».
             </Typography>
             {editable ? (

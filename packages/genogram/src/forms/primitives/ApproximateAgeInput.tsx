@@ -81,7 +81,7 @@ export function ApproximateAgeInput({ value, onChange }: Props) {
           type="number"
           size="small"
           value={single.text}
-          inputProps={{ min: 0, max: 150, inputMode: 'numeric' }}
+          slotProps={{ htmlInput: { min: 0, max: 150, inputMode: 'numeric' } }}
           onChange={(e) => single.handleChange(e.target.value)}
         />
       ) : (
@@ -91,7 +91,7 @@ export function ApproximateAgeInput({ value, onChange }: Props) {
             type="number"
             size="small"
             value={fromField.text}
-            inputProps={{ inputMode: 'numeric' }}
+            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
             onChange={(e) => fromField.handleChange(e.target.value)}
           />
           <TextField
@@ -99,7 +99,7 @@ export function ApproximateAgeInput({ value, onChange }: Props) {
             type="number"
             size="small"
             value={toField.text}
-            inputProps={{ inputMode: 'numeric' }}
+            slotProps={{ htmlInput: { inputMode: 'numeric' } }}
             onChange={(e) => toField.handleChange(e.target.value)}
           />
         </Stack>

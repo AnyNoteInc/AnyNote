@@ -85,7 +85,7 @@ export function DatePickerBody({ mode, value, onChange, onAccept, onCancel, conf
           />
         )}
       </LocalizationProvider>
-      <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, pb: 2 }}>
+      <Stack direction="row" spacing={1} sx={{ px: 2, pb: 2, justifyContent: 'flex-end' }}>
         <Button size="small" onClick={onCancel}>
           Отмена
         </Button>

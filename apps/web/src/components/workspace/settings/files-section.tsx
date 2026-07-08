@@ -102,7 +102,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
       return (
         <TableRow>
           <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
-            <Stack spacing={1} alignItems="center">
+            <Stack spacing={1} sx={{ alignItems: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 По фильтрам ничего не найдено.
               </Typography>
@@ -138,63 +138,60 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   }, [listQuery.isLoading, items, filtersActive, currentUserId])
 
   return (
-    <SettingsCard
-      title="Библиотека"
-      description="Все файлы, загруженные в этом workspace."
-    >
+    <SettingsCard title="Библиотека" description="Все файлы, загруженные в этом workspace.">
       {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
 
-        <TextField
-          size="small"
-          placeholder="Поиск по названию"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
-          fullWidth
-        />
+      <TextField
+        size="small"
+        placeholder="Поиск по названию"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          },
+        }}
+        fullWidth
+      />
 
-        <FilesFilters
-          uploaderId={uploaderId}
-          uploaders={uploadersQuery.data ?? []}
-          uploadersLoading={uploadersQuery.isLoading}
-          onUploaderChange={setUploaderId}
-        />
+      <FilesFilters
+        uploaderId={uploaderId}
+        uploaders={uploadersQuery.data ?? []}
+        uploadersLoading={uploadersQuery.isLoading}
+        onUploaderChange={setUploaderId}
+      />
 
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Название</TableCell>
-                <TableCell align="right">Размер</TableCell>
-                <TableCell align="right">Скачивания</TableCell>
-                <TableCell>Загрузил</TableCell>
-                <TableCell align="right">Действия</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>{body}</TableBody>
-          </Table>
-        </Box>
+      <Box sx={{ overflowX: 'auto' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Название</TableCell>
+              <TableCell align="right">Размер</TableCell>
+              <TableCell align="right">Скачивания</TableCell>
+              <TableCell>Загрузил</TableCell>
+              <TableCell align="right">Действия</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>{body}</TableBody>
+        </Table>
+      </Box>
 
-        <TablePagination
-          component="div"
-          count={total}
-          page={page}
-          onPageChange={(_, next) => setPage(next)}
-          rowsPerPage={PAGE_SIZE}
-          rowsPerPageOptions={[PAGE_SIZE]}
-          labelDisplayedRows={({ from, to, count }) =>
-            `${from}–${to} из ${count !== -1 ? count : `больше ${to}`}`
-          }
-          labelRowsPerPage="На странице"
-        />
+      <TablePagination
+        component="div"
+        count={total}
+        page={page}
+        onPageChange={(_, next) => setPage(next)}
+        rowsPerPage={PAGE_SIZE}
+        rowsPerPageOptions={[PAGE_SIZE]}
+        labelDisplayedRows={({ from, to, count }) =>
+          `${from}–${to} из ${count !== -1 ? count : `больше ${to}`}`
+        }
+        labelRowsPerPage="На странице"
+      />
 
       <FilesDeleteDialog
         open={deleteTarget !== null}

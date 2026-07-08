@@ -127,12 +127,8 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
     <Button
       variant="contained"
       color={published ? 'inherit' : 'primary'}
-      disabled={
-        (!published && !sitesEnabled) || publish.isPending || unpublish.isPending
-      }
-      onClick={() =>
-        published ? unpublish.mutate({ pageId }) : publish.mutate({ pageId })
-      }
+      disabled={(!published && !sitesEnabled) || publish.isPending || unpublish.isPending}
+      onClick={() => (published ? unpublish.mutate({ pageId }) : publish.mutate({ pageId }))}
     >
       {published ? 'Снять с публикации' : 'Опубликовать сайт'}
     </Button>
@@ -141,7 +137,12 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
   return (
     <Stack spacing={2.5} sx={{ pt: 1 }}>
       {/* Primary publish action + status. */}
-      <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        useFlexGap
+        sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+      >
         {!published && !sitesEnabled ? (
           <Tooltip title="Доступно на тарифе Pro и выше">
             <span>{publishButton}</span>
@@ -171,12 +172,12 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
         <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
           Публичный адрес
         </Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <TextField
             size="small"
             fullWidth
             value={publicUrl}
-            InputProps={{ readOnly: true }}
+            slotProps={{ input: { readOnly: true } }}
           />
           <Button
             size="small"
@@ -250,7 +251,7 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
         }}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Typography variant="subtitle2">Расширения AnyNote</Typography>
             <Chip label="не Notion" size="small" variant="outlined" />
           </Stack>
@@ -268,7 +269,7 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
                 Парольная защита
               </Typography>
               {share.hasPassword ? (
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Chip label="Защищено паролем" color="warning" size="small" />
                   <Button
                     size="small"
@@ -280,7 +281,7 @@ export function PublishTab({ pageId, share, onChanged }: Props) {
                   </Button>
                 </Stack>
               ) : (
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <TextField
                     size="small"
                     type="password"

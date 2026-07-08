@@ -97,9 +97,8 @@ export function HomePricing() {
                     )}
                     <Stack
                       direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      sx={{ mb: 1.25 }}
+
+                      sx={{ mb: 1.25, alignItems: 'center', justifyContent: 'space-between' }}
                     >
                       <Typography
                         sx={{
@@ -171,7 +170,7 @@ export function HomePricing() {
                         </Typography>
                       ))}
                     </Stack>
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 2 }}>
+                    <Stack direction="row" spacing={0.5} sx={{ mt: 2, alignItems: 'center' }}>
                       <Typography sx={{ fontSize: 13, color: 'rgba(240,238,230,0.85)' }}>
                         Подробнее →
                       </Typography>

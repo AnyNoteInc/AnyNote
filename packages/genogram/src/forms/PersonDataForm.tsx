@@ -151,9 +151,7 @@ export function PersonDataForm({
         value={draft.middleName ?? ''}
         onChange={(e) => update('middleName', e.target.value)}
       />
-
       <SexToggle value={draft.sex} onChange={(v) => update('sex', v)} />
-
       <ToggleButtonGroup
         exclusive
         value={draft.birthMode}
@@ -164,7 +162,6 @@ export function PersonDataForm({
         <ToggleButton value="date">{RU.fields.birthDate}</ToggleButton>
         <ToggleButton value="approximate">{RU.fields.approximateAge}</ToggleButton>
       </ToggleButtonGroup>
-
       {draft.birthMode === 'date' ? (
         <PartialDateInput
           value={draft.birthDate ?? {}}
@@ -176,12 +173,10 @@ export function PersonDataForm({
           onChange={(v: ApproximateAge | undefined) => update('approximateAge', v)}
         />
       )}
-
       <LifeStatusToggle
         value={draft.lifeStatus}
         onChange={(v: LifeStatus) => update('lifeStatus', v)}
       />
-
       {draft.lifeStatus === 'deceased' && (
         <>
           <PartialDateInput
@@ -202,19 +197,23 @@ export function PersonDataForm({
           />
         </>
       )}
-
       {context.kind === 'edit-data' && context.isChild && (
         <TextField
           label="Порядковый номер ребёнка"
           type="number"
           value={childOrder ?? ''}
           onChange={(e) => handleChildOrder(Number(e.target.value))}
-          inputProps={{ min: 1, max: context.siblingsCount }}
+          slotProps={{ htmlInput: { min: 1, max: context.siblingsCount } }}
         />
       )}
-
       {!embedded && (
-        <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            justifyContent: 'flex-end',
+          }}
+        >
           <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
           <Button variant="contained" onClick={handleSubmit}>
             {submitLabel}

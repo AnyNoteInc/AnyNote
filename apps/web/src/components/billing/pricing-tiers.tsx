@@ -143,8 +143,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        justifyContent="space-between"
+        sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }}
       >
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
           Переключите период, чтобы сравнить ежемесячную оплату с годовой подпиской.
@@ -227,11 +226,11 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
                 <Stack spacing={1}>
                   <Stack
                     direction="row"
-                    alignItems="center"
+
                     spacing={1}
-                    justifyContent="space-between"
+                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                   >
-                    <Typography variant="h5" fontWeight={700}>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
                       {planName}
                     </Typography>
                     {isCurrent ? <Chip size="small" color="success" label="Активен" /> : null}
@@ -242,7 +241,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
                 </Stack>
 
                 <Stack spacing={0.75}>
-                  <Typography variant="h4" fontWeight={800}>
+                  <Typography variant="h4" sx={{ fontWeight: 800 }}>
                     {getPriceLabel(plan, period)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ minHeight: 20 }}>
@@ -297,7 +296,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
         >
           <Stack spacing={2.25} sx={{ height: '100%' }}>
             <Stack spacing={1}>
-              <Typography variant="h5" fontWeight={700}>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
                 {CUSTOM_TIER.name}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ minHeight: 40 }}>
@@ -306,7 +305,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
             </Stack>
 
             <Stack spacing={0.75}>
-              <Typography variant="h4" fontWeight={800}>
+              <Typography variant="h4" sx={{ fontWeight: 800 }}>
                 По запросу
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ minHeight: 20 }}>

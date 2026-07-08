@@ -48,7 +48,7 @@ export function ThemeSection() {
         backgroundColor: 'background.paper',
       }}
     >
-      <Typography variant="subtitle1" fontWeight={700}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
         Тема оформления
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -72,7 +72,7 @@ export function ThemeSection() {
               }}
             >
               <Box sx={{ height: 36, borderRadius: 1, mb: 1, ...opt.preview }} />
-              <Typography variant="caption" fontWeight={active ? 700 : 400}>
+              <Typography variant="caption" sx={{ fontWeight: active ? 700 : 400 }}>
                 {opt.label}
               </Typography>
             </Box>

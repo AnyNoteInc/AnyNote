@@ -251,10 +251,9 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     <Box>
       <Stack
         direction="row"
-        justifyContent="space-between"
-        alignItems="center"
+
         spacing={1}
-        sx={{ mb: 1 }}
+        sx={{ mb: 1, alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Box>
           <Chip
@@ -284,7 +283,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
             ))}
           </Menu>
         </Box>
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           {editable ? <BulkActionBar pageId={pageId} board={board} /> : null}
           {editable ? (
             <Button startIcon={<AddIcon />} size="small" onClick={() => setCreateOpen(true)}>

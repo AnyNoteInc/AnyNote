@@ -68,7 +68,7 @@ export function WorkspacePublicPagesSection({ workspaceId }: Props) {
           <CircularProgress />
         </Box>
       ) : rows.length === 0 ? (
-        <Stack alignItems="center" spacing={1} sx={{ py: 4, color: 'text.secondary' }}>
+        <Stack spacing={1} sx={{ py: 4, color: 'text.secondary', alignItems: 'center' }}>
           <PublicIcon />
           <Typography variant="body2">Пока нет публичных страниц.</Typography>
         </Stack>
@@ -86,7 +86,7 @@ export function WorkspacePublicPagesSection({ workspaceId }: Props) {
             {rows.map((row) => (
               <TableRow key={row.shareId}>
                 <TableCell>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <PageIcon icon={row.icon} size={16} fallback="📄" />
                     <Typography variant="body2" noWrap>
                       {row.title ?? 'Без названия'}
@@ -108,7 +108,7 @@ export function WorkspacePublicPagesSection({ workspaceId }: Props) {
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                  <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
                     <Button
                       size="small"
                       startIcon={<ContentCopyIcon sx={{ fontSize: 15 }} />}

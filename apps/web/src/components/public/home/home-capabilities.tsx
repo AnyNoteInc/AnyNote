@@ -30,7 +30,9 @@ export function HomeCapabilities() {
           <Typography component="h2" sx={sectionTitleSx}>
             Не просто заметки — <em>рабочая система команды</em>
           </Typography>
-          <Typography sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}>
+          <Typography
+            sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}
+          >
             Документы, базы данных, дашборды, публикация, ИИ и интеграции живут в одном дереве
             страниц. Ниже — крупные блоки, из которых складывается продукт.
           </Typography>
@@ -122,8 +124,8 @@ function CapabilityCard({ cap }: { readonly cap: Capability }) {
       <Stack
         direction="row"
         useFlexGap
-        flexWrap="wrap"
-        sx={{ mt: 'auto', columnGap: 1, rowGap: 1 }}
+
+        sx={{ mt: 'auto', columnGap: 1, rowGap: 1, flexWrap: 'wrap' }}
       >
         {cap.points.map((point) => (
           <Box

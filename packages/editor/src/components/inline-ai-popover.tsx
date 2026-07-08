@@ -212,9 +212,13 @@ export function InlineAiPopover({ editor, open, captured, askAI, onClose }: Popo
       <Box sx={{ py: 0.5 }}>
         <Stack
           direction="row"
-          alignItems="center"
           spacing={0.75}
-          sx={{ px: 1.5, py: 0.75, color: 'text.secondary' }}
+          sx={{
+            alignItems: 'center',
+            px: 1.5,
+            py: 0.75,
+            color: 'text.secondary',
+          }}
         >
           <AutoAwesomeIcon fontSize="small" color="primary" />
           <Typography variant="subtitle2">Спросить AI</Typography>

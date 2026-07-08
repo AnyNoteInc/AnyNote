@@ -37,14 +37,14 @@ export function TemplateCard({ template, onOpen }: { template: CardTemplate; onO
           >
             {template.description ?? ''}
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
             <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 90 }}>
               {template.author.name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               ·
             </Typography>
-            <Stack direction="row" spacing={0.25} alignItems="center">
+            <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
               <StarIcon sx={{ fontSize: 13, color: 'warning.main' }} />
               <Typography variant="caption" color="text.secondary">
                 {template.averageRating.toFixed(1)}

@@ -40,8 +40,8 @@ export function NewWorkspaceForm() {
       sx={{ maxWidth: 480, mx: 'auto', mt: { xs: 4, md: 8 } }}
     >
       <Stack spacing={3}>
-        <Stack spacing={1} textAlign="center">
-          <Typography variant="h4" fontWeight={800} letterSpacing="-0.02em">
+        <Stack spacing={1} sx={{ textAlign: 'center' }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
             Создайте рабочее пространство
           </Typography>
           <Typography variant="body1" color="text.secondary">
@@ -49,7 +49,7 @@ export function NewWorkspaceForm() {
           </Typography>
         </Stack>
         {error && <Alert severity="error">{error}</Alert>}
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <EmojiIconButton
             value={icon}
             onChange={setIcon}
@@ -70,9 +70,10 @@ export function NewWorkspaceForm() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            inputProps={{ maxLength: 64 }}
+
             autoFocus
             fullWidth
+            slotProps={{ htmlInput: { maxLength: 64 } }}
           />
         </Stack>
         <Button

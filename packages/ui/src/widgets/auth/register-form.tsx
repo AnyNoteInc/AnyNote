@@ -134,7 +134,7 @@ export function RegisterForm({
           error={!!errors.confirmPassword}
           helperText={errors.confirmPassword?.message}
         />
-        <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
           <KeyboardDoubleArrowLeftIcon fontSize="small" />
           <Typography
             component="a"

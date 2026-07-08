@@ -164,8 +164,8 @@ export function DatabaseViewTabs({
   return (
     <Stack
       direction="row"
-      alignItems="center"
-      sx={{ px: 1, borderBottom: 1, borderColor: 'divider', minHeight: 40 }}
+
+      sx={{ px: 1, borderBottom: 1, borderColor: 'divider', minHeight: 40, alignItems: 'center' }}
     >
       <Tabs
         value={tabsValue}

@@ -30,7 +30,10 @@ function Section({
   if (templates.length === 0) return null
   return (
     <Box sx={{ mb: 4 }}>
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 1.5 }}>
+      <Stack
+        direction="row"
+        sx={{ mb: 1.5, alignItems: 'baseline', justifyContent: 'space-between' }}
+      >
         <Typography variant="h6">{title}</Typography>
         {onSeeAll && (
           <Button size="small" variant="text" onClick={onSeeAll}>

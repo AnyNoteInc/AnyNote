@@ -152,11 +152,15 @@ export function AuthProvidersCard({ workspaceId, locked }: Props) {
               >
                 <Stack
                   direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
+
                   spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+                  >
                     <Typography variant="subtitle2">{provider.name}</Typography>
                     <Chip size="small" variant="outlined" label={TYPE_LABELS[provider.type]} />
                     <Chip size="small" color={status.color} label={status.label} />
@@ -164,7 +168,7 @@ export function AuthProvidersCard({ workspaceId, locked }: Props) {
                       <Chip size="small" variant="outlined" label={`Домен: ${boundDomain}`} />
                     ) : null}
                   </Stack>
-                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
                     {provider.status === 'DISABLED' && provider.type !== 'SAML_RESERVED' ? (
                       <Button
                         size="small"
@@ -424,7 +428,9 @@ function ProviderEditorDialog({
                 ? 'Секрет хранится в зашифрованном виде и не отображается. Оставьте поле пустым, чтобы не менять его.'
                 : 'Секрет хранится в зашифрованном виде и не отображается после сохранения.'
             }
-            slotProps={{ htmlInput: { 'data-testid': 'identity-provider-secret', maxLength: 4096 } }}
+            slotProps={{
+              htmlInput: { 'data-testid': 'identity-provider-secret', maxLength: 4096 },
+            }}
           />
         </Stack>
       </DialogContent>

@@ -70,7 +70,7 @@ export function DrawerHost({ doc, drawer, onClose }: Readonly<Props>) {
       anchor="right"
       open={open}
       onClose={onClose}
-      PaperProps={{ sx: { width: DRAWER_WIDTH, p: 2 } }}
+      slotProps={{ paper: { sx: { width: DRAWER_WIDTH, p: 2 } } }}
     >
       <Stack spacing={2}>
         <Typography variant="h6">{resolveTitle(doc, drawer)}</Typography>
@@ -351,7 +351,13 @@ function AddPartnerForm({
         }}
         embedded
       />
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          justifyContent: 'flex-end',
+        }}
+      >
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
         <Button
           variant="contained"

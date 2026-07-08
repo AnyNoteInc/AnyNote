@@ -115,7 +115,12 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
                 onChange={handleFileSelected}
               />
             </Button>
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
               Файл разбирается на клиенте и вставляется как текст.
             </Typography>
           </Stack>

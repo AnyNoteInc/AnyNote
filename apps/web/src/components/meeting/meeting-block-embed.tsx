@@ -99,7 +99,7 @@ export function MeetingBlockEmbed({
   if (data.status === 'failed') {
     return (
       <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <ErrorOutlineIcon fontSize="small" color="error" />
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {data.title}
@@ -115,7 +115,7 @@ export function MeetingBlockEmbed({
   if (data.status === 'processing') {
     return (
       <Box sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <CircularProgress size={18} />
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -136,7 +136,7 @@ export function MeetingBlockEmbed({
 
   return (
     <Box sx={{ p: 2 }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 0.5, alignItems: 'center' }}>
         <GraphicEqIcon fontSize="small" color="secondary" />
         <Typography variant="body2" sx={{ fontWeight: 600, flexGrow: 1 }}>
           {data.title}
@@ -165,7 +165,7 @@ export function MeetingBlockEmbed({
         </Typography>
       )}
 
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+      <Stack direction="row" spacing={2} sx={{ mt: 1, alignItems: 'center' }}>
         {actionCount > 0 ? (
           <Typography variant="caption" color="text.secondary">
             Задач: {actionCount}

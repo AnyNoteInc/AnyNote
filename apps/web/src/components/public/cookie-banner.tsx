@@ -66,7 +66,7 @@ export function CookieBanner() {
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={{ xs: 1.5, sm: 2 }}
-        alignItems={{ sm: 'center' }}
+        sx={{ alignItems: { sm: 'center' } }}
       >
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: 14, lineHeight: 1.55, color: 'text.primary' }}>

@@ -4,30 +4,24 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import type { PublicUnavailableReason } from '@repo/domain'
-import {
-  Alert,
-  Box,
-  Button,
-  LockIcon,
-  Stack,
-  TextField,
-  Typography,
-} from '@repo/ui/components'
+import { Alert, Box, Button, LockIcon, Stack, TextField, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
 // Russian copy per resolver reason. `not_found` never reaches here (the route
 // 404s for it); `password_required` renders the gate instead of a flat message.
-const MESSAGES: Record<Exclude<PublicUnavailableReason, 'not_found' | 'password_required'>, string> =
-  {
-    disabled: 'Доступ закрыт',
-    unpublished: 'Страница не опубликована',
-    expired: 'Срок действия ссылки истёк',
-    not_yet_exposed: 'Публикация ещё не началась',
-    restricted_child: 'Эта страница недоступна',
-    // The 8C security-policy kill-switch — an honest state, never a silent 404.
-    policy_disabled: 'Доступ по ссылке отключён администратором пространства',
-  }
+const MESSAGES: Record<
+  Exclude<PublicUnavailableReason, 'not_found' | 'password_required'>,
+  string
+> = {
+  disabled: 'Доступ закрыт',
+  unpublished: 'Страница не опубликована',
+  expired: 'Срок действия ссылки истёк',
+  not_yet_exposed: 'Публикация ещё не началась',
+  restricted_child: 'Эта страница недоступна',
+  // The 8C security-policy kill-switch — an honest state, never a silent 404.
+  policy_disabled: 'Доступ по ссылке отключён администратором пространства',
+}
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
@@ -40,7 +34,7 @@ function Centered({ children }: { children: React.ReactNode }) {
         p: 3,
       }}
     >
-      <Stack spacing={2} alignItems="center" sx={{ maxWidth: 360, width: '100%' }}>
+      <Stack spacing={2} sx={{ maxWidth: 360, width: '100%', alignItems: 'center' }}>
         {children}
       </Stack>
     </Box>
@@ -64,7 +58,7 @@ export function ShareUnavailable({ reason }: { reason: PublicUnavailableReason }
     <Centered>
       <LockIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
       <Typography variant="h6">{message}</Typography>
-      <Typography color="text.secondary" textAlign="center">
+      <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
         Открывать этот контент могут только пользователи, имеющие доступ.
       </Typography>
     </Centered>
@@ -107,7 +101,7 @@ export function SharePasswordGate({ shareId }: { shareId: string }) {
     <Centered>
       <LockIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
       <Typography variant="h6">Требуется пароль</Typography>
-      <Typography color="text.secondary" textAlign="center">
+      <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
         Эта страница защищена паролем. Введите его, чтобы продолжить.
       </Typography>
       <Box component="form" onSubmit={submit} sx={{ width: '100%' }}>

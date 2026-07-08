@@ -32,7 +32,7 @@ export function PublicFooter() {
           }}
         >
           <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
               <Box sx={{ position: 'relative', width: 28, height: 28 }}>
                 <Origami
                   variant="rhombus"
@@ -132,14 +132,24 @@ export function PublicFooter() {
 
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+
           spacing={2}
-          sx={{ pt: 3, fontSize: 12, color: 'rgba(240,238,230,0.45)' }}
+          sx={{
+            pt: 3,
+            fontSize: 12,
+            color: 'rgba(240,238,230,0.45)',
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: 'space-between',
+          }}
         >
           <span>© {new Date().getFullYear()} «Любые заметки». Все права защищены.</span>
-          <Stack direction="row" spacing={2.25} alignItems="center" flexWrap="wrap" useFlexGap>
-            <Stack direction="row" alignItems="center" spacing={0.75}>
+          <Stack
+            direction="row"
+            spacing={2.25}
+            useFlexGap
+            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+          >
+            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
               <GitHubIcon sx={{ fontSize: 15, opacity: 0.8 }} />
               <a
                 href={publicRepo.url}
@@ -196,7 +206,7 @@ function FooterContact({
   children: ReactNode
 }>) {
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       <Box sx={{ display: 'inline-flex', opacity: 0.7, color: homeTokens.palette.paperDeep }}>
         {icon}
       </Box>

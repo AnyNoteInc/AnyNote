@@ -10,10 +10,7 @@ import { PageCommentsProvider } from '@/components/page/comments/comments-contex
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { CopyToWorkspaceButton } from '@/components/share/copy-to-workspace-dialog'
-import {
-  PublicShareTreeNav,
-  type ShareTreeNode,
-} from '@/components/share/public-share-tree-nav'
+import { PublicShareTreeNav, type ShareTreeNode } from '@/components/share/public-share-tree-nav'
 
 import { SharePageClient } from './share-page-client'
 
@@ -44,7 +41,12 @@ export function SharePageView({
   shareId: string
   resolved: Extract<ShareAccessResult, { kind: 'member' | 'grant' | 'public' }>
   session: SessionLike
-  tree: { rootId: string | null; rootTitle: string | null; rootIcon: string | null; nodes: ShareTreeNode[] }
+  tree: {
+    rootId: string | null
+    rootTitle: string | null
+    rootIcon: string | null
+    nodes: ShareTreeNode[]
+  }
   // Password the visitor used to unlock a protected site (from ?pw=), forwarded
   // to the copy button so "Сохранить себе" works on password-protected sites.
   password?: string
@@ -100,15 +102,19 @@ export function SharePageView({
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Stack
             direction="row"
-            alignItems="center"
+
             spacing={1}
-            sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
+            sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
           >
             {page.icon ? <PageIcon icon={page.icon} size={18} /> : null}
             <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
               {page.title || 'Без названия'}
             </Typography>
-            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+            <Stack
+              direction="row"
+              spacing={0.5}
+              sx={{ color: 'text.secondary', alignItems: 'center' }}
+            >
               <PublicIcon sx={{ fontSize: 18 }} />
               <Typography variant="caption">Общий доступ</Typography>
             </Stack>

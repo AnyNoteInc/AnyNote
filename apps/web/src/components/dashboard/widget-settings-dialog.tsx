@@ -564,7 +564,7 @@ export function WidgetSettingsDialog({
                   Оформление
                 </Typography>
               </Divider>
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
                 <TextField
                   size="small"
                   label="Цвет"
@@ -648,7 +648,7 @@ function WidgetFilterEditor({
           condition.propertyId === TITLE_SENTINEL ? 'TITLE' : (property?.type ?? 'TEXT')
         const operators = operatorsFor(effectiveType)
         return (
-          <Stack key={index} direction="row" spacing={0.5} alignItems="center">
+          <Stack key={index} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <Select
               size="small"
               value={condition.propertyId}
@@ -706,7 +706,7 @@ function WidgetFilterEditor({
                       value: e.target.value === '' ? undefined : Number(e.target.value),
                     })
                   }
-                  inputProps={{ 'aria-label': 'Значение' }}
+                  slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
                 />
               ) : effectiveType === 'DATE' ? (
                 <TextField
@@ -720,7 +720,7 @@ function WidgetFilterEditor({
                       value: e.target.value ? new Date(e.target.value).toISOString() : undefined,
                     })
                   }
-                  inputProps={{ 'aria-label': 'Дата' }}
+                  slotProps={{ htmlInput: { 'aria-label': 'Дата' } }}
                 />
               ) : (
                 <TextField
@@ -733,7 +733,7 @@ function WidgetFilterEditor({
                       value: e.target.value === '' ? undefined : e.target.value,
                     })
                   }
-                  inputProps={{ 'aria-label': 'Значение' }}
+                  slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
                 />
               )}
             </Box>

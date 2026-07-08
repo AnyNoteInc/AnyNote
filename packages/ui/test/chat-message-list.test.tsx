@@ -8,9 +8,7 @@ describe('ChatMessageList', () => {
   it('renders the message area with a transparent background (inherits the page canvas)', () => {
     render(
       <ChatMessageList
-        messages={[
-          { id: 'm1', parts: [{ type: 'text', text: 'Привет' }], role: 'assistant' },
-        ]}
+        messages={[{ id: 'm1', parts: [{ type: 'text', text: 'Привет' }], role: 'assistant' }]}
       />,
     )
     const list = screen.getByTestId('chat-message-list')

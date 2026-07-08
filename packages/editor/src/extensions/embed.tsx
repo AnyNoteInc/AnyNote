@@ -92,7 +92,10 @@ function EmbedView({ node, deleteNode, editor, selected, extension }: NodeViewPr
           </IconButton>
         </Tooltip>
         {options.pageId ? (
-          <Tooltip title={embedsOn ? 'Свернуть встраивания на странице' : 'Показать встраивания'} arrow>
+          <Tooltip
+            title={embedsOn ? 'Свернуть встраивания на странице' : 'Показать встраивания'}
+            arrow
+          >
             <IconButton
               size="small"
               onMouseDown={(e) => e.stopPropagation()}
@@ -102,7 +105,11 @@ function EmbedView({ node, deleteNode, editor, selected, extension }: NodeViewPr
               }}
               sx={{ color: 'text.secondary' }}
             >
-              {embedsOn ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+              {embedsOn ? (
+                <VisibilityOffIcon fontSize="small" />
+              ) : (
+                <VisibilityIcon fontSize="small" />
+              )}
             </IconButton>
           </Tooltip>
         ) : null}
@@ -126,7 +133,13 @@ function EmbedView({ node, deleteNode, editor, selected, extension }: NodeViewPr
   // original — never an iframe.
   if (!embedsOn || !safeEmbedUrl) {
     return (
-      <NodeViewWrapper as="div" className="anynote-embed" data-type="embed" data-collapsed="true" data-drag-handle="">
+      <NodeViewWrapper
+        as="div"
+        className="anynote-embed"
+        data-type="embed"
+        data-collapsed="true"
+        data-drag-handle=""
+      >
         <Box sx={{ position: 'relative', my: 0.5 }}>
           {toolbar}
           <Box
@@ -152,7 +165,12 @@ function EmbedView({ node, deleteNode, editor, selected, extension }: NodeViewPr
                 rel="noopener noreferrer nofollow"
                 variant="caption"
                 onClick={(e) => e.stopPropagation()}
-                sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                sx={{
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
               >
                 {safeUrl}
               </MuiLink>
@@ -164,7 +182,13 @@ function EmbedView({ node, deleteNode, editor, selected, extension }: NodeViewPr
   }
 
   return (
-    <NodeViewWrapper as="div" className="anynote-embed" data-type="embed" data-provider={attrs.provider} data-drag-handle="">
+    <NodeViewWrapper
+      as="div"
+      className="anynote-embed"
+      data-type="embed"
+      data-provider={attrs.provider}
+      data-drag-handle=""
+    >
       <Box sx={{ position: 'relative', my: 0.5 }}>
         {toolbar}
         <Box

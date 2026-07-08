@@ -75,7 +75,7 @@ export function InviteLinkCard({ workspaceId, locked }: Props) {
   const pending = enable.isPending || rotate.isPending || disable.isPending
   const enabled = link?.enabled ?? false
   // Stored link roles are EDITOR/COMMENTER/VIEWER by construction.
-  const role: LinkRole = roleOverride ?? ((link?.role as LinkRole | undefined) ?? 'EDITOR')
+  const role: LinkRole = roleOverride ?? (link?.role as LinkRole | undefined) ?? 'EDITOR'
 
   function setRole(next: LinkRole) {
     setRoleOverride(next)
@@ -114,7 +114,7 @@ export function InviteLinkCard({ workspaceId, locked }: Props) {
         <Alert severity="error">{q.error.message}</Alert>
       ) : (
         <Stack spacing={1.5}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap' }}>
+          <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -159,7 +159,7 @@ export function InviteLinkCard({ workspaceId, locked }: Props) {
           ) : null}
 
           {enabled && revealedUrl ? (
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <TextField
                 size="small"
                 fullWidth
@@ -175,8 +175,8 @@ export function InviteLinkCard({ workspaceId, locked }: Props) {
             </Stack>
           ) : enabled ? (
             <Typography variant="body2" color="text.secondary">
-              Ссылка активна. Текст ссылки показывается только сразу после включения или
-              обновления — нажмите «Обновить ссылку», чтобы получить новую.
+              Ссылка активна. Текст ссылки показывается только сразу после включения или обновления
+              — нажмите «Обновить ссылку», чтобы получить новую.
             </Typography>
           ) : null}
         </Stack>

@@ -13,7 +13,7 @@ export function PaymentMethodCard({ subscription }: { subscription: Subscription
         <Typography variant="overline" color="text.secondary">
           Способ оплаты
         </Typography>
-        <Typography fontWeight={700}>
+        <Typography sx={{ fontWeight: 700 }}>
           {brand.toUpperCase()} **** {last4}
         </Typography>
       </Stack>

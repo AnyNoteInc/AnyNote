@@ -138,9 +138,13 @@ export function WorkspaceWebhooksSection({
             data-testid="webhook-row"
             sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}
           >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+            >
               <Box sx={{ minWidth: 0 }}>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
                   <Typography variant="subtitle2">{s.name}</Typography>
                   <Chip size="small" label={status.label} color={status.color} />
                   <Chip size="small" variant="outlined" label={`Событий: ${s.events.length}`} />
@@ -162,7 +166,7 @@ export function WorkspaceWebhooksSection({
                 </Typography>
               </Box>
               {canManage ? (
-                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
                   {s.status === 'PENDING' ? (
                     <Button
                       size="small"
@@ -183,7 +187,7 @@ export function WorkspaceWebhooksSection({
                         onChange={(_, v) =>
                           setEnabled.mutate({ id: s.id, workspaceId, enabled: v })
                         }
-                        inputProps={{ 'aria-label': switchLabel }}
+                        slotProps={{ input: { 'aria-label': switchLabel } }}
                       />
                     </span>
                   </Tooltip>
@@ -280,7 +284,7 @@ function WebhookSecretDialog({
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Alert severity="warning">{SECRET_DOC}</Alert>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Box
               data-testid="webhook-secret-value"
               sx={{

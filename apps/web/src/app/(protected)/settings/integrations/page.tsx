@@ -21,7 +21,7 @@ export default async function IntegrationsSettingsPage() {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Интеграции
         </Typography>
         <Typography variant="body2" color="text.secondary">

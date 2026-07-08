@@ -59,10 +59,10 @@ export function InstallPromptBanner() {
         borderRadius: 2,
       }}
     >
-      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
         <InstallDesktopIcon color="primary" sx={{ mt: 0.25 }} />
         <Stack spacing={1} sx={{ minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
             Установите AnyNote как приложение
           </Typography>
           <Typography variant="caption" color="text.secondary">

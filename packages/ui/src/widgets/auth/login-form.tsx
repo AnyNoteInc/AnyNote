@@ -182,7 +182,7 @@ export function LoginForm({
           error={!!errors.password}
           helperText={errors.password?.message}
         />
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
           <FormControlLabel
             control={<Checkbox {...register('rememberMe')} size="small" />}
             label="Запомнить меня"
@@ -201,7 +201,7 @@ export function LoginForm({
         </Button>
       </Stack>
       <Divider />
-      <Typography variant="body2" textAlign="center" color="text.secondary">
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
         Новый пользователь?{' '}
         <Typography
           component="a"

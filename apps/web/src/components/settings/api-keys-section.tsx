@@ -79,7 +79,7 @@ export function ApiKeysSection({ initialKeys }: Props) {
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
       <Stack spacing={2}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="h6">Ваши ключи</Typography>
           <Button
             variant="contained"

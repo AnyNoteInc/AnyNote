@@ -64,13 +64,13 @@ export function LandingBottom({ appTitle, logo }: LandingBottomProps) {
         >
           <Stack spacing={3}>
             <Stack spacing={1}>
-              <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                 {logo}
-                <Typography variant="h6" fontWeight={800} color="#e2e8f0">
+                <Typography variant="h6" color="#e2e8f0" sx={{ fontWeight: 800 }}>
                   {appTitle}
                 </Typography>
               </Stack>
-              <Typography variant="body1" color="rgba(226, 232, 240, 0.72)" maxWidth={520}>
+              <Typography variant="body1" color="rgba(226, 232, 240, 0.72)" sx={{ maxWidth: 520 }}>
                 Лаконичный футер в темной теме: добавьте ссылки, поменяйте цвета и используйте в
                 любом приложении.
               </Typography>
@@ -90,7 +90,7 @@ export function LandingBottom({ appTitle, logo }: LandingBottomProps) {
           >
             {footerSections.map((section) => (
               <Stack key={section.title} spacing={1.25}>
-                <Typography variant="subtitle2" fontWeight={800}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
                   {section.title}
                 </Typography>
                 <Stack spacing={0.75}>
@@ -129,8 +129,10 @@ export function LandingBottom({ appTitle, logo }: LandingBottomProps) {
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1}
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          sx={{
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: 'space-between',
+          }}
         >
           <Typography variant="body2">
             © {new Date().getFullYear()} {appTitle} All Rights Reserved.

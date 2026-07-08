@@ -39,14 +39,14 @@ export function KanbanToolbar({ pageId, filtersBag, board, editable = true }: Ka
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={2}
-      sx={{ px: 4, py: 1, borderBottom: 1, borderColor: 'divider' }}
+      sx={{ px: 4, py: 1, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+      <Stack direction="row" spacing={1} sx={{ flex: 1, flexWrap: 'wrap', alignItems: 'center' }}>
         <KanbanFiltersUI board={board} bag={filtersBag} />
       </Stack>
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <ButtonGroup size="small" variant="outlined">
           {VIEWS.map(({ value, tooltip, Icon }) => {
             const active = filtersBag.view === value

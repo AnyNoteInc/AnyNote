@@ -66,7 +66,7 @@ function SeatStepper({
   testId: string
 }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       <Button
         variant="outlined"
         color="inherit"
@@ -173,7 +173,11 @@ export function SeatPurchaseCard({ workspaceId, usage, isSubscriptionHolder }: P
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           Докупить места
         </Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ alignItems: { sm: 'center' } }}
+        >
           <SeatStepper
             value={seats}
             onChange={setSeats}
@@ -219,7 +223,7 @@ export function SeatPurchaseCard({ workspaceId, usage, isSubscriptionHolder }: P
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={2}
-              alignItems={{ sm: 'center' }}
+              sx={{ alignItems: { sm: 'center' } }}
             >
               <SeatStepper
                 value={target}

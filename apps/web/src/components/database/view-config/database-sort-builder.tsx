@@ -126,7 +126,12 @@ export function DatabaseSortBuilder({
       ) : (
         <Stack spacing={1}>
           {sorts.map((sort, index) => (
-            <Stack key={`${sort.propertyId}-${index}`} direction="row" spacing={0.5} alignItems="center">
+            <Stack
+              key={`${sort.propertyId}-${index}`}
+              direction="row"
+              spacing={0.5}
+              sx={{ alignItems: 'center' }}
+            >
               <Stack>
                 <IconButton
                   size="small"
@@ -163,14 +168,20 @@ export function DatabaseSortBuilder({
               <Select
                 size="small"
                 value={sort.direction}
-                onChange={(e) => updateSort(index, { direction: e.target.value as Sort['direction'] })}
+                onChange={(e) =>
+                  updateSort(index, { direction: e.target.value as Sort['direction'] })
+                }
                 sx={{ width: 130, fontSize: 14 }}
                 aria-label="Направление"
               >
                 <MenuItem value="asc">По возрастанию</MenuItem>
                 <MenuItem value="desc">По убыванию</MenuItem>
               </Select>
-              <IconButton size="small" aria-label="Удалить сортировку" onClick={() => removeSort(index)}>
+              <IconButton
+                size="small"
+                aria-label="Удалить сортировку"
+                onClick={() => removeSort(index)}
+              >
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Stack>

@@ -106,7 +106,13 @@ const TOOLBAR: ReadonlyArray<ToolbarButtonConfig | 'divider'> = [
   'divider',
   {
     tooltip: 'Ссылка',
-    icon: <LinkIcon fontSize="small" />,
+    icon: (
+      <LinkIcon
+        sx={{
+          fontSize: 'small',
+        }}
+      />
+    ),
     isActive: (ed) => ed.isActive('link'),
     run: (ed) => {
       const prev = ed.getAttributes('link').href as string | undefined
@@ -133,9 +139,9 @@ function PlainEditorToolbar({ editor }: { readonly editor: Editor }) {
   return (
     <Stack
       direction="row"
-      alignItems="center"
       spacing={0.25}
       sx={{
+        alignItems: 'center',
         borderBottom: 1,
         borderColor: 'divider',
         px: 0.5,

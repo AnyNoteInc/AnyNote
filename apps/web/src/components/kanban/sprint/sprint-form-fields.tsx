@@ -48,14 +48,10 @@ export function SprintFormFields({ values, onChange, autoFocusName }: SprintForm
           fullWidth
         />
         <Box>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', mb: 0.5 }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
             Период
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <DatePicker
               label="Старт"
               value={values.startDate}

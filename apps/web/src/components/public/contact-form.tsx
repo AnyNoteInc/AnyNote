@@ -127,11 +127,14 @@ export function ContactForm() {
                   setAgree(event.target.checked)
                   if (event.target.checked) setAgreeError(false)
                 }}
-                inputProps={{
-                  'aria-label': 'Согласие на обработку персональных данных',
-                  'aria-required': true,
-                }}
+
                 data-testid="contact-form-consent"
+                slotProps={{
+                  input: {
+                    'aria-label': 'Согласие на обработку персональных данных',
+                    'aria-required': true,
+                  },
+                }}
               />
             }
             label={
@@ -164,11 +167,14 @@ export function ContactForm() {
                   setAgreeMarketing(event.target.checked)
                   if (event.target.checked) setAgreeMarketingError(false)
                 }}
-                inputProps={{
-                  'aria-label': 'Согласие на получение информационных и рекламных рассылок',
-                  'aria-required': true,
-                }}
+
                 data-testid="contact-form-marketing"
+                slotProps={{
+                  input: {
+                    'aria-label': 'Согласие на получение информационных и рекламных рассылок',
+                    'aria-required': true,
+                  },
+                }}
               />
             }
             label={

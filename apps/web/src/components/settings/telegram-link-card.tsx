@@ -53,9 +53,13 @@ export function TelegramLinkCard() {
       }}
     >
       <Stack spacing={1.5} sx={{ height: '100%' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+        >
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1" fontWeight={700}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Телеграм
             </Typography>
             <Chip size="small" label="Личный аккаунт" />

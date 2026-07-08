@@ -28,7 +28,7 @@ export default async function BillingSettingsPage() {
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Stack spacing={4}>
         <Stack spacing={0.5}>
-          <Typography variant="h4" fontWeight={700}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Подписка и оплата
           </Typography>
           <Typography variant="body2" color="text.secondary">

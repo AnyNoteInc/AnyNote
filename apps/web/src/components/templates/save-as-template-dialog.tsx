@@ -58,9 +58,7 @@ export function SaveAsTemplateDialog({
   const tagsQuery = trpc.template.listTags.useQuery()
 
   const toggleTag = (id: string) =>
-    setSelectedTagIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    )
+    setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
   // Re-seed the form each time the dialog opens for a (possibly different) page.
   useEffect(() => {
@@ -99,17 +97,11 @@ export function SaveAsTemplateDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="xs"
-      fullWidth
-      aria-labelledby={TITLE_ID}
-    >
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth aria-labelledby={TITLE_ID}>
       <DialogTitle id={TITLE_ID}>Сохранить как шаблон</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <EmojiIconButton
               value={icon}
               onChange={setIcon}
@@ -149,7 +141,7 @@ export function SaveAsTemplateDialog({
 
           <Box>
             <FormLabel sx={{ fontSize: 13 }}>Теги</FormLabel>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+            <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, flexWrap: 'wrap' }}>
               {(tagsQuery.data ?? []).map((t) => (
                 <Chip
                   key={t.id}
@@ -167,7 +159,10 @@ export function SaveAsTemplateDialog({
 
           <Box>
             <FormLabel sx={{ fontSize: 13 }}>Область видимости</FormLabel>
-            <RadioGroup value={scope} onChange={(e) => setScope(e.target.value as 'WORKSPACE' | 'GLOBAL')}>
+            <RadioGroup
+              value={scope}
+              onChange={(e) => setScope(e.target.value as 'WORKSPACE' | 'GLOBAL')}
+            >
               <FormControlLabel
                 value="WORKSPACE"
                 control={<Radio size="small" />}

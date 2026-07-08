@@ -157,9 +157,13 @@ export function ChatThread({
 
   const disclaimer = (
     <Typography
-      color="text.secondary"
       component="p"
-      sx={{ fontSize: 11, mt: 0.75, textAlign: 'center' }}
+      sx={{
+        color: 'text.secondary',
+        fontSize: 11,
+        mt: 0.75,
+        textAlign: 'center',
+      }}
     >
       AnyNote это ИИ и может ошибаться. Проверяйте ответ дважды
     </Typography>
@@ -187,11 +191,13 @@ export function ChatThread({
   return (
     <Stack
       data-testid="chat-thread"
-      flex={usesPageScroll ? 1 : undefined}
-      height={usesPageScroll ? undefined : '100%'}
-      minHeight={0}
       spacing={0}
-      sx={{ position: 'relative' }}
+      sx={{
+        flex: usesPageScroll ? 1 : undefined,
+        height: usesPageScroll ? undefined : '100%',
+        minHeight: 0,
+        position: 'relative',
+      }}
     >
       {isEmpty ? null : (
         <ChatMessageList

@@ -44,7 +44,13 @@ function PlaceholderCard({ sourceId }: { sourceId: string | null }) {
       <Typography component="div" variant="body2" sx={{ fontWeight: 600 }}>
         База данных
       </Typography>
-      <Typography component="div" variant="caption" color="text.secondary">
+      <Typography
+        component="div"
+        variant="caption"
+        sx={{
+          color: 'text.secondary',
+        }}
+      >
         {sourceId ? `Источник: ${sourceId}` : 'Источник не выбран'}
       </Typography>
     </Box>

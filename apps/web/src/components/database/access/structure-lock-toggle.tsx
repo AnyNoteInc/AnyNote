@@ -29,8 +29,9 @@ export function StructureLockToggle({ pageId, locked, canToggle }: StructureLock
       size="small"
       checked={locked}
       disabled={!canToggle || setStructureLocked.isPending}
-      inputProps={{ 'aria-label': 'Заблокировать структуру' }}
+
       onChange={(e) => setStructureLocked.mutate({ pageId, locked: e.target.checked })}
+      slotProps={{ input: { 'aria-label': 'Заблокировать структуру' } }}
     />
   )
 

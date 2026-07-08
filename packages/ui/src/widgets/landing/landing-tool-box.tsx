@@ -46,7 +46,7 @@ export function LandingToolBox({
     >
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ minHeight: 80 }}>
-          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flexShrink: 0 }}>
+          <Stack direction="row" spacing={1.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
             {logo ?? (
               <Box
                 sx={{
@@ -57,7 +57,7 @@ export function LandingToolBox({
                 }}
               />
             )}
-            <Typography variant="h6" fontWeight={800}>
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
               {brand}
             </Typography>
           </Stack>

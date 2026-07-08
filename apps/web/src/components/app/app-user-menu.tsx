@@ -77,7 +77,7 @@ export function AppUserMenu({ session, activeWorkspace, hasAnyWorkspace }: AppUs
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Box sx={{ px: 2, py: 1, minWidth: 220 }}>
-          <Typography variant="subtitle1" fontWeight={600} noWrap>
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600 }}>
             {user.name}
           </Typography>
           {user.email ? (
@@ -90,7 +90,7 @@ export function AppUserMenu({ session, activeWorkspace, hasAnyWorkspace }: AppUs
         {activeWorkspace ? (
           <MenuItem component={Link} href="/app" onClick={handleClose}>
             <Box sx={{ px: 0, py: 0.25, minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                 Активное пространство
               </Typography>
               <Box

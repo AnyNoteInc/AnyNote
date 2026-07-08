@@ -35,7 +35,12 @@ export function ChatActionsToolbar({ chatId, workspaceId }: Props) {
   }
 
   return (
-    <Stack direction="row" spacing={0.5} alignItems="center" className="chat-actions-toolbar">
+    <Stack
+      direction="row"
+      spacing={0.5}
+      className="chat-actions-toolbar"
+      sx={{ alignItems: 'center' }}
+    >
       <IconButton
         size="small"
         onClick={toggleFavorite}

@@ -160,7 +160,7 @@ export function WorkspaceSidebar({
         overflow: 'hidden',
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ px: 1, pb: 1.75 }}>
+      <Stack direction="row" spacing={0.5} sx={{ px: 1, pb: 1.75, alignItems: 'center' }}>
         <Box
           onClick={(event) => setSwitcherAnchor(event.currentTarget)}
           sx={{
@@ -190,7 +190,6 @@ export function WorkspaceSidebar({
           </Tooltip>
         ) : null}
       </Stack>
-
       <Menu
         anchorEl={switcherAnchor}
         open={!!switcherAnchor}
@@ -198,7 +197,7 @@ export function WorkspaceSidebar({
         slotProps={{ paper: { sx: { minWidth: 260 } } }}
       >
         <Box sx={{ px: 1.5, py: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <WorkspaceAvatar icon={workspace.icon} />
             <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
               {workspace.name}
@@ -280,7 +279,6 @@ export function WorkspaceSidebar({
           <Typography variant="body2">Создать пространство</Typography>
         </MenuItem>
       </Menu>
-
       {/* Guests get no section switcher: chats and search are member-gated. */}
       {isGuest ? null : (
         <WorkspaceSectionSwitcher
@@ -293,7 +291,6 @@ export function WorkspaceSidebar({
           onSearch={searchDialog.open}
         />
       )}
-
       <Box
         sx={{
           display: 'flex',
@@ -426,7 +423,6 @@ export function WorkspaceSidebar({
           </SidebarDndProvider>
         ) : null}
       </Box>
-
       <Box
         sx={{
           borderTop: '1px solid',
@@ -440,7 +436,6 @@ export function WorkspaceSidebar({
         <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
         <NotificationsBell tooltipPlacement="top" />
       </Box>
-
       {joinTarget ? (
         <DomainJoinConfirmDialog target={joinTarget} onClose={() => setJoinTarget(null)} />
       ) : null}

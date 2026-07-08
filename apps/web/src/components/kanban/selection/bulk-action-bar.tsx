@@ -1,14 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  Button,
-  CloseIcon,
-  DeleteIcon,
-  IconButton,
-  Stack,
-  Typography,
-} from '@repo/ui/components'
+import { Button, CloseIcon, DeleteIcon, IconButton, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -40,7 +33,9 @@ export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
       await Promise.all(
         ids
           .filter((id) => sprintByTaskId.get(id))
-          .map((id) => updateTask.mutateAsync({ pageId, id, sprintId: null, sprintPosition: null })),
+          .map((id) =>
+            updateTask.mutateAsync({ pageId, id, sprintId: null, sprintPosition: null }),
+          ),
       )
       clear()
     } finally {
@@ -49,7 +44,10 @@ export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
   }
 
   async function deleteSelected() {
-    if (typeof globalThis.confirm === 'function' && !globalThis.confirm(`Удалить задачи (${ids.length})?`))
+    if (
+      typeof globalThis.confirm === 'function' &&
+      !globalThis.confirm(`Удалить задачи (${ids.length})?`)
+    )
       return
     setBusy(true)
     try {
@@ -61,8 +59,8 @@ export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
   }
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
-      <Typography variant="body2" color="text.secondary" fontWeight={600}>
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
         {ids.length} выбрано
       </Typography>
       <Button size="small" onClick={removeFromSprint} disabled={busy}>

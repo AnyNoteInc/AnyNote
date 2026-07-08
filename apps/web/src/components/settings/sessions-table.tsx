@@ -65,7 +65,7 @@ export function SessionsTable({ currentSessionId }: Props) {
             return (
               <TableRow key={session.id}>
                 <TableCell>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <span>
                       {browser} на {os}
                     </span>

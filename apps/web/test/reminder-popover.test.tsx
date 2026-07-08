@@ -56,7 +56,7 @@ vi.mock('@repo/ui/components', async (importOriginal) => {
         size: 'small',
         fullWidth: true,
         value: '',
-        inputProps: { 'data-testid': 'deadline-input', readOnly: true },
+        slotProps: { htmlInput: { 'data-testid': 'deadline-input', readOnly: true } },
       })
     },
   }
@@ -181,7 +181,9 @@ describe('ReminderPopover', () => {
     })
 
     const undoDone = screen.getByRole('button', { name: 'Не выполнено' })
-    expect(undoDone).toHaveClass('MuiButton-containedWarning')
+    // MUI 9 removed composite variant+color classes; assert the two separate ones.
+    expect(undoDone).toHaveClass('MuiButton-contained')
+    expect(undoDone).toHaveClass('MuiButton-colorWarning')
 
     await actor.click(undoDone)
 

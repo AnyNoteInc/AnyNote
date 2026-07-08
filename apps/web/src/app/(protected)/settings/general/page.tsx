@@ -15,7 +15,7 @@ export default async function GeneralSettingsPage() {
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Общее
         </Typography>
         <Typography variant="body2" color="text.secondary">

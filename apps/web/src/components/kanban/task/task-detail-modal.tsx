@@ -1,15 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import {
-  Box,
-  CloseIcon,
-  Dialog,
-  IconButton,
-  MenuItem,
-  Select,
-  Stack,
-} from '@repo/ui/components'
+import { Box, CloseIcon, Dialog, IconButton, MenuItem, Select, Stack } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -56,22 +48,24 @@ export function TaskDetailModal({
     <Dialog
       open
       onClose={close}
-      maxWidth={false}
-      PaperProps={{
-        sx: {
-          width: { xs: '95vw', md: '90vw', lg: '85vw' },
-          maxWidth: 1400,
-          height: { xs: '95vh', md: '88vh' },
-          borderRadius: 2,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
+      slotProps={{
+        paper: {
+          sx: {
+            width: { xs: '95vw', md: '90vw', lg: '85vw' },
+            maxWidth: 1400,
+            height: { xs: '95vh', md: '88vh' },
+            borderRadius: 2,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          },
         },
       }}
+      maxWidth={false}
     >
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={1.5}
         sx={{
           px: 2,
@@ -79,6 +73,7 @@ export function TaskDetailModal({
           borderBottom: 1,
           borderColor: 'divider',
           minHeight: 48,
+          alignItems: 'center',
         }}
       >
         <Select
@@ -90,8 +85,15 @@ export function TaskDetailModal({
         >
           {orderedColumns.map((c) => (
             <MenuItem key={c.id} value={c.id}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color ?? 'text.disabled' }} />
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: c.color ?? 'text.disabled',
+                  }}
+                />
                 <span>{c.title}</span>
               </Stack>
             </MenuItem>
@@ -102,10 +104,7 @@ export function TaskDetailModal({
           <CloseIcon fontSize="small" />
         </IconButton>
       </Stack>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        sx={{ flex: 1, minHeight: 0 }}
-      >
+      <Stack direction={{ xs: 'column', md: 'row' }} sx={{ flex: 1, minHeight: 0 }}>
         <Box
           sx={{
             flex: { xs: 'none', md: 2 },

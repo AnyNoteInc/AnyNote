@@ -59,8 +59,9 @@ export function CurrentPlanCard({ subscription }: Props) {
       <Stack spacing={2.5}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+
           spacing={2}
+          sx={{ alignItems: { xs: 'flex-start', sm: 'center' } }}
         >
           <Chip
             label={planName}
@@ -68,7 +69,7 @@ export function CurrentPlanCard({ subscription }: Props) {
             variant={isPaid ? 'filled' : 'outlined'}
           />
           <Stack spacing={0.25}>
-            <Typography fontWeight={700}>{statusLabel}</Typography>
+            <Typography sx={{ fontWeight: 700 }}>{statusLabel}</Typography>
             <Typography variant="body2" color="text.secondary">
               {formatPrice(plan)}
             </Typography>

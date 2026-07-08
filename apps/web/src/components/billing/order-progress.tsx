@@ -92,7 +92,7 @@ function Centered({ children }: { children: React.ReactNode }) {
         justifyContent: 'center',
       }}
     >
-      <Stack spacing={2} alignItems="center">
+      <Stack spacing={2} sx={{ alignItems: 'center' }}>
         {children}
       </Stack>
     </Box>

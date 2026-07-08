@@ -56,7 +56,7 @@ export function ProfileSection({ initial }: Props) {
         backgroundColor: 'background.paper',
       }}
     >
-      <Typography variant="subtitle1" fontWeight={700}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
         Профиль
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -79,7 +79,7 @@ export function ProfileSection({ initial }: Props) {
           onChange={(e) => setLastName(e.target.value)}
         />
       </Box>
-      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1.5} sx={{ mb: 1, alignItems: 'center' }}>
         <Typography variant="caption" color="text.secondary">
           Email
         </Typography>

@@ -211,9 +211,9 @@ export function DatabaseBoardView({
       {editable ? (
         <Stack
           direction="row"
-          alignItems="center"
+
           spacing={1}
-          sx={{ px: 2, py: 0.75, borderBottom: 1, borderColor: 'divider' }}
+          sx={{ px: 2, py: 0.75, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
         >
           <Button
             size="small"
@@ -238,8 +238,8 @@ export function DatabaseBoardView({
         <Box
           sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}
         >
-          <Stack spacing={2} alignItems="center">
-            <Typography color="text.secondary" textAlign="center">
+          <Stack spacing={2} sx={{ alignItems: 'center' }}>
+            <Typography color="text.secondary" sx={{ textAlign: 'center' }}>
               Чтобы построить доску, выберите свойство «Статус» или «Выбор» для группировки.
             </Typography>
             {editable ? (
@@ -291,7 +291,7 @@ function BoardColumnView({ column, cardProperties, editable, onOpenRow }: BoardC
   const droppableId = column.key ?? EMPTY_KEY
   return (
     <Box sx={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 0.5, py: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ px: 0.5, py: 1, alignItems: 'center' }}>
         <Chip
           size="small"
           label={column.label}

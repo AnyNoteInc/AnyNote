@@ -12,7 +12,7 @@ describe('ChatEmptyState', () => {
 
   it('does not render a comment icon', () => {
     const { container } = render(<ChatEmptyState />)
-    expect(container.querySelector('[data-testid="ChatBubbleOutlineIcon"]')).toBeNull()
+    expect(container.querySelector('[data-testid="ChatBubbleOutlinedIcon"]')).toBeNull()
   })
 
   it('exposes exactly the four agreed phrases', () => {

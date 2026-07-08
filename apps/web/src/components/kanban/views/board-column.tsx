@@ -57,7 +57,7 @@ export function BoardColumn({
         maxHeight: '100%',
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
         <Typography variant="subtitle2" sx={{ flex: 1, minWidth: 0 }} noWrap>
           {column.title}
         </Typography>
@@ -273,7 +273,7 @@ function AddCardForm({ pageId, columnId, addSprintId }: AddCardFormProps) {
         autoFocus
         sx={{ bgcolor: 'background.paper' }}
       />
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
         <Button
           variant="contained"
           size="small"

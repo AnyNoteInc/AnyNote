@@ -124,9 +124,7 @@ const ascii4 = (s: string): number[] => Array.from(s, (c) => c.charCodeAt(0))
 const ftypBrand = (bytes: Uint8Array): string | null => {
   if (!startsWith(bytes, ascii4('ftyp'), 4)) return null
   if (bytes.length < 12) return null
-  return String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!)
-    .toLowerCase()
-    .trim()
+  return String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!).toLowerCase().trim()
 }
 
 // mp4-family brands that denote audio-only files (m4a/m4b). Everything else
@@ -146,7 +144,11 @@ export const sniffMediaMime = (bytes: Uint8Array): MediaFamily | null => {
   if (startsWith(bytes, ascii4('RIFF')) && startsWith(bytes, ascii4('WAVE'), 8)) return 'audio'
   // MP3: an ID3v2 tag, or a raw MPEG frame-sync (FF Fx, layer III: FB/F3/F2).
   if (startsWith(bytes, ascii4('ID3'))) return 'audio'
-  if (startsWith(bytes, [0xff, 0xfb]) || startsWith(bytes, [0xff, 0xf3]) || startsWith(bytes, [0xff, 0xf2]))
+  if (
+    startsWith(bytes, [0xff, 0xfb]) ||
+    startsWith(bytes, [0xff, 0xf3]) ||
+    startsWith(bytes, [0xff, 0xf2])
+  )
     return 'audio'
   // mp4/mov/m4a: an `ftyp` box at offset 4; the major brand picks the family.
   const brand = ftypBrand(bytes)

@@ -63,7 +63,7 @@ export function ResetPasswordRequestForm({
         error={!!errors.email}
         helperText={errors.email?.message}
       />
-      <Stack direction="row" alignItems="center" spacing={0.5}>
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
         <KeyboardDoubleArrowLeftIcon fontSize="small" />
         <Typography
           component="a"
@@ -78,7 +78,7 @@ export function ResetPasswordRequestForm({
         Подтвердить
       </Button>
       <Divider />
-      <Typography variant="body2" color="text.secondary" textAlign="center">
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
         Введите ваш e-mail и мы вышлем инструкции по получению нового пароля.
       </Typography>
     </Stack>

@@ -133,7 +133,7 @@ export function GuestRequestsCard({ workspaceId }: Props) {
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                       {row.status === 'PENDING' ? (
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
                           <Button
                             size="small"
                             data-testid="guest-request-approve"

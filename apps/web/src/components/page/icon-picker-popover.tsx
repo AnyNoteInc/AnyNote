@@ -117,7 +117,7 @@ export function IconPickerPopover({ anchorEl, open, onClose, onSelect, onRemove 
             }}
           />
         ) : (
-          <Stack spacing={1} sx={{ p: 1.5 }} alignItems="flex-start">
+          <Stack spacing={1} sx={{ p: 1.5, alignItems: 'flex-start' }}>
             <Button
               size="small"
               variant="outlined"

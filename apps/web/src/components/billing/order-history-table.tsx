@@ -28,7 +28,7 @@ export function OrderHistoryTable({ orders }: { orders: Row[] }) {
 
   return (
     <Paper variant="outlined" sx={{ p: 3, overflowX: 'auto' }}>
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+      <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
         История платежей
       </Typography>
       <Table size="small">

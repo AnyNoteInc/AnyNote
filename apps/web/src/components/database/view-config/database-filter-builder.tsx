@@ -102,7 +102,9 @@ function isGroup(node: FilterCondition | FilterGroup): node is FilterGroup {
   return 'conjunction' in node
 }
 
-function operatorsFor(type: DatabasePropertyType | 'TITLE'): ReadonlyArray<{ op: FilterOperator; label: string }> {
+function operatorsFor(
+  type: DatabasePropertyType | 'TITLE',
+): ReadonlyArray<{ op: FilterOperator; label: string }> {
   if (type === 'TITLE') return OPERATORS_BY_TYPE.TEXT ?? []
   return OPERATORS_BY_TYPE[type] ?? []
 }
@@ -222,12 +224,10 @@ function GroupEditor({
   return (
     <Box
       sx={
-        depth > 0
-          ? { border: 1, borderColor: 'divider', borderRadius: 1, p: 1, mb: 1 }
-          : undefined
+        depth > 0 ? { border: 1, borderColor: 'divider', borderRadius: 1, p: 1, mb: 1 } : undefined
       }
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -249,7 +249,7 @@ function GroupEditor({
       <Stack spacing={1}>
         {group.conditions.map((child, index) =>
           isGroup(child) ? (
-            <Stack key={index} direction="row" spacing={0.5} alignItems="flex-start">
+            <Stack key={index} direction="row" spacing={0.5} sx={{ alignItems: 'flex-start' }}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <GroupEditor
                   group={child}
@@ -259,7 +259,11 @@ function GroupEditor({
                   onChange={(next) => updateChild(index, next)}
                 />
               </Box>
-              <IconButton size="small" aria-label="Удалить группу" onClick={() => removeChild(index)}>
+              <IconButton
+                size="small"
+                aria-label="Удалить группу"
+                onClick={() => removeChild(index)}
+              >
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Stack>
@@ -317,7 +321,11 @@ function ConditionEditor({
   }
 
   function changeOperator(operator: FilterOperator) {
-    onChange({ ...condition, operator, value: VALUELESS_OPERATORS.has(operator) ? undefined : condition.value })
+    onChange({
+      ...condition,
+      operator,
+      value: VALUELESS_OPERATORS.has(operator) ? undefined : condition.value,
+    })
   }
 
   function changeValue(value: unknown) {
@@ -325,7 +333,7 @@ function ConditionEditor({
   }
 
   return (
-    <Stack direction="row" spacing={0.5} alignItems="center">
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
       <Select
         size="small"
         value={condition.propertyId}
@@ -417,7 +425,7 @@ function ValueEditor({
         value={value == null ? '' : String(value)}
         onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
         fullWidth
-        inputProps={{ 'aria-label': 'Значение' }}
+        slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
       />
     )
   }
@@ -433,7 +441,7 @@ function ValueEditor({
           onChange(e.target.value ? new Date(e.target.value).toISOString() : undefined)
         }
         fullWidth
-        inputProps={{ 'aria-label': 'Дата' }}
+        slotProps={{ htmlInput: { 'aria-label': 'Дата' } }}
       />
     )
   }
@@ -445,7 +453,7 @@ function ValueEditor({
       value={value == null ? '' : String(value)}
       onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
       fullWidth
-      inputProps={{ 'aria-label': 'Значение' }}
+      slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
     />
   )
 }

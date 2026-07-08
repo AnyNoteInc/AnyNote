@@ -164,7 +164,7 @@ export function PropertySettingsDialog({
             fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
-            inputProps={{ 'aria-label': 'Название свойства' }}
+            slotProps={{ htmlInput: { 'aria-label': 'Название свойства' } }}
           />
 
           <FormControl size="small" fullWidth>

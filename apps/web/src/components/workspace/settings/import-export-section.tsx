@@ -123,7 +123,7 @@ export function ImportExportSection({ workspaceId }: Props) {
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                    <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
                       {j.warningsCount > 0 || j.hasReport ? (
                         <Button
                           size="small"
