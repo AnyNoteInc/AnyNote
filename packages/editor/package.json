@@ -93,7 +93,7 @@
     "@types/turndown": "^5.0.6",
     "eslint": "^9.39.4",
     "next": "^16.2.10",
-    "typescript": "^5.9.2",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.4"
   }
 }
