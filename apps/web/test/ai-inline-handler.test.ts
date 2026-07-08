@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleInlineAi, type InlineAiDeps } from '../src/app/api/ai/inline/handler'
 import { __resetInlineAiRateLimit, INLINE_AI_RATE_LIMIT_MAX } from '../src/lib/ai/inline-rate-limit'
 
-const workspaceId = '22222222-2222-2222-2222-222222222222'
-const pageId = '11111111-1111-1111-1111-111111111111'
-const userId = '33333333-3333-3333-3333-333333333333'
-const chatId = '44444444-4444-4444-4444-444444444444'
+const workspaceId = '22222222-2222-4222-9222-222222222222'
+const pageId = '11111111-1111-4111-9111-111111111111'
+const userId = '33333333-3333-4333-9333-333333333333'
+const chatId = '44444444-4444-4444-9444-444444444444'
 
 const SELECTED = 'Длинный исходный текст для трансформации.'
 

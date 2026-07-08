@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { visibleSprintFilterOptions } from '@/components/kanban/sprint-filter-options'
 import type { BoardData } from '@/components/kanban/types'
 
-const ACTIVE = '00000000-0000-0000-0000-0000000000a1'
-const PLANNED = '00000000-0000-0000-0000-0000000000a2'
-const COMPLETED = '00000000-0000-0000-0000-0000000000a3'
+const ACTIVE = '00000000-0000-4000-8000-0000000000a1'
+const PLANNED = '00000000-0000-4000-8000-0000000000a2'
+const COMPLETED = '00000000-0000-4000-8000-0000000000a3'
 
 const sprints: BoardData['sprints'] = [
   {

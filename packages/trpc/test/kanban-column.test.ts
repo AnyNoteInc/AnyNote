@@ -11,11 +11,11 @@ import type { PrismaClient } from '@repo/db'
 import { columnRouter } from '../src/routers/kanban/column'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
-const COL_A = '00000000-0000-0000-0000-00000000000a'
-const COL_B = '00000000-0000-0000-0000-00000000000b'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
+const COL_A = '00000000-0000-4000-8000-00000000000a'
+const COL_B = '00000000-0000-4000-8000-00000000000b'
 
 function ctx(prisma: PrismaClient, userId = USER_ID) {
   return {

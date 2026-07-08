@@ -7,10 +7,10 @@ import {
 } from '@/components/kanban/filters/apply-filters'
 import type { BoardData, BoardTaskData } from '@/components/kanban/types'
 
-const COL_TODO = '00000000-0000-0000-0000-0000000000c1'
-const COL_DONE = '00000000-0000-0000-0000-0000000000c2'
-const SPRINT_ACTIVE = '00000000-0000-0000-0000-0000000000a1'
-const SPRINT_OLD = '00000000-0000-0000-0000-0000000000a2'
+const COL_TODO = '00000000-0000-4000-8000-0000000000c1'
+const COL_DONE = '00000000-0000-4000-8000-0000000000c2'
+const SPRINT_ACTIVE = '00000000-0000-4000-8000-0000000000a1'
+const SPRINT_OLD = '00000000-0000-4000-8000-0000000000a2'
 
 const columns: BoardData['columns'] = [
   { id: COL_TODO, pageId: 'p', title: 'Todo', kind: 'ACTIVE', position: 1, color: null },
@@ -88,8 +88,8 @@ describe('applyFilters', () => {
   })
 
   it('userIds filter requires task assignee intersect', () => {
-    const u1 = '11111111-1111-1111-1111-111111111111'
-    const u2 = '22222222-2222-2222-2222-222222222222'
+    const u1 = '11111111-1111-4111-9111-111111111111'
+    const u2 = '22222222-2222-4222-9222-222222222222'
     const tasks = [
       task('a', {
         assignees: [

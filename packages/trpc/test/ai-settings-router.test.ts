@@ -30,12 +30,12 @@ import { PageType } from '@repo/db'
 import { aiSettingsRouter } from '../src/routers/ai-settings'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '22222222-2222-2222-2222-222222222222'
-const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
-const MODEL_A_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-const MODEL_B_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-const PAGE_1_ID = '33333333-3333-3333-3333-333333333331'
-const PAGE_2_ID = '33333333-3333-3333-3333-333333333332'
+const USER_ID = '22222222-2222-4222-9222-222222222222'
+const WORKSPACE_ID = '11111111-1111-4111-9111-111111111111'
+const MODEL_A_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const MODEL_B_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const PAGE_1_ID = '33333333-3333-4333-8333-333333333331'
+const PAGE_2_ID = '33333333-3333-4333-8333-333333333332'
 
 function baseContext(prisma: PrismaClient) {
   return {
@@ -66,7 +66,7 @@ function embeddingModel(
     vectorSize: overrides.vectorSize ?? 1536,
     minPlanSlug: overrides.minPlanSlug ?? null,
     provider: overrides.provider ?? {
-      id: '44444444-4444-4444-4444-444444444444',
+      id: '44444444-4444-4444-9444-444444444444',
       slug: 'openai',
       name: 'OpenAI',
     },
@@ -93,7 +93,7 @@ function chatModel(
     supportsReasoning: overrides.supportsReasoning ?? false,
     minPlanSlug: overrides.minPlanSlug ?? null,
     provider: overrides.provider ?? {
-      id: '44444444-4444-4444-4444-444444444444',
+      id: '44444444-4444-4444-9444-444444444444',
       slug: 'openai',
       name: 'OpenAI',
     },
@@ -152,7 +152,7 @@ describe('aiSettings embedding model queries', () => {
       embeddingModel(MODEL_A_ID, {
         minPlanSlug: 'pro',
         provider: {
-          id: '55555555-5555-5555-5555-555555555555',
+          id: '55555555-5555-4555-9555-555555555555',
           slug: 'z-provider',
           name: 'Z Provider',
         },
@@ -160,7 +160,7 @@ describe('aiSettings embedding model queries', () => {
       embeddingModel(MODEL_B_ID, {
         deprecatedAt: new Date(),
         provider: {
-          id: '44444444-4444-4444-4444-444444444444',
+          id: '44444444-4444-4444-9444-444444444444',
           slug: 'a-provider',
           name: 'A Provider',
         },
@@ -176,7 +176,7 @@ describe('aiSettings embedding model queries', () => {
 
     expect(result).toEqual([
       {
-        id: '55555555-5555-5555-5555-555555555555',
+        id: '55555555-5555-4555-9555-555555555555',
         slug: 'z-provider',
         name: 'Z Provider',
         models: [

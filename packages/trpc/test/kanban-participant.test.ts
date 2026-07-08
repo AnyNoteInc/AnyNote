@@ -20,9 +20,9 @@ import type { PrismaClient } from '@repo/db'
 import { participantRouter } from '../src/routers/kanban/participant'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PARTICIPANT_ID = '00000000-0000-0000-0000-0000000000c1'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PARTICIPANT_ID = '00000000-0000-4000-8000-0000000000c1'
 
 function ctx(prisma: PrismaClient) {
   return {

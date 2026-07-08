@@ -54,10 +54,10 @@ describe('PageActionsMenu', () => {
 
     render(
       <PageActionsMenu
-        pageId="33333333-3333-3333-3333-333333333333"
+        pageId="33333333-3333-4333-9333-333333333333"
         pageTitle="Исходная страница"
         pageIcon={null}
-        workspaceId="11111111-1111-1111-1111-111111111111"
+        workspaceId="11111111-1111-4111-9111-111111111111"
         pageType="TEXT"
         isFavorite={false}
         movedPage={undefined}

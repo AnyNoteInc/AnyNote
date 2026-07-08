@@ -7,7 +7,7 @@ vi.mock('@repo/db', async (importOriginal) => {
 })
 
 const kanbanMocks = vi.hoisted(() => ({
-  createSprint: vi.fn(async () => ({ id: '00000000-0000-0000-0000-0000000000a1', pageId: 'p', name: 'S', status: 'PLANNED', position: 0 })),
+  createSprint: vi.fn(async () => ({ id: '00000000-0000-4000-8000-0000000000a1', pageId: 'p', name: 'S', status: 'PLANNED', position: 0 })),
   activateSprint: vi.fn(async () => ({ ok: true as const })),
   completeSprint: vi.fn(async () => ({ ok: true as const })),
 }))
@@ -19,11 +19,11 @@ import type { PrismaClient } from '@repo/db'
 import { sprintRouter } from '../src/routers/kanban/sprint'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
-const SPRINT_A = '00000000-0000-0000-0000-0000000000a1'
-const SPRINT_B = '00000000-0000-0000-0000-0000000000a2'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
+const SPRINT_A = '00000000-0000-4000-8000-0000000000a1'
+const SPRINT_B = '00000000-0000-4000-8000-0000000000a2'
 
 function ctx(prisma: PrismaClient) {
   return {
@@ -78,7 +78,7 @@ describe('kanban.sprint.create', () => {
 
 describe('kanban.sprint.complete', () => {
   it('delegates to domainSvc.kanban.completeSprint with moveUndoneTo', async () => {
-    const SPRINT_DEST = '00000000-0000-0000-0000-0000000000b2'
+    const SPRINT_DEST = '00000000-0000-4000-8000-0000000000b2'
     kanbanMocks.completeSprint.mockResolvedValueOnce({ ok: true as const })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(sprintRouter)(ctx(prisma))

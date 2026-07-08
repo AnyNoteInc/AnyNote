@@ -17,7 +17,7 @@ import { commentRouter } from '../src/routers/comment'
 import { pageCommentBus } from '../src/realtime/page-comment-bus'
 import { createCallerFactory } from '../src/trpc'
 
-const PAGE_ID = '33333333-3333-3333-3333-333333333333'
+const PAGE_ID = '33333333-3333-4333-9333-333333333333'
 const PAGE = { id: PAGE_ID, workspaceId: 'w1', createdById: 'owner' }
 const caller = createCallerFactory(commentRouter)
 function ctx(prisma: PrismaClient, user: { id: string } | null) {
@@ -52,7 +52,7 @@ describe('comment.listThreads / createThread', () => {
       (error: Error) => ({ ok: false as const, message: error.message }),
     )
     await new Promise((resolve) => setTimeout(resolve, 0))
-    pageCommentBus.emit(PAGE_ID, { kind: 'thread.upserted', threadId: '66666666-6666-6666-6666-666666666666' })
+    pageCommentBus.emit(PAGE_ID, { kind: 'thread.upserted', threadId: '66666666-6666-4666-9666-666666666666' })
 
     await expect(next).resolves.toEqual({ ok: false, message: 'Нет доступа' })
   })
@@ -212,7 +212,7 @@ describe('comment.listThreads / createThread', () => {
   })
 
   it('adds a reply with the write + webhook emission inside one transaction', async () => {
-    const THREAD_ID = '66666666-6666-6666-6666-666666666666'
+    const THREAD_ID = '66666666-6666-4666-9666-666666666666'
     const tx = {
       pageComment: { create: vi.fn(async () => ({ id: 'c2' })) },
       outboxEvent: { createMany: vi.fn(async () => ({ count: 2 })) },
@@ -271,7 +271,7 @@ describe('comment.listThreads / createThread', () => {
     await expect(
       caller(ctx(prisma, null)).addComment({
         shareId: 'public-share',
-        threadId: '66666666-6666-6666-6666-666666666666',
+        threadId: '66666666-6666-4666-9666-666666666666',
         content: { text: 'reply', mentions: [] },
       }),
     ).rejects.toThrow(/anonymous identity/i)
@@ -280,8 +280,8 @@ describe('comment.listThreads / createThread', () => {
 })
 
 describe('comment edit/delete/resolve', () => {
-  const COMMENT_ID = '55555555-5555-5555-5555-555555555555'
-  const THREAD_ID = '66666666-6666-6666-6666-666666666666'
+  const COMMENT_ID = '55555555-5555-4555-9555-555555555555'
+  const THREAD_ID = '66666666-6666-4666-9666-666666666666'
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.restoreAllMocks())
 
@@ -549,7 +549,7 @@ describe('comment access boundaries + mention validation', () => {
     } as never
     await caller(ctx(prisma, { id: 'u1' })).createThread({
       pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',
-      content: { text: 'hi', mentions: ['77777777-7777-7777-7777-777777777777'] },
+      content: { text: 'hi', mentions: ['77777777-7777-4777-9777-777777777777'] },
     })
     expect(prisma.workspaceMember.findMany).toHaveBeenCalled()
     expect(notify.pageMention).not.toHaveBeenCalled()

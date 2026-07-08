@@ -14,10 +14,10 @@ import type { PrismaClient } from '@repo/db'
 import { agentMemoryRouter } from '../src/routers/agent-memory'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '22222222-2222-2222-2222-222222222222'
-const OTHER_USER_ID = '33333333-3333-3333-3333-333333333333'
-const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
-const ROW_ID = '44444444-4444-4444-4444-444444444444'
+const USER_ID = '22222222-2222-4222-9222-222222222222'
+const OTHER_USER_ID = '33333333-3333-4333-9333-333333333333'
+const WORKSPACE_ID = '11111111-1111-4111-9111-111111111111'
+const ROW_ID = '44444444-4444-4444-9444-444444444444'
 
 function baseContext(prisma: PrismaClient) {
   return {

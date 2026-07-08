@@ -22,9 +22,9 @@ import { createCallerFactory } from '../src/trpc'
 import { DomainError } from '@repo/domain'
 import type { PrismaClient } from '@repo/db'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
-const REMINDER_ID = '00000000-0000-0000-0000-000000000004'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
+const REMINDER_ID = '00000000-0000-4000-8000-000000000004'
 
 function ctx(prisma: PrismaClient = {} as PrismaClient, userId = USER_ID) {
   return {
@@ -100,7 +100,7 @@ describe('reminder.syncForPage — mapDomain translates BAD_REQUEST domain error
     await expect(
       caller.syncForPage({
         pageId: PAGE_ID,
-        reminders: [makeReminder({ audience: 'LIST', recipients: ['00000000-0000-0000-0000-000000000099'] })],
+        reminders: [makeReminder({ audience: 'LIST', recipients: ['00000000-0000-4000-8000-000000000099'] })],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })

@@ -150,21 +150,21 @@ const ViewportSchema = z.object({
 
 const LayoutMetadataSchema = z.object({
   mode: z.enum(['auto', 'manual', 'mixed']),
-  positions: z.record(z.object({ x: z.number(), y: z.number() })).optional(),
-  generations: z.record(z.number().int()).optional(),
+  positions: z.record(z.string(), z.object({ x: z.number(), y: z.number() })).optional(),
+  generations: z.record(z.string(), z.number().int()).optional(),
   pinned: z.array(Id).optional(),
 })
 
 export const GenogramPageDataSchema = z.object({
   version: z.literal(1),
   entities: z.object({
-    people: z.record(PersonSchema),
-    unions: z.record(UnionSchema),
-    childGroups: z.record(ChildGroupSchema),
-    birthGroups: z.record(BirthGroupSchema),
-    pregnancyLosses: z.record(PregnancyLossSchema),
+    people: z.record(z.string(), PersonSchema),
+    unions: z.record(z.string(), UnionSchema),
+    childGroups: z.record(z.string(), ChildGroupSchema),
+    birthGroups: z.record(z.string(), BirthGroupSchema),
+    pregnancyLosses: z.record(z.string(), PregnancyLossSchema),
   }),
-  annotations: z.record(AnnotationSchema),
+  annotations: z.record(z.string(), AnnotationSchema),
   layout: LayoutMetadataSchema.optional(),
   viewport: ViewportSchema.optional(),
 })

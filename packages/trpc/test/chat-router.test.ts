@@ -37,9 +37,9 @@ describe('chatRouter', () => {
     const createdAt = new Date('2026-04-22T10:00:00.000Z')
     const updatedAt = new Date('2026-04-22T10:05:00.000Z')
     const chat = {
-      id: '11111111-1111-1111-1111-111111111111',
+      id: '11111111-1111-4111-9111-111111111111',
       title: 'Новый чат',
-      workspaceId: '22222222-2222-2222-2222-222222222222',
+      workspaceId: '22222222-2222-4222-9222-222222222222',
     }
 
     const prisma = {
@@ -49,7 +49,7 @@ describe('chatRouter', () => {
       chatMessage: {
         findMany: vi.fn(async () => [
           {
-            id: '33333333-3333-3333-3333-333333333333',
+            id: '33333333-3333-4333-9333-333333333333',
             role: 'USER',
             status: 'DONE',
             errorMessage: null,
@@ -68,14 +68,14 @@ describe('chatRouter', () => {
               },
               {
                 type: 'attacment',
-                fileId: '44444444-4444-4444-4444-444444444444',
+                fileId: '44444444-4444-4444-9444-444444444444',
                 name: 'brief.pdf',
                 mimeType: 'application/pdf',
                 fileSize: '10',
               },
               {
                 type: 'attacment',
-                fileId: '55555555-5555-5555-5555-555555555555',
+                fileId: '55555555-5555-4555-9555-555555555555',
                 name: 'image.png',
                 mimeType: 'image/png',
                 fileSize: '20',
@@ -96,7 +96,7 @@ describe('chatRouter', () => {
 
     expect(result.messages).toEqual([
       {
-        id: '33333333-3333-3333-3333-333333333333',
+        id: '33333333-3333-4333-9333-333333333333',
         role: 'USER',
         status: 'DONE',
         errorMessage: null,
@@ -115,19 +115,19 @@ describe('chatRouter', () => {
           },
           {
             type: 'attacment',
-            fileId: '44444444-4444-4444-4444-444444444444',
+            fileId: '44444444-4444-4444-9444-444444444444',
             name: 'brief.pdf',
             mimeType: 'application/pdf',
             fileSize: '10',
-            downloadUrl: '/api/files/44444444-4444-4444-4444-444444444444',
+            downloadUrl: '/api/files/44444444-4444-4444-9444-444444444444',
           },
           {
             type: 'attacment',
-            fileId: '55555555-5555-5555-5555-555555555555',
+            fileId: '55555555-5555-4555-9555-555555555555',
             name: 'image.png',
             mimeType: 'image/png',
             fileSize: '20',
-            downloadUrl: '/api/files/55555555-5555-5555-5555-555555555555',
+            downloadUrl: '/api/files/55555555-5555-4555-9555-555555555555',
           },
         ],
       },
@@ -138,9 +138,9 @@ describe('chatRouter', () => {
     const createdAt = new Date('2026-05-31T10:00:00.000Z')
     const updatedAt = new Date('2026-05-31T10:05:00.000Z')
     const chat = {
-      id: '11111111-1111-1111-1111-111111111111',
+      id: '11111111-1111-4111-9111-111111111111',
       title: 'Новый чат',
-      workspaceId: '22222222-2222-2222-2222-222222222222',
+      workspaceId: '22222222-2222-4222-9222-222222222222',
     }
 
     const prisma = {
@@ -150,7 +150,7 @@ describe('chatRouter', () => {
       chatMessage: {
         findMany: vi.fn(async () => [
           {
-            id: '66666666-6666-6666-6666-666666666666',
+            id: '66666666-6666-4666-9666-666666666666',
             role: 'ASSISTANT',
             status: 'DONE',
             errorMessage: null,
@@ -176,9 +176,9 @@ describe('chatRouter', () => {
 
   it('drops a thinking part that has no text', async () => {
     const chat = {
-      id: '11111111-1111-1111-1111-111111111111',
+      id: '11111111-1111-4111-9111-111111111111',
       title: 'Новый чат',
-      workspaceId: '22222222-2222-2222-2222-222222222222',
+      workspaceId: '22222222-2222-4222-9222-222222222222',
     }
 
     const prisma = {
@@ -188,7 +188,7 @@ describe('chatRouter', () => {
       chatMessage: {
         findMany: vi.fn(async () => [
           {
-            id: '77777777-7777-7777-7777-777777777777',
+            id: '77777777-7777-4777-9777-777777777777',
             role: 'ASSISTANT',
             status: 'DONE',
             errorMessage: null,
@@ -221,8 +221,8 @@ describe('chatRouter', () => {
   })
 
   it('adds, removes, and lists favorite chats for the current workspace user', async () => {
-    const workspaceId = '22222222-2222-2222-2222-222222222222'
-    const chatId = '11111111-1111-1111-1111-111111111111'
+    const workspaceId = '22222222-2222-4222-9222-222222222222'
+    const chatId = '11111111-1111-4111-9111-111111111111'
     const favorite = {
       chat: {
         id: chatId,
@@ -288,9 +288,9 @@ describe('chatRouter', () => {
 })
 
 describe('chat.updateChatSettings', () => {
-  const chatId = '11111111-1111-1111-1111-111111111111'
-  const workspaceId = '22222222-2222-2222-2222-222222222222'
-  const modelId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  const chatId = '11111111-1111-4111-9111-111111111111'
+  const workspaceId = '22222222-2222-4222-9222-222222222222'
+  const modelId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
   it('persists useThinking + effort + model + temperature/topP', async () => {
     planMocks.getAvailableAiModels.mockResolvedValueOnce([{ id: modelId, deprecatedAt: null }])

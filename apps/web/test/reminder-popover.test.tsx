@@ -92,7 +92,7 @@ function renderReminderPopover({
       anchorEl={anchorEl}
       mode={mode}
       initial={initialValue}
-      workspaceId="00000000-0000-0000-0000-000000000001"
+      workspaceId="00000000-0000-4000-8000-000000000001"
       onClose={vi.fn()}
       onSave={onSave}
       onDelete={vi.fn()}

@@ -12,7 +12,7 @@ const favoritesMock = vi.hoisted(() => ({
 
 // Page writes delegate to the domain.pages facade.
 const pagesMock = vi.hoisted(() => ({
-  create: vi.fn(async () => ({ id: '33333333-3333-3333-3333-333333333333' })),
+  create: vi.fn(async () => ({ id: '33333333-3333-4333-9333-333333333333' })),
   rename: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
   update: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
   softDelete: vi.fn(async () => ({ id: '' })),
@@ -57,9 +57,9 @@ import { pageRouter } from '../src/routers/page'
 import { workspaceRouter } from '../src/routers/workspace'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '22222222-2222-2222-2222-222222222222'
-const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
-const PAGE_ID = '33333333-3333-3333-3333-333333333333'
+const USER_ID = '22222222-2222-4222-9222-222222222222'
+const WORKSPACE_ID = '11111111-1111-4111-9111-111111111111'
+const PAGE_ID = '33333333-3333-4333-9333-333333333333'
 
 function baseContext(prisma: PrismaClient) {
   return {

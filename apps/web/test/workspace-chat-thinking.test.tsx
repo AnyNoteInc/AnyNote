@@ -27,7 +27,7 @@ type FakeChat = {
   aiModelId: string | null
 }
 
-const NEW_CHAT_ID = '99999999-9999-9999-9999-999999999999'
+const NEW_CHAT_ID = '99999999-9999-4999-8999-999999999999'
 
 const mocks = vi.hoisted(() => {
   const state: {
@@ -172,7 +172,7 @@ describe('WorkspaceChatClient — thinking chip on a new chat', () => {
     render(
       <WorkspaceChatClient
         chatId={null}
-        workspaceId="11111111-1111-1111-1111-111111111111"
+        workspaceId="11111111-1111-4111-9111-111111111111"
         initialMessages={[]}
       />,
     )
@@ -208,7 +208,7 @@ describe('WorkspaceChatClient — thinking chip on a new chat', () => {
     render(
       <WorkspaceChatClient
         chatId={NEW_CHAT_ID}
-        workspaceId="11111111-1111-1111-1111-111111111111"
+        workspaceId="11111111-1111-4111-9111-111111111111"
         initialMessages={[]}
       />,
     )

@@ -36,9 +36,9 @@ vi.mock('@/components/page/page-header', () => ({
 
 import PageRoute from '../src/app/(protected)/(active)/pages/[pageId]/page'
 
-const WS = '11111111-1111-1111-1111-111111111111'
-const WS2 = '33333333-3333-3333-3333-333333333333'
-const PAGE_ID = '22222222-2222-2222-2222-222222222222'
+const WS = '11111111-1111-4111-9111-111111111111'
+const WS2 = '33333333-3333-4333-9333-333333333333'
+const PAGE_ID = '22222222-2222-4222-9222-222222222222'
 
 const PAGE = {
   id: PAGE_ID,

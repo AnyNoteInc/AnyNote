@@ -194,7 +194,7 @@ describe('subscription.syncOrder', () => {
     }
     const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
 
-    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+    const result = await caller.syncOrder({ orderId: '00000000-0000-4000-8000-000000000001' })
 
     expect(yookassa.getPayment).not.toHaveBeenCalled()
     expect(result.status).toBe('PAID')
@@ -218,7 +218,7 @@ describe('subscription.syncOrder', () => {
     }
     const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
 
-    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+    const result = await caller.syncOrder({ orderId: '00000000-0000-4000-8000-000000000001' })
 
     expect(yookassa.getPayment).toHaveBeenCalledWith('pmt_yk_1')
     expect(result.status).toBe('PAID')
@@ -236,7 +236,7 @@ describe('subscription.syncOrder', () => {
     const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+    const result = await caller.syncOrder({ orderId: '00000000-0000-4000-8000-000000000001' })
     errorSpy.mockRestore()
 
     expect(result.status).toBe('PENDING')
@@ -251,7 +251,7 @@ describe('subscription.syncOrder', () => {
     const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
 
     await expect(
-      caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' }),
+      caller.syncOrder({ orderId: '00000000-0000-4000-8000-000000000001' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(yookassa.getPayment).not.toHaveBeenCalled()
   })

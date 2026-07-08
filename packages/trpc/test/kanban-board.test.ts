@@ -11,9 +11,9 @@ import type { PrismaClient } from '@repo/db'
 import { boardRouter } from '../src/routers/kanban/board'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
 
 function ctx(prisma: PrismaClient) {
   return {

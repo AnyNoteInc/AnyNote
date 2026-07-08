@@ -15,8 +15,8 @@ import { encryptSecret } from '@repo/auth'
 
 process.env.SECRETS_ENCRYPTION_KEY ||= Buffer.alloc(32, 7).toString('base64')
 
-const WS = '11111111-1111-1111-1111-111111111111'
-const USER = '99999999-9999-9999-9999-999999999999'
+const WS = '11111111-1111-4111-9111-111111111111'
+const USER = '99999999-9999-4999-8999-999999999999'
 const PG_ROW = (
   overrides: Partial<{
     id: string
@@ -26,7 +26,7 @@ const PG_ROW = (
     content: unknown
   }> = {},
 ) => ({
-  id: '22222222-2222-2222-2222-222222222222',
+  id: '22222222-2222-4222-9222-222222222222',
   title: 'A doc',
   icon: null,
   type: 'TEXT',
@@ -147,14 +147,14 @@ describe('searchPg', () => {
     const prisma = mockPrisma([PG_ROW()])
     const out = await searchPg(prisma, WS, USER, 'matchword')
     expect(out).toHaveLength(1)
-    expect(out[0].pageId).toBe('22222222-2222-2222-2222-222222222222')
+    expect(out[0].pageId).toBe('22222222-2222-4222-9222-222222222222')
     expect(out[0].blockNumber).toBe(1)
     expect(out[0].excerpt).toContain('matchword')
   })
 
   it('filters out FTS hits the user is not allowed to see', async () => {
-    const visibleId = '22222222-2222-2222-2222-222222222222'
-    const hiddenId = '55555555-5555-5555-5555-555555555555'
+    const visibleId = '22222222-2222-4222-9222-222222222222'
+    const hiddenId = '55555555-5555-4555-9555-555555555555'
     const prisma = mockPrisma(
       [PG_ROW({ id: visibleId }), PG_ROW({ id: hiddenId, title: 'Private doc' })],
       [visibleId],
@@ -253,8 +253,8 @@ describe('searchQdrant', () => {
   })
 
   it('maps results and filters out deleted or archived pages', async () => {
-    const aliveId = '33333333-3333-3333-3333-333333333333'
-    const deletedId = '44444444-4444-4444-4444-444444444444'
+    const aliveId = '33333333-3333-4333-9333-333333333333'
+    const deletedId = '44444444-4444-4444-9444-444444444444'
     const prisma = prismaWithAi({
       aiSettings: validAi,
       pages: [{ id: aliveId, icon: 'doc' }],
@@ -288,7 +288,7 @@ describe('searchQdrant', () => {
   })
 
   it('sends provider.kind and decrypted connectionEnc for a custom (workspace-scoped) provider', async () => {
-    const aliveId = '33333333-3333-3333-3333-333333333333'
+    const aliveId = '33333333-3333-4333-9333-333333333333'
     const customAi = {
       embeddingsModel: {
         slug: 'text-embedding-3-small',
@@ -321,7 +321,7 @@ describe('searchQdrant', () => {
   })
 
   it('decrypts connectionEnc for a shared (global) provider with workspaceId null', async () => {
-    const aliveId = '33333333-3333-3333-3333-333333333333'
+    const aliveId = '33333333-3333-4333-9333-333333333333'
     const globalAi = {
       embeddingsModel: {
         slug: 'text-embedding-3-small',

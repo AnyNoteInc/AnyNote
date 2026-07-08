@@ -11,7 +11,7 @@ describe('workspace chat client mappers', () => {
   it('maps persisted chat DTOs into @repo/ui thread messages', () => {
     const messages = mapServerMessagesToThreadMessages([
       {
-        id: '11111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-4111-9111-111111111111',
         role: 'USER',
         status: 'DONE',
         errorMessage: null,
@@ -21,11 +21,11 @@ describe('workspace chat client mappers', () => {
           { type: 'text', text: 'Привет' },
           {
             type: 'attacment',
-            fileId: '22222222-2222-2222-2222-222222222222',
+            fileId: '22222222-2222-4222-9222-222222222222',
             name: 'brief.pdf',
             mimeType: 'application/pdf',
             fileSize: '12',
-            downloadUrl: '/api/files/22222222-2222-2222-2222-222222222222',
+            downloadUrl: '/api/files/22222222-2222-4222-9222-222222222222',
           },
         ],
       },
@@ -33,7 +33,7 @@ describe('workspace chat client mappers', () => {
 
     expect(messages).toEqual([
       {
-        id: '11111111-1111-1111-1111-111111111111',
+        id: '11111111-1111-4111-9111-111111111111',
         role: 'user',
         status: 'sent',
         createdAt: '2026-04-22T10:00:00.000Z',
@@ -42,11 +42,11 @@ describe('workspace chat client mappers', () => {
           { type: 'text', text: 'Привет' },
           {
             type: 'attacment',
-            fileId: '22222222-2222-2222-2222-222222222222',
+            fileId: '22222222-2222-4222-9222-222222222222',
             name: 'brief.pdf',
             mimeType: 'application/pdf',
             fileSize: '12',
-            downloadUrl: '/api/files/22222222-2222-2222-2222-222222222222',
+            downloadUrl: '/api/files/22222222-2222-4222-9222-222222222222',
           },
         ],
       },
@@ -56,7 +56,7 @@ describe('workspace chat client mappers', () => {
   it('treats the latest streaming assistant message as resumable', () => {
     const assistantMessageId = findResumableAssistantMessageId([
       {
-        id: '33333333-3333-3333-3333-333333333333',
+        id: '33333333-3333-4333-9333-333333333333',
         role: 'USER',
         status: 'DONE',
         errorMessage: null,
@@ -65,7 +65,7 @@ describe('workspace chat client mappers', () => {
         parts: [{ type: 'text', text: 'Вопрос' }],
       },
       {
-        id: '44444444-4444-4444-4444-444444444444',
+        id: '44444444-4444-4444-9444-444444444444',
         role: 'ASSISTANT',
         status: 'STREAMING',
         errorMessage: null,
@@ -75,13 +75,13 @@ describe('workspace chat client mappers', () => {
       },
     ])
 
-    expect(assistantMessageId).toBe('44444444-4444-4444-4444-444444444444')
+    expect(assistantMessageId).toBe('44444444-4444-4444-9444-444444444444')
   })
 
   it('reuses the same sync key for equivalent server messages', () => {
     const messages: ServerChatMessage[] = [
       {
-        id: '55555555-5555-5555-5555-555555555555',
+        id: '55555555-5555-4555-9555-555555555555',
         role: 'ASSISTANT',
         status: 'DONE',
         errorMessage: null,
@@ -91,11 +91,11 @@ describe('workspace chat client mappers', () => {
           { type: 'text', text: 'Ответ' },
           {
             type: 'attacment',
-            fileId: '66666666-6666-6666-6666-666666666666',
+            fileId: '66666666-6666-4666-9666-666666666666',
             name: 'reply.md',
             mimeType: 'text/markdown',
             fileSize: '128',
-            downloadUrl: '/api/files/66666666-6666-6666-6666-666666666666',
+            downloadUrl: '/api/files/66666666-6666-4666-9666-666666666666',
           },
         ],
       },
@@ -111,7 +111,7 @@ describe('workspace chat client mappers', () => {
 
   it('changes the sync key when the persisted assistant content changes', () => {
     const initialMessage: ServerChatMessage = {
-      id: '77777777-7777-7777-7777-777777777777',
+      id: '77777777-7777-4777-9777-777777777777',
       role: 'ASSISTANT',
       status: 'DONE',
       errorMessage: null,
