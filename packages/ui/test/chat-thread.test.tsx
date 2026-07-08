@@ -96,7 +96,8 @@ describe('ChatThread', () => {
     const thread = screen.getByTestId('chat-thread')
     const styles = getComputedStyle(thread)
     expect(styles.flexGrow).toBe('1')
-    expect(styles.minHeight).toBe('0')
+    // jsdom 29's rewritten CSSOM serializes a zero length with its unit ('0px').
+    expect(styles.minHeight).toBe('0px')
   })
 
   it('gives the sticky composer shell an opaque background so messages do not bleed through', () => {
