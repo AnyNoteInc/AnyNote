@@ -1,5 +1,6 @@
 import { FileStatus, prisma } from '@repo/db'
 import { storage } from '@repo/storage'
+import { buildPageVisibilityWhere, getWorkspaceFeatures } from '@repo/trpc'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { getMembershipForToken, signAgentsJwt } from '@/lib/agents-token'
@@ -8,6 +9,7 @@ import { buildAgentRunPayload } from '@/lib/chat/agents-payload'
 import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
 import { resolveAttachmentContents } from '@/lib/chat/file-content'
+import { buildPageContextAttachment, parsePageContext } from '@/lib/chat/page-context'
 import { decryptMcpHeadersMap } from '@/lib/decrypt-workspace-secrets'
 import {
   createAttacmentPart,
@@ -44,16 +46,17 @@ function parseBody(raw: unknown): StartChatGenerationBody {
   if (typeof body.text !== 'string' || body.text.trim().length === 0)
     throw new Error('text must be a non-empty string')
   const fileIds = Array.isArray(body.fileIds)
-    ? body.fileIds.filter(
-        (id): id is string => typeof id === 'string' && UUID_RE.test(id),
-      )
+    ? body.fileIds.filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))
     : []
+  const pageContext = parsePageContext(body.pageContext)
+  if (pageContext && 'error' in pageContext) throw new Error(pageContext.error)
   return {
     chatId: body.chatId,
     text: body.text.trim(),
     fileIds,
     ...(typeof body.useThinking === 'boolean' ? { useThinking: body.useThinking } : {}),
     ...(isThinkingEffort(body.thinkingEffort) ? { thinkingEffort: body.thinkingEffort } : {}),
+    ...(pageContext ? { pageContext } : {}),
   }
 }
 
@@ -97,9 +100,49 @@ export async function POST(request: NextRequest): Promise<Response> {
       parentId: true,
       useThinking: true,
       thinkingEffort: true,
+      kind: true,
+      pageId: true,
     },
   })
   if (!chat) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+
+  // pageContext is a PAGE-chat-only channel — reject it outright on NORMAL chats.
+  if (body.pageContext && chat.kind !== 'PAGE') {
+    return NextResponse.json(
+      { error: 'pageContext is only allowed for page chats' },
+      { status: 400 },
+    )
+  }
+
+  // PAGE chats: plan gate (server authority, spec §8.2) + page-visibility gate.
+  // Spec §6.2 lists generate among the visibility-gated consumers: even without
+  // a pageContext body, streaming into a page chat requires the caller to still
+  // see the page — its history already carries injected page content. Fail
+  // closed on orphans (page delete SetNull'd pageId) with the same uniform 404.
+  let pageContextAttachment: ReturnType<typeof buildPageContextAttachment> | null = null
+  if (chat.kind === 'PAGE') {
+    const features = await getWorkspaceFeatures(chat.workspaceId)
+    if (!features.chatsEnabled) {
+      return NextResponse.json(
+        { error: 'Чаты недоступны на вашем тарифе', code: 'PLAN' },
+        { status: 403 },
+      )
+    }
+    if (!chat.pageId) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+    const contextPage = await prisma.page.findFirst({
+      where: {
+        id: chat.pageId,
+        workspaceId: chat.workspaceId,
+        deletedAt: null,
+        AND: [buildPageVisibilityWhere(session.user.id)],
+      },
+      select: { id: true, title: true },
+    })
+    if (!contextPage) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+    if (body.pageContext) {
+      pageContextAttachment = buildPageContextAttachment(body.pageContext, contextPage.title ?? '')
+    }
+  }
 
   const [files, settings, historyMessages, membership, mcpServerRows, memoryRows] =
     await Promise.all([
@@ -147,10 +190,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       prisma.workspaceAgentMemory.findMany({
         where: {
           workspaceId: chat.workspaceId,
-          OR: [
-            { scope: 'WORKSPACE' },
-            { scope: 'USER', userId: session.user.id },
-          ],
+          OR: [{ scope: 'WORKSPACE' }, { scope: 'USER', userId: session.user.id }],
         },
         orderBy: { updatedAt: 'desc' },
         take: 5,
@@ -159,10 +199,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     ])
 
   if (files.length !== body.fileIds.length) {
-    return NextResponse.json({ error: 'One or more files are invalid for this chat' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'One or more files are invalid for this chat' },
+      { status: 400 },
+    )
   }
   if (!settings?.defaultModel) {
-    return NextResponse.json({ error: 'Workspace AI default model is not configured' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Workspace AI default model is not configured' },
+      { status: 400 },
+    )
   }
   if (!membership) {
     return NextResponse.json({ error: 'Membership not found' }, { status: 403 })
@@ -250,7 +296,13 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
     })
     const assistantMessage = await tx.chatMessage.create({
-      data: { chatId: chat.id, errorMessage: null, parts: [], role: 'ASSISTANT', status: 'STREAMING' },
+      data: {
+        chatId: chat.id,
+        errorMessage: null,
+        parts: [],
+        role: 'ASSISTANT',
+        status: 'STREAMING',
+      },
     })
     const shouldRename = chat.title === 'Новый чат'
     await tx.chat.update({
@@ -280,7 +332,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     settings: settingsSnapshot,
     mcpServers: [enginesMcpServer, ...userMcpServers],
     longTermMemories,
-    attachments: resolvedAttachments,
+    attachments: [
+      ...(pageContextAttachment ? [pageContextAttachment] : []),
+      ...resolvedAttachments,
+    ],
     reasoning: { enabled: reasoningEnabled, effort: reasoningEffort },
   })
 
@@ -304,7 +359,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   return createEntryResponse({
     entry,
     initialEvents: [
-      { type: 'message.created', assistantMessageId: assistantMessage.id, userMessageId: userMessage.id },
+      {
+        type: 'message.created',
+        assistantMessageId: assistantMessage.id,
+        userMessageId: userMessage.id,
+      },
       { type: 'message.status', assistantMessageId: assistantMessage.id, status: 'STREAMING' },
     ],
   })

@@ -33,6 +33,13 @@ vi.mock('@repo/db', () => ({
   prisma: mocks.prisma,
   parseAiProviderConnection: vi.fn((slug: string, raw: unknown) => ({ provider: slug, ...(raw as object) })),
 }))
+// Mock the @repo/trpc root: importing it for real pulls the whole appRouter,
+// whose load-time static initializers dereference @repo/db enums — which this
+// suite mocks away (same failure mode as the @repo/domain root barrel).
+vi.mock('@repo/trpc', () => ({
+  buildPageVisibilityWhere: vi.fn(() => ({})),
+  getWorkspaceFeatures: vi.fn(async () => ({ chatsEnabled: true })),
+}))
 vi.mock('@/lib/get-session', () => ({ getSession: mocks.getSession }))
 vi.mock('@/lib/chat/active-stream-registry', () => ({ activeStreamRegistry: mocks.activeStreamRegistry }))
 vi.mock('@/lib/agents-token', () => ({

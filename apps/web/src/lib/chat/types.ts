@@ -59,4 +59,6 @@ export type StartChatGenerationBody = {
   fileIds: string[]
   useThinking?: boolean
   thinkingEffort?: 'LOW' | 'MEDIUM' | 'HIGH'
+  /** PAGE chats only: client-serialized page markdown or the current selection (spec §6.3). */
+  pageContext?: { content: string; isSelection: boolean }
 }

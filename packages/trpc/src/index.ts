@@ -43,6 +43,11 @@ export {
   requireWritableWorkspace,
   getActivePlanForUser,
 } from './helpers/plan'
+// Deep-import the pure visibility leaf: the @repo/domain root barrel has
+// load-time static initializers that dereference @repo/db enums, which breaks
+// unit suites that mock @repo/db. Re-exported so apps/web route handlers can
+// apply the same page-visibility authority as the tRPC routers.
+export { buildPageVisibilityWhere } from '@repo/domain/pages/page-visibility.ts'
 export { resolveActiveWorkspace } from './helpers/active-workspace'
 export { signAgentsServiceToken, type AgentsServiceAuth } from './helpers/agents-token'
 
