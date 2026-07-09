@@ -258,7 +258,12 @@ export function InlineAiPopover({ editor, open, captured, askAI, onClose }: Popo
                 submitCustom()
               }
             }}
-            slotProps={{ htmlInput: { 'data-testid': 'inline-ai-custom-input' } }}
+            slotProps={{
+              htmlInput: {
+                'data-testid': 'inline-ai-custom-input',
+                'aria-label': 'Инструкция для AI',
+              },
+            }}
           />
         </Box>
         <Divider sx={{ mt: 1 }} />
@@ -317,14 +322,19 @@ const paintPreviewBody = (body: HTMLElement, s: InlineAiPreviewState): void => {
  * Live updates: re-read the plugin state on every transaction and repaint. The
  * widget's host node is reused (status-keyed decoration), so renderPreview is
  * NOT re-invoked per token — the paint callback owns the in-place update.
- * Self-unsubscribes when the preview goes inactive / the editor is destroyed.
+ * Self-unsubscribes when the preview goes inactive, the editor is destroyed, OR
+ * the host left the DOM: each streaming→done status flip rebuilds the widget
+ * (and a follow-up refinement loops that flip repeatedly), so without the
+ * isConnected check every rebuild would strand a listener repainting a detached
+ * node until the preview cleared.
  */
 const subscribePreviewRepaint = (
   editor: Editor,
+  host: HTMLElement,
   paint: (s: InlineAiPreviewState) => void,
 ): void => {
   const onTransaction = () => {
-    if (editor.isDestroyed) {
+    if (editor.isDestroyed || !host.isConnected) {
       editor.off('transaction', onTransaction)
       return
     }
@@ -379,7 +389,7 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
       paintPreviewBody(body, s)
     }
     paint(state)
-    subscribePreviewRepaint(editor, paint)
+    subscribePreviewRepaint(editor, host, paint)
     return host
   }
 
@@ -431,6 +441,7 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
   const followup = document.createElement('input')
   followup.className = 'anynote-inline-ai-preview__followup'
   followup.placeholder = 'Скажите AI, что сделать дальше…'
+  followup.setAttribute('aria-label', 'Уточнить ответ AI')
   followup.addEventListener('mousedown', (e) => e.stopPropagation())
   followup.addEventListener('keydown', (e) => {
     e.stopPropagation()
@@ -441,15 +452,23 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
     const current = getInlineAiPreview(editor)
     if (!session || !current.active) return
     // Build the refinement history: prior turns + the just-finished exchange.
-    const prevInstruction =
-      session.args.instruction ??
-      ACTIONS.find((a) => a.id === session.args.action)?.label ??
-      session.args.action
+    // For a preset first-run the "instruction" is the preset label; the
+    // translate preset keeps its target language so the refinement context
+    // doesn't silently drop it.
+    const presetLabel = ACTIONS.find((a) => a.id === session.args.action)?.label
+    const presetInstruction =
+      presetLabel && session.args.targetLang
+        ? `${presetLabel} (${session.args.targetLang})`
+        : presetLabel
+    const prevInstruction = session.args.instruction ?? presetInstruction ?? session.args.action
+    // Trim to the LAST 8 turns (newest context wins): the server rejects
+    // histories longer than 10, so unbounded growth would 400 on the 6th
+    // refinement.
     const history = [
       ...(session.args.history ?? []),
       { role: 'user' as const, content: prevInstruction },
       { role: 'assistant' as const, content: current.text },
-    ]
+    ].slice(-8)
     runInlineAi(editor, askAI, {
       action: 'custom',
       from: current.from,
@@ -476,7 +495,7 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
   }
 
   paint(state)
-  subscribePreviewRepaint(editor, paint)
+  subscribePreviewRepaint(editor, host, paint)
 
   return host
 }
