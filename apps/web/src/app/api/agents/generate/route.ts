@@ -1,4 +1,4 @@
-import { FileStatus, prisma } from '@repo/db'
+import { FileStatus, prisma, type Chat } from '@repo/db'
 import { storage } from '@repo/storage'
 import { buildPageVisibilityWhere, getWorkspaceFeatures } from '@repo/trpc'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -8,8 +8,12 @@ import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import { buildAgentRunPayload } from '@/lib/chat/agents-payload'
 import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
-import { resolveAttachmentContents } from '@/lib/chat/file-content'
-import { buildPageContextAttachment, parsePageContext } from '@/lib/chat/page-context'
+import { resolveAttachmentContents, type ResolvedAttachment } from '@/lib/chat/file-content'
+import {
+  buildPageContextAttachment,
+  parsePageContext,
+  type PageContextInput,
+} from '@/lib/chat/page-context'
 import { decryptMcpHeadersMap } from '@/lib/decrypt-workspace-secrets'
 import {
   createAttacmentPart,
@@ -69,6 +73,54 @@ type ValidChatFile = {
   path: string
 }
 
+/**
+ * PAGE-chat gates: plan gate (server authority, spec §8.2) + page-visibility
+ * gate. Spec §6.2 lists generate among the visibility-gated consumers: even
+ * without a pageContext body, streaming into a page chat requires the caller
+ * to still see the page — its history already carries injected page content.
+ * Fails closed on orphans (page delete SetNull'd pageId) with the same
+ * uniform 404. Returns the rejection response, or the context attachment to
+ * inject (null unless the body carried a pageContext).
+ */
+async function gatePageChat(
+  chat: Pick<Chat, 'kind' | 'pageId' | 'workspaceId'>,
+  userId: string,
+  pageContext: PageContextInput | undefined,
+): Promise<NextResponse | { attachment: ResolvedAttachment | null }> {
+  // pageContext is a PAGE-chat-only channel — reject it outright on NORMAL chats.
+  if (pageContext && chat.kind !== 'PAGE') {
+    return NextResponse.json(
+      { error: 'pageContext is only allowed for page chats' },
+      { status: 400 },
+    )
+  }
+  if (chat.kind !== 'PAGE') return { attachment: null }
+
+  const features = await getWorkspaceFeatures(chat.workspaceId)
+  if (!features.chatsEnabled) {
+    return NextResponse.json(
+      { error: 'Чаты недоступны на вашем тарифе', code: 'PLAN' },
+      { status: 403 },
+    )
+  }
+  if (!chat.pageId) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+  const contextPage = await prisma.page.findFirst({
+    where: {
+      id: chat.pageId,
+      workspaceId: chat.workspaceId,
+      deletedAt: null,
+      AND: [buildPageVisibilityWhere(userId)],
+    },
+    select: { id: true, title: true },
+  })
+  if (!contextPage) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+  return {
+    attachment: pageContext
+      ? buildPageContextAttachment(pageContext, contextPage.title ?? '')
+      : null,
+  }
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -106,43 +158,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   })
   if (!chat) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
 
-  // pageContext is a PAGE-chat-only channel — reject it outright on NORMAL chats.
-  if (body.pageContext && chat.kind !== 'PAGE') {
-    return NextResponse.json(
-      { error: 'pageContext is only allowed for page chats' },
-      { status: 400 },
-    )
-  }
-
-  // PAGE chats: plan gate (server authority, spec §8.2) + page-visibility gate.
-  // Spec §6.2 lists generate among the visibility-gated consumers: even without
-  // a pageContext body, streaming into a page chat requires the caller to still
-  // see the page — its history already carries injected page content. Fail
-  // closed on orphans (page delete SetNull'd pageId) with the same uniform 404.
-  let pageContextAttachment: ReturnType<typeof buildPageContextAttachment> | null = null
-  if (chat.kind === 'PAGE') {
-    const features = await getWorkspaceFeatures(chat.workspaceId)
-    if (!features.chatsEnabled) {
-      return NextResponse.json(
-        { error: 'Чаты недоступны на вашем тарифе', code: 'PLAN' },
-        { status: 403 },
-      )
-    }
-    if (!chat.pageId) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
-    const contextPage = await prisma.page.findFirst({
-      where: {
-        id: chat.pageId,
-        workspaceId: chat.workspaceId,
-        deletedAt: null,
-        AND: [buildPageVisibilityWhere(session.user.id)],
-      },
-      select: { id: true, title: true },
-    })
-    if (!contextPage) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
-    if (body.pageContext) {
-      pageContextAttachment = buildPageContextAttachment(body.pageContext, contextPage.title ?? '')
-    }
-  }
+  const gate = await gatePageChat(chat, session.user.id, body.pageContext)
+  if (gate instanceof NextResponse) return gate
+  const pageContextAttachment = gate.attachment
 
   const [files, settings, historyMessages, membership, mcpServerRows, memoryRows] =
     await Promise.all([

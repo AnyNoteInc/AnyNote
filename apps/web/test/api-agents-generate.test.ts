@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   activeStreamRegistry: { create: vi.fn() },
   getSession: vi.fn(),
   getWorkspaceFeatures: vi.fn(),
+  // Marker predicate: lets tests pin that the route embeds this function's
+  // result into the page lookup (deleting the AND wiring must fail them).
+  buildPageVisibilityWhere: vi.fn(() => ({ visibilityPredicate: true })),
   prisma: {
     $transaction: vi.fn(),
     chat: { findFirst: vi.fn() },
@@ -42,7 +45,7 @@ vi.mock('@repo/db', () => ({
 // whose load-time static initializers dereference @repo/db enums — which this
 // suite mocks away (same failure mode as the @repo/domain root barrel).
 vi.mock('@repo/trpc', () => ({
-  buildPageVisibilityWhere: vi.fn(() => ({})),
+  buildPageVisibilityWhere: mocks.buildPageVisibilityWhere,
   getWorkspaceFeatures: mocks.getWorkspaceFeatures,
 }))
 vi.mock('@/lib/get-session', () => ({ getSession: mocks.getSession }))
@@ -428,11 +431,44 @@ describe('POST /api/agents/generate', () => {
     )
 
     expect(response.status).toBe(404)
+    // The visibility predicate is built for the session user AND embedded in
+    // the lookup — dropping the AND wiring must fail this assertion.
+    expect(mocks.buildPageVisibilityWhere).toHaveBeenCalledWith(userId)
     expect(mocks.prisma.page.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: pageId, workspaceId, deletedAt: null }),
+        where: expect.objectContaining({
+          id: pageId,
+          workspaceId,
+          deletedAt: null,
+          AND: [{ visibilityPredicate: true }],
+        }),
       }),
     )
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('rejects PAGE-chat generation when the page link was severed (orphan ⇒ 404, no writes)', async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: userId } })
+    // Page delete SetNull'd Chat.pageId — the chat's history may still hold
+    // private-page content, so the route must fail closed without a lookup.
+    mocks.prisma.chat.findFirst.mockResolvedValue({
+      id: chatId,
+      title: 'Стр',
+      workspaceId,
+      parentId: null,
+      kind: 'PAGE',
+      pageId: null,
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/agents/generate', {
+        method: 'POST',
+        body: JSON.stringify({ chatId, text: 'hi', fileIds: [] }),
+      }),
+    )
+
+    expect(response.status).toBe(404)
+    expect(mocks.prisma.page.findFirst).not.toHaveBeenCalled()
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled()
   })
 

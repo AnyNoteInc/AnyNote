@@ -35,7 +35,13 @@ export function buildPageContextAttachment(
 ): ResolvedAttachment {
   let content = ctx.content
   if (content.length > MAX_PAGE_CONTEXT_CHARS) {
-    content = content.slice(0, MAX_PAGE_CONTEXT_CHARS) + TRUNCATION_MARKER
+    let sliced = content.slice(0, MAX_PAGE_CONTEXT_CHARS)
+    // Never split a surrogate pair: drop a trailing lone high surrogate so the
+    // truncated text stays well-formed UTF-16 (a lone half would serialize as
+    // U+FFFD and can break strict JSON consumers downstream).
+    const lastCode = sliced.charCodeAt(sliced.length - 1)
+    if (lastCode >= 0xd800 && lastCode <= 0xdbff) sliced = sliced.slice(0, -1)
+    content = sliced + TRUNCATION_MARKER
   }
   const name = ctx.isSelection ? 'Выделенный фрагмент.md' : `${pageTitle.trim() || 'Страница'}.md`
   return {

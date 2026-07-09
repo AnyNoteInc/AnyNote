@@ -62,6 +62,15 @@ describe('buildPageContextAttachment', () => {
     expect(att.content).toContain('…контент обрезан')
   })
 
+  it('does not split a surrogate pair at the truncation boundary', () => {
+    // The emoji's high surrogate lands exactly on the cut — it must be dropped,
+    // not left as a lone half that would render as U+FFFD.
+    const content = 'A'.repeat(MAX_PAGE_CONTEXT_CHARS - 1) + '\u{1F600}' + 'B'.repeat(10)
+    const att = buildPageContextAttachment({ content, isSelection: false }, 'P')
+    expect(att.content).not.toContain('\uD83D')
+    expect(att.content!.endsWith('…контент обрезан')).toBe(true)
+  })
+
   it('falls back to a generic name when the title is empty', () => {
     const att = buildPageContextAttachment({ content: 'x', isSelection: false }, '  ')
     expect(att.name).toBe('Страница.md')
