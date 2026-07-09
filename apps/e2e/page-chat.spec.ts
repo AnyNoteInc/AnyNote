@@ -277,6 +277,16 @@ test.describe('page chat — панель чата по странице', () =>
     await expect(switcher).toBeVisible({ timeout: 20_000 })
     await expect(switcher).toContainText('Новый чат')
 
+    // Rename the active thread through the overflow menu (spec §7): the
+    // switcher label reflects the new title after the listByPage refetch.
+    await page.getByTestId('page-chat-menu').click()
+    await page.getByTestId('page-chat-rename').click()
+    const renameField = page.getByRole('dialog').getByRole('textbox')
+    await expect(renameField).toBeVisible()
+    await renameField.fill('Переименованный тред')
+    await page.getByRole('button', { name: 'Сохранить' }).click()
+    await expect(switcher).toContainText('Переименованный тред', { timeout: 15_000 })
+
     // Control row: a NORMAL chat must show up in the global /chats sidebar —
     // proving the list rendered — while the PAGE chat id stays absent.
     const controlChat = await prisma.chat.create({

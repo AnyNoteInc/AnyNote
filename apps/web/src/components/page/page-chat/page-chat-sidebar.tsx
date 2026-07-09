@@ -10,10 +10,20 @@ import {
   Button,
   CircularProgress,
   CloseIcon,
+  DeleteIcon,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  DriveFileRenameOutlineIcon,
   IconButton,
+  Menu,
   MenuItem,
+  MoreVertIcon,
   Select,
   Stack,
+  TextField,
   Typography,
   useTheme,
 } from '@repo/ui/components'
@@ -49,6 +59,12 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
   const [mountEpoch, setMountEpoch] = useState(0)
   const [mountChatId, setMountChatId] = useState<string | null>(null)
 
+  // Overflow menu (rename/delete) acting on the ACTIVE thread of the Select.
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
   // Render-time reset on page navigation (comments-context pattern): the
   // provider resets activeChatId/panelOpen itself; the local mount state must
   // follow or the next page would hydrate the previous page's thread.
@@ -58,6 +74,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     setMountChatId(null)
     setMountEpoch((e) => e + 1)
     setHasSelection(false)
+    setMenuAnchor(null)
+    setRenameOpen(false)
+    setDeleteOpen(false)
   }
 
   const chatsEnabled = features?.chatsEnabled ?? false
@@ -85,6 +104,25 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     setMountChatId(null)
     setMountEpoch((e) => e + 1)
   }, [threadNotFound, setActiveChatId])
+
+  const utils = trpc.useUtils()
+  const renameChat = trpc.chat.renameChat.useMutation({
+    onSuccess: async () => {
+      await utils.chat.listByPage.invalidate({ workspaceId, pageId })
+      setRenameOpen(false)
+    },
+  })
+  // Deleting the active thread resets the panel to the new-thread state (the
+  // epoch bump also unmounts a live instance of the deleted chat).
+  const deleteChat = trpc.chat.deleteChat.useMutation({
+    onSuccess: async () => {
+      await utils.chat.listByPage.invalidate({ workspaceId, pageId })
+      setDeleteOpen(false)
+      setActiveChatId?.(null)
+      setMountChatId(null)
+      setMountEpoch((e) => e + 1)
+    },
+  })
 
   // Live selection → context chip (Notion: selection narrows the context).
   useEffect(() => {
@@ -116,6 +154,8 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     setMountChatId(id)
     setMountEpoch((e) => e + 1)
   }
+
+  const activeChat = activeChatId ? (list.data?.find((c) => c.id === activeChatId) ?? null) : null
 
   return (
     <Box
@@ -169,6 +209,16 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
             >
               <AddRoundedIcon fontSize="small" />
             </IconButton>
+            {activeChatId !== null ? (
+              <IconButton
+                size="small"
+                aria-label="Действия с чатом"
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                data-testid="page-chat-menu"
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            ) : null}
           </>
         ) : null}
         <IconButton size="small" aria-label="Закрыть чат" onClick={ctx.closePanel}>
@@ -225,6 +275,91 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           </Button>
         </Stack>
       )}
+
+      {/* Thread actions (spec §7): rename/delete the active thread. */}
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem
+          data-testid="page-chat-rename"
+          onClick={() => {
+            setMenuAnchor(null)
+            setRenameValue(activeChat?.title ?? '')
+            setRenameOpen(true)
+          }}
+          sx={{ gap: 1, fontSize: 13 }}
+        >
+          <DriveFileRenameOutlineIcon fontSize="small" />
+          Переименовать
+        </MenuItem>
+        <MenuItem
+          data-testid="page-chat-delete"
+          onClick={() => {
+            setMenuAnchor(null)
+            setDeleteOpen(true)
+          }}
+          sx={{ gap: 1, fontSize: 13, color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" />
+          Удалить
+        </MenuItem>
+      </Menu>
+
+      <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Переименовать чат</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && renameValue.trim() && activeChatId) {
+                renameChat.mutate({ chatId: activeChatId, title: renameValue.trim() })
+              }
+            }}
+            // Mirrors renameChat's z.string().max(48) input cap.
+            slotProps={{ htmlInput: { maxLength: 48 } }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={() => setRenameOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => {
+              if (!activeChatId) return
+              renameChat.mutate({ chatId: activeChatId, title: renameValue.trim() })
+            }}
+            disabled={!renameValue.trim() || renameChat.isPending}
+          >
+            Сохранить
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Удалить чат?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Чат «{activeChat?.title ?? 'Без названия'}» будет удалён навсегда.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={() => setDeleteOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => {
+              if (!activeChatId) return
+              deleteChat.mutate({ chatId: activeChatId })
+            }}
+            disabled={deleteChat.isPending}
+          >
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

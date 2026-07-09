@@ -17,6 +17,7 @@ Three AI surfaces on TEXT pages, all riding the workspace's own AI provider sett
 ## 2. Scope (locked)
 
 **In scope:**
+
 - Space trigger (bare Space only — **Shift+Space types a plain space**, Notion's documented bypass) + floating input bar + suggestions menu + in-document streaming pending draft + accept/refine/discard loop.
 - Empty-line placeholder advertising the trigger (Notion: "Write, press space for AI, or '/' for commands") — «Нажмите «пробел» для AI, «/» — для команд» — shown only when the capability is active (editable TEXT page).
 - `custom` free-form action + `generate` drafting action in `/api/ai/inline`, both supporting refinement history.
@@ -25,6 +26,7 @@ Three AI surfaces on TEXT pages, all riding the workspace's own AI provider sett
 - Plan gating on **existing** flags (`aiSettingsEnabled` for surfaces 1–2, `chatsEnabled` for page chats; both ПРО+МАКС — the «ПРО и выше» decision), surfaced **Notion-style: visible but paywalled** (§8.2). No new plan flags, no seed changes.
 
 **Explicitly OUT of scope (decided, not oversights):**
+
 - Non-TEXT page types (comments are TEXT-only today; same precedent). The Space trigger, placeholder, and FAB render only on TEXT pages.
 - Notion's complimentary-response trial quota (no quota mechanism exists in anynote; the paywall message appears immediately on non-eligible plans).
 - Persisting the Space-bar refinement history (closing discards it; the hidden INLINE_AI chat row is transport, not storage).
@@ -37,7 +39,9 @@ Three AI surfaces on TEXT pages, all riding the workspace's own AI provider sett
 ## 3. Space AI — editor surface (Notion-style: draft in document, bar below)
 
 ### 3.1 Trigger extension
+
 New `packages/editor/src/extensions/space-ai.ts` — `Extension.create` with `addKeyboardShortcuts({ Space })` (bare Space only; `Shift-Space` is not bound, so it types a space naturally — the Notion bypass for free). Nothing else in the editor handles Space (verified: markdown input rules never fire on an empty paragraph; the bookmark node-view handler is DOM-internal). Guard, in order:
+
 - capability injected (`editor.storage.ai?.onSpaceAi` set);
 - selection is a caret (`empty`);
 - parent is a **paragraph** with `content.size === 0`;
@@ -46,16 +50,20 @@ New `packages/editor/src/extensions/space-ai.ts` — `Extension.create` with `ad
 On match: consume the keypress (return `true`), capture the block position + caret rect (`view.coordsAtPos`), call `onSpaceAi({ pos, getRect })`. Otherwise return `false`.
 
 ### 3.2 Input bar + suggestions
+
 `packages/editor/src/components/space-ai-bar.tsx` — a floating input bar anchored under the trigger block (virtual-anchorEl at the caret rect, the slash-menu pattern; **not** a click-away-closing modal — see 3.4). Anatomy, mirroring Notion:
+
 - Free-form prompt input, autofocused, placeholder «Напишите, что сгенерировать…».
 - While the input is empty: a small suggestions dropdown (Notion's "Draft with AI" pattern) — static v1 list: «Продолжить текст», «Мозговой штурм идей на тему…», «План документа на тему…», «Написать текст о…». Picking one **pre-fills the editable prompt** (Notion-verified behavior), it does not fire immediately (except «Продолжить текст», which is self-sufficient and submits directly).
 - Enter submits; the bar switches to streaming state (stop button → abort).
 
 ### 3.3 Pending draft — streamed into the document
+
 The draft renders **inside the document below the trigger block**, not in a popup — Notion-verified. Implementation: the 9D local-decoration machinery reused wholesale — a widget decoration at the trigger position fed by the `start/appendToken/finish/fail/clear` plugin metas (`inline-ai.ts`), drift-guarded through transaction mapping, styled as a tinted "pending AI draft" block showing the streaming markdown text. Yjs is never touched while streaming (9D invariant).
 
 When generation finishes, the bar (still attached below the draft) shows, Notion-style:
-- **«Принять»** (Notion 2026 label "Accept") — parse the accumulated markdown and replace the empty trigger paragraph with the formatted content in **one transaction** (one collaborative-undo step), via the same markdown→Tiptap path the «Markdown» slash item uses (a fenced ` ```mermaid ` block becomes a code block naturally), wrapped in `deferModalInsert` (the async-insert Yjs-sync trap).
+
+- **«Вставить»** (Notion 2026 label "Accept"; our label matches the shipped UI and the original product wording «вставляется») — parse the accumulated markdown and replace the empty trigger paragraph with the formatted content in **one transaction** (one collaborative-undo step), via the same markdown→Tiptap path the «Markdown» slash item uses (a fenced ` ```mermaid ` block becomes a code block naturally), wrapped in `deferModalInsert` (the async-insert Yjs-sync trap).
 - **«Повторить»** — regenerate with the same instruction (replaces the pending draft).
 - **«Отклонить»** — clear the decoration; the document is untouched.
 - **The follow-up input stays active** («Скажите AI, что сделать дальше…», Notion's "enter a specific prompt in the chat bar"): submitting a refinement re-calls the backend with the accumulated history; the new draft **replaces** the pending one. History lives only in component state.
@@ -63,14 +71,17 @@ When generation finishes, the bar (still attached below the draft) shows, Notion
 A monotonic run token drops late tokens from superseded runs (the 9D session-token pattern).
 
 ### 3.4 Dismissal semantics (Notion leaves these undocumented; we define ours)
+
 - **Esc**: abort any in-flight stream, discard the pending draft, close the bar, return focus to the (still empty) paragraph. No confirmation dialog.
 - **Click-away**: does **not** silently discard — the bar and pending draft stay (a long draft should not die to a stray click). Explicit «Отклонить»/Esc discards; navigating away from the page discards (nothing was ever in Yjs).
 - Read-only flips / editor destroy: abort + clear (guard `view.isDestroyed`, 9D pattern).
 
 ### 3.5 Injection thread
+
 `AnyNoteEditorProps.generateAI?: GenerateAICallback` (new, `packages/editor/src/types.ts`) → `buildExtensions` → the SpaceAI extension exposes `onSpaceAi` on `editor.storage.ai` (merged, not clobbered — the 9D `onCreate` merge gotcha) → `anynote-editor.tsx` renders `<SpaceAiBar>` as a sibling of `EditorContent` (the `InlineAiPopover` precedent) → `page-renderer.tsx` builds the closure via `createGenerateAi({ pageId, workspaceId })` in `apps/web/src/components/page/inline-ai-bridge.ts`, injected when the page is **editable** (plan is NOT checked client-side — §8.2 visible-but-paywalled).
 
 ### 3.6 Placeholder
+
 `packages/editor/src/extensions/placeholder.ts`: when the Space capability is active, empty top-level paragraphs read «Нажмите «пробел» для AI, «/» — для команд»; otherwise the current «Введите '/' для команд» stays.
 
 ## 4. Space AI + custom action — backend (extend `/api/ai/inline`)
@@ -87,6 +98,7 @@ Zod validation and length caps live in the handler schema; unknown actions still
 ## 5. Selection popover — Notion-shaped
 
 `packages/editor/src/components/inline-ai-popover.tsx`, reshaped to Notion's co-primary layout:
+
 - **Free-form prompt input at the top** («Спросите AI изменить или создать…»), the six existing presets listed below (their vocabulary already matches Notion's classic set: кратко/переписать/грамматика/перевод/короче/подробнее). Typing + Enter submits `action: 'custom'`.
 - The result preview (existing 9D decoration) keeps its toolbar but gains, Notion-style:
   - **«Заменить»** (existing accept — replaces `[from, to]`),
@@ -98,6 +110,7 @@ Zod validation and length caps live in the handler schema; unknown actions still
 ## 6. Page chats — data model & API
 
 ### 6.1 Prisma
+
 ```prisma
 enum ChatKind { NORMAL INLINE_AI PAGE }
 
@@ -108,17 +121,20 @@ model Chat {
   @@index([pageId])
 }
 ```
+
 - `inlineAiPageId` is **not** reused — it carries `@@unique([createdById, inlineAiPageId])` (one-per-user+page), which contradicts many-chats-per-page.
 - Page hard-delete tx + trash purge (`pages.repository.ts`) delete `Chat where pageId = <page>` alongside the existing INLINE_AI pruning.
 - One migration. Feature branch owns it; if the shared dev DB drifts, apply via the established diff→`psql --single-transaction`→`migrate resolve --applied` flow.
 
 ### 6.2 tRPC (`packages/trpc/src/routers/chat.ts`)
+
 - `createChat` gains optional `pageId`; when present the server verifies **page visibility** (`buildPageVisibilityWhere`) and creates the chat with `kind: 'PAGE'` (client cannot set `kind` directly). Plan gate: `chatsEnabled` FORBIDDEN check.
 - New `listByPage({ workspaceId, pageId })` → PAGE chats for that page, `orderBy updatedAt desc` (Notion: recency-ordered history), page-visibility-checked.
 - `assertChatAccess` extended: for `kind === 'PAGE'` chats it additionally requires current page visibility — otherwise a workspace member who cannot see a private page could read its chat (and its injected page content) by id. Applies to `getChat`/`renameChat`/`deleteChat`/generate.
 - `listChats`/`listFavorites` keep `kind: 'NORMAL'` — page chats never leak into the sidebar.
 
 ### 6.3 Page context injection (`/api/agents/generate`)
+
 Request body gains optional `pageContext: { content: string, isSelection: boolean }`, accepted **only** when the target chat is `kind === 'PAGE'` (400 otherwise). The **client** serializes the live editor content to markdown (the `@repo/editor` serializer shipped with «Копировать текст») — fresher than the server's `Page.content` snapshot (Hocuspocus debounce) and requires no server-side Tiptap→markdown converter. When a non-empty selection exists at send time, the client sends **only** the selected text with `isSelection: true` (Notion-verified: selected blocks narrow the agent's focus; also the user's original rule).
 
 Server: validate chat kind + page visibility, cap `content` at 200k chars (truncate the tail with an explicit «…контент обрезан» marker), then inject as a **synthetic attachment** `{ id: 'page-context', name: `${page.title}.md` | 'Выделенный фрагмент.md', mime: 'text/markdown', included: true, content }` — riding the proven attachments channel (`_attachments.j2` already wraps it in a prompt-injection guard in both planner and executor prompts). Everything else — MCP tools, RAG, memories, thinking settings, stream registry, resume — is the unchanged normal-chat pipeline.
@@ -126,6 +142,7 @@ Server: validate chat kind + page visibility, cap `content` at 200k chars (trunc
 Trust note: client-supplied content is not a new privilege — the user can paste anything into a message today; the server still independently verifies the user can see the page the chat is bound to.
 
 ### 6.4 Auto-titling
+
 The generate route's existing first-message auto-rename («Новый чат» → first text) applies to page chats unchanged (Notion parity: "chats will be named based on what the conversation was about").
 
 ## 7. Page chats — UI
@@ -160,7 +177,7 @@ The generate route's existing first-message auto-rename («Новый чат» �
 ## 10. Honest limitations (v1)
 
 - TEXT pages only (all three surfaces).
-- The pending draft streams as styled **raw markdown** text; it becomes formatted blocks only on «Принять» (Notion streams formatted blocks — deferred).
+- The pending draft streams as styled **raw markdown** text; it becomes formatted blocks only on «Вставить» (Notion streams formatted blocks — deferred).
 - Space-bar refinement history is ephemeral — closing/discarding loses the thread.
 - Page context comes from the client's live editor (fresh, but client-supplied; server caps + access-checks it). Content over 200k chars is tail-truncated with a visible marker.
 - Mermaid code blocks insert as plain code blocks (no in-block preview on TEXT pages).
@@ -168,6 +185,8 @@ The generate route's existing first-message auto-rename («Новый чат» �
 - Rate limiter remains in-memory single-instance (operator concern, unchanged from 9D).
 - Docked sidebar only for page chats (no Notion "Floating" window mode).
 - No token quotas; audit only (9D stance).
+- The /pricing upsell link renders only in the page-chat panel; the Space bar and selection popover show the plan-upsell text without a link (`AskAIHandle.onError` is string-only; recorded deviation, revisit on product demand).
+- Regression tests for the bar's hardening edges (follow-up refinement loop, click-away persistence, late-token drop) are a registered follow-up.
 
 ## 11. Notion parity notes (research summary, 2026-07-08)
 
