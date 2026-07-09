@@ -10,6 +10,7 @@ export {
   default as CircularProgress,
   type CircularProgressProps,
 } from '@mui/material/CircularProgress'
+export { useTheme } from '@mui/material/styles'
 export { default as LinearProgress, type LinearProgressProps } from '@mui/material/LinearProgress'
 export { default as Skeleton, type SkeletonProps } from '@mui/material/Skeleton'
 export { default as Popover, type PopoverProps } from '@mui/material/Popover'

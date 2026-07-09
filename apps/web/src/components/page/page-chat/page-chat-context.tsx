@@ -23,7 +23,10 @@ type PageChatContextValue = {
 const PageChatContext = createContext<PageChatContextValue | null>(null)
 
 /** Non-throwing — the FAB/sidebar also render on surfaces without the provider
- *  (PageView, non-page routes) and must simply disappear there. */
+ *  (PageView, non-page routes) and must simply disappear there. Caveat: the FAB
+ *  additionally reads usePageCommentsContext, which THROWS without
+ *  PageCommentsProvider — so the FAB is only mountable where both providers
+ *  exist (currently the workspace layout's pageMain). */
 export function usePageChatContext(): PageChatContextValue | null {
   return useContext(PageChatContext)
 }
