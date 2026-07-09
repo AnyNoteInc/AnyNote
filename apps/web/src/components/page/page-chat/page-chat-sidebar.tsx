@@ -175,7 +175,7 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
         minHeight: 0,
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 1.5, pb: 1, flexShrink: 0 }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', p: 1.5, pb: 1, flexShrink: 0 }}>
         <Typography variant="subtitle2" sx={{ flex: 1 }}>
           Чат по странице
         </Typography>

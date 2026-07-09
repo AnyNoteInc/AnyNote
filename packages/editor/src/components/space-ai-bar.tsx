@@ -289,7 +289,7 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
         data-testid="space-ai-bar"
       >
         {phase === 'input' || phase === 'error' ? (
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <TextField
               autoFocus
               fullWidth
@@ -345,7 +345,7 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
         ) : null}
 
         {phase === 'streaming' ? (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, py: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', px: 1, py: 0.5 }}>
             <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
               Генерация…
             </Typography>
@@ -387,7 +387,7 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
                 },
               }}
             />
-            <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 0.5 }}>
+            <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end', mt: 0.5 }}>
               <Button size="small" onClick={discardAndClose}>
                 Отклонить
               </Button>
