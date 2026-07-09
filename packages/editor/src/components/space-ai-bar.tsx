@@ -133,11 +133,28 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
     [],
   )
 
-  const discardAndClose = () => {
+  const discardAndClose = useCallback(() => {
     abortRun()
     if (!editor.isDestroyed) clearInlineAiPreview(editor)
     onClose()
-  }
+  }, [abortRun, editor, onClose])
+
+  // Esc must discard from ANY focus target (spec §3.4). After submit the
+  // instruction input UNMOUNTS (phase → streaming) and focus falls to <body>,
+  // so the Paper's onKeyDown alone never sees the key during streaming/done —
+  // exactly the phases where the draft is on screen. Bubble-phase document
+  // listener: an Escape handled (and stopPropagation'd) inside the Paper never
+  // reaches it, so inside-bar Esc still discards exactly once.
+  useEffect(() => {
+    if (!open) return
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      discardAndClose()
+    }
+    document.addEventListener('keydown', onDocKeyDown)
+    return () => document.removeEventListener('keydown', onDocKeyDown)
+  }, [open, discardAndClose])
 
   const currentDraftPos = (): number => {
     const preview = getInlineAiPreview(editor)
