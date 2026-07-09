@@ -39,6 +39,8 @@ const bodySchema = z
     selectedText: z.string().min(1).max(50_000).optional(),
     instruction: z.string().min(1).max(MAX_INSTRUCTION_CHARS).optional(),
     history: z.array(historyTurnSchema).max(MAX_HISTORY_TURNS).optional(),
+    // 2x slack over the prompt-side cap: the builder tail-slices to
+    // MAX_CONTEXT_BEFORE_CHARS; tolerate client-side cap mismatches.
     contextBefore: z
       .string()
       .max(MAX_CONTEXT_BEFORE_CHARS * 2)
@@ -231,7 +233,7 @@ export async function handleInlineAi(
   const payload = buildAgentRunPayload({
     chatId: chat.id,
     userMessage: prompt,
-    chatHistory: history ?? [],
+    chatHistory: isPreset ? [] : (history ?? []),
     settings: {
       temperature: settings.temperature,
       topP: settings.topP,

@@ -354,6 +354,28 @@ describe('generate action (space AI)', () => {
     )
     expect(res.status).toBe(400)
   })
+
+  it('preset actions stay single-shot: summarize ignores a supplied history', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({
+        action: 'summarize',
+        selectedText: SELECTED,
+        history: [
+          { role: 'user', content: 'предыдущий вопрос' },
+          { role: 'assistant', content: 'предыдущий ответ' },
+        ],
+        pageId,
+        workspaceId,
+      }),
+      deps,
+    )
+    expect(res.status).toBe(200)
+    const [, init] = (deps.upstreamFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    const sent = JSON.parse((init as RequestInit).body as string)
+    // The 9D preset contract: single-shot, never a conversation.
+    expect(sent.chat_history).toEqual([])
+  })
 })
 
 describe('custom action (free-form selection instruction)', () => {
@@ -374,6 +396,31 @@ describe('custom action (free-form selection instruction)', () => {
     const sent = JSON.parse((init as RequestInit).body as string)
     expect(sent.user_message).toContain('сделай маркированным списком')
     expect(sent.user_message).toContain('один два три')
+  })
+
+  it('forwards a supplied history for custom (refinement loop)', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({
+        action: 'custom',
+        instruction: 'сделай строже',
+        selectedText: 'один два три',
+        history: [
+          { role: 'user', content: 'сделай маркированным списком' },
+          { role: 'assistant', content: '- один\n- два\n- три' },
+        ],
+        pageId,
+        workspaceId,
+      }),
+      deps,
+    )
+    expect(res.status).toBe(200)
+    const [, init] = (deps.upstreamFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    const sent = JSON.parse((init as RequestInit).body as string)
+    expect(sent.chat_history).toEqual([
+      { role: 'user', content: 'сделай маркированным списком' },
+      { role: 'assistant', content: '- один\n- два\n- три' },
+    ])
   })
 
   it('rejects custom without selectedText', async () => {
