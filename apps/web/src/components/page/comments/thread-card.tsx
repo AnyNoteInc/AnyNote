@@ -45,7 +45,11 @@ export function ThreadCard({
         boxShadow: active ? 2 : 0,
       }}
     >
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+      >
         <Typography
           variant="caption"
           color="text.secondary"
@@ -65,14 +69,18 @@ export function ThreadCard({
               color: 'text.secondary',
             }}
           >
-            {thread.resolvedAt ? <RedoIcon fontSize="small" /> : <CheckRoundedIcon fontSize="small" />}
+            {thread.resolvedAt ? (
+              <RedoIcon fontSize="small" />
+            ) : (
+              <CheckRoundedIcon fontSize="small" />
+            )}
           </IconButton>
         </Tooltip>
       </Stack>
       <Stack spacing={1} sx={{ mt: 1 }}>
         {thread.comments.map((c) => (
           <Box key={c.id}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography variant="subtitle2">{c.authorName}</Typography>
               {canDeleteComments ? (
                 <Tooltip title="Удалить комментарий">

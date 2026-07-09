@@ -143,11 +143,11 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
             <Stack
               direction="row"
               useFlexGap
-              flexWrap="wrap"
-              sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'text.secondary' }}
+
+              sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'text.secondary', flexWrap: 'wrap' }}
             >
               {['Без банковской карты', 'Базы и дашборды', 'ИИ по вашим данным'].map((label) => (
-                <Stack key={label} direction="row" alignItems="center" spacing={1}>
+                <Stack key={label} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Box
                     aria-hidden
                     sx={{
@@ -228,13 +228,14 @@ function BrowserChrome() {
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={0.75}
       sx={{
         px: 1.5,
         py: 1.1,
         bgcolor: homeTokens.palette.paper,
         borderBottom: `1px solid ${homeTokens.palette.line}`,
+        alignItems: 'center',
       }}
     >
       {[0, 1, 2].map((i) => (
@@ -266,9 +267,14 @@ function PreviewSidebar() {
     >
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={0.875}
-        sx={{ p: '4px 6px 8px', borderBottom: `1px solid ${t.line}`, mb: 0.75 }}
+        sx={{
+          p: '4px 6px 8px',
+          borderBottom: `1px solid ${t.line}`,
+          mb: 0.75,
+          alignItems: 'center',
+        }}
       >
         <Box
           sx={{
@@ -326,9 +332,15 @@ function NavRow({ icon, label }: { icon: string; label: string }) {
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={0.875}
-      sx={{ p: '5px 7px', borderRadius: 0.625, color: 'rgba(0,0,0,0.65)', my: '1px' }}
+      sx={{
+        p: '5px 7px',
+        borderRadius: 0.625,
+        color: 'rgba(0,0,0,0.65)',
+        my: '1px',
+        alignItems: 'center',
+      }}
     >
       <Box component="span" sx={{ fontSize: 12, opacity: 0.7 }}>
         {icon}
@@ -342,7 +354,7 @@ function SectionLabel({ children, right }: { children: React.ReactNode; right?: 
   return (
     <Stack
       direction="row"
-      justifyContent="space-between"
+
       sx={{
         mt: 1.25,
         p: '4px 7px 2px',
@@ -350,6 +362,7 @@ function SectionLabel({ children, right }: { children: React.ReactNode; right?: 
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
         color: 'rgba(0,0,0,0.42)',
+        justifyContent: 'space-between',
       }}
     >
       <span>{children}</span>
@@ -374,7 +387,7 @@ function TreeItem({
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={0.75}
       sx={{
         p: '4px 7px',
@@ -384,6 +397,7 @@ function TreeItem({
         bgcolor: active ? 'rgba(0,0,0,0.06)' : 'transparent',
         fontWeight: active ? 500 : 400,
         my: '1px',
+        alignItems: 'center',
       }}
     >
       {chev && (
@@ -405,13 +419,14 @@ function PreviewMain() {
     <Box sx={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={1}
         sx={{
           p: '10px 16px',
           borderBottom: `1px solid ${t.line}`,
           fontSize: 11.5,
           color: 'rgba(0,0,0,0.5)',
+          alignItems: 'center',
         }}
       >
         <span>База знаний</span>
@@ -508,9 +523,9 @@ function AiPanel() {
     >
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={0.875}
-        sx={{ fontSize: 12, color: 'rgba(240,238,230,0.65)', mb: 1 }}
+        sx={{ fontSize: 12, color: 'rgba(240,238,230,0.65)', mb: 1, alignItems: 'center' }}
       >
         <Box component="span" sx={{ color: t.orangeWarm }}>
           ✦
@@ -529,8 +544,8 @@ function AiPanel() {
             key={s.name}
             direction="row"
             spacing={0.75}
-            alignItems="center"
-            sx={{ fontSize: 11, color: 'rgba(240,238,230,0.7)' }}
+
+            sx={{ fontSize: 11, color: 'rgba(240,238,230,0.7)', alignItems: 'center' }}
           >
             <span>{s.em}</span>
             <span>{s.name}</span>

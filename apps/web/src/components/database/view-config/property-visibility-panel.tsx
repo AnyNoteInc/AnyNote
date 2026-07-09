@@ -142,9 +142,8 @@ export function PropertyVisibilityPanel({
     <Box sx={{ p: 1.5, width: 280 }}>
       <Stack
         direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ px: 0.5, gap: 1 }}
+
+        sx={{ px: 0.5, gap: 1, alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Typography variant="subtitle2">Свойства</Typography>
         {total > 0 ? (
@@ -308,7 +307,7 @@ function PropertyRow({ property, checked, disabled, onToggle }: PropertyRowProps
         // Stop the row's onClick from double-firing alongside the switch's change.
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => onToggle(e.target.checked)}
-        inputProps={{ 'aria-label': `Показывать «${property.name}»` }}
+        slotProps={{ input: { 'aria-label': `Показывать «${property.name}»` } }}
       />
     </Box>
   )

@@ -66,7 +66,7 @@ export function WorkspaceToolbar({
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={1.25}
       className="workspace-toolbar"
       sx={{
@@ -75,6 +75,7 @@ export function WorkspaceToolbar({
         minHeight: 44,
         borderBottom: '1px solid',
         borderColor: 'divider',
+        alignItems: 'center',
       }}
     >
       {sidebarHidden ? (
@@ -118,7 +119,7 @@ export function WorkspaceToolbar({
       {breadcrumbs.map((crumb, i) => {
         const isLast = i === breadcrumbs.length - 1
         return (
-          <Stack key={i} direction="row" alignItems="center" spacing={1.25}>
+          <Stack key={i} direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
             {i > 0 && (
               <Typography variant="body2" color="text.disabled">
                 /
@@ -129,12 +130,13 @@ export function WorkspaceToolbar({
                 component={Link}
                 href={crumb.href}
                 direction="row"
-                alignItems="center"
+
                 spacing={0.5}
                 sx={{
                   color: 'text.secondary',
                   textDecoration: 'none',
                   '&:hover': { color: 'text.primary', textDecoration: 'underline' },
+                  alignItems: 'center',
                 }}
               >
                 {crumb.icon}
@@ -143,7 +145,7 @@ export function WorkspaceToolbar({
                 </Typography>
               </Stack>
             ) : (
-              <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                 {crumb.icon}
                 <Typography
                   variant="body2"

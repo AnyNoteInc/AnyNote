@@ -16,7 +16,7 @@ export function TagRow({
   onSelect: (tagId: string | null) => void
 }) {
   return (
-    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+    <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 3, flexWrap: 'wrap' }}>
       <Chip
         label="Все"
         clickable

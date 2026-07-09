@@ -1,15 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  Stack,
-  TextField,
-  Typography,
-} from '@repo/ui/components'
+import { Avatar, Box, Button, Chip, Stack, TextField, Typography } from '@repo/ui/components'
 
 import type { BoardMember, BoardParticipant } from '../types'
 import { participantInitials, participantName } from '../components/participant-display'
@@ -72,12 +64,16 @@ export function ParticipantPicker({
 
   return (
     <Box sx={{ p: 1.5, minWidth: 300, maxWidth: 340 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: 'block', mb: 1, fontWeight: 600 }}
+      >
         Участники
       </Typography>
 
       {selected.length > 0 ? (
-        <Stack direction="row" flexWrap="wrap" useFlexGap sx={{ gap: 0.5, mb: 1 }}>
+        <Stack direction="row" useFlexGap sx={{ gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
           {selected.map((p) => (
             <Chip
               key={p.id}
@@ -107,13 +103,17 @@ export function ParticipantPicker({
             <Stack
               key={c.key}
               direction="row"
-              alignItems="center"
+
               spacing={1}
               onClick={() => handleCandidateClick(c.participantId, c.userId)}
               sx={{
-                px: 0.5, py: 0.5, borderRadius: 1, cursor: 'pointer',
+                px: 0.5,
+                py: 0.5,
+                borderRadius: 1,
+                cursor: 'pointer',
                 bgcolor: checked ? 'action.selected' : 'transparent',
                 '&:hover': { bgcolor: 'action.hover' },
+                alignItems: 'center',
               }}
             >
               <Avatar src={c.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 11 }}>
@@ -123,13 +123,29 @@ export function ParticipantPicker({
                 <Typography variant="body2" noWrap>
                   {c.label}
                   {c.inWorkspace ? (
-                    <Box component="span" sx={{ ml: 0.75, fontSize: 10, color: 'primary.main', border: 1, borderColor: 'primary.light', borderRadius: 0.5, px: 0.5 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.75,
+                        fontSize: 10,
+                        color: 'primary.main',
+                        border: 1,
+                        borderColor: 'primary.light',
+                        borderRadius: 0.5,
+                        px: 0.5,
+                      }}
+                    >
                       в пространстве
                     </Box>
                   ) : null}
                 </Typography>
                 {c.sublabel ? (
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    sx={{ display: 'block' }}
+                  >
                     {c.sublabel}
                   </Typography>
                 ) : null}
@@ -142,22 +158,49 @@ export function ParticipantPicker({
       {creating ? (
         <Stack spacing={1} sx={{ mt: 1 }}>
           <TextField
-            size="small" fullWidth autoFocus label="ФИО" inputProps={{ maxLength: 64 }}
-            value={guestName} onChange={(e) => setGuestName(e.target.value)}
+            size="small"
+            fullWidth
+            autoFocus
+            label="ФИО"
+
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 64 } }}
           />
           <TextField
-            size="small" fullWidth label="Компания" inputProps={{ maxLength: 64 }}
-            value={guestCompany} onChange={(e) => setGuestCompany(e.target.value)}
+            size="small"
+            fullWidth
+            label="Компания"
+
+            value={guestCompany}
+            onChange={(e) => setGuestCompany(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 64 } }}
           />
           <Stack direction="row" spacing={1}>
-            <Button size="small" variant="contained" onClick={submitGuest}>Создать</Button>
-            <Button size="small" onClick={() => setCreating(false)}>Отмена</Button>
+            <Button size="small" variant="contained" onClick={submitGuest}>
+              Создать
+            </Button>
+            <Button size="small" onClick={() => setCreating(false)}>
+              Отмена
+            </Button>
           </Stack>
         </Stack>
       ) : (
         <Box
-          onClick={() => { setGuestName(query.trim()); setCreating(true) }}
-          sx={{ mt: 1, p: 1, border: '1px dashed', borderColor: 'primary.light', borderRadius: 1, fontSize: 13, color: 'primary.main', cursor: 'pointer' }}
+          onClick={() => {
+            setGuestName(query.trim())
+            setCreating(true)
+          }}
+          sx={{
+            mt: 1,
+            p: 1,
+            border: '1px dashed',
+            borderColor: 'primary.light',
+            borderRadius: 1,
+            fontSize: 13,
+            color: 'primary.main',
+            cursor: 'pointer',
+          }}
         >
           ＋ Создать гостя{query.trim() ? ` «${query.trim()}»` : ''}…
         </Box>

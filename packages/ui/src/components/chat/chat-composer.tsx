@@ -218,7 +218,14 @@ function ChatComposerInner({
       }}
     >
       {showChipsRow ? (
-        <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
+        <Stack
+          direction="row"
+          sx={{
+            flexBasis: '100%',
+            flexWrap: 'wrap',
+            gap: 1,
+          }}
+        >
           {contextChip ? (
             <Chip
               color="info"
@@ -252,7 +259,6 @@ function ChatComposerInner({
           ))}
         </Stack>
       ) : null}
-
       <input
         accept="*/*"
         hidden
@@ -261,7 +267,6 @@ function ChatComposerInner({
         ref={fileInputRef}
         type="file"
       />
-
       <IconButton
         aria-controls={addMenuOpen ? addMenuId : undefined}
         aria-expanded={addMenuOpen ? 'true' : undefined}
@@ -305,7 +310,6 @@ function ChatComposerInner({
             ))
           : null}
       </Menu>
-
       <div ref={textAreaWrapRef} style={{ flexGrow: 1, display: 'flex', minWidth: 0 }}>
         <ChatComposerTextArea
           data-testid="chat-composer-textarea"
@@ -337,13 +341,22 @@ function ChatComposerInner({
         {reasoningSupported ? (
           [
             <Stack
-              alignItems="center"
               direction="row"
-              justifyContent="space-between"
               key="thinking-row"
-              sx={{ px: 2, py: 0.5 }}
+              sx={{
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 0.5,
+              }}
             >
-              <Stack alignItems="center" direction="row" spacing={1}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  alignItems: 'center',
+                }}
+              >
                 <PsychologyRoundedIcon fontSize="small" />
                 <Box component="span" sx={{ fontWeight: 600 }}>
                   Thinking
@@ -372,11 +385,11 @@ function ChatComposerInner({
               />
             </Stack>,
             <Stack
-              alignItems="center"
               direction="row"
-              justifyContent="space-between"
               key="effort-row"
               sx={{
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 opacity: thinking != null ? 1 : 0.4,
                 px: 2,
                 py: 0.5,
@@ -426,7 +439,6 @@ function ChatComposerInner({
           </MenuItem>
         )}
       </Menu>
-
       <ChatComposerSendButton aria-label="Send" disabled={disabled || !hasText}>
         <ArrowUpwardIcon />
       </ChatComposerSendButton>

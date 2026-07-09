@@ -320,9 +320,14 @@ export function WorkspaceSettingsDialog({
         <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <Stack
             direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}
+
+            sx={{
+              p: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
             <Typography variant="h6" id={titleId}>
               {workspace?.name ?? 'Настройки'}

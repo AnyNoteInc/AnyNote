@@ -67,7 +67,7 @@ export function CheckoutModal({ planSlug, defaultPeriod, onClose }: Props) {
           </Stack>
 
           <Stack spacing={0.75}>
-            <Typography variant="h5" fontWeight={700}>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
               К оплате: {amount.toLocaleString('ru-RU')} ₽
             </Typography>
             <Typography variant="body2" color="text.secondary">

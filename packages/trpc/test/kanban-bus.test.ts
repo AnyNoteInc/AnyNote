@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { KanbanBus, type KanbanEvent } from '../src/realtime/kanban-bus'
 
-const PAGE_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-const PAGE_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-const EVENT: KanbanEvent = { kind: 'task.created', taskId: '00000000-0000-0000-0000-000000000001' }
+const PAGE_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const PAGE_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const EVENT: KanbanEvent = { kind: 'task.created', taskId: '00000000-0000-4000-8000-000000000001' }
 
 describe('KanbanBus', () => {
   it('delivers an event only to listeners of the same pageId', () => {

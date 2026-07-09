@@ -14,7 +14,7 @@ export function PageLoading({ label = 'Загрузка…' }: PageLoadingProps)
         justifyContent: 'center',
       }}
     >
-      <Stack spacing={2} alignItems="center">
+      <Stack spacing={2} sx={{ alignItems: 'center' }}>
         <CircularProgress size={32} />
         <Typography variant="body2" color="text.secondary">
           {label}

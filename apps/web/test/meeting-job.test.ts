@@ -6,10 +6,10 @@ import {
   type MeetingProviderResolution,
 } from '../src/server/jobs/process-meeting-job'
 
-const artifactId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-const workspaceId = '22222222-2222-2222-2222-222222222222'
-const userId = '33333333-3333-3333-3333-333333333333'
-const recordingFileId = '44444444-4444-4444-4444-444444444444'
+const artifactId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const workspaceId = '22222222-2222-4222-9222-222222222222'
+const userId = '33333333-3333-4333-9333-333333333333'
+const recordingFileId = '44444444-4444-4444-9444-444444444444'
 const recordingPath = 'media/abc.mp4'
 
 /** A loaded artifact row as the runner reads it after a successful claim. */

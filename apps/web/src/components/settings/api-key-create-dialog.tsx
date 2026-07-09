@@ -51,8 +51,9 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: Props) {
             placeholder="Cursor на ноутбуке"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            inputProps={{ 'data-testid': 'api-key-name-input', maxLength: 100 }}
+
             fullWidth
+            slotProps={{ htmlInput: { 'data-testid': 'api-key-name-input', maxLength: 100 } }}
           />
           <FormControl fullWidth size="small">
             <InputLabel id="api-key-ttl-label">Срок действия</InputLabel>

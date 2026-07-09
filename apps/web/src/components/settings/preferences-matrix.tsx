@@ -134,7 +134,7 @@ export function PreferencesMatrix() {
         bgcolor: 'background.paper',
       }}
     >
-      <Typography variant="subtitle1" fontWeight={700}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
         Уведомления
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -150,7 +150,12 @@ export function PreferencesMatrix() {
       >
         <div />
         {CHANNELS.map((c) => (
-          <Typography key={c.key} variant="caption" color="text.secondary" textAlign="center">
+          <Typography
+            key={c.key}
+            variant="caption"
+            color="text.secondary"
+            sx={{ textAlign: 'center' }}
+          >
             {c.label}
           </Typography>
         ))}
@@ -174,7 +179,11 @@ export function PreferencesMatrix() {
           </Typography>
         ) : (
           (subs.data ?? []).map((s) => (
-            <Stack key={s.id} direction="row" alignItems="center" justifyContent="space-between">
+            <Stack
+              key={s.id}
+              direction="row"
+              sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+            >
               <Stack>
                 <Typography variant="body2">{s.userAgent ?? 'Устройство'}</Typography>
                 <Typography variant="caption" color="text.secondary">

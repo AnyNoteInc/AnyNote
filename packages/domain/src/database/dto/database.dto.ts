@@ -282,7 +282,10 @@ export const updateCellValueInput = z.object({
   rowId: z.string().uuid(),
   propertyId: z.string().uuid(),
   // The raw value — type validation against the property type happens in the service.
-  value: z.unknown(),
+  // `.optional()` restores the zod 3 behavior where a `z.unknown()` object key was
+  // implicitly optional (zod 4 makes bare unknown/any keys required-present);
+  // callers may omit `value` and use `dateValue` for DATE cells instead.
+  value: z.unknown().optional(),
   // Convenience for DATE cells routed through z.preprocess coercion.
   dateValue: dateInput,
 })

@@ -190,9 +190,15 @@ export function GuestsList({ workspaceId, locked }: Props) {
                     <Stack
                       key={invite.id}
                       direction="row"
-                      alignItems="center"
+
                       spacing={1}
-                      sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}
+                      sx={{
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        p: 1,
+                        alignItems: 'center',
+                      }}
                     >
                       <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
                         {invite.email}
@@ -207,7 +213,9 @@ export function GuestsList({ workspaceId, locked }: Props) {
                         size="small"
                         color="error"
                         disabled={revokeInvite.isPending}
-                        onClick={() => revokeInvite.mutate({ pageId: invite.pageId, id: invite.id })}
+                        onClick={() =>
+                          revokeInvite.mutate({ pageId: invite.pageId, id: invite.id })
+                        }
                       >
                         Отозвать
                       </Button>

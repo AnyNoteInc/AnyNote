@@ -70,7 +70,7 @@ export function AllowedDomainsCard({ workspaceId, locked }: Props) {
         займут места тарифа.
       </Alert>
 
-      <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <TextField
           label="Домен почты"
           placeholder="company.ru"
@@ -109,7 +109,11 @@ export function AllowedDomainsCard({ workspaceId, locked }: Props) {
               data-testid="identity-allowed-row"
               sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1, pl: 1.5 }}
             >
-              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+              >
                 <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                   {row.domain}
                 </Typography>

@@ -103,9 +103,8 @@ export function HistorySidebar() {
     >
       <Stack
         direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 1 }}
+
+        sx={{ mb: 1, alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Typography variant="subtitle2">История</Typography>
         <IconButton size="small" onClick={closePanel} aria-label="Закрыть историю">

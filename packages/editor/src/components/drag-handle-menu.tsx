@@ -173,11 +173,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     const taskItemRange = taskItemDeleteRange(editor.state.doc.resolve(pos), pos, node.type.name)
     const range = taskItemRange ?? { from: pos, to: pos + node.nodeSize }
 
-    editor
-      .chain()
-      .focus()
-      .deleteRange(range)
-      .run()
+    editor.chain().focus().deleteRange(range).run()
     handleClose()
   }
 
@@ -196,7 +192,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         slotProps={{ paper: { sx: { minWidth: 220 } } }}
       >
         <MenuItem disabled dense>
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             {displayName}
           </Typography>
         </MenuItem>
@@ -207,7 +208,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
               <SyncAltOutlinedIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>Превратить в</ListItemText>
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
               ▸
             </Typography>
           </MenuItem>
@@ -218,7 +224,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
             <FormatPaintOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Цвет</ListItemText>
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             ▸
           </Typography>
         </MenuItem>
@@ -257,7 +268,6 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
       </Menu>
-
       <Menu
         open={submenu === 'convert' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
@@ -272,14 +282,13 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
               <ListItemIcon sx={{ minWidth: 24 }}>
                 <Icon width={16} height={16} />
               </ListItemIcon>
-              <ListItemText primaryTypographyProps={{ fontSize: 13 }}>
+              <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }}>
                 {CONVERSION_LABELS[target]}
               </ListItemText>
             </MenuItem>
           )
         })}
       </Menu>
-
       <Menu
         open={submenu === 'color' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
@@ -290,8 +299,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
       >
         <Typography
           variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', px: 1.25, pt: 0.5 }}
+          sx={{
+            color: 'text.secondary',
+            display: 'block',
+            px: 1.25,
+            pt: 0.5,
+          }}
         >
           Цвет текста
         </Typography>
@@ -304,8 +317,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         <Divider sx={{ my: 0.25 }} />
         <Typography
           variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', px: 1.25, pt: 0.5 }}
+          sx={{
+            color: 'text.secondary',
+            display: 'block',
+            px: 1.25,
+            pt: 0.5,
+          }}
         >
           Фон
         </Typography>

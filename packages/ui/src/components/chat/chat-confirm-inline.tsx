@@ -60,7 +60,14 @@ export function ChatConfirmInline(props: ChatConfirmInlineProps) {
           {JSON.stringify(props.argsPreview, null, 2)}
         </Box>
       ) : null}
-      <Stack direction="row" flexWrap="wrap" spacing={1} useFlexGap>
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{
+          flexWrap: 'wrap',
+        }}
+      >
         <Button
           color="primary"
           onClick={() => props.onResolve(props.confirmationId, 'allow')}

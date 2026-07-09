@@ -76,7 +76,7 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
   if (error && isMissingSource) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-        <Stack spacing={2} alignItems="center" sx={{ p: 4 }}>
+        <Stack spacing={2} sx={{ p: 4, alignItems: 'center' }}>
           <Typography color="text.secondary">
             База данных для этой страницы ещё не создана.
           </Typography>

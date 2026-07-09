@@ -82,7 +82,10 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
     }
   }, [open, shareQ.data, ensure, pageId])
 
-  const searchQ = trpc.user.search.useQuery({ query }, { enabled: open && query.trim().length >= 3 })
+  const searchQ = trpc.user.search.useQuery(
+    { query },
+    { enabled: open && query.trim().length >= 3 },
+  )
 
   const addUser = trpc.page.share.addUser.useMutation({ onSuccess: invalidate })
   const updateUser = trpc.page.share.updateUser.useMutation({ onSuccess: invalidate })
@@ -169,12 +172,14 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                     placeholder="Поиск пользователей по email или имени"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonAddIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonAddIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
                     }}
                   />
                   {query.trim().length >= 3 && (searchQ.data ?? []).length > 0 && (
@@ -257,7 +262,7 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                           Приглашение отправлено.
                         </Alert>
                       ) : null}
-                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                         <TextField
                           size="small"
                           fullWidth
@@ -280,7 +285,11 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                         </Select>
                         <Button
                           onClick={() =>
-                            inviteGuest.mutate({ pageId, email: guestEmail.trim(), role: guestRole })
+                            inviteGuest.mutate({
+                              pageId,
+                              email: guestEmail.trim(),
+                              role: guestRole,
+                            })
                           }
                           loading={inviteGuest.isPending}
                           disabled={!guestEmail.trim()}
@@ -294,7 +303,12 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                   {(guestInvitesQ.data ?? []).length > 0 ? (
                     <Stack spacing={1} sx={{ mt: 1.5 }}>
                       {(guestInvitesQ.data ?? []).map((invite) => (
-                        <Stack key={invite.id} direction="row" alignItems="center" spacing={1}>
+                        <Stack
+                          key={invite.id}
+                          direction="row"
+                          spacing={1}
+                          sx={{ alignItems: 'center' }}
+                        >
                           <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
                             {invite.email}
                           </Typography>
@@ -325,7 +339,7 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                   </Typography>
                   <Stack spacing={1}>
                     {owner && (
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
+                      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                         <Avatar
                           src={owner.image ?? undefined}
                           sx={{ width: 32, height: 32, fontSize: 14 }}
@@ -346,7 +360,12 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                       </Stack>
                     )}
                     {data.users.map((g) => (
-                      <Stack key={g.user.id} direction="row" alignItems="center" spacing={1.5}>
+                      <Stack
+                        key={g.user.id}
+                        direction="row"
+                        spacing={1.5}
+                        sx={{ alignItems: 'center' }}
+                      >
                         <Avatar
                           src={g.user.image ?? undefined}
                           sx={{ width: 32, height: 32, fontSize: 14 }}
@@ -396,7 +415,7 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                   <Typography variant="subtitle2" sx={{ mb: 1 }}>
                     Общий доступ
                   </Typography>
-                  <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
                     <Box sx={{ pt: 1 }}>{isPublic ? <PublicIcon /> : <LockIcon />}</Box>
                     <Box sx={{ flex: 1 }}>
                       <Select
@@ -540,7 +559,7 @@ function GuestRequestBlock({ pageId }: { pageId: string }) {
           Запрос отправлен.
         </Alert>
       ) : null}
-      <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <TextField
           size="small"
           fullWidth
@@ -578,7 +597,7 @@ function GuestRequestBlock({ pageId }: { pageId: string }) {
               color: 'default' as const,
             }
             return (
-              <Stack key={request.id} direction="row" alignItems="center" spacing={1}>
+              <Stack key={request.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                 <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
                   {request.email}
                 </Typography>

@@ -24,11 +24,11 @@ describe('syncedBlock schema', () => {
   it('round-trips the blockId attr through node JSON', () => {
     const node = schema.nodeFromJSON({
       type: 'syncedBlock',
-      attrs: { blockId: 'b1b2b3b4-0000-0000-0000-000000000000' },
+      attrs: { blockId: 'b1b2b3b4-0000-4000-8000-000000000000' },
     })
     expect(() => node.check()).not.toThrow()
-    expect(node.attrs.blockId).toBe('b1b2b3b4-0000-0000-0000-000000000000')
-    expect(node.toJSON().attrs.blockId).toBe('b1b2b3b4-0000-0000-0000-000000000000')
+    expect(node.attrs.blockId).toBe('b1b2b3b4-0000-4000-8000-000000000000')
+    expect(node.toJSON().attrs.blockId).toBe('b1b2b3b4-0000-4000-8000-000000000000')
   })
 
   it('defaults blockId to null', () => {

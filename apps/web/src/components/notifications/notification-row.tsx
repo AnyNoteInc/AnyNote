@@ -59,7 +59,7 @@ export function NotificationRow({ formatted, unread, createdAt, onClick }: Props
         <Icon fontSize="small" />
       </Box>
       <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="body2" fontWeight={unread ? 600 : 400} noWrap>
+        <Typography variant="body2" noWrap sx={{ fontWeight: unread ? 600 : 400 }}>
           {formatted.title}
         </Typography>
         {formatted.body ? (

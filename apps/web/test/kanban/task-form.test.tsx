@@ -61,7 +61,7 @@ vi.mock('@/trpc/client', () => ({
 
 const PAGE_ID = '00000000-0000-0000-0000-0000000000p1'
 const CURRENT_USER_ID = '00000000-0000-0000-0000-0000000000u1'
-const COLUMN_ID = '00000000-0000-0000-0000-0000000000c1'
+const COLUMN_ID = '00000000-0000-4000-8000-0000000000c1'
 
 function task(id: string, title: string, overrides: Partial<BoardTaskData> = {}): BoardTaskData {
   return {

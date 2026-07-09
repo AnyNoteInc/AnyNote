@@ -13,11 +13,16 @@ export function ChatThinkingBlock({ text }: ChatThinkingBlockProps) {
   return (
     <Box sx={{ my: 0.5 }}>
       <Stack
-        alignItems="center"
         direction="row"
         onClick={() => setOpen((v) => !v)}
         spacing={0.9}
-        sx={{ color: 'text.secondary', cursor: 'pointer', fontSize: 13.5, userSelect: 'none' }}
+        sx={{
+          alignItems: 'center',
+          color: 'text.secondary',
+          cursor: 'pointer',
+          fontSize: 13.5,
+          userSelect: 'none',
+        }}
       >
         <Box sx={{ bgcolor: 'warning.light', borderRadius: '50%', height: 5, width: 5 }} />
         <Typography sx={{ fontWeight: 600 }} variant="caption">

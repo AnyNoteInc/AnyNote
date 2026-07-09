@@ -30,8 +30,8 @@ beforeAll(() => {
   process.env.SECRETS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64')
 })
 
-const USER_ID = '22222222-2222-2222-2222-222222222222'
-const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
+const USER_ID = '22222222-2222-4222-9222-222222222222'
+const WORKSPACE_ID = '11111111-1111-4111-9111-111111111111'
 
 function baseContext(prisma: PrismaClient) {
   return {
@@ -198,7 +198,7 @@ describe('mcpServer.list', () => {
   })
 })
 
-const SERVER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const SERVER_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 function existingServer(overrides: Record<string, unknown> = {}) {
   return {

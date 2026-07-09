@@ -22,9 +22,9 @@ vi.mock('@/trpc/server', () => ({
 
 import LegacyChat from '../src/app/(protected)/workspaces/[workspaceId]/chats/[chatId]/page'
 
-const WS = '11111111-1111-1111-1111-111111111111'
-const WS_OTHER = '33333333-3333-3333-3333-333333333333'
-const CHAT_ID = '22222222-2222-2222-2222-222222222222'
+const WS = '11111111-1111-4111-9111-111111111111'
+const WS_OTHER = '33333333-3333-4333-9333-333333333333'
+const CHAT_ID = '22222222-2222-4222-9222-222222222222'
 
 describe('legacy workspace chat redirect', () => {
   beforeEach(() => {

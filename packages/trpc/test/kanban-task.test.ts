@@ -22,12 +22,12 @@ import { taskRouter } from '../src/routers/kanban/task'
 import { kanbanBus } from '../src/realtime/kanban-bus'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const OTHER_USER = '00000000-0000-0000-0000-0000000000be'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
-const TASK_MINE = '00000000-0000-0000-0000-0000000000a1'
-const TASK_OTHER = '00000000-0000-0000-0000-0000000000a2'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const OTHER_USER = '00000000-0000-4000-8000-0000000000be'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
+const TASK_MINE = '00000000-0000-4000-8000-0000000000a1'
+const TASK_OTHER = '00000000-0000-4000-8000-0000000000a2'
 
 function ctx(prisma: PrismaClient) {
   return {
@@ -60,7 +60,7 @@ describe('kanban.task.create', () => {
   })
 
   it('delegates with sprintId when provided', async () => {
-    const sprintId = '00000000-0000-0000-0000-0000000000f0'
+    const sprintId = '00000000-0000-4000-8000-0000000000f0'
     kanbanMocks.createTask.mockResolvedValueOnce({ id: 'task-2', pageId: PAGE_ID, columnId: 'c1', position: 0 })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
@@ -72,44 +72,44 @@ describe('kanban.task.create', () => {
 
 describe('kanban.task.update', () => {
   it('delegates to domainSvc.kanban.updateTask', async () => {
-    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-4000-8000-0000000000a1', pageId: PAGE_ID })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    const result = await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', title: 'New' })
+    const result = await caller.update({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1', title: 'New' })
 
-    expect(kanbanMocks.updateTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1', title: 'New' }))
-    expect(result.id).toBe('00000000-0000-0000-0000-0000000000a1')
+    expect(kanbanMocks.updateTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-4000-8000-0000000000a1', title: 'New' }))
+    expect(result.id).toBe('00000000-0000-4000-8000-0000000000a1')
   })
 
   it('forwards actualDate to domainSvc.kanban.updateTask', async () => {
-    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-4000-8000-0000000000a1', pageId: PAGE_ID })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     const actual = new Date('2025-06-01T00:00:00.000Z')
-    await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', actualDate: actual })
+    await caller.update({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1', actualDate: actual })
     expect(kanbanMocks.updateTask).toHaveBeenCalledWith(
       USER_ID,
-      expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1', actualDate: actual }),
+      expect.objectContaining({ id: '00000000-0000-4000-8000-0000000000a1', actualDate: actual }),
     )
   })
 })
 
 describe('kanban.task.move', () => {
   it('delegates to domainSvc.kanban.moveTask', async () => {
-    kanbanMocks.moveTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    kanbanMocks.moveTask.mockResolvedValueOnce({ id: '00000000-0000-4000-8000-0000000000a1', pageId: PAGE_ID })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await caller.move({
       pageId: PAGE_ID,
-      id: '00000000-0000-0000-0000-0000000000a1',
-      targetColumnId: '00000000-0000-0000-0000-0000000000c2',
+      id: '00000000-0000-4000-8000-0000000000a1',
+      targetColumnId: '00000000-0000-4000-8000-0000000000c2',
       beforeId: null,
       afterId: null,
     })
 
     expect(kanbanMocks.moveTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
-      id: '00000000-0000-0000-0000-0000000000a1',
-      targetColumnId: '00000000-0000-0000-0000-0000000000c2',
+      id: '00000000-0000-4000-8000-0000000000a1',
+      targetColumnId: '00000000-0000-4000-8000-0000000000c2',
     }))
   })
 })
@@ -121,14 +121,14 @@ describe('kanban.task.setAssignees', () => {
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     const result = await caller.setAssignees({
       pageId: PAGE_ID,
-      id: '00000000-0000-0000-0000-0000000000a1',
-      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      id: '00000000-0000-4000-8000-0000000000a1',
+      participantIds: ['00000000-0000-4000-8000-0000000000b2'],
       userIdsToMirror: [],
     })
 
     expect(kanbanMocks.setTaskAssignees).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
-      id: '00000000-0000-0000-0000-0000000000a1',
-      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      id: '00000000-0000-4000-8000-0000000000a1',
+      participantIds: ['00000000-0000-4000-8000-0000000000b2'],
       userIdsToMirror: [],
     }))
     expect(result.ok).toBe(true)
@@ -140,21 +140,21 @@ describe('kanban.task.archive', () => {
     kanbanMocks.archiveTask.mockResolvedValueOnce({ ok: true as const })
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    const result = await caller.archive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+    const result = await caller.archive({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' })
 
-    expect(kanbanMocks.archiveTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1' }))
+    expect(kanbanMocks.archiveTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-4000-8000-0000000000a1' }))
     expect(result.ok).toBe(true)
   })
 })
 
 describe('kanban.task.softDelete', () => {
   it('allows the task creator to soft-delete', async () => {
-    const update = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
+    const update = vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000a1' })
     const prisma = {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
       task: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
+          id: '00000000-0000-4000-8000-0000000000a1',
           pageId: PAGE_ID,
           createdById: USER_ID,
         }),
@@ -164,25 +164,25 @@ describe('kanban.task.softDelete', () => {
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+    await caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' })
 
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: '00000000-0000-0000-0000-0000000000a1' },
+        where: { id: '00000000-0000-4000-8000-0000000000a1' },
         data: expect.objectContaining({ deletedAt: expect.any(Date) }),
       }),
     )
   })
 
   it('allows workspace OWNER to soft-delete someone else’s task', async () => {
-    const update = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
+    const update = vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000a1' })
     const prisma = {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
       task: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
+          id: '00000000-0000-4000-8000-0000000000a1',
           pageId: PAGE_ID,
-          createdById: '00000000-0000-0000-0000-0000000000be',
+          createdById: '00000000-0000-4000-8000-0000000000be',
         }),
         update,
       },
@@ -190,7 +190,7 @@ describe('kanban.task.softDelete', () => {
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+    await caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' })
 
     expect(update).toHaveBeenCalled()
   })
@@ -200,16 +200,16 @@ describe('kanban.task.softDelete', () => {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
       task: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
+          id: '00000000-0000-4000-8000-0000000000a1',
           pageId: PAGE_ID,
-          createdById: '00000000-0000-0000-0000-0000000000be',
+          createdById: '00000000-0000-4000-8000-0000000000be',
         }),
       },
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR' }) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await expect(caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })).rejects.toThrow(/прав/i)
+    await expect(caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' })).rejects.toThrow(/прав/i)
   })
 })
 
@@ -307,8 +307,8 @@ describe('kanban.task.setLabels', () => {
     await expect(
       caller.setLabels({
         pageId: PAGE_ID,
-        id: '00000000-0000-0000-0000-0000000000a1',
-        labelIds: ['00000000-0000-0000-0000-0000000000d1'],
+        id: '00000000-0000-4000-8000-0000000000a1',
+        labelIds: ['00000000-0000-4000-8000-0000000000d1'],
       }),
     ).rejects.toThrow(/прав/i)
   })
@@ -325,12 +325,12 @@ describe('kanban.task.unarchive', () => {
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await expect(
-      caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' }),
+      caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' }),
     ).rejects.toThrow(/прав/i)
   })
 
   it('sets archived=false and writes UNARCHIVED activity directly via prisma', async () => {
-    const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
+    const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-4000-8000-0000000000a1' })
     const activityCreate = vi.fn().mockResolvedValue({})
     const txClient = {
       task: { update: taskUpdate },
@@ -347,16 +347,16 @@ describe('kanban.task.unarchive', () => {
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    const result = await caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+    const result = await caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-4000-8000-0000000000a1' })
 
     expect(taskUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: '00000000-0000-0000-0000-0000000000a1' },
+        where: { id: '00000000-0000-4000-8000-0000000000a1' },
         data: expect.objectContaining({ archived: false }),
       }),
     )
     expect(activityCreate).toHaveBeenCalledWith({
-      data: { taskId: '00000000-0000-0000-0000-0000000000a1', actorId: USER_ID, type: 'UNARCHIVED', payload: undefined },
+      data: { taskId: '00000000-0000-4000-8000-0000000000a1', actorId: USER_ID, type: 'UNARCHIVED', payload: undefined },
     })
     expect(result.ok).toBe(true)
   })

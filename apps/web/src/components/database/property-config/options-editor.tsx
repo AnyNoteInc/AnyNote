@@ -97,7 +97,7 @@ export function OptionsEditor({ options, onChange, disabled }: OptionsEditorProp
           </Typography>
         ) : null}
         {options.map((option, index) => (
-          <Stack key={option.id} direction="row" spacing={0.5} alignItems="center">
+          <Stack key={option.id} direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <IconButton
               size="small"
               aria-label="Цвет варианта"
@@ -119,7 +119,7 @@ export function OptionsEditor({ options, onChange, disabled }: OptionsEditorProp
               disabled={disabled}
               onChange={(e) => setLabel(index, e.target.value)}
               fullWidth
-              inputProps={{ 'aria-label': 'Название варианта' }}
+              slotProps={{ htmlInput: { 'aria-label': 'Название варианта' } }}
             />
             <IconButton
               size="small"
@@ -148,13 +148,7 @@ export function OptionsEditor({ options, onChange, disabled }: OptionsEditorProp
           </Stack>
         ))}
       </Stack>
-      <Button
-        size="small"
-        startIcon={<AddIcon />}
-        onClick={add}
-        disabled={disabled}
-        sx={{ mt: 1 }}
-      >
+      <Button size="small" startIcon={<AddIcon />} onClick={add} disabled={disabled} sx={{ mt: 1 }}>
         Добавить вариант
       </Button>
 

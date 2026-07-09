@@ -23,7 +23,7 @@ const BASE_SETTINGS = {
 describe('buildAgentRunPayload', () => {
   it('builds the correct top-level shape', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'hello',
       chatHistory: [],
       settings: BASE_SETTINGS,
@@ -31,7 +31,7 @@ describe('buildAgentRunPayload', () => {
       longTermMemories: [],
     })
 
-    expect(payload.chat_id).toBe('11111111-1111-1111-1111-111111111111')
+    expect(payload.chat_id).toBe('11111111-1111-4111-9111-111111111111')
     expect(payload.user_message).toBe('hello')
     expect(payload.chat_history).toEqual([])
     expect(payload.model.provider).toBe('gigachat')
@@ -45,7 +45,7 @@ describe('buildAgentRunPayload', () => {
 
   it('passes chat history through', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'follow up',
       chatHistory: [
         { role: 'user', content: 'first' },
@@ -64,7 +64,7 @@ describe('buildAgentRunPayload', () => {
 
   it('includes embedding_config when embeddingsModel is set', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'test',
       chatHistory: [],
       settings: {
@@ -98,7 +98,7 @@ describe('buildAgentRunPayload', () => {
       verify: false,
     }
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'test',
       chatHistory: [],
       settings: BASE_SETTINGS,
@@ -111,7 +111,7 @@ describe('buildAgentRunPayload', () => {
 
   it('passes long_term_memories through', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'test',
       chatHistory: [],
       settings: BASE_SETTINGS,
@@ -128,7 +128,7 @@ describe('buildAgentRunPayload', () => {
 describe('buildAgentRunPayload attachments + reasoning', () => {
   it('includes attachments and reasoning fields', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'hi',
       chatHistory: [],
       settings: BASE_SETTINGS,
@@ -153,7 +153,7 @@ describe('buildAgentRunPayload attachments + reasoning', () => {
 
   it('defaults reasoning to disabled and attachments to empty', () => {
     const payload = buildAgentRunPayload({
-      chatId: '11111111-1111-1111-1111-111111111111',
+      chatId: '11111111-1111-4111-9111-111111111111',
       userMessage: 'hi',
       chatHistory: [],
       settings: BASE_SETTINGS,

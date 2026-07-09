@@ -95,7 +95,7 @@ describe('useReminderSync', () => {
 
   it('syncs an empty list when the last reminder is removed', () => {
     const editor = makeEditor(
-      makeDoc([{ type: 'reminder', attrs: reminderAttrs('11111111-1111-1111-1111-111111111111') }]),
+      makeDoc([{ type: 'reminder', attrs: reminderAttrs('11111111-1111-4111-9111-111111111111') }]),
     )
 
     renderHook(() => useReminderSync(editor as unknown as Editor, 'page-1'))
@@ -118,7 +118,7 @@ describe('useReminderSync', () => {
 
     renderHook(() => useReminderSync(editor as unknown as Editor, 'page-1'))
     editor.state.doc = makeDoc([
-      { type: 'reminder', attrs: reminderAttrs('11111111-1111-1111-1111-111111111111') },
+      { type: 'reminder', attrs: reminderAttrs('11111111-1111-4111-9111-111111111111') },
     ])
 
     act(() => editor.emitUpdate())

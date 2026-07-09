@@ -96,7 +96,7 @@ export function GlobalFilterBar({ dashboardId, filters, editable, onSaved }: Glo
   if (!editable) {
     if (filters.length === 0) return null
     return (
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 2, flexWrap: 'wrap' }}>
         <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
           Глобальные фильтры:
         </Typography>
@@ -141,14 +141,14 @@ export function GlobalFilterBar({ dashboardId, filters, editable, onSaved }: Glo
       </Typography>
       <Stack spacing={1}>
         {drafts.map((draft, index) => (
-          <Stack key={index} direction="row" spacing={1} alignItems="center">
+          <Stack key={index} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <TextField
               size="small"
               placeholder="Имя свойства"
               value={draft.propertyName}
               onChange={(e) => updateDraft(index, { propertyName: e.target.value })}
               sx={{ width: 180 }}
-              inputProps={{ 'aria-label': 'Имя свойства' }}
+              slotProps={{ htmlInput: { 'aria-label': 'Имя свойства' } }}
             />
             <Select
               size="small"
@@ -171,7 +171,7 @@ export function GlobalFilterBar({ dashboardId, filters, editable, onSaved }: Glo
                   placeholder="Значение"
                   value={draft.value}
                   onChange={(e) => updateDraft(index, { value: e.target.value })}
-                  inputProps={{ 'aria-label': 'Значение' }}
+                  slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
                 />
               )}
             </Box>

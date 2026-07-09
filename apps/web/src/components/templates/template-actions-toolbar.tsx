@@ -46,7 +46,7 @@ export function TemplateActionsToolbar({
   })
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
+    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
       <Button
         variant="contained"
         size="small"

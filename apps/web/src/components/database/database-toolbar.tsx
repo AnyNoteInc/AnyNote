@@ -220,9 +220,9 @@ export function DatabaseToolbar({
   return (
     <Stack
       direction="row"
-      alignItems="center"
+
       spacing={1}
-      sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}
+      sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
     >
       <Box
         sx={{

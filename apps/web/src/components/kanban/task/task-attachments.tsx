@@ -142,9 +142,9 @@ export function TaskAttachments({ pageId, taskId, currentUserId }: TaskAttachmen
             <Stack
               key={a.fileId}
               direction="row"
-              alignItems="center"
+
               spacing={1}
-              sx={{ p: 0.5, borderRadius: 0.5, bgcolor: 'action.hover' }}
+              sx={{ p: 0.5, borderRadius: 0.5, bgcolor: 'action.hover', alignItems: 'center' }}
               onClick={(e) => e.stopPropagation()}
             >
               <Box sx={{ flex: 1 }}>

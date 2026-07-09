@@ -45,7 +45,7 @@ export function HomeSearch() {
             </Typography>
             <Stack spacing={1.75} sx={{ mt: 3 }}>
               {steps.map((step, i) => (
-                <Stack key={step} direction="row" spacing={1.75} alignItems="flex-start">
+                <Stack key={step} direction="row" spacing={1.75} sx={{ alignItems: 'flex-start' }}>
                   <Box
                     sx={{
                       width: 28,
@@ -80,7 +80,7 @@ export function HomeSearch() {
           >
             <Stack
               direction="row"
-              alignItems="center"
+
               spacing={1.25}
               sx={{
                 bgcolor: 'secondary.main',
@@ -100,6 +100,7 @@ export function HomeSearch() {
                   animation: 'anScan 3s ease-in-out infinite',
                 },
                 '@media (prefers-reduced-motion: reduce)': { '&::after': { display: 'none' } },
+                alignItems: 'center',
               }}
             >
               <Box component="span" sx={{ color: t.orangeWarm, fontSize: 14, opacity: 1 }}>
@@ -134,13 +135,14 @@ export function HomeSearch() {
                     key={s.name}
                     direction="row"
                     spacing={1.25}
-                    alignItems="center"
+
                     sx={{
                       p: '8px 10px',
                       borderRadius: 1,
                       bgcolor: 'background.default',
                       transition: 'background .18s ease',
                       '&:hover': { bgcolor: 'background.paper' },
+                      alignItems: 'center',
                     }}
                   >
                     <Box component="span" sx={{ fontSize: 16 }}>

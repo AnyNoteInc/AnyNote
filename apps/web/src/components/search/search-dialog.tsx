@@ -155,7 +155,7 @@ export function SearchDialog({
             </ListItemIcon>
             <ListItemText
               primary={item.title || 'Без названия'}
-              primaryTypographyProps={{ noWrap: true }}
+
               secondary={
                 item.blockNumber !== null && item.excerpt ? (
                   <Box component="span" sx={{ display: 'block' }}>
@@ -164,6 +164,7 @@ export function SearchDialog({
                   </Box>
                 ) : null
               }
+              slotProps={{ primary: { noWrap: true } }}
             />
           </ListItemButton>
         ))}
@@ -187,7 +188,7 @@ export function SearchDialog({
         },
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, py: 1.25 }}>
+      <Stack direction="row" spacing={1} sx={{ px: 2, py: 1.25, alignItems: 'center' }}>
         <SearchIcon fontSize="small" color="action" />
         <InputBase
           autoFocus
@@ -261,7 +262,7 @@ function EmptyState({
             </ListItemIcon>
             <ListItemText
               primary={item.title || 'Без названия'}
-              primaryTypographyProps={{ noWrap: true }}
+              slotProps={{ primary: { noWrap: true } }}
             />
             <IconButton
               size="small"

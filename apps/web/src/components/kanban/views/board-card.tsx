@@ -142,7 +142,7 @@ export function BoardCard({
             aria-hidden
             sx={{ position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: accentColor }}
           />
-          <Stack direction="row" alignItems="flex-start">
+          <Stack direction="row" sx={{ alignItems: 'flex-start' }}>
             <Box
               {...provided.dragHandleProps}
               onClick={openDetail}
@@ -158,9 +158,9 @@ export function BoardCard({
               {model.type || model.priority || model.childCount > 0 ? (
                 <Stack
                   direction="row"
-                  alignItems="center"
+
                   spacing={0.5}
-                  sx={{ mb: 0.75, minWidth: 0, pr: 0.5 }}
+                  sx={{ mb: 0.75, minWidth: 0, pr: 0.5, alignItems: 'center' }}
                 >
                   {model.childCount > 0 ? <ParentBadge count={model.childCount} /> : null}
                   {model.type ? (
@@ -206,7 +206,7 @@ export function BoardCard({
 
               <Typography
                 variant="body2"
-                fontWeight={parentTitleFontWeight(model.childCount > 0, 600)}
+
                 sx={{
                   mb: 0.75,
                   display: '-webkit-box',
@@ -214,6 +214,7 @@ export function BoardCard({
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   overflowWrap: 'anywhere',
+                  fontWeight: parentTitleFontWeight(model.childCount > 0, 600),
                 }}
               >
                 {task.title}
@@ -226,9 +227,9 @@ export function BoardCard({
               {task.assignees.length > 0 || model.dateLabel || model.actualLabel ? (
                 <Stack
                   direction="row"
-                  alignItems="center"
+
                   spacing={1}
-                  sx={{ mt: 0.25, minWidth: 0, mr: editable ? -3.5 : 0 }}
+                  sx={{ mt: 0.25, minWidth: 0, mr: editable ? -3.5 : 0, alignItems: 'center' }}
                 >
                   {model.dateLabel ? (
                     <DateBadge
@@ -258,10 +259,15 @@ export function BoardCard({
               {model.visibleLabels.length > 0 ? (
                 <Stack
                   direction="row"
-                  alignItems="center"
-                  justifyContent="flex-end"
+
                   spacing={0.5}
-                  sx={{ mt: 0.5, minWidth: 0, mr: editable ? -3.5 : 0 }}
+                  sx={{
+                    mt: 0.5,
+                    minWidth: 0,
+                    mr: editable ? -3.5 : 0,
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                  }}
                 >
                   {model.visibleLabels.map((item) => (
                     <Chip

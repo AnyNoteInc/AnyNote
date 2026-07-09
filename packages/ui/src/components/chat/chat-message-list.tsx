@@ -154,10 +154,12 @@ export function ChatMessageList({
                 )}
                 {timestamp || status || isEmptyStreamingAssistant ? (
                   <Typography
-                    color="text.secondary"
-                    mt={0.75}
-                    sx={{ alignSelf: isUser ? 'flex-end' : 'flex-start' }}
                     variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      mt: 0.75,
+                      alignSelf: isUser ? 'flex-end' : 'flex-start',
+                    }}
                   >
                     {timestamp ? `${timestamp} • ` : null}
                     {isEmptyStreamingAssistant ? <ChatLoadingPhrases /> : status}

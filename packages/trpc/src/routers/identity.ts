@@ -48,21 +48,21 @@ const providerCreateSchema = z
     if (val.type === 'SAML_RESERVED') return
     if (!val.issuerUrl || !isHttpsUrl(val.issuerUrl)) {
       refCtx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['issuerUrl'],
         message: 'issuerUrl обязателен и должен быть https URL',
       })
     }
     if (!val.clientId) {
       refCtx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['clientId'],
         message: 'clientId обязателен для OIDC/OAuth провайдера',
       })
     }
     if (!val.clientSecret) {
       refCtx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['clientSecret'],
         message: 'clientSecret обязателен для OIDC/OAuth провайдера',
       })
@@ -82,7 +82,7 @@ const providerUpdateSchema = z
   .superRefine((val, refCtx) => {
     if (val.issuerUrl !== undefined && !isHttpsUrl(val.issuerUrl)) {
       refCtx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['issuerUrl'],
         message: 'issuerUrl должен быть https URL',
       })

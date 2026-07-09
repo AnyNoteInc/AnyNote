@@ -145,7 +145,12 @@ export function FileUploadPopover({
               onChange={handleFilesSelected}
             />
           </Button>
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             {target === 'media'
               ? 'Видео и аудио до 200 МБ. Загрузка начнётся сразу.'
               : 'Можно выбрать несколько файлов. Загрузка начнётся сразу.'}

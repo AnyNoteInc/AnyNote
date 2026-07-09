@@ -156,7 +156,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
 
       {/* ── invite form ──────────────────────────────────────────────────── */}
       <Box>
-        <Stack direction="row" spacing={1} alignItems="flex-start">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
           <TextField
             label="Email"
             value={email}
@@ -195,7 +195,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
           </Typography>
         ) : null}
         {preview?.atCapacity ? (
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.75 }}>
+          <Stack direction="row" spacing={1.5} sx={{ mt: 0.75, alignItems: 'center' }}>
             <Typography variant="body2" color="warning.main">
               Все места заняты
               {preview.seatPriceKopecks !== null
@@ -252,7 +252,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
                 return (
                   <TableRow key={member.id}>
                     <TableCell>
-                      <Stack direction="row" alignItems="center" spacing={1}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                         <Avatar
                           src={member.user.image ?? undefined}
                           sx={{ width: 28, height: 28, fontSize: 13 }}
@@ -267,7 +267,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
                           {/* Chip renders a <div> — keep it a SIBLING of the
                               Typography (<p>), never a child: div-in-p is
                               invalid DOM nesting and breaks hydration. */}
-                          <Stack direction="row" alignItems="center" spacing={1}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                             <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
                               {label}
                             </Typography>
@@ -367,7 +367,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
 
       <Divider />
       {isOwner && pendingGuestRequests > 0 ? (
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Chip
             size="small"
             color="warning"

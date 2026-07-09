@@ -47,8 +47,8 @@ vi.mock('@/trpc/client', () => ({
 
 import { SaveAsTemplateDialog } from '@/components/templates/save-as-template-dialog'
 
-const WS = '11111111-1111-1111-1111-111111111111'
-const PAGE = '22222222-2222-2222-2222-222222222222'
+const WS = '11111111-1111-4111-9111-111111111111'
+const PAGE = '22222222-2222-4222-9222-222222222222'
 
 function renderDialog(props: Partial<Parameters<typeof SaveAsTemplateDialog>[0]> = {}) {
   return render(

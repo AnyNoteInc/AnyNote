@@ -254,10 +254,21 @@ function ModeMini({ variant }: { variant: Mode['mini'] }) {
             }}
           >
             <Box
-              sx={{ height: 4, width: '55%', borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.18)', mb: 0.75 }}
+              sx={{
+                height: 4,
+                width: '55%',
+                borderRadius: 0.25,
+                bgcolor: 'rgba(0,0,0,0.18)',
+                mb: 0.75,
+              }}
             />
             <Typography
-              sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 15, color: t.orange, lineHeight: 1 }}
+              sx={{
+                fontFamily: homeTokens.fonts.mono,
+                fontSize: 15,
+                color: t.orange,
+                lineHeight: 1,
+              }}
             >
               128
             </Typography>
@@ -437,7 +448,7 @@ function ModeMini({ variant }: { variant: Mode['mini'] }) {
         }}
       >
         <Box sx={{ bgcolor: homeTokens.palette.ink, borderRadius: 0.5 }} />
-        <Stack spacing={0.5} justifyContent="center">
+        <Stack spacing={0.5} sx={{ justifyContent: 'center' }}>
           <Box sx={{ height: 5, width: '80%', borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.18)' }} />
           <Box sx={{ height: 5, width: '60%', borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.1)' }} />
         </Stack>

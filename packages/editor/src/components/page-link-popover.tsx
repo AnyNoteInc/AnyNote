@@ -133,7 +133,14 @@ export function PageLinkPopover({
     }
     if (results.length === 0) {
       return (
-        <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            px: 2,
+            py: 1.5,
+          }}
+        >
           Ничего не найдено
         </Typography>
       )

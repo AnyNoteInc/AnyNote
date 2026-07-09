@@ -139,7 +139,7 @@ export function PageAccessRulesPanel({
             Добавьте свойство «Участник» или «Создатель», чтобы создать правило доступа.
           </Typography>
         ) : (
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <FormControl size="small" sx={{ minWidth: 160 }} disabled={disabled}>
               <InputLabel id="access-rule-property-label">Свойство</InputLabel>
               <Select

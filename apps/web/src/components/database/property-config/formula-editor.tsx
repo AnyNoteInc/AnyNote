@@ -24,7 +24,10 @@ interface FormulaEditorProps {
 // The function library mirrors `@repo/domain/database/formula/functions.ts`. Kept in
 // sync by hand (a static doc list — importing the runtime registry would drag the
 // domain/db modules into the client bundle). Grouped for a readable reference.
-const FUNCTION_REFERENCE: ReadonlyArray<{ group: string; items: ReadonlyArray<{ sig: string; desc: string }> }> = [
+const FUNCTION_REFERENCE: ReadonlyArray<{
+  group: string
+  items: ReadonlyArray<{ sig: string; desc: string }>
+}> = [
   {
     group: 'Логика',
     items: [
@@ -96,9 +99,7 @@ export function FormulaEditor({ value, onChange, disabled }: FormulaEditorProps)
     if (validation.isLoading) return { kind: 'loading' as const }
     const data = validation.data
     if (!data) return null
-    return data.valid
-      ? { kind: 'valid' as const }
-      : { kind: 'invalid' as const, error: data.error }
+    return data.valid ? { kind: 'valid' as const } : { kind: 'invalid' as const, error: data.error }
   }, [debounced, validation.isLoading, validation.data])
 
   return (
@@ -116,19 +117,20 @@ export function FormulaEditor({ value, onChange, disabled }: FormulaEditorProps)
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
-        inputProps={{ 'aria-label': 'Выражение формулы', spellCheck: false }}
+
         sx={{ '& textarea': { fontFamily: 'monospace', fontSize: 13 } }}
+        slotProps={{ htmlInput: { 'aria-label': 'Выражение формулы', spellCheck: false } }}
       />
 
       <Box sx={{ minHeight: 24, mt: 0.5 }}>
         {status?.kind === 'valid' ? (
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'success.main' }}>
+          <Stack direction="row" spacing={0.5} sx={{ color: 'success.main', alignItems: 'center' }}>
             <CheckCircleIcon fontSize="small" />
             <Typography variant="caption">Формула корректна</Typography>
           </Stack>
         ) : null}
         {status?.kind === 'invalid' ? (
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'error.main' }}>
+          <Stack direction="row" spacing={0.5} sx={{ color: 'error.main', alignItems: 'center' }}>
             <ErrorOutlineIcon fontSize="small" />
             <Typography variant="caption">{status.error}</Typography>
           </Stack>

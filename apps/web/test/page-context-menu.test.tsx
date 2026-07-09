@@ -80,13 +80,13 @@ import { PageContextMenu } from '@/components/workspace/page-context-menu'
 import type { PageItem } from '@/components/workspace/types'
 
 const page: PageItem = {
-  id: '33333333-3333-3333-3333-333333333333',
+  id: '33333333-3333-4333-9333-333333333333',
   type: 'TEXT',
   title: 'Исходная страница',
   icon: '📄',
   parentId: null,
   prevPageId: null,
-  createdById: '22222222-2222-2222-2222-222222222222',
+  createdById: '22222222-2222-4222-9222-222222222222',
   createdAt: new Date('2026-05-23T00:00:00Z'),
 }
 
@@ -106,7 +106,7 @@ describe('PageContextMenu', () => {
         anchorEl={anchor}
         onClose={vi.fn()}
         page={page}
-        workspaceId="11111111-1111-1111-1111-111111111111"
+        workspaceId="11111111-1111-4111-9111-111111111111"
         isFavorite={false}
         onOpenMoveDialog={vi.fn()}
       />,
@@ -124,7 +124,7 @@ describe('PageContextMenu', () => {
 
     expect(mocks.onRename).toHaveBeenCalledWith({
       id: page.id,
-      workspaceId: '11111111-1111-1111-1111-111111111111',
+      workspaceId: '11111111-1111-4111-9111-111111111111',
       title: 'Страница с иконкой',
       icon: '🚀',
     })

@@ -8,7 +8,7 @@ export type AuthHeaderProps = {
 
 export function AuthHeader({ title }: AuthHeaderProps) {
   return (
-    <Stack spacing={1.5} alignItems="center">
+    <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
       <Box
         component="a"
         href="/"
@@ -17,7 +17,7 @@ export function AuthHeader({ title }: AuthHeaderProps) {
       >
         <BrandIcon size={56} />
       </Box>
-      <Typography variant="h5" fontWeight={700} textAlign="center">
+      <Typography variant="h5" sx={{ textAlign: 'center', fontWeight: 700 }}>
         {title}
       </Typography>
     </Stack>

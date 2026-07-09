@@ -20,7 +20,7 @@ const favoritesMock = vi.hoisted(() => ({
 // Page writes delegate to the domain.pages facade; internal linked-list logic is
 // covered by @repo/domain pages tests. Here we assert delegation and guard calls only.
 const pagesMock = vi.hoisted(() => ({
-  create: vi.fn(async () => ({ id: '66666666-6666-6666-6666-666666666666' })),
+  create: vi.fn(async () => ({ id: '66666666-6666-4666-9666-666666666666' })),
   rename: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
   update: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
   softDelete: vi.fn(async () => ({ id: '' })),
@@ -56,11 +56,11 @@ import type { PrismaClient } from '@repo/db'
 import { pageRouter } from '../src/routers/page'
 import { createCallerFactory } from '../src/trpc'
 
-const WS_ID = '11111111-1111-1111-1111-111111111111'
-const USER_ID = '22222222-2222-2222-2222-222222222222'
-const PAGE_A = '33333333-3333-3333-3333-333333333333'
-const PAGE_B = '44444444-4444-4444-4444-444444444444'
-const PAGE_C = '55555555-5555-5555-5555-555555555555'
+const WS_ID = '11111111-1111-4111-9111-111111111111'
+const USER_ID = '22222222-2222-4222-9222-222222222222'
+const PAGE_A = '33333333-3333-4333-9333-333333333333'
+const PAGE_B = '44444444-4444-4444-9444-444444444444'
+const PAGE_C = '55555555-5555-4555-9555-555555555555'
 
 function ctx(prisma: unknown) {
   return {

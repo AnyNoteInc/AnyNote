@@ -195,7 +195,7 @@ export function PageContextMenu({
       <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Переименовать</DialogTitle>
         <DialogContent>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+          <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
             <EmojiIconButton
               value={renameIcon}
               onChange={setRenameIcon}

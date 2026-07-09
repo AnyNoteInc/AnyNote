@@ -63,9 +63,9 @@ export function DomainJoinBanner() {
             <Stack
               key={workspace.workspaceId}
               direction="row"
-              alignItems="center"
+
               spacing={1.5}
-              sx={{ flexWrap: 'wrap' }}
+              sx={{ flexWrap: 'wrap', alignItems: 'center' }}
             >
               <Typography variant="body2" sx={{ minWidth: 0 }}>
                 Вам доступно пространство «{workspace.name}» по домену вашей почты.

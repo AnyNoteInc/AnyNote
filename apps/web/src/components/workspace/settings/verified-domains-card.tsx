@@ -48,7 +48,12 @@ const STATUS_LABELS: Record<string, { label: string; color: ChipColor }> = {
 function formatDate(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 /**
@@ -145,7 +150,7 @@ export function VerifiedDomainsCard({ workspaceId, locked }: Props) {
         </Alert>
       ) : null}
 
-      <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <TextField
           label="Домен"
           placeholder="company.ru"
@@ -193,17 +198,21 @@ export function VerifiedDomainsCard({ workspaceId, locked }: Props) {
               >
                 <Stack
                   direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
+
                   spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+                  >
                     <Typography variant="subtitle2" sx={{ fontFamily: 'monospace' }}>
                       {row.domain}
                     </Typography>
                     <Chip size="small" color={status.color} label={status.label} />
                   </Stack>
-                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
                     {row.status === 'PENDING' ? (
                       <Button
                         size="small"
@@ -239,7 +248,8 @@ export function VerifiedDomainsCard({ workspaceId, locked }: Props) {
 
                 {row.lastCheckError && row.status !== 'VERIFIED' ? (
                   <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-                    Последняя проверка{row.lastCheckedAt ? ` (${formatDate(row.lastCheckedAt)})` : ''}:{' '}
+                    Последняя проверка
+                    {row.lastCheckedAt ? ` (${formatDate(row.lastCheckedAt)})` : ''}:{' '}
                     {row.lastCheckError}
                   </Typography>
                 ) : null}
@@ -263,7 +273,7 @@ export function VerifiedDomainsCard({ workspaceId, locked }: Props) {
                       <Typography variant="body2">
                         Хост (имя): <b>@</b> (корень домена)
                       </Typography>
-                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                         <Typography variant="body2" sx={{ flexShrink: 0 }}>
                           Значение:
                         </Typography>
@@ -304,7 +314,11 @@ export function VerifiedDomainsCard({ workspaceId, locked }: Props) {
                     </Typography>
                   </Box>
                 ) : row.verifiedAt ? (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 0.5 }}
+                  >
                     Подтверждён {formatDate(row.verifiedAt)}.
                   </Typography>
                 ) : null}

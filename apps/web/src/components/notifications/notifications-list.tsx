@@ -91,8 +91,8 @@ export function NotificationsList() {
 
   return (
     <Stack spacing={1.5}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h5" fontWeight={700}>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Уведомления
         </Typography>
         <IconButton size="small" onClick={openMenu} aria-label="Действия с уведомлениями">
@@ -137,7 +137,7 @@ export function NotificationsList() {
       )}
       <Box ref={sentinelRef} sx={{ height: 1 }} />
       {list.isFetchingNextPage ? (
-        <Typography variant="caption" color="text.secondary" textAlign="center">
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
           Загрузка…
         </Typography>
       ) : null}

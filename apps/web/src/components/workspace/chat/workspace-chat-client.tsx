@@ -278,7 +278,7 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
           : { maxWidth: 960, mx: 'auto', px: { xs: 1.5, sm: 2.5 }, pt: 2 }),
       }}
     >
-      <Stack flex={1} minHeight={0} spacing={2}>
+      <Stack spacing={2} sx={{ minHeight: 0, flex: 1 }}>
         {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
         <ChatThread
           composerAttachments={draftAttachments.attachments}

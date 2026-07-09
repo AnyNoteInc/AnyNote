@@ -203,7 +203,6 @@ export function ContentSearchPanel({ workspaceId }: Props) {
           {error}
         </Alert>
       ) : null}
-
       {policyQ.isPending ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
           <CircularProgress size={20} />
@@ -232,7 +231,7 @@ export function ContentSearchPanel({ workspaceId }: Props) {
       ) : (
         <Stack spacing={2}>
           {/* ── query + filters; runs only on submit ─────────────────────── */}
-          <Stack direction="row" spacing={1} alignItems="flex-start">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
             <TextField
               size="small"
               fullWidth
@@ -439,7 +438,6 @@ export function ContentSearchPanel({ workspaceId }: Props) {
           )}
         </Stack>
       )}
-
       {confirm ? (
         <Dialog open onClose={() => setConfirm(null)} maxWidth="xs" fullWidth>
           <DialogTitle>

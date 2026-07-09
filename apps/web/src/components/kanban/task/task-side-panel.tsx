@@ -125,7 +125,8 @@ function formatDate(date: Date) {
   if (days === 0) return `сегодня в ${time}`
   if (days === 1) return `вчера в ${time}`
   if (days === -1) return `завтра в ${time}`
-  if (days > 1 && days < 7) return `${days} ${pluralizeRu(days, ['день', 'дня', 'дней'])} назад в ${time}`
+  if (days > 1 && days < 7)
+    return `${days} ${pluralizeRu(days, ['день', 'дня', 'дней'])} назад в ${time}`
   const sameYear = now.getFullYear() === date.getFullYear()
   const datePart = date.toLocaleDateString('ru-RU', {
     day: 'numeric',
@@ -189,9 +190,9 @@ export function TaskSidePanel({
     <Stack sx={{ height: '100%', minHeight: 0 }}>
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={1.5}
-        sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
+        sx={{ p: 2, borderBottom: 1, borderColor: 'divider', alignItems: 'center' }}
       >
         <ChatBubbleOutlineIcon fontSize="small" sx={{ color: 'text.secondary' }} />
         <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>
@@ -208,7 +209,7 @@ export function TaskSidePanel({
 
       {canComment ? (
         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 12 }}>
               {me ? initials(me.user) : '?'}
             </Avatar>
@@ -228,7 +229,7 @@ export function TaskSidePanel({
               size="small"
             />
           </Stack>
-          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+          <Stack direction="row" sx={{ mt: 1, justifyContent: 'flex-end' }}>
             <Button
               variant="contained"
               size="small"
@@ -282,7 +283,7 @@ interface CommentRowViewProps {
 
 function CommentRowView({ row, isOwn, onDelete }: CommentRowViewProps) {
   return (
-    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
       <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 12 }}>
         {initials(row.author)}
       </Avatar>
@@ -342,8 +343,16 @@ interface ActivityRowViewProps {
 
 function ActivityRowView({ row }: ActivityRowViewProps) {
   return (
-    <Stack direction="row" spacing={1.5} alignItems="flex-start">
-      <Avatar sx={{ width: 32, height: 32, bgcolor: 'action.selected', color: 'text.primary', fontSize: 12 }}>
+    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+      <Avatar
+        sx={{
+          width: 32,
+          height: 32,
+          bgcolor: 'action.selected',
+          color: 'text.primary',
+          fontSize: 12,
+        }}
+      >
         {initials(row.actor)}
       </Avatar>
       <Box sx={{ flex: 1, minWidth: 0 }}>

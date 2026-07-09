@@ -31,9 +31,9 @@ export default async function ProfilePage() {
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
-      <Stack alignItems="center" spacing={3}>
+      <Stack spacing={3} sx={{ alignItems: 'center' }}>
         <ProfileAvatarUploader currentImage={session.user.image ?? null} initials={initials} />
-        <Stack alignItems="center" spacing={0.5}>
+        <Stack spacing={0.5} sx={{ alignItems: 'center' }}>
           <Typography variant="h4">
             {session.user.firstName} {session.user.lastName}
           </Typography>

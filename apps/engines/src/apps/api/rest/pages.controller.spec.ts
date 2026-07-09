@@ -7,7 +7,9 @@ import { PagesController } from './pages.controller.js'
 
 describe('PagesController', () => {
   it('delegates create to PageTools.doCreatePage with req.auth and body', async () => {
-    const doCreatePageMock = jest.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: 'p1' })
+    const doCreatePageMock = jest
+      .fn<(...args: unknown[]) => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: 'p1' })
     const pageTools = { doCreatePage: doCreatePageMock } as unknown as PageTools
     const c = new PagesController(pageTools)
 

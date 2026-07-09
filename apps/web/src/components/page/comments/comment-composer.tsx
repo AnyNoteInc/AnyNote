@@ -1,6 +1,14 @@
 'use client'
 
-import { createContext, useCallback, useContext, useId, useRef, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import {
   Avatar,
@@ -71,7 +79,9 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
   const requestIdRef = useRef(0)
   const mentionListboxId = `${listboxId}-mention-results`
   const activeOptionId =
-    mentionRange && results[activeResultIndex] ? `${mentionListboxId}-${results[activeResultIndex].id}` : undefined
+    mentionRange && results[activeResultIndex]
+      ? `${mentionListboxId}-${results[activeResultIndex].id}`
+      : undefined
 
   const updateMentionToken = useCallback(
     (value: string, caret: number | null) => {
@@ -126,7 +136,9 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
     if (!mentionRange) return
     const nextText = `${text.slice(0, mentionRange.from)}@${item.label} ${text.slice(mentionRange.to)}`
     setText(nextText)
-    setSelectedMentions((prev) => (prev.some((mention) => mention.id === item.id) ? prev : [...prev, item]))
+    setSelectedMentions((prev) =>
+      prev.some((mention) => mention.id === item.id) ? prev : [...prev, item],
+    )
     closeMentionResults()
   }
 
@@ -148,7 +160,7 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
 
   return (
     <Box sx={{ position: 'relative' }}>
-      <Stack direction="row" spacing={1} alignItems="flex-end">
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
         <TextField
           fullWidth
           size="small"
@@ -158,12 +170,7 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
           value={text}
           autoFocus={autoFocus}
           inputRef={inputRef}
-          inputProps={{
-            'aria-activedescendant': activeOptionId,
-            'aria-autocomplete': 'list',
-            'aria-controls': hasMentionResults ? mentionListboxId : undefined,
-            'aria-expanded': hasMentionResults,
-          }}
+
           onChange={(e) => handleChange(e.target.value, e.target.selectionStart)}
           onClick={refreshTokenFromInput}
           onKeyUp={(e) => {
@@ -193,6 +200,14 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
               e.preventDefault()
               closeMentionResults()
             }
+          }}
+          slotProps={{
+            htmlInput: {
+              'aria-activedescendant': activeOptionId,
+              'aria-autocomplete': 'list',
+              'aria-controls': hasMentionResults ? mentionListboxId : undefined,
+              'aria-expanded': hasMentionResults,
+            },
           }}
         />
         <Tooltip title="Отправить">

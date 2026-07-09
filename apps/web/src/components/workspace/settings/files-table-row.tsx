@@ -60,7 +60,7 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
   return (
     <TableRow hover>
       <TableCell sx={{ maxWidth: 320 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+        <Stack direction="row" spacing={1} sx={{ minWidth: 0, alignItems: 'center' }}>
           <FileExtIcon ext={file.ext} />
           <Tooltip title={file.name}>
             <Typography
@@ -97,7 +97,7 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
         </Box>
       </TableCell>
       <TableCell align="right">
-        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+        <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
           <Tooltip title="Скачать файл">
             <IconButton
               size="small"

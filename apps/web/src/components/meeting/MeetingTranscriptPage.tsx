@@ -82,13 +82,14 @@ export function MeetingTranscriptPage({ pageId, editable = true }: Props) {
         <Stack
           direction="row"
           spacing={2}
-          alignItems="center"
+
           sx={{
             border: '1px solid',
             borderColor: 'divider',
             borderRadius: 2,
             p: 3,
             bgcolor: 'background.paper',
+            alignItems: 'center',
           }}
         >
           <CircularProgress size={24} />
@@ -198,9 +199,11 @@ function MeetingReadyView({
                     disabled={!canEdit || toggle.isPending}
                     onChange={(e) => toggle.mutate({ id: item.id, done: e.target.checked })}
                     sx={{ p: 0.5, mt: 0.25 }}
-                    inputProps={
-                      { 'aria-label': item.text } as React.InputHTMLAttributes<HTMLInputElement>
-                    }
+                    slotProps={{
+                      input: {
+                        'aria-label': item.text,
+                      } as React.InputHTMLAttributes<HTMLInputElement>,
+                    }}
                   />
                   <Typography
                     variant="body2"

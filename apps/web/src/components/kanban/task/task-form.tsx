@@ -21,6 +21,7 @@ import {
   ListItemText,
   LocalizationProvider,
   MenuItem,
+  MenuList,
   Popover,
   Select,
   Stack,
@@ -68,14 +69,7 @@ function toDate(value: Date | string | null | undefined): Date | null {
 }
 
 type PopoverKey =
-  | 'type'
-  | 'priority'
-  | 'dates'
-  | 'assignees'
-  | 'labels'
-  | 'sprint'
-  | 'parent'
-  | null
+  'type' | 'priority' | 'dates' | 'assignees' | 'labels' | 'sprint' | 'parent' | null
 
 export function TaskForm({ pageId, task, board, currentUserId, editable = true }: TaskFormProps) {
   const utils = trpc.useUtils()
@@ -100,7 +94,9 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   const priorityCreate = trpc.kanban.priority.create.useMutation({ onSuccess: invalidateBoard })
   const labelCreate = trpc.kanban.label.create.useMutation({ onSuccess: invalidateBoard })
   const labelDelete = trpc.kanban.label.delete.useMutation({ onSuccess: invalidateBoard })
-  const participantCreate = trpc.kanban.participant.create.useMutation({ onSuccess: invalidateBoard })
+  const participantCreate = trpc.kanban.participant.create.useMutation({
+    onSuccess: invalidateBoard,
+  })
 
   const [description, setDescription] = useState<JSONContent | null>(
     readDescriptionJson(task.description),
@@ -221,7 +217,10 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
     applyAssignees([...assigneeParticipantIds, participantId], [])
   }
   function unassignParticipant(participantId: string) {
-    applyAssignees(assigneeParticipantIds.filter((x) => x !== participantId), [])
+    applyAssignees(
+      assigneeParticipantIds.filter((x) => x !== participantId),
+      [],
+    )
   }
   function mirrorMember(userId: string) {
     applyAssignees(assigneeParticipantIds, [userId])
@@ -254,94 +253,89 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
         />
 
         {editable ? (
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          flexWrap="wrap"
-          useFlexGap
-          sx={{ rowGap: 1 }}
-        >
-          <ActionChip
-            label={selectedType ? `Тип: ${selectedType.title}` : 'Тип'}
-            highlighted={Boolean(selectedType)}
-            onClick={openPopover('type')}
-            onClear={
-              selectedType
-                ? () => {
-                    setTypeId('')
-                    updateTask.mutate({ pageId, id: task.id, typeId: null })
-                  }
-                : undefined
-            }
-          />
-          <ActionChip
-            label={selectedPriority ? `Срочность: ${selectedPriority.title}` : 'Срочность'}
-            highlighted={Boolean(selectedPriority)}
-            onClick={openPopover('priority')}
-            onClear={
-              selectedPriority
-                ? () => {
-                    setPriorityId('')
-                    updateTask.mutate({ pageId, id: task.id, priorityId: null })
-                  }
-                : undefined
-            }
-          />
-          <ActionChip
-            label={
-              startDate || dueDate
-                ? `Даты: ${formatDateRange(startDate, dueDate)}`
-                : 'Даты'
-            }
-            highlighted={Boolean(startDate || dueDate)}
-            onClick={openPopover('dates')}
-          />
-          <ActionChip
-            label={
-              assigneeParticipantIds.length > 0
-                ? `Участники (${assigneeParticipantIds.length})`
-                : 'Участники'
-            }
-            highlighted={assigneeParticipantIds.length > 0}
-            onClick={openPopover('assignees')}
-          />
-          <ActionChip
-            label={labelIds.length > 0 ? `Метки (${labelIds.length})` : 'Метки'}
-            highlighted={labelIds.length > 0}
-            onClick={openPopover('labels')}
-          />
-          {board.sprints.length > 0 ? (
+          <Stack
+            direction="row"
+            spacing={1}
+
+            useFlexGap
+            sx={{ rowGap: 1, alignItems: 'center', flexWrap: 'wrap' }}
+          >
             <ActionChip
-              label={
-                sprintId
-                  ? `Спринт: ${board.sprints.find((s) => s.id === sprintId)?.name ?? ''}`
-                  : 'Спринт'
-              }
-              highlighted={Boolean(sprintId)}
-              onClick={openPopover('sprint')}
+              label={selectedType ? `Тип: ${selectedType.title}` : 'Тип'}
+              highlighted={Boolean(selectedType)}
+              onClick={openPopover('type')}
               onClear={
-                sprintId
+                selectedType
                   ? () => {
-                      setSprintId('')
-                      updateTask.mutate({ pageId, id: task.id, sprintId: null })
+                      setTypeId('')
+                      updateTask.mutate({ pageId, id: task.id, typeId: null })
                     }
                   : undefined
               }
             />
-          ) : null}
-          <ActionChip
-            label={
-              parentId
-                ? `Родительская задача: ${
-                    parentCandidates.find((p) => p.id === parentId)?.title ?? ''
-                  }`
-                : 'Родительская задача'
-            }
-            highlighted={Boolean(parentId)}
-            onClick={openPopover('parent')}
-          />
-        </Stack>
+            <ActionChip
+              label={selectedPriority ? `Срочность: ${selectedPriority.title}` : 'Срочность'}
+              highlighted={Boolean(selectedPriority)}
+              onClick={openPopover('priority')}
+              onClear={
+                selectedPriority
+                  ? () => {
+                      setPriorityId('')
+                      updateTask.mutate({ pageId, id: task.id, priorityId: null })
+                    }
+                  : undefined
+              }
+            />
+            <ActionChip
+              label={startDate || dueDate ? `Даты: ${formatDateRange(startDate, dueDate)}` : 'Даты'}
+              highlighted={Boolean(startDate || dueDate)}
+              onClick={openPopover('dates')}
+            />
+            <ActionChip
+              label={
+                assigneeParticipantIds.length > 0
+                  ? `Участники (${assigneeParticipantIds.length})`
+                  : 'Участники'
+              }
+              highlighted={assigneeParticipantIds.length > 0}
+              onClick={openPopover('assignees')}
+            />
+            <ActionChip
+              label={labelIds.length > 0 ? `Метки (${labelIds.length})` : 'Метки'}
+              highlighted={labelIds.length > 0}
+              onClick={openPopover('labels')}
+            />
+            {board.sprints.length > 0 ? (
+              <ActionChip
+                label={
+                  sprintId
+                    ? `Спринт: ${board.sprints.find((s) => s.id === sprintId)?.name ?? ''}`
+                    : 'Спринт'
+                }
+                highlighted={Boolean(sprintId)}
+                onClick={openPopover('sprint')}
+                onClear={
+                  sprintId
+                    ? () => {
+                        setSprintId('')
+                        updateTask.mutate({ pageId, id: task.id, sprintId: null })
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
+            <ActionChip
+              label={
+                parentId
+                  ? `Родительская задача: ${
+                      parentCandidates.find((p) => p.id === parentId)?.title ?? ''
+                    }`
+                  : 'Родительская задача'
+              }
+              highlighted={Boolean(parentId)}
+              onClick={openPopover('parent')}
+            />
+          </Stack>
         ) : null}
 
         <Section heading="Описание">
@@ -508,32 +502,32 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
           transitionDuration={0}
         >
           {popover === 'sprint' ? (
-          <Box sx={{ p: 1.5, minWidth: 240 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1, fontWeight: 600 }}
-            >
-              Спринт
-            </Typography>
-            <Select
-              size="small"
-              fullWidth
-              value={sprintId}
-              onChange={(e) => {
-                const value = e.target.value
-                setSprintId(value)
-                updateTask.mutate({ pageId, id: task.id, sprintId: value || null })
-                closePopover()
-              }}
-            >
-              {board.sprints.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </Box>
+            <Box sx={{ p: 1.5, minWidth: 240 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 1, fontWeight: 600 }}
+              >
+                Спринт
+              </Typography>
+              <Select
+                size="small"
+                fullWidth
+                value={sprintId}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSprintId(value)
+                  updateTask.mutate({ pageId, id: task.id, sprintId: value || null })
+                  closePopover()
+                }}
+              >
+                {board.sprints.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
           ) : null}
         </Popover>
 
@@ -562,7 +556,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                 autoFocus
                 sx={{ mb: 1 }}
               />
-              <Stack spacing={0.25} sx={{ maxHeight: 320, overflowY: 'auto' }}>
+              <MenuList sx={{ maxHeight: 320, overflowY: 'auto', p: 0 }}>
                 <MenuItem selected={!parentId} onClick={() => selectParent('')}>
                   <ListItemText primary="—" />
                 </MenuItem>
@@ -580,7 +574,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                     Ничего не найдено
                   </Typography>
                 ) : null}
-              </Stack>
+              </MenuList>
             </Box>
           ) : null}
         </Popover>

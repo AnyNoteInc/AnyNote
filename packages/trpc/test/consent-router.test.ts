@@ -15,7 +15,7 @@ import { type PrismaClient } from '@repo/db'
 import { consentRouter } from '../src/routers/consent'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
 
 function ctx(prisma: PrismaClient, headers: Headers = new Headers()) {
   return {

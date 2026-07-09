@@ -63,7 +63,7 @@ export function AccessRuleRow({
   )
 
   return (
-    <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.5 }}>
+    <Stack direction="row" spacing={1} sx={{ py: 0.5, alignItems: 'center' }}>
       <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
         <Typography variant="body2" noWrap title={propertyName}>
           {propertyName}
@@ -91,8 +91,9 @@ export function AccessRuleRow({
             size="small"
             checked={rule.enabled}
             disabled={controlsDisabled}
-            inputProps={{ 'aria-label': 'Правило включено' }}
+
             onChange={(e) => onToggleEnabled(rule.id, e.target.checked)}
+            slotProps={{ input: { 'aria-label': 'Правило включено' } }}
           />
         </span>
       </Tooltip>

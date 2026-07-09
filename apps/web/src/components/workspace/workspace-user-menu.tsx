@@ -106,10 +106,10 @@ export function WorkspaceUserMenu({ user, features, workspace }: Props) {
       </Box>
       <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
         <Box sx={{ px: 2, pt: 1, pb: 1, minWidth: 220 }}>
-          <Typography variant="caption" color="text.secondary" display="block">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             Активное пространство
           </Typography>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5, alignItems: 'center' }}>
             <Box
               sx={{
                 width: 22,

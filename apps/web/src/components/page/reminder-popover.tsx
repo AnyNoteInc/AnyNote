@@ -153,7 +153,11 @@ export function ReminderPopover({
     >
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
         <Box sx={{ p: 2, width: 390 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+          <Stack
+            direction="row"
+
+            sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}
+          >
             <Typography variant="subtitle1">Напоминание</Typography>
             <IconButton size="small" onClick={onClose} aria-label="Закрыть">
               <CloseIcon fontSize="small" />
@@ -182,8 +186,9 @@ export function ReminderPopover({
                     setValue({ ...value, label: e.target.value || null })
                   }
                   disabled={readOnly}
-                  inputProps={{ maxLength: 200 }}
+
                   fullWidth
+                  slotProps={{ htmlInput: { maxLength: 200 } }}
                 />
 
                 <DateTimePicker
@@ -205,7 +210,7 @@ export function ReminderPopover({
                 />
 
                 {mode === 'edit' && !readOnly && (
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <Typography variant="caption">Перенести:</Typography>
                     <Button size="small" onClick={() => postpone(1)}>
                       +1 день
@@ -328,7 +333,7 @@ export function ReminderPopover({
             )}
 
             <Divider />
-            <Stack direction="row" justifyContent="space-between">
+            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
               {mode === 'edit' && !readOnly ? (
                 <Button
                   size="small"

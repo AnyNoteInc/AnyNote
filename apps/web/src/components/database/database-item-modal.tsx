@@ -64,7 +64,12 @@ interface DatabaseItemModalProps {
  * nothing until `?rowId=` matches a row in the active view's loaded rows. Closing
  * removes the `rowId` param (preserving any other params).
  */
-export function DatabaseItemModal({ pageId, viewId, schema, editable = true }: DatabaseItemModalProps) {
+export function DatabaseItemModal({
+  pageId,
+  viewId,
+  schema,
+  editable = true,
+}: DatabaseItemModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const rowId = searchParams?.get('rowId') ?? null
@@ -91,18 +96,20 @@ export function DatabaseItemModal({ pageId, viewId, schema, editable = true }: D
     <Dialog
       open
       onClose={close}
-      maxWidth={false}
-      PaperProps={{
-        sx: {
-          width: { xs: '95vw', md: '90vw', lg: '85vw' },
-          maxWidth: 1400,
-          height: { xs: '95vh', md: '88vh' },
-          borderRadius: 2,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
+      slotProps={{
+        paper: {
+          sx: {
+            width: { xs: '95vw', md: '90vw', lg: '85vw' },
+            maxWidth: 1400,
+            height: { xs: '95vh', md: '88vh' },
+            borderRadius: 2,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          },
         },
       }}
+      maxWidth={false}
     >
       <ItemModalContent
         pageId={pageId}
@@ -138,10 +145,7 @@ function ItemModalContent({
 
   // The rows cache carries no cover fields; the item page query (shared with
   // ItemBody — same key, deduped by React Query) provides them for the band.
-  const itemPage = trpc.page.getById.useQuery(
-    { id: row.pageId },
-    { retry: false, staleTime: 0 },
-  )
+  const itemPage = trpc.page.getById.useQuery({ id: row.pageId }, { retry: false, staleTime: 0 })
 
   return (
     <>
@@ -153,9 +157,16 @@ function ItemModalContent({
       />
       <Stack
         direction="row"
-        alignItems="center"
+
         spacing={1.5}
-        sx={{ px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider', minHeight: 48 }}
+        sx={{
+          px: 2,
+          py: 1.25,
+          borderBottom: 1,
+          borderColor: 'divider',
+          minHeight: 48,
+          alignItems: 'center',
+        }}
       >
         {/* Icon renders both forms (emoji/image); editing happens on the full page. */}
         <Box
@@ -223,9 +234,9 @@ function ItemModalContent({
                 <Stack
                   key={property.id}
                   direction="row"
-                  alignItems="center"
+
                   spacing={1}
-                  sx={{ minHeight: 32 }}
+                  sx={{ minHeight: 32, alignItems: 'center' }}
                 >
                   <Typography
                     variant="body2"
@@ -312,10 +323,11 @@ function ItemTitle({
  */
 function ItemBody({ itemPageId, editable }: { itemPageId: string; editable: boolean }) {
   const { data: session } = useSession()
-  const { data: page, isLoading, error } = trpc.page.getById.useQuery(
-    { id: itemPageId },
-    { retry: false, staleTime: 0 },
-  )
+  const {
+    data: page,
+    isLoading,
+    error,
+  } = trpc.page.getById.useQuery({ id: itemPageId }, { retry: false, staleTime: 0 })
 
   if (isLoading || !session?.user) {
     return (
@@ -336,8 +348,7 @@ function ItemBody({ itemPageId, editable }: { itemPageId: string; editable: bool
   }
 
   const user = session.user as { id: string; firstName?: string; lastName?: string; email: string }
-  const displayName =
-    [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email
 
   return (
     <Box sx={{ height: '100%', minHeight: 0, overflowY: 'auto' }}>

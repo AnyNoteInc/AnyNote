@@ -41,7 +41,7 @@ export function VerifyEmailView({ status }: { status: VerifyEmailStatus }) {
         </>
       ) : null}
       {status !== 'success' && status !== 'error' && status !== 'expired' ? (
-        <Typography variant="body2" color="text.secondary" textAlign="center">
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
           Не получили письмо? Проверьте папку Спам.
         </Typography>
       ) : null}

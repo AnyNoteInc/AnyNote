@@ -50,8 +50,13 @@ export default async function SettingsLayout({ children }: { children: ReactNode
             <Stack
               direction="row"
               spacing={1.25}
-              alignItems="center"
-              sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}
+
+              sx={{
+                pb: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                alignItems: 'center',
+              }}
             >
               <Avatar
                 src={user.image ?? undefined}
@@ -65,7 +70,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
                 {`${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()}
               </Avatar>
               <Stack spacing={0}>
-                <Typography variant="body2" fontWeight={600}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {user.firstName} {user.lastName}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">

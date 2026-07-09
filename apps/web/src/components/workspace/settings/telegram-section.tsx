@@ -214,8 +214,12 @@ export function WorkspaceTelegramSection({
 
       {canManage && connection ? (
         <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap' }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
               <Typography variant="subtitle2">
                 {connection.botUsername ? `@${connection.botUsername}` : 'Бот'}
               </Typography>
@@ -229,7 +233,7 @@ export function WorkspaceTelegramSection({
               ) : null}
             </Stack>
             {connection.status !== 'DISABLED' ? (
-              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
+              <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0, alignItems: 'center' }}>
                 <Button
                   size="small"
                   onClick={() => verify.mutate({ workspaceId })}
@@ -303,15 +307,15 @@ export function WorkspaceTelegramSection({
                 >
                   <Stack
                     direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
+
                     spacing={1}
+                    sx={{ alignItems: 'center', justifyContent: 'space-between' }}
                   >
                     <Stack
                       direction="row"
-                      alignItems="center"
+
                       spacing={1}
-                      sx={{ flexWrap: 'wrap' }}
+                      sx={{ flexWrap: 'wrap', alignItems: 'center' }}
                     >
                       <Typography variant="body2">{chat.title ?? `Чат ${chat.chatId}`}</Typography>
                       <Chip size="small" variant="outlined" label={chat.type} />

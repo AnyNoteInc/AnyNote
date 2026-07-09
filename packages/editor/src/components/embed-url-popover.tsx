@@ -25,7 +25,15 @@ type Props = {
   previewFetch?: PreviewFetch
 }
 
-export function EmbedUrlPopover({ open, mode, anchorEl, range, editor, onClose, previewFetch }: Props) {
+export function EmbedUrlPopover({
+  open,
+  mode,
+  anchorEl,
+  range,
+  editor,
+  onClose,
+  previewFetch,
+}: Props) {
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -48,7 +56,9 @@ export function EmbedUrlPopover({ open, mode, anchorEl, range, editor, onClose, 
       const resolved = resolveEmbed(url)
       if (!resolved) {
         // Honest rejection: this provider isn't on the allowlist.
-        setError('Эту ссылку нельзя встроить. Поддерживаются YouTube, Vimeo, RuTube и другие из списка разрешённых. Попробуйте «Закладку».')
+        setError(
+          'Эту ссылку нельзя встроить. Поддерживаются YouTube, Vimeo, RuTube и другие из списка разрешённых. Попробуйте «Закладку».',
+        )
         return
       }
       editor
@@ -140,7 +150,12 @@ export function EmbedUrlPopover({ open, mode, anchorEl, range, editor, onClose, 
           <Button variant="contained" fullWidth onClick={submit}>
             {mode === 'embed' ? 'Встроить' : 'Добавить закладку'}
           </Button>
-          <Typography variant="caption" color="text.secondary">
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             {mode === 'embed'
               ? 'YouTube, Vimeo, RuTube, VK, Dailymotion, Loom, Figma, CodePen, SoundCloud, Google Maps.'
               : 'Любая https-ссылка. Превью подтянется автоматически.'}

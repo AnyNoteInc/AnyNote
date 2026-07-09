@@ -47,7 +47,7 @@ describe('factories', () => {
   })
 
   it('explicit id is respected', () => {
-    const id = '00000000-0000-0000-0000-000000000001' as PersonId
+    const id = '00000000-0000-4000-8000-000000000001' as PersonId
     const p = createPerson({ sex: 'male', bloodRelation: 'direct', id })
     expect(p.id).toBe(id)
   })

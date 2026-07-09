@@ -89,12 +89,19 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
       <TextField
         label={RU.fields.childCount}
         type="number"
-        inputProps={{ min: K, inputMode: 'numeric' }}
+        slotProps={{ htmlInput: { min: K, inputMode: 'numeric' } }}
         value={count}
         onChange={(e) => updateCount(Number(e.target.value))}
       />
       {orderedExisting.map((c, i) => (
-        <Stack key={i} direction="row" alignItems="center" spacing={1}>
+        <Stack
+          key={i}
+          direction="row"
+          spacing={1}
+          sx={{
+            alignItems: 'center',
+          }}
+        >
           <Button size="small" onClick={() => move(i, -1)} disabled={i === 0}>
             ↑
           </Button>
@@ -115,7 +122,13 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
           <ChildEntryRow value={entry} onChange={(next) => updateNew(i, next)} />
         </Stack>
       ))}
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{
+          justifyContent: 'flex-end',
+        }}
+      >
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
         <Button variant="contained" onClick={submit}>
           {RU.drawer.save}

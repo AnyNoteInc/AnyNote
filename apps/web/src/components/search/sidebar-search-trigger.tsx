@@ -35,8 +35,9 @@ export function SidebarSearchTrigger() {
       </ListItemIcon>
       <ListItemText
         primary="Поиск"
-        primaryTypographyProps={{ fontSize: 13, noWrap: true }}
+
         sx={{ minWidth: 0, my: 0 }}
+        slotProps={{ primary: { noWrap: true, sx: { fontSize: 13 } } }}
       />
       <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', flexShrink: 0 }}>
         {hint}

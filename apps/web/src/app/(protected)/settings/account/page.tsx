@@ -13,7 +13,7 @@ export default async function AccountSettingsPage() {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
           Аккаунт
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -22,7 +22,7 @@ export default async function AccountSettingsPage() {
       </Stack>
       <SignOutButton />
       <Stack spacing={1}>
-        <Typography variant="subtitle1" fontWeight={700}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
           Активные сессии
         </Typography>
         <SessionsTable currentSessionId={currentSessionId} />

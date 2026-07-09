@@ -72,11 +72,16 @@ export function NotificationsPopoverCard({ onNavigate, onLayoutChange }: Props) 
     >
       <Stack
         direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}
+
+        sx={{
+          p: 1.5,
+          borderBottom: 1,
+          borderColor: 'divider',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
       >
-        <Typography variant="subtitle2" fontWeight={700}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           Уведомления
         </Typography>
         <Button size="small" component={Link} href="/notifications" onClick={onNavigate}>

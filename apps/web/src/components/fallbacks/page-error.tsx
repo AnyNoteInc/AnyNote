@@ -43,11 +43,11 @@ export function PageError({
           textAlign: 'center',
         }}
       >
-        <Stack spacing={2} alignItems="center">
+        <Stack spacing={2} sx={{ alignItems: 'center' }}>
           <Typography variant="overline" color="error">
             Ошибка
           </Typography>
-          <Typography variant="h5" fontWeight={700}>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
             {title}
           </Typography>
           <Typography color="text.secondary">{hint}</Typography>

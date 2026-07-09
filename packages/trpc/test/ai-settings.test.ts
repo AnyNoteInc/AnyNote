@@ -9,7 +9,7 @@ import type { PrismaClient } from '@repo/db'
 import { aiSettingsRouter } from '../src/routers/ai-settings'
 import { createCallerFactory } from '../src/trpc'
 
-const WS = '00000000-0000-0000-0000-000000000001'
+const WS = '00000000-0000-4000-8000-000000000001'
 const caller = createCallerFactory(aiSettingsRouter)
 
 function ctx(role: string | null) {

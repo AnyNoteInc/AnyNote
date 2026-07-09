@@ -21,8 +21,8 @@ import { encryptSecret } from '@repo/auth'
 import { aiProviderRouter } from '../src/routers/ai-provider'
 import { createCallerFactory } from '../src/trpc'
 
-const WS = '00000000-0000-0000-0000-000000000001'
-const USER = '00000000-0000-0000-0000-0000000000aa'
+const WS = '00000000-0000-4000-8000-000000000001'
+const USER = '00000000-0000-4000-8000-0000000000aa'
 const caller = createCallerFactory(aiProviderRouter)
 
 function ctx(prisma: unknown) {
@@ -128,7 +128,7 @@ describe('aiProvider.create', () => {
 
 describe('aiProvider.addModel', () => {
   it('throws a clean error when stored creds cannot be decrypted', async () => {
-    const PROVIDER_ID = '00000000-0000-0000-0000-000000000002'
+    const PROVIDER_ID = '00000000-0000-4000-8000-000000000002'
     const create = vi.fn()
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
@@ -152,7 +152,7 @@ describe('aiProvider.addModel', () => {
   })
 
   it('passes supportsReasoning through to the created model', async () => {
-    const PROVIDER_ID = '00000000-0000-0000-0000-000000000002'
+    const PROVIDER_ID = '00000000-0000-4000-8000-000000000002'
     const encrypted = encryptSecret(JSON.stringify({ apiKey: 'sk-good' }))
     const create = vi.fn().mockResolvedValue({ id: 'm1', supportsReasoning: true })
     const prisma = {

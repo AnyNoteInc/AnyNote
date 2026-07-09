@@ -204,7 +204,11 @@ function AudioView({
               zIndex: 2,
             }}
           >
-            {toolbarButton('Показать как файл', <InsertDriveFileOutlinedIcon fontSize="small" />, showAsFile)}
+            {toolbarButton(
+              'Показать как файл',
+              <InsertDriveFileOutlinedIcon fontSize="small" />,
+              showAsFile,
+            )}
             <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
             <Tooltip title="Скачать" arrow>
               <IconButton
@@ -235,7 +239,13 @@ function AudioView({
           sx={{ display: 'block', width: '100%' }}
         />
         {name ? (
-          <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              pl: 0.5,
+            }}
+          >
             {name}
           </Typography>
         ) : null}

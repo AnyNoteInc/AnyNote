@@ -23,7 +23,13 @@ export function TableToolbar({ editor }: Props) {
   return (
     <BubbleMenu editor={editor} shouldShow={shouldShow} options={{ placement: 'top' }}>
       <Paper elevation={6} sx={{ p: 0.25 }}>
-        <Stack direction="row" spacing={0.25} alignItems="center">
+        <Stack
+          direction="row"
+          spacing={0.25}
+          sx={{
+            alignItems: 'center',
+          }}
+        >
           <Tooltip title="Добавить столбец слева">
             <IconButton size="small" onClick={() => editor.chain().focus().addColumnBefore().run()}>
               {createElement(InsertColumnLeftIcon)}

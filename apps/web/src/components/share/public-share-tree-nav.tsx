@@ -3,7 +3,14 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-import { ArticleIcon, Box, List, ListItemButton, ListItemText, Typography } from '@repo/ui/components'
+import {
+  ArticleIcon,
+  Box,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from '@repo/ui/components'
 
 import { PageIcon } from '@/components/page/page-icon'
 
@@ -101,7 +108,7 @@ export function PublicShareTreeNav({ shareId, rootId, rootTitle, rootIcon, nodes
           </Box>
           <ListItemText
             primary={rootTitle || 'Без названия'}
-            primaryTypographyProps={{ noWrap: true, variant: 'body2' }}
+            slotProps={{ primary: { noWrap: true, variant: 'body2' } }}
           />
         </ListItemButton>
         {items.map((node) => {
@@ -126,7 +133,7 @@ export function PublicShareTreeNav({ shareId, rootId, rootTitle, rootIcon, nodes
               </Box>
               <ListItemText
                 primary={node.title || 'Без названия'}
-                primaryTypographyProps={{ noWrap: true, variant: 'body2' }}
+                slotProps={{ primary: { noWrap: true, variant: 'body2' } }}
               />
             </ListItemButton>
           )

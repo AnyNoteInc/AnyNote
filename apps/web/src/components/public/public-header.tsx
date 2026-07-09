@@ -28,10 +28,9 @@ export function PublicHeader({ session, activeWorkspace, hasAnyWorkspace }: Publ
     >
       <Stack
         direction="row"
-        alignItems="center"
-        justifyContent="space-between"
+
         spacing={2}
-        sx={{ px: { xs: 3, md: 4, xl: 5 } }}
+        sx={{ px: { xs: 3, md: 4, xl: 5 }, alignItems: 'center', justifyContent: 'space-between' }}
       >
         <Link
           href="/"
@@ -63,8 +62,8 @@ export function PublicHeader({ session, activeWorkspace, hasAnyWorkspace }: Publ
         <Stack
           direction="row"
           spacing={0.5}
-          alignItems="center"
-          sx={{ display: { xs: 'none', lg: 'flex' } }}
+
+          sx={{ display: { xs: 'none', lg: 'flex' }, alignItems: 'center' }}
         >
           {publicNavItems.map((item) => (
             <Button
@@ -79,7 +78,7 @@ export function PublicHeader({ session, activeWorkspace, hasAnyWorkspace }: Publ
           ))}
         </Stack>
 
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <ChangeColorTheme />
           <AppUserMenu
             session={session}

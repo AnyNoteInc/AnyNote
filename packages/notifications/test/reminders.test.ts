@@ -54,9 +54,9 @@ function makeTx(overrides: Partial<Record<string, unknown>> = {}): Tx {
 
 describe('rebuildDeliveries', () => {
   const baseReminder = {
-    id: '00000000-0000-0000-0000-000000000001',
-    pageId: '22222222-2222-2222-2222-222222222222',
-    workspaceId: '11111111-1111-1111-1111-111111111111',
+    id: '00000000-0000-4000-8000-000000000001',
+    pageId: '22222222-2222-4222-9222-222222222222',
+    workspaceId: '11111111-1111-4111-9111-111111111111',
     createdById: 'user-1',
     dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     offsets: [1440, 0],
@@ -162,11 +162,11 @@ describe('cancelPendingDeliveries', () => {
 
 describe('rebuildDatabaseDateReminderDeliveries', () => {
   const baseConfig = {
-    reminderId: '00000000-0000-0000-0000-0000000000aa',
-    workspaceId: '11111111-1111-1111-1111-111111111111',
-    pageId: '22222222-2222-2222-2222-222222222222',
-    rowId: '33333333-3333-3333-3333-333333333333',
-    propertyId: '44444444-4444-4444-4444-444444444444',
+    reminderId: '00000000-0000-4000-8000-0000000000aa',
+    workspaceId: '11111111-1111-4111-9111-111111111111',
+    pageId: '22222222-2222-4222-9222-222222222222',
+    rowId: '33333333-3333-4333-9333-333333333333',
+    propertyId: '44444444-4444-4444-9444-444444444444',
     userId: 'user-1',
     offsetMinutes: 60,
     dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

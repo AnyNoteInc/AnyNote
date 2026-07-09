@@ -20,7 +20,7 @@ vi.mock('@/trpc/client', () => ({
 
 import { CreatePageDialog } from '@/components/templates/create-page-dialog'
 
-const WS = '11111111-1111-1111-1111-111111111111'
+const WS = '11111111-1111-4111-9111-111111111111'
 
 function idle() {
   return { data: undefined, isFetching: false, isError: false }

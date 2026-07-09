@@ -54,14 +54,25 @@ function appUrl(): string {
 }
 
 /**
- * `firstName`/`lastName` are REQUIRED additionalFields (NOT NULL in Postgres),
- * but SSO JIT user creation only supplies `name` (the @better-auth/sso
- * callback passes `{ id, email, name, image, emailVerified }` into
- * `createOAuthUser` — mapped extraFields are NOT forwarded). This pure helper
- * derives the missing parts from `name`, mirroring the Google
- * `mapProfileToUser` fallback (auth.ts socialProviders.google). It is a no-op
- * for email/password sign-ups and Google OAuth, which always provide both
- * fields. Exported for unit tests; wired as `databaseHooks.user.create.before`.
+ * `firstName`/`lastName` are NOT NULL in Postgres, but SSO JIT user creation
+ * only supplies `name` (the @better-auth/sso callback passes
+ * `{ id, email, name, image, emailVerified }` into `createOAuthUser` — mapped
+ * extraFields are NOT forwarded). This pure helper derives the missing parts
+ * from `name`, mirroring the Google `mapProfileToUser` fallback (auth.ts
+ * socialProviders.google). It is a no-op for email/password sign-ups and Google
+ * OAuth, which always provide both fields. Exported for unit tests; wired as
+ * `databaseHooks.user.create.before`, which is now the SOLE guarantor of the
+ * NOT NULL invariant: the fields are declared `required: false` at the
+ * better-auth layer (see additionalFields below) precisely so this hook — not
+ * better-auth's own pre-hook required-field validation — fills them.
+ *
+ * Why not `required: true`: since @better-auth/sso ≥1.6.x, the OAuth/SSO signup
+ * path validates required additionalFields against the (firstName-less)
+ * provider profile in `parseAdditionalUserInputFromProviderProfile(…, "create")`
+ * BEFORE any `create.before` hook runs, so a `required: true` firstName throws
+ * "firstName is required" and the JIT sign-up never reaches this derivation.
+ * Declaring them optional defers enforcement to this hook, which always returns
+ * strings, so the DB constraint still holds for every sign-up path.
  */
 export function withDerivedNameParts<T extends Record<string, unknown>>(
   data: T,
@@ -174,8 +185,12 @@ const auth = betterAuth({
   },
   user: {
     additionalFields: {
-      firstName: { type: 'string', required: true },
-      lastName: { type: 'string', required: true },
+      // required: false so @better-auth/sso's pre-hook required-field check does
+      // not throw on the firstName-less provider profile; the
+      // `databaseHooks.user.create.before` hook (withDerivedNameParts) fills
+      // both fields before insert, upholding the Postgres NOT NULL constraint.
+      firstName: { type: 'string', required: false },
+      lastName: { type: 'string', required: false },
     },
   },
   socialProviders: {

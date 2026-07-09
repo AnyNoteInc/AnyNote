@@ -22,10 +22,10 @@ import { searchRouter } from '../src/routers/search'
 import { searchPg, searchQdrant } from '../src/services/page-search'
 import { createCallerFactory } from '../src/trpc'
 
-const USER = '99999999-9999-9999-9999-999999999999'
-const WS = '11111111-1111-1111-1111-111111111111'
-const PAGE_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-const PAGE_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+const USER = '99999999-9999-4999-8999-999999999999'
+const WS = '11111111-1111-4111-9111-111111111111'
+const PAGE_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const PAGE_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
 function ctx(prisma: PrismaClient) {
   return {

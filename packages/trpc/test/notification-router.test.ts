@@ -117,11 +117,11 @@ describe('notification.markRead', () => {
     const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.markRead({
-      ids: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+      ids: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'],
     })
     expect(result.updated).toBe(2)
     expect(notifMocks.markRead).toHaveBeenCalledWith('u1', {
-      ids: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+      ids: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'],
     })
   })
 })
@@ -238,9 +238,9 @@ describe('notification.revokePushSubscription', () => {
       pushSubscription: { findUnique, delete: deleteFn },
     } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
-    await caller.revokePushSubscription({ id: '00000000-0000-0000-0000-000000000001' })
+    await caller.revokePushSubscription({ id: '00000000-0000-4000-8000-000000000001' })
     expect(deleteFn).toHaveBeenCalledWith({
-      where: { id: '00000000-0000-0000-0000-000000000001' },
+      where: { id: '00000000-0000-4000-8000-000000000001' },
     })
   })
 
@@ -251,7 +251,7 @@ describe('notification.revokePushSubscription', () => {
     } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     await expect(
-      caller.revokePushSubscription({ id: '00000000-0000-0000-0000-000000000001' }),
+      caller.revokePushSubscription({ id: '00000000-0000-4000-8000-000000000001' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 })

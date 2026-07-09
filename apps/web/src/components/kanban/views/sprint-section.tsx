@@ -139,7 +139,7 @@ function TaskRow({
       {...provided.dragHandleProps}
       onClick={() => onOpen(task.id)}
       direction="row"
-      alignItems="center"
+
       spacing={1.5}
       sx={{
         py: 1,
@@ -147,6 +147,7 @@ function TaskRow({
         borderRadius: 1,
         cursor: 'pointer',
         '&:hover': { bgcolor: 'action.hover' },
+        alignItems: 'center',
       }}
     >
       {editable ? (
@@ -155,8 +156,9 @@ function TaskRow({
           checked={selected.has(task.id)}
           onClick={(e) => e.stopPropagation()}
           onChange={() => toggle(task.id)}
-          inputProps={{ 'aria-label': `Выбрать задачу: ${task.title}` }}
+
           sx={{ p: 0.5 }}
+          slotProps={{ input: { 'aria-label': `Выбрать задачу: ${task.title}` } }}
         />
       ) : null}
       {childCount > 0 ? <ParentBadge count={childCount} /> : null}
@@ -450,10 +452,10 @@ export function SprintSection(props: SprintSectionProps) {
         borderLeftColor: isActive ? 'primary.main' : undefined,
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
         {props.kind === 'sprint' ? (
           <>
-            <Typography variant="subtitle1" fontWeight={600}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               {props.sprint.name}
             </Typography>
             {datesText ? (
@@ -484,7 +486,7 @@ export function SprintSection(props: SprintSectionProps) {
           </>
         ) : (
           <>
-            <Typography variant="subtitle1" fontWeight={600}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               Беклог
             </Typography>
             <Box sx={{ flexGrow: 1 }} />

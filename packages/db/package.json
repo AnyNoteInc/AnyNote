@@ -25,28 +25,28 @@
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.0.0",
-    "@prisma/client": "^7.0.0",
-    "dotenv": "^17.2.3",
-    "zod": "^3.25.76"
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@hocuspocus/transformer": "^3.4.4",
+    "@hocuspocus/transformer": "^4.3.0",
     "@repo/typescript-config": "workspace:*",
-    "@tiptap/extension-code": "^3.22.3",
-    "@tiptap/extension-document": "^3.22.3",
-    "@tiptap/extension-heading": "^3.22.3",
-    "@tiptap/extension-list": "^3.22.3",
-    "@tiptap/extension-paragraph": "^3.22.3",
-    "@tiptap/extension-task-item": "^3.22.3",
-    "@tiptap/extension-task-list": "^3.22.3",
-    "@tiptap/extension-text": "^3.22.3",
-    "@types/node": "^22.19.1",
-    "prisma": "^7.0.0",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4",
-    "yjs": "^13.6.30"
+    "@tiptap/extension-code": "^3.27.3",
+    "@tiptap/extension-document": "^3.27.3",
+    "@tiptap/extension-heading": "^3.27.3",
+    "@tiptap/extension-list": "^3.27.3",
+    "@tiptap/extension-paragraph": "^3.27.3",
+    "@tiptap/extension-task-item": "^3.27.3",
+    "@tiptap/extension-task-list": "^3.27.3",
+    "@tiptap/extension-text": "^3.27.3",
+    "@types/node": "^26.1.1",
+    "prisma": "^7.8.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
+    "yjs": "^13.6.31"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

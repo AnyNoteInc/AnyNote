@@ -11,9 +11,9 @@ export default defineConfig({
     // ~300ms locally. Give jsdom interaction tests headroom under load.
     testTimeout: 20000,
     setupFiles: ['./test-setup.ts'],
-    environmentMatchGlobs: [
-      ['**/*.test.tsx', 'jsdom'],
-      ['**/*.test.ts', 'node'],
-    ],
+    // Vitest 4 removed environmentMatchGlobs. Default to node; the React
+    // component tests (*.test.tsx) each opt into jsdom via a
+    // `// @vitest-environment jsdom` docblock at the top of the file.
+    environment: 'node',
   },
 })

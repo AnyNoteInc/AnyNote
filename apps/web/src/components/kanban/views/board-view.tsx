@@ -207,7 +207,7 @@ function AddColumnForm({ pageId }: AddColumnFormProps) {
           autoFocus
           sx={{ bgcolor: 'background.paper' }}
         />
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           <Button
             variant="contained"
             size="small"

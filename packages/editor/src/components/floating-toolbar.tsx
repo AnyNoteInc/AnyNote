@@ -8,7 +8,7 @@ import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined'
 import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import {
   Button,
@@ -237,7 +237,13 @@ export function FloatingToolbar({ editor }: Props) {
         style={{ zIndex: 8 }}
       >
         <Paper elevation={6} sx={{ display: 'inline-flex', borderRadius: 1, px: 0.5, py: 0.25 }}>
-          <Stack direction="row" alignItems="center" spacing={0.25}>
+          <Stack
+            direction="row"
+            spacing={0.25}
+            sx={{
+              alignItems: 'center',
+            }}
+          >
             <Tooltip title="Жирный">
               <IconButton
                 size="small"
@@ -312,7 +318,11 @@ export function FloatingToolbar({ editor }: Props) {
                 aria-label="Ссылка"
                 sx={markButtonSx(toolbarState.isLink)}
               >
-                <LinkIcon fontSize="small" />
+                <LinkIcon
+                  sx={{
+                    fontSize: 'small',
+                  }}
+                />
               </IconButton>
             </Tooltip>
             {toolbarState.isLink ? (
@@ -328,14 +338,15 @@ export function FloatingToolbar({ editor }: Props) {
                 </IconButton>
               </Tooltip>
             ) : null}
-            {((editor.storage as unknown as { comments?: CommentsStorage }).comments)?.canComment ? (
+            {(editor.storage as unknown as { comments?: CommentsStorage }).comments?.canComment ? (
               <Tooltip title="Комментировать">
                 <IconButton
                   size="small"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     const anchor = selectionToAnchor(editor.state) ?? lastCommentAnchorRef.current
-                    const cb = ((editor.storage as unknown as { comments?: CommentsStorage }).comments)?.onCreateComment
+                    const cb = (editor.storage as unknown as { comments?: CommentsStorage })
+                      .comments?.onCreateComment
                     if (anchor && cb) cb(anchor)
                   }}
                   aria-label="Комментировать"
@@ -411,7 +422,6 @@ export function FloatingToolbar({ editor }: Props) {
           </Stack>
         </Paper>
       </BubbleMenu>
-
       <Dialog
         open={linkDialogOpen}
         onClose={() => setLinkDialogOpen(false)}

@@ -7,7 +7,7 @@ vi.mock('@repo/db', async (importOriginal) => {
 })
 
 const kanbanMocks = vi.hoisted(() => ({
-  createTaskComment: vi.fn(async () => ({ id: '00000000-0000-0000-0000-0000000000f1', taskId: 'tid', authorId: 'uid' })),
+  createTaskComment: vi.fn(async () => ({ id: '00000000-0000-4000-8000-0000000000f1', taskId: 'tid', authorId: 'uid' })),
 }))
 
 vi.mock('../src/domain', () => ({ domain: { kanban: kanbanMocks } }))
@@ -17,12 +17,12 @@ import type { PrismaClient } from '@repo/db'
 import { commentRouter } from '../src/routers/kanban/comment'
 import { createCallerFactory } from '../src/trpc'
 
-const USER_ID = '00000000-0000-0000-0000-000000000001'
-const OTHER_USER = '00000000-0000-0000-0000-0000000000be'
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
-const PAGE_ID = '00000000-0000-0000-0000-000000000003'
-const TASK_ID = '00000000-0000-0000-0000-0000000000a1'
-const COMMENT_ID = '00000000-0000-0000-0000-0000000000f1'
+const USER_ID = '00000000-0000-4000-8000-000000000001'
+const OTHER_USER = '00000000-0000-4000-8000-0000000000be'
+const WORKSPACE_ID = '00000000-0000-4000-8000-000000000002'
+const PAGE_ID = '00000000-0000-4000-8000-000000000003'
+const TASK_ID = '00000000-0000-4000-8000-0000000000a1'
+const COMMENT_ID = '00000000-0000-4000-8000-0000000000f1'
 
 function ctx(prisma: PrismaClient, userId = USER_ID) {
   return {

@@ -48,7 +48,7 @@ export function FilesFilters({ uploaderId, uploaders, uploadersLoading, onUpload
 
   return (
     <>
-      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+      <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Chip
           ref={uploaderChipRef}
           label={uploaderLabel}

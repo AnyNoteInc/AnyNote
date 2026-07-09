@@ -79,14 +79,18 @@ export function ConsentsTable({ rows }: Readonly<{ rows: readonly ConsentsTableR
                 </Typography>
               </TableCell>
               <TableCell align="right">
-                <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center', justifyContent: 'flex-end' }}
+                >
                   {row.documentType === 'MARKETING' ? (
                     <Switch
                       size="small"
                       checked={row.granted}
                       onChange={(e) => setMarketing.mutate({ granted: e.target.checked })}
                       disabled={setMarketing.isPending}
-                      inputProps={{ 'aria-label': 'Маркетинговые рассылки' }}
+                      slotProps={{ input: { 'aria-label': 'Маркетинговые рассылки' } }}
                     />
                   ) : null}
                   <Box

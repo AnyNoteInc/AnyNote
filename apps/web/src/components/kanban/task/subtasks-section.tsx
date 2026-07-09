@@ -30,7 +30,7 @@ export function SubtasksSection({ subtasks, board }: SubtasksSectionProps) {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+      <Stack direction="row" sx={{ mb: 1, alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
           Подзадачи
         </Typography>
@@ -52,7 +52,7 @@ export function SubtasksSection({ subtasks, board }: SubtasksSectionProps) {
             <Stack
               key={child.id}
               direction="row"
-              alignItems="center"
+
               spacing={1}
               onClick={() => openChild(child.id)}
               sx={{
@@ -61,6 +61,7 @@ export function SubtasksSection({ subtasks, board }: SubtasksSectionProps) {
                 borderRadius: 1,
                 cursor: 'pointer',
                 '&:hover': { bgcolor: 'action.hover' },
+                alignItems: 'center',
               }}
             >
               <Box

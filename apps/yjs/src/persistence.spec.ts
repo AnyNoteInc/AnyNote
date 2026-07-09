@@ -68,8 +68,8 @@ describe('storePageDocument', () => {
     fragment.insert(0, [new Y.XmlElement('paragraph')])
 
     await storePageDocument({
-      pageId: '00000000-0000-0000-0000-000000000001',
-      workspaceId: '00000000-0000-0000-0000-000000000002',
+      pageId: '00000000-0000-4000-8000-000000000001',
+      workspaceId: '00000000-0000-4000-8000-000000000002',
       document: doc,
       pageType: 'TEXT' as never,
     })
@@ -89,8 +89,8 @@ describe('storePageDocument', () => {
       delayMs: number
     }
     expect(outboxArgs.eventType).toBe('page.upserted')
-    expect(outboxArgs.aggregateId).toBe('00000000-0000-0000-0000-000000000001')
-    expect(outboxArgs.workspaceId).toBe('00000000-0000-0000-0000-000000000002')
+    expect(outboxArgs.aggregateId).toBe('00000000-0000-4000-8000-000000000001')
+    expect(outboxArgs.workspaceId).toBe('00000000-0000-4000-8000-000000000002')
     expect(outboxArgs.delayMs).toBe(5 * 60 * 1000)
   })
 
@@ -102,8 +102,8 @@ describe('storePageDocument', () => {
     yElements.insert(0, [el])
 
     await storePageDocument({
-      pageId: '00000000-0000-0000-0000-000000000001',
-      workspaceId: '00000000-0000-0000-0000-000000000002',
+      pageId: '00000000-0000-4000-8000-000000000001',
+      workspaceId: '00000000-0000-4000-8000-000000000002',
       document: doc,
       pageType: 'EXCALIDRAW' as never,
     })
@@ -119,8 +119,8 @@ describe('storePageDocument', () => {
   it('GENOGRAM: saves only contentYjs + NO outbox', async () => {
     const doc = new Y.Doc()
     await storePageDocument({
-      pageId: '00000000-0000-0000-0000-000000000001',
-      workspaceId: '00000000-0000-0000-0000-000000000002',
+      pageId: '00000000-0000-4000-8000-000000000001',
+      workspaceId: '00000000-0000-4000-8000-000000000002',
       document: doc,
       pageType: 'GENOGRAM' as never,
     })
@@ -136,8 +136,8 @@ describe('storePageDocument', () => {
     doc.getText('mermaid').insert(0, 'graph TD; A-->B;')
 
     await storePageDocument({
-      pageId: '00000000-0000-0000-0000-000000000001',
-      workspaceId: '00000000-0000-0000-0000-000000000002',
+      pageId: '00000000-0000-4000-8000-000000000001',
+      workspaceId: '00000000-0000-4000-8000-000000000002',
       document: doc,
       pageType: 'MERMAID' as never,
     })
@@ -157,8 +157,8 @@ describe('storePageDocument', () => {
       doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
 
       await storePageDocument({
-        pageId: '00000000-0000-0000-0000-000000000001',
-        workspaceId: '00000000-0000-0000-0000-000000000002',
+        pageId: '00000000-0000-4000-8000-000000000001',
+        workspaceId: '00000000-0000-4000-8000-000000000002',
         document: doc,
         pageType: 'TEXT' as never,
       })
@@ -167,7 +167,7 @@ describe('storePageDocument', () => {
       const data = (mockRevisionCreate.mock.calls[0]![0] as { data: Record<string, unknown> }).data
       expect(data.action).toBe('EDIT')
       expect(data.actorId).toBeNull()
-      expect(data.pageId).toBe('00000000-0000-0000-0000-000000000001')
+      expect(data.pageId).toBe('00000000-0000-4000-8000-000000000001')
       expect(data.contentYjs).toBeInstanceOf(Uint8Array)
       // The integration page.content_updated emission (webhook + telegram outbox
       // rows) rides the same throttle branch.
@@ -175,8 +175,8 @@ describe('storePageDocument', () => {
       const webhookArgs = mockEnqueueIntegrationEvents.mock.calls[0]![1] as Record<string, unknown>
       expect(webhookArgs.event).toBe('page.content_updated')
       expect(webhookArgs.resourceType).toBe('page')
-      expect(webhookArgs.resourceId).toBe('00000000-0000-0000-0000-000000000001')
-      expect(webhookArgs.workspaceId).toBe('00000000-0000-0000-0000-000000000002')
+      expect(webhookArgs.resourceId).toBe('00000000-0000-4000-8000-000000000001')
+      expect(webhookArgs.workspaceId).toBe('00000000-0000-4000-8000-000000000002')
       expect(webhookArgs.actorId).toBeNull()
     })
 
@@ -186,8 +186,8 @@ describe('storePageDocument', () => {
       doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
 
       await storePageDocument({
-        pageId: '00000000-0000-0000-0000-000000000001',
-        workspaceId: '00000000-0000-0000-0000-000000000002',
+        pageId: '00000000-0000-4000-8000-000000000001',
+        workspaceId: '00000000-0000-4000-8000-000000000002',
         document: doc,
         pageType: 'TEXT' as never,
       })
@@ -207,8 +207,8 @@ describe('storePageDocument', () => {
       doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
 
       await storePageDocument({
-        pageId: '00000000-0000-0000-0000-000000000001',
-        workspaceId: '00000000-0000-0000-0000-000000000002',
+        pageId: '00000000-0000-4000-8000-000000000001',
+        workspaceId: '00000000-0000-4000-8000-000000000002',
         document: doc,
         pageType: 'TEXT' as never,
       })
@@ -224,7 +224,7 @@ describe('synced-block persistence', () => {
     doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
 
     await storeSyncedBlockDocument({
-      blockId: '00000000-0000-0000-0000-0000000000bb',
+      blockId: '00000000-0000-4000-8000-0000000000bb',
       document: doc,
     })
 
@@ -233,7 +233,7 @@ describe('synced-block persistence', () => {
       where: { id: string }
       data: { content: unknown; contentYjs: unknown }
     }
-    expect(call.where).toEqual({ id: '00000000-0000-0000-0000-0000000000bb' })
+    expect(call.where).toEqual({ id: '00000000-0000-4000-8000-0000000000bb' })
     expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(call.data.content).toBeDefined()
     // Synced blocks never touch the page revision/outbox machinery.
@@ -248,13 +248,13 @@ describe('synced-block persistence', () => {
     const bytes = Y.encodeStateAsUpdate(seed)
     mockSyncedBlockFindUnique.mockResolvedValue({ contentYjs: bytes })
 
-    const loaded = await loadSyncedBlockDocument('00000000-0000-0000-0000-0000000000bb')
+    const loaded = await loadSyncedBlockDocument('00000000-0000-4000-8000-0000000000bb')
 
     const args = mockSyncedBlockFindUnique.mock.calls[0]![0] as {
       where: { id: string }
       select: { contentYjs: boolean }
     }
-    expect(args.where).toEqual({ id: '00000000-0000-0000-0000-0000000000bb' })
+    expect(args.where).toEqual({ id: '00000000-0000-4000-8000-0000000000bb' })
     expect(args.select).toMatchObject({ contentYjs: true })
     // The loaded doc carries the seeded fragment.
     expect(loaded.getXmlFragment('default').length).toBe(1)
@@ -262,7 +262,7 @@ describe('synced-block persistence', () => {
 
   it('loadSyncedBlockDocument returns an empty doc when no bytes are stored yet', async () => {
     mockSyncedBlockFindUnique.mockResolvedValue(null)
-    const loaded = await loadSyncedBlockDocument('00000000-0000-0000-0000-0000000000bb')
+    const loaded = await loadSyncedBlockDocument('00000000-0000-4000-8000-0000000000bb')
     expect(loaded.getXmlFragment('default').length).toBe(0)
   })
 })

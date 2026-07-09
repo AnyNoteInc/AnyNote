@@ -32,7 +32,8 @@ const FEATURES: {
   {
     key: 'SCIM',
     title: 'SCIM-провижининг',
-    description: 'Автоматическое создание и деактивация учётных записей из корпоративного каталога.',
+    description:
+      'Автоматическое создание и деактивация учётных записей из корпоративного каталога.',
     testid: 'identity-enterprise-request-scim',
   },
   {
@@ -82,9 +83,13 @@ export function EnterpriseCard({ workspaceId, locked }: Props) {
             key={feature.key}
             sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}
           >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+            >
               <Box sx={{ minWidth: 0 }}>
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Typography variant="subtitle2">{feature.title}</Typography>
                   <Chip size="small" variant="outlined" label="Недоступно в текущей версии" />
                 </Stack>

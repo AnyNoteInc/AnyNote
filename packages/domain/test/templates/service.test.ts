@@ -119,7 +119,7 @@ describe('TemplateService.createFromPage', () => {
           content: [
             {
               type: 'image',
-              attrs: { src: '/api/files/11111111-1111-1111-1111-111111111111' },
+              attrs: { src: '/api/files/11111111-1111-4111-9111-111111111111' },
             },
           ],
         },
@@ -139,7 +139,7 @@ describe('TemplateService.createFromPage', () => {
       expect.objectContaining({ workspaceId: 'sys-ws', scope: PageTemplateScope.GLOBAL }),
     )
     expect(repo.setFilesPublic).toHaveBeenCalledWith([
-      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-4111-9111-111111111111',
     ])
   })
 
@@ -222,7 +222,7 @@ describe('TemplateService.createFromPage', () => {
         workspaceId: 'w1',
         title: 'X',
         scope: PageTemplateScope.WORKSPACE,
-        tagIds: ['00000000-0000-0000-0000-000000000099'],
+        tagIds: ['00000000-0000-4000-8000-000000000099'],
       }),
     ).rejects.toMatchObject({ httpStatus: 400 })
     expect(repo.createTemplatePage).not.toHaveBeenCalled()
@@ -414,7 +414,7 @@ describe('TemplateService.update', () => {
       templateId: 't1',
       workspaceId: 'w1',
       title: 'Renamed',
-      tagIds: ['00000000-0000-0000-0000-000000000001'],
+      tagIds: ['00000000-0000-4000-8000-000000000001'],
     })
     expect(res).toEqual({ id: 't1' })
     expect(repo.updateTemplatePage).toHaveBeenCalledWith(
@@ -422,7 +422,7 @@ describe('TemplateService.update', () => {
       expect.objectContaining({ pageId: 't1', title: 'Renamed' }),
     )
     expect(repo.linkTags).toHaveBeenCalledWith('t1', [
-      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-4000-8000-000000000001',
     ])
   })
 
@@ -445,14 +445,14 @@ describe('TemplateService.update', () => {
       findTemplateContent: vi.fn(async () => ({
         type: 'doc',
         content: [
-          { type: 'image', attrs: { src: '/api/files/22222222-2222-2222-2222-222222222222' } },
+          { type: 'image', attrs: { src: '/api/files/22222222-2222-4222-9222-222222222222' } },
         ],
       })),
     })
     const svc = makeSvc(repo)
     await svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'Renamed' })
     expect(repo.setFilesPublic).toHaveBeenCalledWith([
-      '22222222-2222-2222-2222-222222222222',
+      '22222222-2222-4222-9222-222222222222',
     ])
   })
 
@@ -492,7 +492,7 @@ describe('TemplateService.update', () => {
       svc.update('u1', {
         templateId: 't1',
         workspaceId: 'w1',
-        tagIds: ['00000000-0000-0000-0000-000000000099'],
+        tagIds: ['00000000-0000-4000-8000-000000000099'],
       }),
     ).rejects.toMatchObject({ httpStatus: 400 })
     expect(repo.updateTemplatePage).not.toHaveBeenCalled()

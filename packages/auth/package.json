@@ -22,18 +22,18 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@better-auth/sso": "1.6.2",
+    "@better-auth/sso": "1.6.23",
     "@repo/db": "workspace:*",
     "@repo/notifications": "workspace:*",
-    "better-auth": "^1.4.9"
+    "better-auth": "^1.6.23"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/mail": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^22.19.1",
-    "eslint": "^9.39.1",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "@types/node": "^26.1.1",
+    "eslint": "^9.39.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

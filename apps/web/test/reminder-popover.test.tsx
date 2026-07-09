@@ -56,7 +56,7 @@ vi.mock('@repo/ui/components', async (importOriginal) => {
         size: 'small',
         fullWidth: true,
         value: '',
-        inputProps: { 'data-testid': 'deadline-input', readOnly: true },
+        slotProps: { htmlInput: { 'data-testid': 'deadline-input', readOnly: true } },
       })
     },
   }
@@ -77,11 +77,11 @@ const initial: ReminderFormValue = {
 function renderReminderPopover({
   mode = 'create',
   initialValue = initial,
-  onSave = vi.fn(),
+  onSave = vi.fn<(value: ReminderFormValue) => void>(),
 }: {
   mode?: 'create' | 'edit'
   initialValue?: ReminderFormValue
-  onSave?: ReturnType<typeof vi.fn>
+  onSave?: (value: ReminderFormValue) => void
 } = {}) {
   const anchorEl = document.createElement('button')
   document.body.appendChild(anchorEl)
@@ -92,7 +92,7 @@ function renderReminderPopover({
       anchorEl={anchorEl}
       mode={mode}
       initial={initialValue}
-      workspaceId="00000000-0000-0000-0000-000000000001"
+      workspaceId="00000000-0000-4000-8000-000000000001"
       onClose={vi.fn()}
       onSave={onSave}
       onDelete={vi.fn()}
@@ -111,7 +111,7 @@ describe('ReminderPopover', () => {
 
   it('keeps only required fields on the main tab and localizes DateTimePicker actions', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({ onSave })
 
@@ -156,7 +156,7 @@ describe('ReminderPopover', () => {
 
   it('moves postpone controls to the main edit tab and replaces delete with a done toggle button', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({ mode: 'edit', onSave })
 
@@ -172,7 +172,7 @@ describe('ReminderPopover', () => {
 
   it('highlights the done toggle and switches it to not done when reminder is completed', async () => {
     const actor = userEvent.setup()
-    const onSave = vi.fn()
+    const onSave = vi.fn<(value: ReminderFormValue) => void>()
 
     renderReminderPopover({
       mode: 'edit',
@@ -181,7 +181,9 @@ describe('ReminderPopover', () => {
     })
 
     const undoDone = screen.getByRole('button', { name: 'Не выполнено' })
-    expect(undoDone).toHaveClass('MuiButton-containedWarning')
+    // MUI 9 removed composite variant+color classes; assert the two separate ones.
+    expect(undoDone).toHaveClass('MuiButton-contained')
+    expect(undoDone).toHaveClass('MuiButton-colorWarning')
 
     await actor.click(undoDone)
 

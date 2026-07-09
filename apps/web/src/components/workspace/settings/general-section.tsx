@@ -32,16 +32,13 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
   const disabled = !isOwner || rename.isPending
 
   return (
-    <SettingsCard
-      title="Общее"
-      description="Название и иконка пространства."
-    >
+    <SettingsCard title="Общее" description="Название и иконка пространства.">
       {!isOwner && (
         <Alert severity="info">Только владелец пространства может изменять настройки.</Alert>
       )}
       {rename.error ? <Alert severity="error">{rename.error.message}</Alert> : null}
       {successShown ? <Alert severity="success">Сохранено</Alert> : null}
-      <Stack direction="row" spacing={1.5} alignItems="stretch">
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'stretch' }}>
         <EmojiIconButton
           value={icon}
           fallback="📒"

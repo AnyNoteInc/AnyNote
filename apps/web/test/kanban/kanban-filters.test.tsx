@@ -17,7 +17,7 @@ const board: BoardData = {
   labels: [],
   sprints: [
     {
-      id: '00000000-0000-0000-0000-0000000000a1',
+      id: '00000000-0000-4000-8000-0000000000a1',
       name: 'Active Sprint',
       status: 'ACTIVE',
       position: 1,
@@ -26,7 +26,7 @@ const board: BoardData = {
       endDate: null,
     },
     {
-      id: '00000000-0000-0000-0000-0000000000a2',
+      id: '00000000-0000-4000-8000-0000000000a2',
       name: 'Completed Sprint',
       status: 'COMPLETED',
       position: 2,

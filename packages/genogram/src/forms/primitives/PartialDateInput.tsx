@@ -50,7 +50,7 @@ export function PartialDateInput({ value, onChange, label }: Props) {
           type="number"
           size="small"
           value={dayField.value}
-          inputProps={{ min: 1, max: 31, inputMode: 'numeric' }}
+          slotProps={{ htmlInput: { min: 1, max: 31, inputMode: 'numeric' } }}
           onChange={(e) => dayField.onChange(e.target.value)}
         />
         <TextField
@@ -76,7 +76,7 @@ export function PartialDateInput({ value, onChange, label }: Props) {
           type="number"
           size="small"
           value={yearField.value}
-          inputProps={{ min: 1700, max: 2200, inputMode: 'numeric' }}
+          slotProps={{ htmlInput: { min: 1700, max: 2200, inputMode: 'numeric' } }}
           onChange={(e) => yearField.onChange(e.target.value)}
         />
       </Stack>

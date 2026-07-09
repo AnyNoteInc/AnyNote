@@ -6,7 +6,7 @@ import Button from '@mui/material/Button'
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton'
 import Popover from '@mui/material/Popover'
 import Stack from '@mui/material/Stack'
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined'
 
 import { EmojiPicker } from './emoji-picker'
 
