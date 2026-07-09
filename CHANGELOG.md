@@ -1,3 +1,40 @@
+# [1.36.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.35.1...v1.36.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **editor:** a11y labels, repaint unsubscribe and history trim in inline-AI widget ([b27ee17](https://github.com/AnyNoteInc/AnyNote/commit/b27ee17cf96bc0e5aeb7290e4c2008775ce4a09f))
+* **editor:** discard space-AI draft on Esc regardless of focus ([51be9e8](https://github.com/AnyNoteInc/AnyNote/commit/51be9e86d70965903e637f13253cd6d4d5c7061a))
+* **editor:** fold MUI 9-removed Stack system props into sx in space-AI feature ([8651d02](https://github.com/AnyNoteInc/AnyNote/commit/8651d021e96921c4bf4596a3d8d3327bc88a8c94))
+* **editor:** harden space-AI bar against re-trigger, unmount and drift edges ([663d26a](https://github.com/AnyNoteInc/AnyNote/commit/663d26a6a0e10467544373b227dde2f4af1313a7))
+* **editor:** ignore already-handled Escapes in space-AI bar listener ([44ff917](https://github.com/AnyNoteInc/AnyNote/commit/44ff9173ba4032fb136390fc989a8b81ece3b57c))
+* **trpc:** fail closed on orphaned page chats and pin trash semantics ([37bebb1](https://github.com/AnyNoteInc/AnyNote/commit/37bebb1baa82387097a3e379e75f660fcb021a3e))
+* **web:** keep page-chat client mounted through first-send thread creation ([0c66c64](https://github.com/AnyNoteInc/AnyNote/commit/0c66c64563c36619077e58ab8aa863963f43c3d6))
+* **web:** keep preset inline-AI actions single-shot, pin history contract ([720f976](https://github.com/AnyNoteInc/AnyNote/commit/720f9761935613225068a7d1afe5dbbed74684ed))
+* **web:** make the next 16.2.9 pin exact as intended ([483508d](https://github.com/AnyNoteInc/AnyNote/commit/483508dcb704b8af2d6d56146c8679fcc407f8f3))
+* **web:** map bare 403 to plan upsell copy in inline-AI bridge ([a28bd07](https://github.com/AnyNoteInc/AnyNote/commit/a28bd0774c67b8736cfde0ca8ca79a05adc7f6d0))
+* **web:** pin next to 16.2.9 — 16.2.10 turbopack dev intermittently deadlocks route compiles ([e038ee2](https://github.com/AnyNoteInc/AnyNote/commit/e038ee2f03314156ecd15a51dff18fd41d294e1c))
+* **web:** reset shared hoisted mocks with resetAllMocks under vitest 4 ([23ad4e8](https://github.com/AnyNoteInc/AnyNote/commit/23ad4e8e869d2ea0fabc27e5ba708a92530a7f96))
+
+
+### Features
+
+* **db,domain:** ChatKind.PAGE + Chat.pageId with page-delete purge ([b99d5eb](https://github.com/AnyNoteInc/AnyNote/commit/b99d5eb5e5f50ff0cf9204d6fb32c53c8b519370))
+* **editor,web:** generate-AI bridge contract + plan upsell copy ([f5b426a](https://github.com/AnyNoteInc/AnyNote/commit/f5b426a73c627b0a6e1aa202ed845c8fca0c4829))
+* **editor:** custom instruction, insert-below and follow-up in inline-AI popover ([4031277](https://github.com/AnyNoteInc/AnyNote/commit/403127724d8da0185645b66900e9e6e8ea2a4d16))
+* **editor:** insert-below apply mode for inline-AI results ([b398cde](https://github.com/AnyNoteInc/AnyNote/commit/b398cde83d8447030dfc146075ef81b3ad67b514))
+* **editor:** space-AI bar with in-document streaming draft and markdown insert ([e2b8cbe](https://github.com/AnyNoteInc/AnyNote/commit/e2b8cbea8901815d20bb483c58c0cc3248fd3ad9))
+* **editor:** space-bar AI trigger extension with empty-paragraph guard ([7fecaf1](https://github.com/AnyNoteInc/AnyNote/commit/7fecaf14b81cf9e50d58488e0ec1790092bf4a06))
+* **trpc:** page-scoped chats — createChat pageId, listByPage, visibility gate ([164ebcb](https://github.com/AnyNoteInc/AnyNote/commit/164ebcba5c28008d2833317f3d54aa7b6fb29a89))
+* **ui:** Fab export and chat composer context chip ([9a7be6d](https://github.com/AnyNoteInc/AnyNote/commit/9a7be6d74e316ef8b443152620aea34a42e6741e))
+* **web:** accept generate/custom actions with history in /api/ai/inline ([2b8ca68](https://github.com/AnyNoteInc/AnyNote/commit/2b8ca689e41359dffbafb151ef9f74d51bd9e376))
+* **web:** add generate/custom inline-AI prompt builders ([fd183d6](https://github.com/AnyNoteInc/AnyNote/commit/fd183d625b21b6e6bb7226f64ecf558f29a0d45c))
+* **web:** inject page/selection context into page-chat generation ([cc9a9d7](https://github.com/AnyNoteInc/AnyNote/commit/cc9a9d79081919d4b394f27b3de33aa25bd5bff5))
+* **web:** inject space-AI drafting bridge into the page editor ([1636573](https://github.com/AnyNoteInc/AnyNote/commit/163657343d255993126cc99efaeefbc28784d8b2))
+* **web:** page chat panel with FAB, thread switcher and context chip ([76e3a92](https://github.com/AnyNoteInc/AnyNote/commit/76e3a92bf214a13bb06412ba4fb60bea436540cf))
+* **web:** page variant of the workspace chat client with context injection ([f79edc5](https://github.com/AnyNoteInc/AnyNote/commit/f79edc5e826221b564131b9f298b08f4f158fd9b))
+* **web:** rename/delete page-chat threads and record spec deviations ([6da6c58](https://github.com/AnyNoteInc/AnyNote/commit/6da6c5878a8dda62b9619868bee352abd0e37b17))
+
 ## [1.35.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.35.0...v1.35.1) (2026-07-07)
 
 
