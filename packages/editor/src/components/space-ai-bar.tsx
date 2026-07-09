@@ -39,6 +39,7 @@ import {
 import type { SpaceAiTriggerArgs } from '../extensions/space-ai'
 import { markdownToHtml } from '../lib/markdown-to-html'
 import type { AskAIHandle, AskAiHistoryTurn, GenerateAICallback } from '../types'
+import { abortInlineAiSession } from './inline-ai-popover'
 
 const CONTEXT_BEFORE_CHARS = 8_000
 /** Server cap is 10 turns — keep the newest 8 (matches the popover follow-up). */
@@ -112,7 +113,10 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
   useEffect(() => {
     if (!open) return
     abortRun()
-    if (!editor.isDestroyed && getInlineAiPreview(editor).active) clearInlineAiPreview(editor)
+    // Clears any leftover preview AND aborts the 9D selection-AI in-flight
+    // stream if one was running (cross-surface supersession — the plugin has a
+    // single preview slot). Internally guards editor.isDestroyed.
+    abortInlineAiSession(editor)
     setPhase('input')
     setInstruction('')
     setFollowup('')

@@ -36,7 +36,7 @@ import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
-import { createAskAI } from './inline-ai-bridge'
+import { createAskAI, createGenerateAi } from './inline-ai-bridge'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -337,6 +337,13 @@ export function PageRenderer({
   // posts to /api/ai/inline and exposes the AskAIHandle the popover wires into the
   // streaming-preview plugin. Stable per page so the editor identity is stable.
   const askAI = useMemo(() => createAskAI({ pageId: page.id, workspaceId }), [page.id, workspaceId])
+
+  // The space-bar AI drafting bridge (spec §3.5) — same shape as askAI above,
+  // bound to this page+workspace and injected ONLY when editable (below).
+  const generateAI = useMemo(
+    () => createGenerateAi({ pageId: page.id, workspaceId }),
+    [page.id, workspaceId],
+  )
 
   // Bookmark preview: a thin POST to the SSRF-guarded route. The route returns
   // `{}` on any failure (never an error), so a rejected fetch / non-JSON body
@@ -695,6 +702,7 @@ export function PageRenderer({
           // gated-when-handler-wired pattern) — when meetings are enabled.
           onPickMeetingBlock={meetingsEnabled ? onPickMeetingBlock : undefined}
           askAI={editable ? askAI : undefined}
+          generateAI={editable ? generateAI : undefined}
         />
         <EmbeddedDatabasePicker
           open={dbPickerOpen}
