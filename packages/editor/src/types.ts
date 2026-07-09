@@ -46,6 +46,16 @@ export type AskAIArgs = {
   selectedText: string
   /** Target language for the `translate` action (e.g. 'English'); ignored otherwise. */
   targetLang?: string
+  /** Free-form instruction — required for action 'custom'. */
+  instruction?: string
+  /** Prior refinement turns, oldest first (spec §4/§5). */
+  history?: AskAiHistoryTurn[]
+}
+
+/** One turn of the inline-AI refinement history (client-held, ephemeral). */
+export type AskAiHistoryTurn = {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 /**
@@ -76,6 +86,16 @@ export type AskAIHandle = {
 
 /** apps/web injects this — one call per action-pick, returns a stream handle. */
 export type AskAICallback = (args: AskAIArgs) => AskAIHandle
+
+/** Space-bar drafting request (spec §3): instruction + refinement history +
+ *  the page text above the cursor. Returns the same streaming handle as askAI. */
+export type GenerateAiArgs = {
+  instruction: string
+  history: AskAiHistoryTurn[]
+  contextBefore?: string
+}
+
+export type GenerateAICallback = (args: GenerateAiArgs) => AskAIHandle
 
 export type UploadedFile = {
   id: string
@@ -177,6 +197,10 @@ export type AnyNoteEditorProps = {
   // the action popover streams a preset transform into a local preview. When
   // absent (public share / read-only / unwired), the button is hidden.
   askAI?: AskAICallback
+  // apps/web injects the space-bar drafting bridge here (spec §3). When present,
+  // Space on an empty top-level paragraph opens the AI bar and the empty-line
+  // placeholder advertises it.
+  generateAI?: GenerateAICallback
 }
 
 export type { CommentThreadAnchor } from './types-comments'

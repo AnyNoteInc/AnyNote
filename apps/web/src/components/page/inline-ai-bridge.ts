@@ -26,18 +26,24 @@
 // UNAUTHORIZED / BAD_REQUEST / BAD_ACTION / NOT_FOUND / PLAN / RATE_LIMIT /
 // NO_MODEL / UPSTREAM. We map those to the spec §4.2 user copy before onError.
 
-import type { AskAIArgs, AskAICallback, AskAIHandle } from '@repo/editor'
+import type {
+  AskAIArgs,
+  AskAICallback,
+  AskAIHandle,
+  GenerateAiArgs,
+  GenerateAICallback,
+} from '@repo/editor'
 
 const CONFIGURE_AI = 'Настройте AI-агента в настройках'
+const PLAN_UPSELL = 'Доступно на тарифе ПРО и выше'
 const TOO_MANY = 'Слишком много запросов, попробуйте позже'
 const GENERIC = 'Не удалось получить ответ ИИ. Попробуйте ещё раз.'
 
 /** Map a non-OK `/api/ai/inline` response `{error, code}` to user-facing copy. */
 function messageForErrorResponse(status: number, code: string | undefined): string {
-  // 400 (no default model / bad action / bad request) + 403 (plan) → "configure".
-  if (code === 'NO_MODEL' || code === 'PLAN' || status === 400 || status === 403) {
-    return CONFIGURE_AI
-  }
+  if (code === 'PLAN') return PLAN_UPSELL
+  // 400 (no default model / bad action / bad request) → "configure".
+  if (code === 'NO_MODEL' || status === 400 || status === 403) return CONFIGURE_AI
   if (code === 'RATE_LIMIT' || status === 429) return TOO_MANY
   return GENERIC
 }
@@ -72,108 +78,132 @@ function decodeFrames(buffer: string): { events: InlineSseEvent[]; rest: string 
   return { events, rest }
 }
 
+/** Shared SSE streaming core: POST the given body to /api/ai/inline and expose
+ *  the AskAIHandle contract (done never rejects, onError at most once). */
+function streamInlineAi(body: Record<string, unknown>): AskAIHandle {
+  const controller = new AbortController()
+  const tokenCbs: Array<(delta: string) => void> = []
+  const errorCbs: Array<(message: string) => void> = []
+  let errored = false
+
+  const emitToken = (delta: string) => {
+    for (const cb of tokenCbs) cb(delta)
+  }
+  const emitError = (message: string) => {
+    // Fire onError at most once — `done` still resolves (never rejects).
+    if (errored) return
+    errored = true
+    for (const cb of errorCbs) cb(message)
+  }
+
+  const run = async (): Promise<void> => {
+    let res: Response
+    try {
+      res = await fetch('/api/ai/inline', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+    } catch {
+      // A network failure or an abort during the request phase.
+      if (!controller.signal.aborted) emitError(GENERIC)
+      return
+    }
+
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as { code?: string } | null
+      emitError(messageForErrorResponse(res.status, payload?.code))
+      return
+    }
+    if (!res.body) {
+      emitError(GENERIC)
+      return
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    try {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const { events, rest } = decodeFrames(buffer)
+        buffer = rest
+        for (const ev of events) {
+          if (ev.type === 'token' && typeof ev.text === 'string') {
+            emitToken(ev.text)
+          } else if (ev.type === 'error') {
+            emitError(ev.message || GENERIC)
+          }
+          // 'done' / 'thinking' / tool_status / usage → no inline action.
+        }
+      }
+      // Flush any complete frame left in the buffer (no trailing blank line).
+      const { events } = decodeFrames(buffer + '\n\n')
+      for (const ev of events) {
+        if (ev.type === 'token' && typeof ev.text === 'string') emitToken(ev.text)
+        else if (ev.type === 'error') emitError(ev.message || GENERIC)
+      }
+    } catch {
+      // A read error or an abort mid-stream. An abort is intentional (retry /
+      // discard / unmount) and must NOT surface as an error.
+      if (!controller.signal.aborted) emitError(GENERIC)
+    } finally {
+      await reader.cancel().catch(() => {})
+    }
+  }
+
+  // `done` resolves on success OR error OR abort — it NEVER rejects (contract).
+  const done = run().catch(() => {
+    if (!controller.signal.aborted && !errored) emitError(GENERIC)
+  })
+
+  return {
+    onToken: (cb) => {
+      tokenCbs.push(cb)
+    },
+    onError: (cb) => {
+      errorCbs.push(cb)
+    },
+    done,
+    abort: () => {
+      if (!controller.signal.aborted) controller.abort()
+    },
+  }
+}
+
 /**
  * Build the `askAI` closure bound to a page + workspace. One call per
  * action-pick → one `/api/ai/inline` request → one `AskAIHandle`.
  */
 export function createAskAI(ctx: { pageId: string; workspaceId: string }): AskAICallback {
-  return (args: AskAIArgs): AskAIHandle => {
-    const controller = new AbortController()
-    const tokenCbs: Array<(delta: string) => void> = []
-    const errorCbs: Array<(message: string) => void> = []
-    let errored = false
-
-    const emitToken = (delta: string) => {
-      for (const cb of tokenCbs) cb(delta)
-    }
-    const emitError = (message: string) => {
-      // Fire onError at most once — `done` still resolves (never rejects).
-      if (errored) return
-      errored = true
-      for (const cb of errorCbs) cb(message)
-    }
-
-    const run = async (): Promise<void> => {
-      let res: Response
-      try {
-        res = await fetch('/api/ai/inline', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            action: args.action,
-            selectedText: args.selectedText,
-            pageId: ctx.pageId,
-            workspaceId: ctx.workspaceId,
-            ...(args.targetLang ? { targetLang: args.targetLang } : {}),
-          }),
-          signal: controller.signal,
-        })
-      } catch {
-        // A network failure or an abort during the request phase.
-        if (!controller.signal.aborted) emitError(GENERIC)
-        return
-      }
-
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { code?: string } | null
-        emitError(messageForErrorResponse(res.status, payload?.code))
-        return
-      }
-      if (!res.body) {
-        emitError(GENERIC)
-        return
-      }
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      try {
-        for (;;) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const { events, rest } = decodeFrames(buffer)
-          buffer = rest
-          for (const ev of events) {
-            if (ev.type === 'token' && typeof ev.text === 'string') {
-              emitToken(ev.text)
-            } else if (ev.type === 'error') {
-              emitError(ev.message || GENERIC)
-            }
-            // 'done' / 'thinking' / tool_status / usage → no inline action.
-          }
-        }
-        // Flush any complete frame left in the buffer (no trailing blank line).
-        const { events } = decodeFrames(buffer + '\n\n')
-        for (const ev of events) {
-          if (ev.type === 'token' && typeof ev.text === 'string') emitToken(ev.text)
-          else if (ev.type === 'error') emitError(ev.message || GENERIC)
-        }
-      } catch {
-        // A read error or an abort mid-stream. An abort is intentional (retry /
-        // discard / unmount) and must NOT surface as an error.
-        if (!controller.signal.aborted) emitError(GENERIC)
-      } finally {
-        await reader.cancel().catch(() => {})
-      }
-    }
-
-    // `done` resolves on success OR error OR abort — it NEVER rejects (contract).
-    const done = run().catch(() => {
-      if (!controller.signal.aborted && !errored) emitError(GENERIC)
+  return (args: AskAIArgs): AskAIHandle =>
+    streamInlineAi({
+      action: args.action,
+      selectedText: args.selectedText,
+      pageId: ctx.pageId,
+      workspaceId: ctx.workspaceId,
+      ...(args.targetLang ? { targetLang: args.targetLang } : {}),
+      ...(args.instruction ? { instruction: args.instruction } : {}),
+      ...(args.history?.length ? { history: args.history } : {}),
     })
+}
 
-    return {
-      onToken: (cb) => {
-        tokenCbs.push(cb)
-      },
-      onError: (cb) => {
-        errorCbs.push(cb)
-      },
-      done,
-      abort: () => {
-        if (!controller.signal.aborted) controller.abort()
-      },
-    }
-  }
+/**
+ * Build the `generateAI` closure bound to a page + workspace (spec §3, the
+ * space-bar drafting bridge). One call per AI-bar submit → one
+ * `/api/ai/inline` `generate` request → one `AskAIHandle`.
+ */
+export function createGenerateAi(ctx: { pageId: string; workspaceId: string }): GenerateAICallback {
+  return (args: GenerateAiArgs): AskAIHandle =>
+    streamInlineAi({
+      action: 'generate',
+      instruction: args.instruction,
+      history: args.history,
+      ...(args.contextBefore ? { contextBefore: args.contextBefore } : {}),
+      pageId: ctx.pageId,
+      workspaceId: ctx.workspaceId,
+    })
 }
