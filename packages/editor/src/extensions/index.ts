@@ -38,6 +38,7 @@ import { buildImagePaste } from './image-paste'
 import { buildUrlPaste, type PreviewFetch } from './url-paste'
 import { HiddenText } from './hidden-text'
 import { InlineAI, type InlineAiRenderPreview } from './inline-ai'
+import { SpaceAI } from './space-ai'
 import { MeetingNotesBlock, type MeetingNotesBlockRenderer } from './meeting-notes-block'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
@@ -222,6 +223,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Tab,
   DropPlacement,
   Comments.configure({ onOpenThread: opts.onOpenThread }),
+  SpaceAI,
   InlineAI.configure({
     askAI: opts.askAI ?? null,
     renderPreview: opts.inlineAiRenderPreview ?? null,
