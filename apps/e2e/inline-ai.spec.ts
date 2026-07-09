@@ -29,6 +29,10 @@
  *    verbatim Russian labels Принять/Повторить/Отклонить); role/text selectors
  *    find them. The action labels are Кратко/Переписать/Грамматика/Перевести/
  *    Короче/Подробнее (inline-ai-popover.tsx).
+ *  - The popover's free-form instruction input carries
+ *    data-testid="inline-ai-custom-input" (Enter submits action 'custom').
+ *  - The preview toolbar also has «Вставить ниже» (plain <button>): keeps the
+ *    original selection, inserts the result as a new paragraph below.
  */
 import { expect, test, type Page } from '@playwright/test'
 
@@ -435,5 +439,8 @@ test.describe('inline AI — preset transforms in the editor', () => {
     await expect(editor.locator('p', { hasText: original })).toBeVisible({ timeout: 10_000 })
     await expect(editor).toContainText(STREAMED)
     await expect(preview(page)).toHaveCount(0)
+    // The result lands in a NEW block below — NOT appended inside the original
+    // paragraph.
+    await expect(editor.locator('p', { hasText: original })).not.toContainText(STREAMED)
   })
 })
