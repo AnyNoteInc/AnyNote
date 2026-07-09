@@ -125,7 +125,11 @@ function makeEntry(assistantMsgId: string) {
 
 describe('POST /api/agents/generate', () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    // vitest 4: restoreAllMocks no longer touches standalone vi.fn() mocks
+    // (spyOn-only); resetAllMocks clears state AND restores the original
+    // implementation passed to vi.fn(impl) — the vitest 3 semantics this
+    // suite's shared hoisted mocks rely on between tests.
+    vi.resetAllMocks()
     mocks.signAgentsJwt.mockResolvedValue('signed.jwt.token')
     mocks.buildEnginesMcpHeaders.mockReturnValue({ authorization: 'Bearer sig' })
     mocks.decryptMcpHeadersMap.mockReturnValue({})
