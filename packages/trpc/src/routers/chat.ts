@@ -36,16 +36,11 @@ async function assertChatAccess(
   if (!chat) throw new TRPCError({ code: 'NOT_FOUND' })
   // PAGE chats carry injected page content — require CURRENT page visibility,
   // or a member who can't see a private page could read it via the chat.
-  if (chat.kind === 'PAGE' && chat.pageId) {
-    const page = await ctx.prisma.page.findFirst({
-      where: {
-        id: chat.pageId,
-        deletedAt: null,
-        AND: [buildPageVisibilityWhere(ctx.user.id)],
-      },
-      select: { id: true },
-    })
-    if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
+  // Fail closed on orphans (FK SetNull cleared pageId): their messages may
+  // still hold private-page content.
+  if (chat.kind === 'PAGE') {
+    if (!chat.pageId) throw new TRPCError({ code: 'NOT_FOUND' })
+    await assertPageVisible(ctx, { workspaceId: chat.workspaceId, pageId: chat.pageId })
   }
   return chat
 }

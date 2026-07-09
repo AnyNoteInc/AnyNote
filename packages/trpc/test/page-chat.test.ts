@@ -198,6 +198,17 @@ describe('page chats (tRPC)', () => {
     expect(got.chat.id).toBe(chat.id)
   })
 
+  it('getChat denies a PAGE chat whose page is in the trash (deletedAt set)', async () => {
+    const f = await makeFixture({ plan: 'pro' })
+    const own = caller(f.ownerId)
+    const chat = await own.createChat({ workspaceId: f.workspaceId, pageId: f.visiblePageId })
+    await prisma.page.update({
+      where: { id: f.visiblePageId },
+      data: { deletedAt: new Date() },
+    })
+    await expect(own.getChat({ chatId: chat.id })).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
   it('deleteChat works for PAGE chats via the same access path', async () => {
     const f = await makeFixture({ plan: 'pro' })
     const own = caller(f.ownerId)
