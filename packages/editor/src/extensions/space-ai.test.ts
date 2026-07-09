@@ -20,6 +20,13 @@ const schema = new Schema({
       parseDOM: [{ tag: 'blockquote' }],
       toDOM: () => ['blockquote', 0],
     },
+    heading: {
+      group: 'block',
+      content: 'inline*',
+      attrs: { level: { default: 1 } },
+      parseDOM: [{ tag: 'h1' }],
+      toDOM: () => ['h1', 0],
+    },
   },
 })
 
@@ -58,6 +65,13 @@ describe('findSpaceAiTrigger', () => {
     const doc = schema.nodes.doc.create(null, [schema.nodes.blockquote.create(null, [para('')])])
     // Empty paragraph inside blockquote: caret pos 2 → depth 2.
     const state = stateWithSelection(doc, 2)
+    expect(findSpaceAiTrigger(state)).toBeNull()
+  })
+
+  it('does not fire in an empty top-level heading (paragraph-only type check)', () => {
+    const doc = schema.nodes.doc.create(null, [schema.nodes.heading.create(null)])
+    // Caret inside the empty heading: pos 1, depth 1 — but the type isn't paragraph.
+    const state = stateWithSelection(doc, 1)
     expect(findSpaceAiTrigger(state)).toBeNull()
   })
 })

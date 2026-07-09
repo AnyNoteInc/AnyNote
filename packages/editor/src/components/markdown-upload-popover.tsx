@@ -14,9 +14,9 @@ import {
   Typography,
 } from '@mui/material'
 import type { Editor } from '@tiptap/core'
-import { marked } from 'marked'
 import { useCallback, useId, useRef, useState } from 'react'
 
+import { markdownToHtml } from '../lib/markdown-to-html'
 import type { SlashRange } from '../types'
 
 type Props = {
@@ -24,12 +24,6 @@ type Props = {
   range: SlashRange | null
   editor: Editor
   onClose: () => void
-}
-
-// Keep markdown parsing predictable and synchronous.
-const parseMarkdown = (source: string): string => {
-  const out = marked.parse(source, { async: false, gfm: true })
-  return typeof out === 'string' ? out : ''
 }
 
 export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
@@ -59,7 +53,7 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
         setError('Пусто')
         return false
       }
-      editor.chain().focus().deleteRange(range).insertContent(parseMarkdown(text)).run()
+      editor.chain().focus().deleteRange(range).insertContent(markdownToHtml(text)).run()
       reset()
       onClose()
       return true

@@ -26,9 +26,11 @@ import type { MentionMenuPopoverHandle } from './components/mention-menu-popover
 import { PageLinkPopover } from './components/page-link-popover'
 import { SlashMenuPopover } from './components/slash-menu-popover'
 import type { SlashMenuPopoverHandle } from './components/slash-menu-popover'
+import { SpaceAiBar } from './components/space-ai-bar'
 import { TableToolbar } from './components/table-toolbar'
 import { buildExtensions } from './extensions/index'
 import type { SlashMenuRender } from './extensions/slash-menu'
+import type { SpaceAiTriggerArgs } from './extensions/space-ai'
 import { createSlashItems } from './slash-items'
 import type {
   AnyNoteEditorProps,
@@ -138,7 +140,11 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     resources,
   } = props
   const { ydoc, provider } = resources
-  const placeholder = props.placeholder ?? "Введите '/' для команд"
+  // Capability-aware empty-line hint: with the space-bar drafting bridge wired
+  // the placeholder advertises it (spec §3.1); otherwise the classic slash hint.
+  const placeholder =
+    props.placeholder ??
+    (props.generateAI ? 'Нажмите «пробел» для AI, «/» — для команд' : "Введите '/' для команд")
 
   const [popover, setPopover] = useState<OpenPopover | null>(null)
   const [drawioCreate, setDrawioCreate] = useState<{ range: SlashRange } | null>(null)
@@ -146,6 +152,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   // with the selection captured BEFORE the click (the toolbar passes the range +
   // text + anchor rect via editor.storage.ai.onAskAi).
   const [aiCapture, setAiCapture] = useState<InlineAiCapturedRange | null>(null)
+  // The space-bar AI drafting bar: opened by the SpaceAI extension via
+  // editor.storage.ai.onSpaceAi when Space hits an empty top-level paragraph.
+  const [spaceAi, setSpaceAi] = useState<SpaceAiTriggerArgs | null>(null)
 
   const slashClientRectRef = useRef<() => DOMRect>(() => new DOMRect(0, 0, 0, 0))
 
@@ -495,17 +504,20 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     }
   }, [editor, props.canComment, props.onCreateComment])
 
-  // Keep editor.storage.ai in sync with the injected bridge (the extension's
+  // Keep editor.storage.ai in sync with the injected bridges (the extension's
   // onCreate seeds `askAI`; here we refresh it and add `onAskAi`, which the
-  // bubble-menu button calls to open the action popover). Mirrors the comments
-  // storage block.
+  // bubble-menu button calls to open the action popover, plus the space-bar
+  // drafting pair `generateAI`/`onSpaceAi`). Mirrors the comments storage block.
+  // NB: this WHOLESALE-REPLACES storage.ai — every capability key must live here.
   useEffect(() => {
     if (!editor) return
     ;(editor.storage as unknown as Record<string, unknown>).ai = {
       askAI: props.askAI ?? null,
       onAskAi: (captured: InlineAiCapturedRange) => setAiCapture(captured),
+      generateAI: props.generateAI ?? null,
+      onSpaceAi: props.generateAI ? (args: SpaceAiTriggerArgs) => setSpaceAi(args) : undefined,
     }
-  }, [editor, props.askAI])
+  }, [editor, props.askAI, props.generateAI])
 
   const anchorEl = popover?.anchorEl ?? null
   const range = popover?.range ?? null
@@ -596,6 +608,13 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             captured={aiCapture}
             askAI={props.askAI ?? null}
             onClose={() => setAiCapture(null)}
+          />
+          <SpaceAiBar
+            editor={editor}
+            open={spaceAi != null}
+            anchor={spaceAi}
+            generateAI={props.generateAI ?? null}
+            onClose={() => setSpaceAi(null)}
           />
         </>
       ) : null}

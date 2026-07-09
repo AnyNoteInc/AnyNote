@@ -5,7 +5,9 @@ import type { EditorState } from '@tiptap/pm/state'
 export type SpaceAiTriggerArgs = {
   /** Caret position inside the empty paragraph at trigger time. */
   pos: number
-  /** Caret rect resolver for anchoring the AI bar (re-read at render time). */
+  /** Caret rect resolver for anchoring the AI bar (re-read at render time).
+   *  Returns a zero rect if the position is gone; callers may treat
+   *  width+height 0 as unanchored. */
   getRect: () => DOMRect
 }
 
