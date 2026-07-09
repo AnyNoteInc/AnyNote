@@ -15,6 +15,9 @@ import { PageCommentsProvider } from '@/components/page/comments/comments-contex
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { PageHistoryProvider } from '@/components/page/history/history-context'
 import { HistorySidebar } from '@/components/page/history/history-sidebar'
+import { PageChatProvider } from '@/components/page/page-chat/page-chat-context'
+import { PageChatFab } from '@/components/page/page-chat/page-chat-fab'
+import { PageChatSidebar } from '@/components/page/page-chat/page-chat-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 
@@ -270,6 +273,8 @@ export function WorkspaceLayoutClient({
       </Box>
       {activePageId ? <CommentsSidebar /> : null}
       {activePageId ? <HistorySidebar /> : null}
+      {activePageId ? <PageChatSidebar workspaceId={workspace.id} pageId={activePageId} /> : null}
+      {activePageId ? <PageChatFab /> : null}
     </Box>
   )
 
@@ -289,7 +294,9 @@ export function WorkspaceLayoutClient({
         workspaceId={workspace.id}
         enabled={historyEnabled}
       >
-        <PageEditorProvider>{mainContent}</PageEditorProvider>
+        <PageChatProvider pageId={activePageId ?? ''} pageType={activePageType}>
+          <PageEditorProvider>{mainContent}</PageEditorProvider>
+        </PageChatProvider>
       </PageHistoryProvider>
     </PageCommentsProvider>
   )

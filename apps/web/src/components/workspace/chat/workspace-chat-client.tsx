@@ -9,6 +9,7 @@ type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
 import { trpc } from '@/trpc/client'
 
 import { renderChatLink } from '@/components/chat/chat-link-renderer'
+import { PAGE_CHAT_CONTEXT_LABEL } from '@/components/page/page-chat/page-chat-context'
 import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
 import { useChatStream } from './use-chat-stream'
 import { useDraftAttachments } from './use-draft-attachments'
@@ -18,25 +19,24 @@ type WorkspaceChatClientProps = {
   chatId: string | null
   workspaceId: string
   initialMessages: ServerChatMessage[]
-  /** Page-panel mode (spec §7): binds new chats to the page, suppresses URL
-   *  navigation, injects page/selection context on every send. */
-  variant?: 'workspace' | 'page'
-  pageId?: string
-  getPageContext?: () => { content: string; isSelection: boolean } | null
-  onChatCreated?: (chatId: string) => void
-  contextChipLabel?: string | null
-}
+} & (
+  | { variant?: 'workspace' }
+  | {
+      /** Page-panel mode (spec §7): binds new chats to the page, suppresses URL
+       *  navigation, injects page/selection context on every send. */
+      variant: 'page'
+      pageId: string
+      getPageContext: () => { content: string; isSelection: boolean } | null
+      onChatCreated?: (chatId: string) => void
+      contextChipLabel?: string | null
+    }
+)
 
-export function WorkspaceChatClient({
-  chatId,
-  workspaceId,
-  initialMessages,
-  variant = 'workspace',
-  pageId,
-  getPageContext,
-  onChatCreated,
-  contextChipLabel,
-}: WorkspaceChatClientProps) {
+export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
+  const { chatId, workspaceId, initialMessages } = props
+  // Narrowed page-mode props — null in the default workspace mode, so every
+  // page-only field is read through `pageProps` with full typing.
+  const pageProps = props.variant === 'page' ? props : null
   const [activeChatId, setActiveChatId] = useState<string | null>(chatId)
   const [draft, setDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -93,6 +93,16 @@ export function WorkspaceChatClient({
     setThinking(persistedUseThinking ? { effort: persistedThinkingEffort ?? 'MEDIUM' } : null)
   }, [activeChatId, persistedUseThinking, persistedThinkingEffort])
 
+  // Variant-aware chat-list refresh shared by ensureChat and the stream-settled
+  // hook: the page panel tracks listByPage, the workspace surface listChats.
+  const invalidateChatList = useEffectEvent(async () => {
+    if (pageProps) {
+      await utils.chat.listByPage.invalidate({ workspaceId, pageId: pageProps.pageId })
+    } else {
+      await utils.chat.listChats.invalidate({ workspaceId })
+    }
+  })
+
   // When the chat doesn't exist yet, settings let us create the row already
   // carrying its thinking config so the getChat hydration never observes a
   // transient `useThinking:false` that would clobber a fresh local selection
@@ -103,21 +113,18 @@ export function WorkspaceChatClient({
 
       const created = await createChat.mutateAsync({
         workspaceId,
-        ...(variant === 'page' && pageId ? { pageId } : {}),
+        ...(pageProps ? { pageId: pageProps.pageId } : {}),
         ...(settings?.useThinking !== undefined ? { useThinking: settings.useThinking } : {}),
         ...(settings?.thinkingEffort !== undefined
           ? { thinkingEffort: settings.thinkingEffort }
           : {}),
       })
       setActiveChatId(created.id)
-      if (variant === 'page') {
-        if (pageId) await utils.chat.listByPage.invalidate({ workspaceId, pageId })
-        onChatCreated?.(created.id)
-      } else {
-        const href = buildChatHref(created.id)
-        window.history.replaceState(null, '', href)
-        await utils.chat.listChats.invalidate({ workspaceId })
+      if (!pageProps) {
+        window.history.replaceState(null, '', buildChatHref(created.id))
       }
+      await invalidateChatList()
+      pageProps?.onChatCreated?.(created.id)
       return created.id
     },
   )
@@ -125,11 +132,7 @@ export function WorkspaceChatClient({
   const handleStreamSettled = useEffectEvent(async () => {
     await Promise.all([
       activeChatId ? utils.chat.getChat.invalidate({ chatId: activeChatId }) : Promise.resolve(),
-      variant === 'page'
-        ? pageId
-          ? utils.chat.listByPage.invalidate({ workspaceId, pageId })
-          : Promise.resolve()
-        : utils.chat.listChats.invalidate({ workspaceId }),
+      invalidateChatList(),
     ])
   })
 
@@ -193,7 +196,7 @@ export function WorkspaceChatClient({
       text,
       useThinking: thinking !== null,
       ...(thinking ? { thinkingEffort: thinking.effort } : {}),
-      ...(variant === 'page' ? { pageContext: getPageContext?.() ?? undefined } : {}),
+      ...(pageProps ? { pageContext: pageProps.getPageContext() ?? undefined } : {}),
     })
 
     if (started) {
@@ -270,7 +273,7 @@ export function WorkspaceChatClient({
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100%',
-        ...(variant === 'page'
+        ...(pageProps
           ? { height: '100%', px: 1 }
           : { maxWidth: 960, mx: 'auto', px: { xs: 1.5, sm: 2.5 }, pt: 2 }),
       }}
@@ -284,7 +287,7 @@ export function WorkspaceChatClient({
           composerReasoningSupported={reasoningSupported}
           composerRecentFiles={recentFiles}
           composerContextChip={
-            variant === 'page' ? { label: contextChipLabel ?? 'Контекст: Текущая страница' } : null
+            pageProps ? { label: pageProps.contextChipLabel ?? PAGE_CHAT_CONTEXT_LABEL } : null
           }
           composerThinking={thinking}
           composerValue={draft}
@@ -298,7 +301,7 @@ export function WorkspaceChatClient({
           onConfirm={handleConfirm}
           onSend={handleComposerSend}
           renderLink={renderChatLink}
-          scrollContainerSelector={variant === 'page' ? undefined : '.page-content-scroll'}
+          scrollContainerSelector={pageProps ? undefined : '.page-content-scroll'}
           scrollKey={activeChatId ?? 'new-chat'}
         />
       </Stack>

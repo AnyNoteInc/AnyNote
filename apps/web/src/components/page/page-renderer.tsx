@@ -36,6 +36,7 @@ import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
+import { PAGE_CHAT_SIDEBAR_WIDTH, usePageChatContext } from './page-chat/page-chat-context'
 import { createAskAI, createGenerateAi } from './inline-ai-bridge'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
@@ -94,7 +95,8 @@ const DashboardPageRenderer = dynamic(
 )
 
 const EmbeddedDatabaseEmbed = dynamic(
-  () => import('@/components/database/embedded-database-embed').then((m) => m.EmbeddedDatabaseEmbed),
+  () =>
+    import('@/components/database/embedded-database-embed').then((m) => m.EmbeddedDatabaseEmbed),
   { ssr: false, loading: () => <CenteredSpinner /> },
 )
 
@@ -172,6 +174,7 @@ export function PageRenderer({
 
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
+  const pageChat = usePageChatContext()
   const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor, panelOpen } =
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
@@ -434,12 +437,7 @@ export function PageRenderer({
   // either opens a nested live editor, renders the snapshot, or a placeholder).
   const renderSyncedBlock = useCallback(
     (args: import('@repo/editor').SyncedBlockRenderArgs) => (
-      <SyncedBlockEmbed
-        {...args}
-        user={user}
-        yjsUrl={resolveYjsUrl()}
-        yjsToken={token}
-      />
+      <SyncedBlockEmbed {...args} user={user} yjsUrl={resolveYjsUrl()} yjsToken={token} />
     ),
     [user, token],
   )
@@ -738,7 +736,10 @@ export function PageRenderer({
         )}
         <EditorOutline
           editor={editor}
-          rightOffset={panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0}
+          rightOffset={
+            (panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0) +
+            (pageChat?.panelOpen ? PAGE_CHAT_SIDEBAR_WIDTH : 0)
+          }
         />
         <BlockMoveDialog
           open={movePos != null}
