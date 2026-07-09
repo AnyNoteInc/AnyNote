@@ -881,3 +881,26 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* Space-AI pending draft (block-level, no toolbar — the bar owns controls). */
+.anynote-editor .anynote-inline-ai-preview--draft {
+  display: block;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875em;
+}
+
+/* Follow-up refinement input, shown under the toolbar once the stream is done. */
+.anynote-editor .anynote-inline-ai-preview__followup {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--editor-text, currentColor);
+  font: inherit;
+  font-size: 0.85em;
+  user-select: text;
+}

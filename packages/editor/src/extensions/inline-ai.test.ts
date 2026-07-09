@@ -314,4 +314,18 @@ describe('insertBelow apply mode', () => {
     expect(next.doc.childCount).toBe(1)
     expect(next.doc.child(0).textContent).toBe('Замена')
   })
+
+  it('insertBelow lands after the selection block, not at doc end (multi-block)', () => {
+    const doc = schema.nodes.doc.create(null, [para('Привет мир'), para('хвост')])
+    let state = EditorState.create({ schema, doc, plugins: [inlineAiPlugin] })
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Вставка')))
+    const next = state.apply(buildInlineAiAcceptTransaction(state, 'insertBelow')!)
+    expect(next.doc.childCount).toBe(3)
+    expect(next.doc.child(0).textContent).toBe('Привет мир')
+    expect(next.doc.child(1).textContent).toBe('Вставка')
+    expect(next.doc.child(2).textContent).toBe('хвост')
+  })
 })

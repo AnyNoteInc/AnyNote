@@ -7,17 +7,20 @@
 //
 //   1. <InlineAiPopover/> — a MUI Popover (mounted as a sibling in
 //      anynote-editor.tsx, like the slash/embed popovers) anchored to the
-//      captured selection. It lists the six preset actions (+ a target-language
-//      sub-choice for «Перевести»). Picking an action starts the preview and
-//      kicks off the injected `askAI` stream.
+//      captured selection. Notion layout (spec §5): a free-form instruction
+//      input on top (Enter → the 'custom' action), the six preset actions below
+//      (+ a target-language sub-choice for «Перевести»). Picking either starts
+//      the preview and kicks off the injected `askAI` stream.
 //
 //   2. inlineAiRenderPreview — the `renderPreview` widget renderer injected into
 //      the plugin. It returns a PLAIN-DOM box (the widget host is
 //      kept mounted across the stream via a stable status-keyed decoration, so a
 //      React root would fight the ProseMirror widget lifecycle; plain DOM with a
 //      transaction listener that re-reads live plugin state is the package's
-//      stated model). It shows the accumulating text + the
-//      Принять/Повторить/Отклонить toolbar (and error states).
+//      stated model). It shows the accumulating text + the Принять/Вставить
+//      ниже/Повторить/Отклонить toolbar, a follow-up refinement input (visible
+//      once done), and error states. The Space-bar 'generate' action gets a
+//      reduced block-level draft branch with NO toolbar (the bar owns controls).
 //
 // Coordination: a per-editor session (held in a WeakMap) records the last
 // request args + the in-flight AskAIHandle so «Повторить» can abort + re-call
@@ -33,6 +36,7 @@ import {
   ListItemText,
   Popover,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material'
 import SummarizeIcon from '@mui/icons-material/Summarize'
@@ -42,7 +46,7 @@ import TranslateIcon from '@mui/icons-material/Translate'
 import ShortTextIcon from '@mui/icons-material/ShortText'
 import NotesIcon from '@mui/icons-material/Notes'
 import type { Editor } from '@tiptap/core'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { AskAICallback, AskAIArgs } from '../types'
 import {
@@ -178,6 +182,27 @@ type PopoverProps = Readonly<{
 
 export function InlineAiPopover({ editor, open, captured, askAI, onClose }: PopoverProps) {
   const [langChoice, setLangChoice] = useState(false)
+  const [instruction, setInstruction] = useState('')
+
+  // Fresh free-form input per capture — the popover re-opens over a new
+  // selection with the previous instruction discarded (Notion layout, spec §5).
+  useEffect(() => {
+    if (open) setInstruction('')
+  }, [open, captured])
+
+  const submitCustom = () => {
+    const trimmed = instruction.trim()
+    if (!trimmed || !captured || !askAI) return
+    setLangChoice(false)
+    onClose()
+    runInlineAi(editor, askAI, {
+      action: 'custom',
+      from: captured.from,
+      to: captured.to,
+      selectedText: captured.selectedText,
+      instruction: trimmed,
+    })
+  }
 
   const pick = (action: ActionId, targetLang?: string) => {
     if (!captured || !askAI) {
@@ -219,7 +244,24 @@ export function InlineAiPopover({ editor, open, captured, askAI, onClose }: Popo
           <AutoAwesomeIcon fontSize="small" color="primary" />
           <Typography variant="subtitle2">Спросить AI</Typography>
         </Stack>
-        <Divider />
+        <Box sx={{ px: 1, pt: 1 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            placeholder="Спросите AI изменить или создать…"
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                submitCustom()
+              }
+            }}
+            slotProps={{ htmlInput: { 'data-testid': 'inline-ai-custom-input' } }}
+          />
+        </Box>
+        <Divider sx={{ mt: 1 }} />
         {langChoice ? (
           <List dense disablePadding>
             <ListItemButton onClick={() => setLangChoice(false)} sx={{ color: 'text.secondary' }}>
@@ -260,15 +302,55 @@ export function InlineAiPopover({ editor, open, captured, askAI, onClose }: Popo
 
 const ERROR_STATUS = 'error'
 
+/** Paint the accumulated text (or the error message) into the preview body. */
+const paintPreviewBody = (body: HTMLElement, s: InlineAiPreviewState): void => {
+  if (s.status === ERROR_STATUS) {
+    body.textContent = s.error || 'Ошибка ИИ'
+    body.dataset.error = 'true'
+  } else {
+    body.textContent = s.text
+    delete body.dataset.error
+  }
+}
+
+/**
+ * Live updates: re-read the plugin state on every transaction and repaint. The
+ * widget's host node is reused (status-keyed decoration), so renderPreview is
+ * NOT re-invoked per token — the paint callback owns the in-place update.
+ * Self-unsubscribes when the preview goes inactive / the editor is destroyed.
+ */
+const subscribePreviewRepaint = (
+  editor: Editor,
+  paint: (s: InlineAiPreviewState) => void,
+): void => {
+  const onTransaction = () => {
+    if (editor.isDestroyed) {
+      editor.off('transaction', onTransaction)
+      return
+    }
+    const next = getInlineAiPreview(editor)
+    if (!next.active) {
+      editor.off('transaction', onTransaction)
+      return
+    }
+    paint(next)
+  }
+  editor.on('transaction', onTransaction)
+}
+
 /**
  * The `renderPreview` injected into the InlineAI plugin. Returns a plain-DOM box
- * that paints the accumulating text + the accept/retry/discard toolbar, and keeps
- * itself in sync with the live plugin state via a transaction listener (the
- * widget host node is reused across the stream, so we must update imperatively —
- * the package keys the decoration on `status` precisely so the host stays
- * mounted; see inline-ai.ts). Cleans up when the preview goes inactive / the view
- * is destroyed. The plugin supplies the live `editor` per render, so no editor is
- * needed at construction time (it runs inside buildExtensions, before useEditor).
+ * that paints the accumulating text + the accept/insert-below/retry/discard
+ * toolbar and the follow-up refinement input, and keeps itself in sync with the
+ * live plugin state via a transaction listener (the widget host node is reused
+ * across the stream, so we must update imperatively — the package keys the
+ * decoration on `status` precisely so the host stays mounted; see inline-ai.ts).
+ * Cleans up when the preview goes inactive / the view is destroyed. The plugin
+ * supplies the live `editor` per render, so no editor is needed at construction
+ * time (it runs inside buildExtensions, before useEditor).
+ *
+ * The Space-bar `generate` action renders a REDUCED branch: a block-level draft
+ * without the toolbar — the AI bar owns the controls (spec §3.3).
  */
 export const inlineAiRenderPreview: InlineAiRenderPreview = ({
   state,
@@ -279,6 +361,27 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
 }): HTMLElement => {
   const askAI =
     (editor.storage as unknown as { ai?: { askAI?: AskAICallback | null } }).ai?.askAI ?? null
+
+  if (state.action === 'generate') {
+    // Space-bar pending draft (spec §3.3): body only, no toolbar — accept /
+    // discard / refine live in the Space AI bar, not in the widget.
+    const host = document.createElement('div')
+    host.className = 'anynote-inline-ai-preview anynote-inline-ai-preview--draft'
+    host.contentEditable = 'false'
+    host.dataset.status = state.status
+
+    const body = document.createElement('div')
+    body.className = 'anynote-inline-ai-preview__body'
+    host.appendChild(body)
+
+    const paint = (s: InlineAiPreviewState) => {
+      host.dataset.status = s.status
+      paintPreviewBody(body, s)
+    }
+    paint(state)
+    subscribePreviewRepaint(editor, paint)
+    return host
+  }
 
   const host = document.createElement('span')
   host.className = 'anynote-inline-ai-preview'
@@ -294,11 +397,13 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
   host.appendChild(toolbar)
 
   const acceptBtn = makeButton('Принять', 'primary')
+  const insertBelowBtn = makeButton('Вставить ниже')
   const retryBtn = makeButton('Повторить')
   const discardBtn = makeButton('Отклонить')
-  toolbar.append(acceptBtn, retryBtn, discardBtn)
+  toolbar.append(acceptBtn, insertBelowBtn, retryBtn, discardBtn)
 
   acceptBtn.addEventListener('mousedown', (e) => e.preventDefault())
+  insertBelowBtn.addEventListener('mousedown', (e) => e.preventDefault())
   retryBtn.addEventListener('mousedown', (e) => e.preventDefault())
   discardBtn.addEventListener('mousedown', (e) => e.preventDefault())
 
@@ -308,45 +413,70 @@ export const inlineAiRenderPreview: InlineAiRenderPreview = ({
     sessions.delete(editor)
     applyInlineAiResult(editor)
   })
+  insertBelowBtn.addEventListener('click', () => {
+    if (editor.isDestroyed) return
+    sessions.get(editor)?.handle.abort()
+    sessions.delete(editor)
+    applyInlineAiResult(editor, 'insertBelow')
+  })
   retryBtn.addEventListener('click', () => {
     if (editor.isDestroyed) return
     retryInlineAi(editor, askAI)
   })
   discardBtn.addEventListener('click', () => discardInlineAi(editor))
 
+  // Follow-up refinement («Скажите AI, что сделать дальше…», spec §5): a plain
+  // input shown once the stream settled. Enter re-runs as 'custom' with the
+  // prior exchange folded into `history`, so the model refines its own answer.
+  const followup = document.createElement('input')
+  followup.className = 'anynote-inline-ai-preview__followup'
+  followup.placeholder = 'Скажите AI, что сделать дальше…'
+  followup.addEventListener('mousedown', (e) => e.stopPropagation())
+  followup.addEventListener('keydown', (e) => {
+    e.stopPropagation()
+    if (e.key !== 'Enter') return
+    const value = followup.value.trim()
+    if (!value || editor.isDestroyed || !askAI) return
+    const session = sessions.get(editor)
+    const current = getInlineAiPreview(editor)
+    if (!session || !current.active) return
+    // Build the refinement history: prior turns + the just-finished exchange.
+    const prevInstruction =
+      session.args.instruction ??
+      ACTIONS.find((a) => a.id === session.args.action)?.label ??
+      session.args.action
+    const history = [
+      ...(session.args.history ?? []),
+      { role: 'user' as const, content: prevInstruction },
+      { role: 'assistant' as const, content: current.text },
+    ]
+    runInlineAi(editor, askAI, {
+      action: 'custom',
+      from: current.from,
+      to: current.to,
+      selectedText: session.args.selectedText,
+      instruction: value,
+      history,
+    })
+  })
+  host.appendChild(followup)
+
   const paint = (s: InlineAiPreviewState) => {
     host.dataset.status = s.status
-    if (s.status === ERROR_STATUS) {
-      body.textContent = s.error || 'Ошибка ИИ'
-      body.dataset.error = 'true'
-    } else {
-      body.textContent = s.text
-      delete body.dataset.error
-    }
+    paintPreviewBody(body, s)
     // Accept only makes sense once there's text and we're not still erroring.
     const canAccept = s.status !== ERROR_STATUS && s.text.length > 0
     acceptBtn.toggleAttribute('disabled', !canAccept)
     acceptBtn.style.display = s.status === ERROR_STATUS ? 'none' : ''
+    insertBelowBtn.toggleAttribute('disabled', !canAccept)
+    insertBelowBtn.style.display = s.status === ERROR_STATUS ? 'none' : ''
+    // The follow-up input appears only once the stream settled successfully.
+    // paint NEVER recreates the element, so user-typed text survives repaints.
+    followup.style.display = s.status === 'done' ? '' : 'none'
   }
 
   paint(state)
-
-  // Live updates: re-read the plugin state on every transaction. The widget's
-  // host node is reused, so renderPreview is NOT re-invoked per token — we own
-  // the in-place update.
-  const onTransaction = () => {
-    if (editor.isDestroyed) {
-      editor.off('transaction', onTransaction)
-      return
-    }
-    const next = getInlineAiPreview(editor)
-    if (!next.active) {
-      editor.off('transaction', onTransaction)
-      return
-    }
-    paint(next)
-  }
-  editor.on('transaction', onTransaction)
+  subscribePreviewRepaint(editor, paint)
 
   return host
 }
