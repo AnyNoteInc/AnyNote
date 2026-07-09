@@ -261,9 +261,7 @@ describe('streaming-preview widget decoration key (no per-token DOM thrash)', ()
     )
     const keys: Array<string | undefined> = [widgetKeyFor(state)]
     for (const token of ['Прив', 'ет', ', ', 'мир']) {
-      state = apply(state, (tr) =>
-        tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta(token)),
-      )
+      state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta(token)))
       keys.push(widgetKeyFor(state))
     }
     // The text accumulated across the tokens...
@@ -282,5 +280,38 @@ describe('streaming-preview widget decoration key (no per-token DOM thrash)', ()
     expect(widgetKeyFor(state)).toBe('inline-ai:streaming')
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiFinishMeta()))
     expect(widgetKeyFor(state)).toBe('inline-ai:done')
+  })
+})
+
+describe('insertBelow apply mode', () => {
+  it('inserts the result as a new paragraph after the selection block, keeping the original', () => {
+    let state = stateFrom('Привет мир')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
+    )
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Новый абзац')),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiFinishMeta()))
+
+    const tr = buildInlineAiAcceptTransaction(state, 'insertBelow')
+    expect(tr).not.toBeNull()
+    const next = state.apply(tr!)
+    expect(next.doc.childCount).toBe(2)
+    expect(next.doc.child(0).textContent).toBe('Привет мир')
+    expect(next.doc.child(1).textContent).toBe('Новый абзац')
+    // Preview cleared atomically in the same transaction.
+    expect(inlineAiPluginKey.getState(next)?.active).toBe(false)
+  })
+
+  it('replace mode is the default and unchanged', () => {
+    let state = stateFrom('Привет мир')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Замена')))
+    const next = state.apply(buildInlineAiAcceptTransaction(state)!)
+    expect(next.doc.childCount).toBe(1)
+    expect(next.doc.child(0).textContent).toBe('Замена')
   })
 })

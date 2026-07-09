@@ -254,6 +254,15 @@ export const inlineAiPlugin: Plugin<InlineAiPreviewState> = createInlineAiPlugin
 // --- accept (the single-transaction mutation) -------------------------------
 
 /**
+ * How the accepted preview lands in the doc.
+ *   - 'replace' (default): the existing per-action behavior (replace/expand).
+ *   - 'insertBelow': keep the original selection untouched and add the result
+ *     as a NEW top-level paragraph after the selection's block (Notion's
+ *     «Вставить ниже»).
+ */
+export type InlineAiApplyMode = 'replace' | 'insertBelow'
+
+/**
  * Build the ONE transaction that lands the accepted preview (spec §4.2 / §7
  * invariant 5): a single doc mutation = a single Yjs op = one collaborative-undo
  * step. It uses the CURRENT mapped range from plugin state (the drift guard),
@@ -261,16 +270,31 @@ export const inlineAiPlugin: Plugin<InlineAiPreviewState> = createInlineAiPlugin
  * preview is dismissed atomically with the edit. Returns `null` when no preview
  * is active (nothing to accept).
  *
- *   - replace actions (summarize/rewrite/grammar/translate/shorten): delete
- *     [from,to] then insert the text at `from`.
- *   - expand: insert the text at `to`, leaving the original selection intact.
+ *   - mode 'insertBelow': the original content is untouched; the result is
+ *     inserted as a new sibling paragraph right after the selection's
+ *     top-level block.
+ *   - mode 'replace' (default):
+ *     - replace actions (summarize/rewrite/grammar/translate/shorten): delete
+ *       [from,to] then insert the text at `from`.
+ *     - expand: insert the text at `to`, leaving the original selection intact.
  */
-export const buildInlineAiAcceptTransaction = (state: EditorState): Transaction | null => {
+export const buildInlineAiAcceptTransaction = (
+  state: EditorState,
+  mode: InlineAiApplyMode = 'replace',
+): Transaction | null => {
   const preview = inlineAiPluginKey.getState(state)
   if (!preview?.active) return null
   const { from, to, action, text } = preview
   const tr = state.tr
-  if (action === 'expand') {
+  if (mode === 'insertBelow') {
+    // Keep the original; add the result as a sibling paragraph after the
+    // selection's top-level block (Notion's «Вставить ниже», spec §5).
+    const paragraph = state.schema.nodes.paragraph
+    if (!paragraph) return null
+    const $to = tr.doc.resolve(Math.min(to, tr.doc.content.size))
+    const insertPos = $to.depth >= 1 ? $to.after(1) : tr.doc.content.size
+    tr.insert(insertPos, paragraph.create(null, text ? state.schema.text(text) : undefined))
+  } else if (action === 'expand') {
     // Append after the selection; original content untouched.
     tr.insertText(text, to)
   } else {
@@ -284,12 +308,15 @@ export const buildInlineAiAcceptTransaction = (state: EditorState): Transaction 
 
 /**
  * Accept the active preview against a live editor in ONE transaction (the popover
- * «Принять» handler). No-op when no preview is active or the editor is destroyed.
- * Returns true when an accept transaction was dispatched.
+ * «Принять» / «Вставить ниже» handlers). No-op when no preview is active or the
+ * editor is destroyed. Returns true when an accept transaction was dispatched.
  */
-export const applyInlineAiResult = (editor: Editor): boolean => {
+export const applyInlineAiResult = (
+  editor: Editor,
+  mode: InlineAiApplyMode = 'replace',
+): boolean => {
   if (editor.isDestroyed) return false
-  const tr = buildInlineAiAcceptTransaction(editor.state)
+  const tr = buildInlineAiAcceptTransaction(editor.state, mode)
   if (!tr) return false
   editor.view.dispatch(tr.scrollIntoView())
   return true
