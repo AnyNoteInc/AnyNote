@@ -367,4 +367,73 @@ test.describe('inline AI — preset transforms in the editor', () => {
     // The original paragraph text is untouched.
     await expect(editor.locator('p', { hasText: source })).toBeVisible()
   })
+
+  test('свободная инструкция трансформирует выделение через превью', async ({ page }) => {
+    test.setTimeout(120_000)
+    const { pageId } = await setupPage(
+      page,
+      prisma,
+      `inline-ai-custom+${Date.now()}@example.com`,
+      true,
+    )
+
+    // Capture the request body so we can assert the free-form submit carries
+    // action:'custom' + the typed instruction (the retry test's counting pattern).
+    let requestBody: { action?: string; instruction?: string } | null = null
+    await page.route('**/api/ai/inline', (route) => {
+      requestBody = route.request().postDataJSON() as typeof requestBody
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        headers: { 'cache-control': 'no-cache' },
+        body: OK_SSE_BODY,
+      })
+    })
+
+    const source = 'Текст для свободной инструкции.'
+    const editor = await openPageWithText(page, pageId, source)
+    await dragSelectEditorText(page, editor, source)
+
+    // Open the popover but do NOT pick a preset — type into the free-form input.
+    await openAskAi(page)
+    const instruction = 'сделай список'
+    const input = page.getByTestId('inline-ai-custom-input')
+    await input.fill(instruction)
+    await input.press('Enter')
+
+    // The custom action streams into the same preview widget.
+    await expect(previewBody(page)).toHaveText(STREAMED, { timeout: 15_000 })
+    expect(requestBody?.action).toBe('custom')
+    expect(requestBody?.instruction).toBe(instruction)
+
+    await page.getByRole('button', { name: 'Принять' }).click()
+    await expect(editor).toContainText(STREAMED, { timeout: 10_000 })
+    await expect(preview(page)).toHaveCount(0)
+  })
+
+  test('«Вставить ниже» сохраняет оригинал и добавляет результат ниже', async ({ page }) => {
+    test.setTimeout(120_000)
+    const { pageId } = await setupPage(
+      page,
+      prisma,
+      `inline-ai-insert-below+${Date.now()}@example.com`,
+      true,
+    )
+    await mockOk(page)
+
+    const original = 'Оригинал остаётся на месте.'
+    const editor = await openPageWithText(page, pageId, original)
+    await dragSelectEditorText(page, editor, original)
+
+    await openAskAi(page)
+    await page.getByText('Переписать', { exact: true }).click()
+    await expect(previewBody(page)).toHaveText(STREAMED, { timeout: 15_000 })
+
+    await page.getByRole('button', { name: 'Вставить ниже' }).click()
+
+    // Insert-below keeps the original block AND adds the result after it.
+    await expect(editor.locator('p', { hasText: original })).toBeVisible({ timeout: 10_000 })
+    await expect(editor).toContainText(STREAMED)
+    await expect(preview(page)).toHaveCount(0)
+  })
 })
