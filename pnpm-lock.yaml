@@ -360,7 +360,7 @@ importers:
         specifier: ^18.0.5
         version: 18.0.5
       next:
-        specifier: ^16.2.9
+        specifier: 16.2.9
         version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(sass@1.101.0)
       pg:
         specifier: ^8.22.0
