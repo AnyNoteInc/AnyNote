@@ -753,9 +753,15 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
         where: expect.objectContaining({ id: 'p1', deletedAt: { not: null } }),
       }),
     )
-    // The page's hidden INLINE_AI ephemeral chats are pruned (Phase 9D) — deleted, not orphaned.
+    // The page's hidden INLINE_AI ephemeral chats (Phase 9D) and PAGE chats
+    // (page chat panel) are pruned — deleted, not orphaned.
     expect(chatDeleteMany).toHaveBeenCalledWith({
-      where: { kind: 'INLINE_AI', inlineAiPageId: 'p1' },
+      where: {
+        OR: [
+          { kind: 'INLINE_AI', inlineAiPageId: 'p1' },
+          { kind: 'PAGE', pageId: 'p1' },
+        ],
+      },
     })
     expect(txDelete).toHaveBeenCalledWith({ where: { id: 'p1' } })
     // Indexing row ONLY — no webhook_event/telegram_event rows (the page is
@@ -805,9 +811,15 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
     )
     const result = await repo.emptyTrashTx({ workspaceId: 'w1' })
     expect(result).toEqual({ count: 2 })
-    // The trashed pages' hidden INLINE_AI ephemeral chats are pruned (Phase 9D).
+    // The trashed pages' hidden INLINE_AI ephemeral chats (Phase 9D) and PAGE
+    // chats (page chat panel) are pruned.
     expect(chatDeleteMany).toHaveBeenCalledWith({
-      where: { kind: 'INLINE_AI', inlineAiPageId: { in: ['t1', 't2'] } },
+      where: {
+        OR: [
+          { kind: 'INLINE_AI', inlineAiPageId: { in: ['t1', 't2'] } },
+          { kind: 'PAGE', pageId: { in: ['t1', 't2'] } },
+        ],
+      },
     })
     expect(txDeleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'w1', deletedAt: { not: null } },

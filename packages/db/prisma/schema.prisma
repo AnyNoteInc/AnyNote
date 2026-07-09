@@ -357,10 +357,13 @@ enum ChatMessageStatus {
 
 // Discriminates ordinary chats from the hidden ephemeral chats backing the
 // in-editor inline AI (Phase 9D). INLINE_AI chats are one-per-(user, page),
-// excluded from the chat list/sidebar, and pruned on page hard-delete.
+// excluded from the chat list/sidebar, and pruned on page hard-delete. PAGE
+// chats are page-scoped panel threads, many per page, hidden from the global
+// list, and purged with their page.
 enum ChatKind {
   NORMAL
   INLINE_AI
+  PAGE
 }
 
 enum PageOwnership {
@@ -559,6 +562,7 @@ model Page {
   guestInviteRequests  PageGuestInviteRequest[]
   syncedBlocks         SyncedBlock[]                @relation("SyncedBlockOriginPage")
   inlineAiChats        Chat[]                       @relation("ChatInlineAiPage")
+  pageChats            Chat[]                       @relation("ChatPage")
   meeting              MeetingArtifact?             @relation("PageMeeting")
   dashboard            Dashboard?                   @relation("PageDashboard")
 
@@ -748,6 +752,9 @@ model Chat {
   // ephemeral chat backs. SetNull on page delete; the page hard-delete tx also
   // hard-deletes these rows (see PageRepository.hardDeletePageTx).
   inlineAiPageId String?        @map("inline_ai_page_id") @db.Uuid
+  // Set only on PAGE chats (page-scoped chat panel, many per page). SetNull on
+  // page delete; the page hard-delete tx purges these rows like INLINE_AI ones.
+  pageId         String?        @map("page_id") @db.Uuid
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -755,6 +762,7 @@ model Chat {
   createdBy    User           @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
   aiModel      AiModel?       @relation("ChatAiModel", fields: [aiModelId], references: [id], onDelete: SetNull)
   inlineAiPage Page?          @relation("ChatInlineAiPage", fields: [inlineAiPageId], references: [id], onDelete: SetNull)
+  page         Page?          @relation("ChatPage", fields: [pageId], references: [id], onDelete: SetNull)
   messages     ChatMessage[]
   parent       Chat?          @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
   children     Chat[]         @relation("ChatTree")
@@ -767,6 +775,7 @@ model Chat {
   @@unique([createdById, inlineAiPageId], name: "chat_inline_ai_user_page")
   @@index([workspaceId, updatedAt(sort: Desc)])
   @@index([aiModelId])
+  @@index([pageId])
   @@map("chats")
 }
 

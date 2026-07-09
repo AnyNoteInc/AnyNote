@@ -942,11 +942,17 @@ export class PageRepository {
       })
     }
 
-    // Prune the page's hidden INLINE_AI ephemeral chats (Phase 9D). The FK is
-    // SetNull (orphan-tolerant for the soft cases), but a permanent purge must
-    // remove them outright — they have no meaning without their page.
+    // Prune the page's hidden INLINE_AI ephemeral chats (Phase 9D) and its
+    // PAGE chats (page chat panel). The FKs are SetNull (orphan-tolerant for
+    // the soft cases), but a permanent purge must remove them outright — they
+    // have no meaning without their page.
     await this.uow.client().chat.deleteMany({
-      where: { kind: 'INLINE_AI', inlineAiPageId: page.id },
+      where: {
+        OR: [
+          { kind: 'INLINE_AI', inlineAiPageId: page.id },
+          { kind: 'PAGE', pageId: page.id },
+        ],
+      },
     })
 
     // Delete the page (cascade handles related rows)
@@ -968,12 +974,19 @@ export class PageRepository {
       where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
       select: { id: true },
     })
-    // Prune the trashed pages' hidden INLINE_AI ephemeral chats (Phase 9D) —
-    // same permanent-purge semantics as the single-page hard delete; the FK
-    // SetNull must not be relied on to leave orphans.
+    // Prune the trashed pages' hidden INLINE_AI ephemeral chats (Phase 9D) and
+    // their PAGE chats (page chat panel) — same permanent-purge semantics as
+    // the single-page hard delete; the FK SetNull must not be relied on to
+    // leave orphans.
     if (trashed.length > 0) {
+      const trashedIds = trashed.map((p) => p.id)
       await this.uow.client().chat.deleteMany({
-        where: { kind: 'INLINE_AI', inlineAiPageId: { in: trashed.map((p) => p.id) } },
+        where: {
+          OR: [
+            { kind: 'INLINE_AI', inlineAiPageId: { in: trashedIds } },
+            { kind: 'PAGE', pageId: { in: trashedIds } },
+          ],
+        },
       })
     }
     const deleted = await this.uow.client().page.deleteMany({
