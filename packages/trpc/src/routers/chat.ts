@@ -2,9 +2,13 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
 import type { PrismaClient } from '@repo/db'
+// Deep-import the pure visibility leaf: the @repo/domain root barrel has
+// load-time static initializers that dereference @repo/db enums, which breaks
+// unit suites that mock @repo/db (see test/chat-router.test.ts).
+import { buildPageVisibilityWhere } from '@repo/domain/pages/page-visibility.ts'
 
 import { router, protectedProcedure } from '../trpc'
-import { getAvailableAiModels } from '../helpers/plan'
+import { getAvailableAiModels, getWorkspaceFeatures } from '../helpers/plan'
 import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 async function assertWorkspaceMember(
@@ -30,7 +34,40 @@ async function assertChatAccess(
     },
   })
   if (!chat) throw new TRPCError({ code: 'NOT_FOUND' })
+  // PAGE chats carry injected page content — require CURRENT page visibility,
+  // or a member who can't see a private page could read it via the chat.
+  if (chat.kind === 'PAGE' && chat.pageId) {
+    const page = await ctx.prisma.page.findFirst({
+      where: {
+        id: chat.pageId,
+        deletedAt: null,
+        AND: [buildPageVisibilityWhere(ctx.user.id)],
+      },
+      select: { id: true },
+    })
+    if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
+  }
   return chat
+}
+
+/**
+ * NOT_FOUND (no oracle) unless the page exists in the workspace, is not
+ * trashed, and is visible to the caller per `buildPageVisibilityWhere`.
+ */
+async function assertPageVisible(
+  ctx: { prisma: PrismaClient; user: { id: string } },
+  args: { workspaceId: string; pageId: string },
+) {
+  const page = await ctx.prisma.page.findFirst({
+    where: {
+      id: args.pageId,
+      workspaceId: args.workspaceId,
+      deletedAt: null,
+      AND: [buildPageVisibilityWhere(ctx.user.id)],
+    },
+    select: { id: true },
+  })
+  if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
 }
 
 /**
@@ -218,6 +255,19 @@ export const chatRouter = router({
       })
     }),
 
+  listByPage: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid(), pageId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      await assertPageVisible(ctx, input)
+      return ctx.prisma.chat.findMany({
+        where: { workspaceId: input.workspaceId, pageId: input.pageId, kind: 'PAGE' },
+        orderBy: { updatedAt: 'desc' },
+        take: 50,
+        select: { id: true, title: true, updatedAt: true, createdAt: true, createdById: true },
+      })
+    }),
+
   getChat: protectedProcedure
     .input(z.object({ chatId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -236,6 +286,7 @@ export const chatRouter = router({
     .input(
       z.object({
         workspaceId: z.string().uuid(),
+        pageId: z.string().uuid().optional(),
         parentId: z.string().uuid().optional(),
         aiModelId: z.string().uuid().optional(),
         useThinking: z.boolean().optional(),
@@ -250,11 +301,21 @@ export const chatRouter = router({
       if (input.aiModelId) {
         await assertModelAvailable(input.workspaceId, input.aiModelId)
       }
+      if (input.pageId) {
+        await assertPageVisible(ctx, { workspaceId: input.workspaceId, pageId: input.pageId })
+        // Server-side plan gate (spec §8.2) — the FAB is visible on every plan,
+        // the server is the authority.
+        const features = await getWorkspaceFeatures(input.workspaceId)
+        if (!features.chatsEnabled) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Чаты недоступны на вашем тарифе' })
+        }
+      }
       return ctx.prisma.chat.create({
         data: {
           workspaceId: input.workspaceId,
           createdById: ctx.user.id,
           parentId: input.parentId ?? null,
+          ...(input.pageId ? { pageId: input.pageId, kind: 'PAGE' as const } : {}),
           ...(input.aiModelId !== undefined ? { aiModelId: input.aiModelId } : {}),
           ...(input.useThinking !== undefined ? { useThinking: input.useThinking } : {}),
           ...(input.thinkingEffort !== undefined ? { thinkingEffort: input.thinkingEffort } : {}),
