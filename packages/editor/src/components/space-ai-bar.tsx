@@ -26,7 +26,7 @@ import {
   Typography,
 } from '@mui/material'
 import type { Editor } from '@tiptap/core'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   appendInlineAiToken,
@@ -97,22 +97,37 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
   const handleRef = useRef<AskAIHandle | null>(null)
   const runTokenRef = useRef(0)
 
-  // Reset per open.
+  // Touches refs only → stable identity, safe in effect dep arrays.
+  const abortRun = useCallback(() => {
+    runTokenRef.current += 1
+    handleRef.current?.abort()
+    handleRef.current = null
+  }, [])
+
+  // Reset per open. A re-trigger while a previous run is still active must
+  // supersede it (token bump + abort) AND clear its leftover in-document
+  // preview — otherwise the stale done-flip lands under the user's fingers,
+  // «Повторить» replays an empty instruction, and currentDraftPos() aims the
+  // new draft at the OLD position.
   useEffect(() => {
     if (!open) return
+    abortRun()
+    if (!editor.isDestroyed && getInlineAiPreview(editor).active) clearInlineAiPreview(editor)
     setPhase('input')
     setInstruction('')
     setFollowup('')
     setError(null)
     historyRef.current = []
     lastInstructionRef.current = ''
-  }, [open, anchor])
+  }, [open, anchor, editor, abortRun])
 
-  const abortRun = () => {
-    runTokenRef.current += 1
-    handleRef.current?.abort()
-    handleRef.current = null
-  }
+  // Abort any in-flight stream on unmount (e.g. page navigation mid-draft).
+  useEffect(
+    () => () => {
+      handleRef.current?.abort()
+    },
+    [],
+  )
 
   const discardAndClose = () => {
     abortRun()
@@ -127,6 +142,7 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
   }
 
   const run = (nextInstruction: string, history: AskAiHistoryTurn[]) => {
+    if (!nextInstruction) return
     if (!generateAI || editor.isDestroyed) return
     const pos = currentDraftPos()
     const contextBefore = editor.state.doc
@@ -191,12 +207,19 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
     const preview = getInlineAiPreview(editor)
     if (!preview.active || !preview.text || editor.isDestroyed) return
     const html = markdownToHtml(preview.text)
-    const from = preview.from
     abortRun()
-    clearInlineAiPreview(editor)
     onClose()
     deferInsert(() => {
       if (editor.isDestroyed) return
+      // Re-read the position INSIDE the deferred callback: the preview stays
+      // active across the two-rAF gap, so the plugin's drift guard keeps
+      // re-mapping `from` through concurrent (remote) transactions right up to
+      // the moment of insert. Clearing before the defer would freeze a stale
+      // offset.
+      const live = getInlineAiPreview(editor)
+      const from = live.active ? live.from : null
+      clearInlineAiPreview(editor)
+      if (from === null) return
       const doc = editor.state.doc
       const $pos = doc.resolve(Math.max(0, Math.min(from, doc.content.size)))
       // Replace the (still empty) trigger paragraph with the parsed blocks.
@@ -208,8 +231,16 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
 
   if (!open || !anchor || !generateAI) return null
 
+  // getRect's doc contract: a zero rect (width + height 0) means the trigger
+  // position is gone — treat as unanchored and don't pin the bar at the
+  // viewport origin. A live caret rect always has height > 0.
+  const rect = anchor.getRect()
+  if (rect.width === 0 && rect.height === 0) return null
+
   const anchorEl = { getBoundingClientRect: () => anchor.getRect() }
   const showSuggestions = phase === 'input' && instruction.trim().length === 0
+  // Final once phase === 'done' (the component re-renders on the phase flip).
+  const hasDraftText = !editor.isDestroyed && getInlineAiPreview(editor).text.length > 0
 
   return (
     <Popper
@@ -221,6 +252,8 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
     >
       <Paper
         elevation={6}
+        role="dialog"
+        aria-label="AI-генерация"
         sx={{ width: 480, maxWidth: '90vw', p: 1 }}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
@@ -340,6 +373,7 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
               <Button
                 size="small"
                 variant="contained"
+                disabled={!hasDraftText}
                 onClick={accept}
                 data-testid="space-ai-accept"
               >
