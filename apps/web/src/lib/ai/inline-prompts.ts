@@ -50,3 +50,44 @@ export function buildInlinePrompt(
   )
   return `${instruction}\n\nВыведи только результат без пояснений.\n\nТекст:\n"""\n${capped}\n"""`
 }
+
+/** Caps for the space-bar `generate` and free-form `custom` actions (spec §4). */
+export const MAX_INSTRUCTION_CHARS = 2_000
+export const MAX_CUSTOM_INSTRUCTION_CHARS = 500
+export const MAX_CONTEXT_BEFORE_CHARS = 8_000
+export const MAX_HISTORY_TURNS = 10
+export const MAX_HISTORY_TURN_CHARS = 16_000
+export const MAX_HISTORY_TOTAL_CHARS = 48_000
+
+/** Free-form actions beside the preset allow-list. Prompt templates stay server-side. */
+const EXTENDED_ACTIONS = new Set(['custom', 'generate'])
+
+export type ExtendedInlineAiAction = 'custom' | 'generate'
+
+export function isExtendedInlineAiAction(value: string): value is ExtendedInlineAiAction {
+  return EXTENDED_ACTIONS.has(value)
+}
+
+/**
+ * Space-bar drafting prompt (spec §4). `contextBefore` is the page text above
+ * the cursor — kept tail-first so «продолжи текст» continues the nearest text.
+ */
+export function buildGeneratePrompt(instruction: string, opts: { contextBefore?: string }): string {
+  const cappedInstruction = instruction.slice(0, MAX_INSTRUCTION_CHARS)
+  const context = (opts.contextBefore ?? '').slice(-MAX_CONTEXT_BEFORE_CHARS).trim()
+  const contextBlock = context
+    ? `Контекст страницы над курсором (для продолжения и стиля):\n"""\n${context}\n"""\n\n`
+    : ''
+  return (
+    `${contextBlock}Инструкция: ${cappedInstruction}\n\n` +
+    'Сгенерируй ТОЛЬКО итоговый markdown для вставки в документ, без пояснений и вступлений. ' +
+    'Для диаграмм используй fenced-блоки кода (например ```mermaid). Отвечай на языке инструкции.'
+  )
+}
+
+/** Free-form transform of the selection (spec §4) — same shape as the presets. */
+export function buildCustomPrompt(instruction: string, selectedText: string): string {
+  const cappedInstruction = instruction.slice(0, MAX_CUSTOM_INSTRUCTION_CHARS)
+  const cappedText = selectedText.slice(0, MAX_SELECTION_CHARS)
+  return `${cappedInstruction}\n\nВыведи только результат без пояснений.\n\nТекст:\n"""\n${cappedText}\n"""`
+}
