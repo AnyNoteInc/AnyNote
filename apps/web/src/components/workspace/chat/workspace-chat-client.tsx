@@ -18,12 +18,24 @@ type WorkspaceChatClientProps = {
   chatId: string | null
   workspaceId: string
   initialMessages: ServerChatMessage[]
+  /** Page-panel mode (spec §7): binds new chats to the page, suppresses URL
+   *  navigation, injects page/selection context on every send. */
+  variant?: 'workspace' | 'page'
+  pageId?: string
+  getPageContext?: () => { content: string; isSelection: boolean } | null
+  onChatCreated?: (chatId: string) => void
+  contextChipLabel?: string | null
 }
 
 export function WorkspaceChatClient({
   chatId,
   workspaceId,
   initialMessages,
+  variant = 'workspace',
+  pageId,
+  getPageContext,
+  onChatCreated,
+  contextChipLabel,
 }: WorkspaceChatClientProps) {
   const [activeChatId, setActiveChatId] = useState<string | null>(chatId)
   const [draft, setDraft] = useState('')
@@ -91,15 +103,21 @@ export function WorkspaceChatClient({
 
       const created = await createChat.mutateAsync({
         workspaceId,
+        ...(variant === 'page' && pageId ? { pageId } : {}),
         ...(settings?.useThinking !== undefined ? { useThinking: settings.useThinking } : {}),
         ...(settings?.thinkingEffort !== undefined
           ? { thinkingEffort: settings.thinkingEffort }
           : {}),
       })
-      const href = buildChatHref(created.id)
       setActiveChatId(created.id)
-      window.history.replaceState(null, '', href)
-      await utils.chat.listChats.invalidate({ workspaceId })
+      if (variant === 'page') {
+        if (pageId) await utils.chat.listByPage.invalidate({ workspaceId, pageId })
+        onChatCreated?.(created.id)
+      } else {
+        const href = buildChatHref(created.id)
+        window.history.replaceState(null, '', href)
+        await utils.chat.listChats.invalidate({ workspaceId })
+      }
       return created.id
     },
   )
@@ -107,7 +125,11 @@ export function WorkspaceChatClient({
   const handleStreamSettled = useEffectEvent(async () => {
     await Promise.all([
       activeChatId ? utils.chat.getChat.invalidate({ chatId: activeChatId }) : Promise.resolve(),
-      utils.chat.listChats.invalidate({ workspaceId }),
+      variant === 'page'
+        ? pageId
+          ? utils.chat.listByPage.invalidate({ workspaceId, pageId })
+          : Promise.resolve()
+        : utils.chat.listChats.invalidate({ workspaceId }),
     ])
   })
 
@@ -171,6 +193,7 @@ export function WorkspaceChatClient({
       text,
       useThinking: thinking !== null,
       ...(thinking ? { thinkingEffort: thinking.effort } : {}),
+      ...(variant === 'page' ? { pageContext: getPageContext?.() ?? undefined } : {}),
     })
 
     if (started) {
@@ -247,10 +270,9 @@ export function WorkspaceChatClient({
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100%',
-        maxWidth: 960,
-        mx: 'auto',
-        px: { xs: 1.5, sm: 2.5 },
-        pt: 2,
+        ...(variant === 'page'
+          ? { height: '100%', px: 1 }
+          : { maxWidth: 960, mx: 'auto', px: { xs: 1.5, sm: 2.5 }, pt: 2 }),
       }}
     >
       <Stack flex={1} minHeight={0} spacing={2}>
@@ -261,6 +283,9 @@ export function WorkspaceChatClient({
           composerPlaceholder="Спросите что-нибудь..."
           composerReasoningSupported={reasoningSupported}
           composerRecentFiles={recentFiles}
+          composerContextChip={
+            variant === 'page' ? { label: contextChipLabel ?? 'Контекст: Текущая страница' } : null
+          }
           composerThinking={thinking}
           composerValue={draft}
           disabled={isStreaming || createChat.isPending}
@@ -273,7 +298,7 @@ export function WorkspaceChatClient({
           onConfirm={handleConfirm}
           onSend={handleComposerSend}
           renderLink={renderChatLink}
-          scrollContainerSelector=".page-content-scroll"
+          scrollContainerSelector={variant === 'page' ? undefined : '.page-content-scroll'}
           scrollKey={activeChatId ?? 'new-chat'}
         />
       </Stack>

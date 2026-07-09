@@ -203,6 +203,35 @@ describe('ChatComposer', () => {
     expect(onClearThinking).toHaveBeenCalledTimes(1)
   })
 
+  it('renders the read-only context chip only when contextChip is provided', () => {
+    const { rerender } = render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        contextChip={{ label: 'Контекст: Текущая страница' }}
+      />,
+    )
+
+    const chip = screen.getByTestId('chat-context-chip')
+    expect(chip.textContent).toContain('Контекст: Текущая страница')
+
+    rerender(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        contextChip={null}
+      />,
+    )
+
+    expect(screen.queryByTestId('chat-context-chip')).toBeNull()
+  })
+
   it('renders the Thinking switch and the Усилия dots stepper in the slash menu', async () => {
     render(
       <ChatComposer

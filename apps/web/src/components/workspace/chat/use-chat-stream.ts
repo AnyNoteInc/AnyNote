@@ -33,6 +33,7 @@ type PendingSend = {
 type SendOptions = {
   useThinking?: boolean
   thinkingEffort?: ThinkingEffort
+  pageContext?: { content: string; isSelection: boolean }
 }
 
 type UseChatStreamArgs = {
@@ -291,7 +292,7 @@ export function useChatStream({
   })
 
   const send = useEffectEvent(
-    async ({ attachments, text, useThinking, thinkingEffort }: StartSendArgs) => {
+    async ({ attachments, text, useThinking, thinkingEffort, pageContext }: StartSendArgs) => {
       const trimmedText = text.trim()
       if (!trimmedText || isStreaming) {
         return false
@@ -334,6 +335,7 @@ export function useChatStream({
             fileIds: attachments.map((attachment) => attachment.fileId),
             ...(useThinking !== undefined ? { useThinking } : {}),
             ...(thinkingEffort !== undefined ? { thinkingEffort } : {}),
+            ...(pageContext ? { pageContext } : {}),
           }),
           signal,
         }),
@@ -341,25 +343,23 @@ export function useChatStream({
     },
   )
 
-  const confirmResume = useEffectEvent(
-    async (confirmationId: string, action: 'allow' | 'deny') => {
-      if (isStreaming) return false
-      const targetMessageId = findAssistantMessageIdByBlockId(messagesRef.current, confirmationId)
-      if (!targetMessageId) {
-        setError('Не найдено сообщение с подтверждением.')
-        return false
-      }
-      activeAssistantMessageIdRef.current = targetMessageId
-      return await openStream((signal) =>
-        fetch('/api/agent/resume', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ chatId, confirmationId, action }),
-          signal,
-        }),
-      )
-    },
-  )
+  const confirmResume = useEffectEvent(async (confirmationId: string, action: 'allow' | 'deny') => {
+    if (isStreaming) return false
+    const targetMessageId = findAssistantMessageIdByBlockId(messagesRef.current, confirmationId)
+    if (!targetMessageId) {
+      setError('Не найдено сообщение с подтверждением.')
+      return false
+    }
+    activeAssistantMessageIdRef.current = targetMessageId
+    return await openStream((signal) =>
+      fetch('/api/agent/resume', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ chatId, confirmationId, action }),
+        signal,
+      }),
+    )
+  })
 
   const resume = useEffectEvent(async (assistantMessageId: string) => {
     if (!assistantMessageId || isStreaming) {
