@@ -24,6 +24,7 @@ export { default as TextField, type TextFieldProps } from '@mui/material/TextFie
 export { default as IconButton, type IconButtonProps } from '@mui/material/IconButton'
 export { default as Button, type ButtonProps } from '@mui/material/Button'
 export { default as Drawer, type DrawerProps } from '@mui/material/Drawer'
+export { default as Fab, type FabProps } from '@mui/material/Fab'
 export { default as ButtonGroup, type ButtonGroupProps } from '@mui/material/ButtonGroup'
 export { default as ToggleButton, type ToggleButtonProps } from '@mui/material/ToggleButton'
 export {

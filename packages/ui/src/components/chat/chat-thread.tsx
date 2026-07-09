@@ -48,6 +48,7 @@ type ChatThreadProps = Readonly<{
   onComposerSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   composerThinking?: { effort: ChatComposerThinkingEffort } | null
   onComposerClearThinking?: () => void
+  composerContextChip?: { label: string } | null
   composerAutoFocus?: boolean
 }>
 
@@ -90,6 +91,7 @@ export function ChatThread({
   onComposerSelectThinking,
   composerThinking,
   onComposerClearThinking,
+  composerContextChip,
   composerAutoFocus,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
@@ -169,6 +171,7 @@ export function ChatThread({
     <ChatComposer
       attachments={composerAttachments}
       autoFocus={composerAutoFocus}
+      contextChip={composerContextChip ?? null}
       disabled={disabled}
       onAttachRecent={onComposerAttachRecent}
       onAttachmentsChange={onComposerAttachmentsChange}

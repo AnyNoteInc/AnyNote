@@ -2,6 +2,7 @@
 
 import AddIcon from '@mui/icons-material/Add'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded'
 import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded'
 import Box from '@mui/material/Box'
@@ -57,6 +58,7 @@ type ChatComposerProps = Readonly<{
   onSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   thinking?: { effort: ChatComposerThinkingEffort } | null
   onClearThinking?: () => void
+  contextChip?: { label: string } | null
   autoFocus?: boolean
 }>
 
@@ -102,6 +104,7 @@ type ChatComposerInnerProps = Readonly<{
   onSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   thinking?: { effort: ChatComposerThinkingEffort } | null
   onClearThinking?: () => void
+  contextChip?: { label: string } | null
   autoFocus?: boolean
 }>
 
@@ -116,6 +119,7 @@ function ChatComposerInner({
   onSelectThinking,
   thinking,
   onClearThinking,
+  contextChip,
   autoFocus,
 }: ChatComposerInnerProps) {
   const composer = useChatComposer()
@@ -198,7 +202,7 @@ function ChatComposerInner({
 
   const showRecent = recentFiles.length > 0
   const showThinkingChip = thinking != null
-  const showChipsRow = showThinkingChip || composer.attachments.length > 0
+  const showChipsRow = showThinkingChip || contextChip != null || composer.attachments.length > 0
 
   return (
     <MuiChatComposer
@@ -215,6 +219,16 @@ function ChatComposerInner({
     >
       {showChipsRow ? (
         <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
+          {contextChip ? (
+            <Chip
+              color="info"
+              data-testid="chat-context-chip"
+              icon={<ArticleRoundedIcon fontSize="small" />}
+              label={contextChip.label}
+              size="small"
+              variant="outlined"
+            />
+          ) : null}
           {showThinkingChip ? (
             <Chip
               color="warning"
@@ -434,6 +448,7 @@ export function ChatComposer({
   onSelectThinking,
   thinking,
   onClearThinking,
+  contextChip,
   autoFocus,
 }: ChatComposerProps) {
   const adapter = useMemo(() => {
@@ -455,6 +470,7 @@ export function ChatComposer({
       <ChatComposerInner
         attachments={attachments}
         autoFocus={autoFocus}
+        contextChip={contextChip}
         disabled={disabled}
         onAttachRecent={onAttachRecent}
         onAttachmentsChange={onAttachmentsChange}
