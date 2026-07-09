@@ -1,12 +1,14 @@
-// The apps/web inline-AI streaming bridge (spec §4.3, plan Task 4 Step 1).
+// The apps/web inline-AI streaming bridge (spec §3/§4.3).
 //
 // The editor package owns NO tRPC/fetch (Bundler resolution, no web deps). It
-// declares the injection contract (`AskAICallback`/`AskAIArgs`/`AskAIHandle` in
-// `@repo/editor` types) and apps/web provides the implementation here. This
-// factory builds an `askAI` closure bound to a page + workspace; the popover
-// calls it once per action-pick and wires the returned handle's callbacks into
-// the InlineAI plugin metas (onToken → appendToken, done → finish, onError →
-// fail).
+// declares the injection contracts (`AskAICallback` / `GenerateAICallback` and
+// their arg/handle types in `@repo/editor`) and apps/web provides the
+// implementations here: two factories — `createAskAI` (selection transforms,
+// action popover) and `createGenerateAi` (space-bar drafting bar) — each
+// binding a page + workspace and building its request body over the shared
+// `streamInlineAi` SSE core. The caller wires the returned handle's callbacks
+// into the InlineAI plugin metas (onToken → appendToken, done → finish,
+// onError → fail).
 //
 // It is framework-light (no React) so `page-renderer.tsx` can `useMemo` it.
 //
@@ -41,9 +43,9 @@ const GENERIC = 'Не удалось получить ответ ИИ. Попр�
 
 /** Map a non-OK `/api/ai/inline` response `{error, code}` to user-facing copy. */
 function messageForErrorResponse(status: number, code: string | undefined): string {
-  if (code === 'PLAN') return PLAN_UPSELL
+  if (code === 'PLAN' || status === 403) return PLAN_UPSELL
   // 400 (no default model / bad action / bad request) → "configure".
-  if (code === 'NO_MODEL' || status === 400 || status === 403) return CONFIGURE_AI
+  if (code === 'NO_MODEL' || status === 400) return CONFIGURE_AI
   if (code === 'RATE_LIMIT' || status === 429) return TOO_MANY
   return GENERIC
 }

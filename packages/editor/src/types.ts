@@ -61,7 +61,8 @@ export type AskAiHistoryTurn = {
 /**
  * The streaming handle apps/web's bridge returns for one inline-AI request.
  *
- * CONTRACT — Task 4 (apps/web `createAskAI`) MUST honor this shape verbatim:
+ * CONTRACT — apps/web's `streamInlineAi` bridge (`createAskAI` /
+ * `createGenerateAi`) MUST honor this shape verbatim:
  *   - `onToken(cb)` registers a callback invoked with each text delta as it
  *     streams (multiple deltas; the popover folds each into `appendToken`).
  *     Registering after a delta has already arrived is allowed; the bridge may
