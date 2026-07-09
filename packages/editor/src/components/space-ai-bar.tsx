@@ -149,6 +149,9 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
     if (!open) return
     const onDocKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      // Already consumed elsewhere (e.g. a ProseMirror handleKeyDown closing
+      // the slash menu preventDefaults without stopPropagation) → not ours.
+      if (e.defaultPrevented) return
       e.preventDefault()
       discardAndClose()
     }
