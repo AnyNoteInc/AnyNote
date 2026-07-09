@@ -10,18 +10,49 @@ import { decodeSseEvents } from '@/lib/chat/sse'
 import { getSession } from '@/lib/get-session'
 import { writeInlineAiAudit } from '@/lib/ai/inline-audit'
 import { getOrCreateInlineAiChat } from '@/lib/ai/inline-chat'
-import { buildInlinePrompt, isInlineAiAction } from '@/lib/ai/inline-prompts'
+import {
+  buildCustomPrompt,
+  buildGeneratePrompt,
+  buildInlinePrompt,
+  isExtendedInlineAiAction,
+  isInlineAiAction,
+  MAX_CONTEXT_BEFORE_CHARS,
+  MAX_CUSTOM_INSTRUCTION_CHARS,
+  MAX_HISTORY_TOTAL_CHARS,
+  MAX_HISTORY_TURN_CHARS,
+  MAX_HISTORY_TURNS,
+  MAX_INSTRUCTION_CHARS,
+} from '@/lib/ai/inline-prompts'
 import { isInlineAiRateLimited } from '@/lib/ai/inline-rate-limit'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-const bodySchema = z.object({
-  action: z.string().min(1).max(32),
-  selectedText: z.string().min(1).max(50_000),
-  pageId: z.string().regex(UUID_RE),
-  workspaceId: z.string().regex(UUID_RE),
-  targetLang: z.string().max(64).optional(),
+const historyTurnSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1).max(MAX_HISTORY_TURN_CHARS),
 })
+
+const bodySchema = z
+  .object({
+    action: z.string().min(1).max(32),
+    // Required for presets and `custom`; absent for `generate` (validated below).
+    selectedText: z.string().min(1).max(50_000).optional(),
+    instruction: z.string().min(1).max(MAX_INSTRUCTION_CHARS).optional(),
+    history: z.array(historyTurnSchema).max(MAX_HISTORY_TURNS).optional(),
+    contextBefore: z
+      .string()
+      .max(MAX_CONTEXT_BEFORE_CHARS * 2)
+      .optional(),
+    pageId: z.string().regex(UUID_RE),
+    workspaceId: z.string().regex(UUID_RE),
+    targetLang: z.string().max(64).optional(),
+  })
+  .superRefine((val, ctx) => {
+    const total = (val.history ?? []).reduce((n, t) => n + t.content.length, 0)
+    if (total > MAX_HISTORY_TOTAL_CHARS) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'history too large' })
+    }
+  })
 
 const EDIT_ROLES = new Set(['OWNER', 'ADMIN', 'EDITOR'])
 
@@ -103,11 +134,32 @@ export async function handleInlineAi(
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request', code: 'BAD_REQUEST' }, { status: 400 })
   }
-  const { action, selectedText, pageId, workspaceId, targetLang } = parsed.data
+  const {
+    action,
+    selectedText,
+    instruction,
+    history,
+    contextBefore,
+    pageId,
+    workspaceId,
+    targetLang,
+  } = parsed.data
 
-  // 3. Action allow-list (400) — the preset authority lives server-side.
-  if (!isInlineAiAction(action)) {
+  // 3. Action allow-list (400) — the preset/action authority lives server-side.
+  const isPreset = isInlineAiAction(action)
+  if (!isPreset && !isExtendedInlineAiAction(action)) {
     return NextResponse.json({ error: 'Unknown action', code: 'BAD_ACTION' }, { status: 400 })
+  }
+  // Per-action required fields (spec §4): presets/custom transform a selection;
+  // generate drafts from an instruction alone.
+  if ((isPreset || action === 'custom') && !selectedText) {
+    return NextResponse.json({ error: 'Invalid request', code: 'BAD_REQUEST' }, { status: 400 })
+  }
+  if ((action === 'custom' || action === 'generate') && !instruction) {
+    return NextResponse.json({ error: 'Invalid request', code: 'BAD_REQUEST' }, { status: 400 })
+  }
+  if (action === 'custom' && (instruction?.length ?? 0) > MAX_CUSTOM_INSTRUCTION_CHARS) {
+    return NextResponse.json({ error: 'Invalid request', code: 'BAD_REQUEST' }, { status: 400 })
   }
 
   // 4. Page edit-access (404, no oracle): member of a workspace the user isn't
@@ -163,12 +215,23 @@ export async function handleInlineAi(
     role: editable.role,
   })
 
-  // 9. Server-side prompt + single-shot agent-run payload (no MCP, no history).
-  const prompt = buildInlinePrompt(action, selectedText, { targetLang })
+  // 9. Server-side prompt + agent-run payload (no MCP; history only for the
+  //    refinement loop of generate/custom — spec §4).
+  let prompt: string
+  if (action === 'generate') {
+    prompt = buildGeneratePrompt(instruction as string, { contextBefore })
+  } else if (action === 'custom') {
+    prompt = buildCustomPrompt(instruction as string, selectedText as string)
+  } else if (isInlineAiAction(action)) {
+    prompt = buildInlinePrompt(action, selectedText as string, { targetLang })
+  } else {
+    // Unreachable — already rejected by the allow-list above.
+    return NextResponse.json({ error: 'Unknown action', code: 'BAD_ACTION' }, { status: 400 })
+  }
   const payload = buildAgentRunPayload({
     chatId: chat.id,
     userMessage: prompt,
-    chatHistory: [],
+    chatHistory: history ?? [],
     settings: {
       temperature: settings.temperature,
       topP: settings.topP,

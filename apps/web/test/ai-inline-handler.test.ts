@@ -292,3 +292,131 @@ describe('POST /api/ai/inline — happy path', () => {
     expect(deps.prisma.chat.create).not.toHaveBeenCalled()
   })
 })
+
+describe('generate action (space AI)', () => {
+  it('accepts generate without selectedText and sends history + generate prompt', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({
+        action: 'generate',
+        instruction: 'сделай базу данных пользователей в mermaid',
+        history: [
+          { role: 'user', content: 'сделай базу данных' },
+          { role: 'assistant', content: '```mermaid\nerDiagram\n```' },
+        ],
+        contextBefore: 'Проект про учёт пользователей.',
+        pageId,
+        workspaceId,
+      }),
+      deps,
+    )
+    expect(res.status).toBe(200)
+    const [, init] = (deps.upstreamFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    const sent = JSON.parse((init as RequestInit).body as string)
+    expect(sent.chat_history).toEqual([
+      { role: 'user', content: 'сделай базу данных' },
+      { role: 'assistant', content: '```mermaid\nerDiagram\n```' },
+    ])
+    expect(sent.user_message).toContain('сделай базу данных пользователей в mermaid')
+    expect(sent.user_message).toContain('Контекст страницы')
+    expect(sent.mcp_servers).toEqual([])
+  })
+
+  it('rejects generate without instruction', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(makeRequest({ action: 'generate', pageId, workspaceId }), deps)
+    expect(res.status).toBe(400)
+    expect(deps.upstreamFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects history with more than 10 turns', async () => {
+    const deps = makeDeps()
+    const history = Array.from({ length: 11 }, (_, i) => ({
+      role: 'user' as const,
+      content: `turn ${i}`,
+    }))
+    const res = await handleInlineAi(
+      makeRequest({ action: 'generate', instruction: 'x', history, pageId, workspaceId }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects history exceeding the total char budget', async () => {
+    const deps = makeDeps()
+    const history = Array.from({ length: 4 }, () => ({
+      role: 'assistant' as const,
+      content: 'A'.repeat(15_000),
+    }))
+    const res = await handleInlineAi(
+      makeRequest({ action: 'generate', instruction: 'x', history, pageId, workspaceId }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('custom action (free-form selection instruction)', () => {
+  it('accepts custom with instruction + selectedText', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({
+        action: 'custom',
+        instruction: 'сделай маркированным списком',
+        selectedText: 'один два три',
+        pageId,
+        workspaceId,
+      }),
+      deps,
+    )
+    expect(res.status).toBe(200)
+    const [, init] = (deps.upstreamFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    const sent = JSON.parse((init as RequestInit).body as string)
+    expect(sent.user_message).toContain('сделай маркированным списком')
+    expect(sent.user_message).toContain('один два три')
+  })
+
+  it('rejects custom without selectedText', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({ action: 'custom', instruction: 'сделай списком', pageId, workspaceId }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+    expect(deps.upstreamFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects custom with an over-long instruction', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({
+        action: 'custom',
+        instruction: 'X'.repeat(501),
+        selectedText: 'текст',
+        pageId,
+        workspaceId,
+      }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('presets still require selectedText', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({ action: 'summarize', pageId, workspaceId }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('still rejects unknown actions with BAD_ACTION', async () => {
+    const deps = makeDeps()
+    const res = await handleInlineAi(
+      makeRequest({ action: 'hack', selectedText: 'x', pageId, workspaceId }),
+      deps,
+    )
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe('BAD_ACTION')
+  })
+})
