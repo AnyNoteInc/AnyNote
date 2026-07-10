@@ -1,10 +1,23 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { PageType } from '@repo/db'
 
 export const PAGE_CHAT_SIDEBAR_WIDTH = 400
+
+/** Notion-style display modes: docked right column vs floating window. */
+export type PageChatDisplayMode = 'docked' | 'floating'
+
+const DISPLAY_MODE_KEY = 'pageChat.displayMode'
 
 /** Default composer context chip (spec §7). Single source: the sidebar passes
  *  it (or the selection label) explicitly, and WorkspaceChatClient imports it
@@ -18,6 +31,8 @@ type PageChatContextValue = {
   closePanel: () => void
   activeChatId: string | null
   setActiveChatId: (id: string | null) => void
+  displayMode: PageChatDisplayMode
+  setDisplayMode: (mode: PageChatDisplayMode) => void
 }
 
 const PageChatContext = createContext<PageChatContextValue | null>(null)
@@ -43,6 +58,17 @@ export function PageChatProvider({
   const enabled = pageType === 'TEXT'
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  // Display mode survives navigation and reloads (the workspace.sidebar.mode
+  // pattern): default docked, hydrate from localStorage after mount.
+  const [storedDisplayMode, setStoredDisplayMode] = useState<PageChatDisplayMode>('docked')
+  useEffect(() => {
+    const stored = window.localStorage.getItem(DISPLAY_MODE_KEY)
+    if (stored === 'docked' || stored === 'floating') setStoredDisplayMode(stored)
+  }, [])
+  const setDisplayMode = useCallback((mode: PageChatDisplayMode) => {
+    setStoredDisplayMode(mode)
+    window.localStorage.setItem(DISPLAY_MODE_KEY, mode)
+  }, [])
 
   // Reset transient chat UI when navigating to a different page WITHOUT
   // remounting the provider (the comments-context render-time pattern).
@@ -57,8 +83,17 @@ export function PageChatProvider({
   const closePanel = useCallback(() => setPanelOpen(false), [])
 
   const value = useMemo(
-    () => ({ enabled, panelOpen, togglePanel, closePanel, activeChatId, setActiveChatId }),
-    [enabled, panelOpen, togglePanel, closePanel, activeChatId],
+    () => ({
+      enabled,
+      panelOpen,
+      togglePanel,
+      closePanel,
+      activeChatId,
+      setActiveChatId,
+      displayMode: storedDisplayMode,
+      setDisplayMode,
+    }),
+    [enabled, panelOpen, togglePanel, closePanel, activeChatId, storedDisplayMode, setDisplayMode],
   )
 
   return <PageChatContext.Provider value={value}>{children}</PageChatContext.Provider>

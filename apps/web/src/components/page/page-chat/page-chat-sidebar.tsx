@@ -9,7 +9,7 @@ import {
   Box,
   Button,
   CircularProgress,
-  CloseIcon,
+  Collapse,
   DeleteIcon,
   Dialog,
   DialogActions,
@@ -17,15 +17,21 @@ import {
   DialogContentText,
   DialogTitle,
   DriveFileRenameOutlineIcon,
+  Grow,
   IconButton,
+  KeyboardDoubleArrowRightIcon,
   Menu,
   MenuItem,
   MoreVertIcon,
+  Paper,
+  PictureInPictureAltIcon,
   Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
+  ViewSidebarRoundedIcon,
 } from '@repo/ui/components'
 
 import { usePageEditor } from '@/components/page/editor-context'
@@ -64,6 +70,8 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // Display-mode menu (docked / floating), spec §2.
+  const [modeMenuAnchor, setModeMenuAnchor] = useState<HTMLElement | null>(null)
 
   // Render-time reset on page navigation (comments-context pattern): the
   // provider resets activeChatId/panelOpen itself; the local mount state must
@@ -77,6 +85,7 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     setMenuAnchor(null)
     setRenameOpen(false)
     setDeleteOpen(false)
+    setModeMenuAnchor(null)
   }
 
   const chatsEnabled = features?.chatsEnabled ?? false
@@ -147,7 +156,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     return { content: htmlToMarkdown(editor.getHTML()), isSelection: false }
   }, [getEditor])
 
-  if (!ctx?.enabled || !ctx.panelOpen) return null
+  if (!ctx?.enabled) return null
+
+  const panelShown = ctx.panelOpen
 
   const switchThread = (id: string | null) => {
     ctx.setActiveChatId(id)
@@ -157,27 +168,11 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
 
   const activeChat = activeChatId ? (list.data?.find((c) => c.id === activeChatId) ?? null) : null
 
-  return (
-    <Box
-      className="page-chat-sidebar"
-      data-testid="page-chat-sidebar"
-      sx={{
-        width: PAGE_CHAT_SIDEBAR_WIDTH,
-        flexShrink: 0,
-        position: 'relative',
-        zIndex: 10,
-        bgcolor: 'background.default',
-        borderLeft: 1,
-        borderColor: 'divider',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-      }}
-    >
+  const panelContent = (
+    <>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', p: 1.5, pb: 1, flexShrink: 0 }}>
         <Typography variant="subtitle2" sx={{ flex: 1 }}>
-          Чат по странице
+          Чат
         </Typography>
         {chatsEnabled ? (
           <>
@@ -221,9 +216,25 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
             ) : null}
           </>
         ) : null}
-        <IconButton size="small" aria-label="Закрыть чат" onClick={ctx.closePanel}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Tooltip title="Режим отображения">
+          <IconButton
+            size="small"
+            aria-label="Режим отображения"
+            onClick={(e) => setModeMenuAnchor(e.currentTarget)}
+            data-testid="page-chat-mode"
+          >
+            {ctx.displayMode === 'floating' ? (
+              <PictureInPictureAltIcon fontSize="small" />
+            ) : (
+              <ViewSidebarRoundedIcon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Скрыть чат">
+          <IconButton size="small" aria-label="Скрыть чат" onClick={ctx.closePanel}>
+            <KeyboardDoubleArrowRightIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       {chatsEnabled ? (
@@ -275,6 +286,38 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           </Button>
         </Stack>
       )}
+
+      {/* Display mode (spec §2): docked column vs floating window. */}
+      <Menu
+        anchorEl={modeMenuAnchor}
+        open={Boolean(modeMenuAnchor)}
+        onClose={() => setModeMenuAnchor(null)}
+      >
+        <MenuItem
+          selected={ctx.displayMode === 'docked'}
+          data-testid="page-chat-mode-docked"
+          onClick={() => {
+            setModeMenuAnchor(null)
+            ctx.setDisplayMode('docked')
+          }}
+          sx={{ gap: 1, fontSize: 13 }}
+        >
+          <ViewSidebarRoundedIcon fontSize="small" />
+          Сбоку справа
+        </MenuItem>
+        <MenuItem
+          selected={ctx.displayMode === 'floating'}
+          data-testid="page-chat-mode-floating"
+          onClick={() => {
+            setModeMenuAnchor(null)
+            ctx.setDisplayMode('floating')
+          }}
+          sx={{ gap: 1, fontSize: 13 }}
+        >
+          <PictureInPictureAltIcon fontSize="small" />
+          Плавающее окно
+        </MenuItem>
+      </Menu>
 
       {/* Thread actions (spec §7): rename/delete the active thread. */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
@@ -360,6 +403,72 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
+  )
+
+  // Floating window (Notion's "Floating" display mode): fixed above the page,
+  // outside the layout flex row — panel offsets (outline/comments) untouched.
+  if (ctx.displayMode === 'floating') {
+    return (
+      <Grow in={panelShown} unmountOnExit style={{ transformOrigin: 'bottom right' }}>
+        <Paper
+          className="page-chat-sidebar"
+          data-testid="page-chat-sidebar"
+          data-mode="floating"
+          elevation={8}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 420,
+            maxWidth: 'calc(100vw - 48px)',
+            height: 'min(640px, calc(100vh - 96px))',
+            zIndex: (theme) => theme.zIndex.modal - 1,
+            borderRadius: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {panelContent}
+        </Paper>
+      </Grow>
+    )
+  }
+
+  // Docked column: Collapse animates the width 0↔400 (slide-in, spec §2);
+  // unmountOnExit keeps the closed panel free of live queries.
+  return (
+    <Collapse
+      in={panelShown}
+      orientation="horizontal"
+      unmountOnExit
+      sx={{
+        flexShrink: 0,
+        height: '100%',
+        position: 'relative',
+        zIndex: 10,
+        '& .MuiCollapse-wrapper, & .MuiCollapse-wrapperInner': { height: '100%' },
+      }}
+    >
+      <Box
+        data-testid="page-chat-sidebar"
+        data-mode="docked"
+        className="page-chat-sidebar"
+        sx={{
+          width: PAGE_CHAT_SIDEBAR_WIDTH,
+          bgcolor: 'background.default',
+          borderLeft: 1,
+          borderColor: 'divider',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        {panelContent}
+      </Box>
+    </Collapse>
   )
 }

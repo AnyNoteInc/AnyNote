@@ -169,6 +169,9 @@ async function openChatPanel(page: Page) {
   await fab.evaluate((el) => (el as HTMLElement).click())
   const panel = page.getByTestId('page-chat-sidebar')
   await expect(panel).toBeVisible({ timeout: 10_000 })
+  // The FAB Zoom-hides while the panel is open (single close affordance is the
+  // «Скрыть чат» header button); it reappears on close.
+  await expect(fab).toBeHidden({ timeout: 5_000 })
   return panel
 }
 
@@ -357,5 +360,40 @@ test.describe('page chat — панель чата по странице', () =>
     // No chat UI on the paywalled panel.
     await expect(page.getByTestId('chat-composer-textarea')).toHaveCount(0)
     await expect(page.getByTestId('page-chat-new')).toHaveCount(0)
+  })
+
+  test('режим отображения переключается на плавающее окно и обратно', async ({ page }) => {
+    test.setTimeout(120_000)
+    const { pageId } = await setupPageChat(
+      page,
+      prisma,
+      `page-chat-mode+${Date.now()}@example.com`,
+      'pro',
+    )
+
+    await openPageWithText(page, pageId, PAGE_SENTENCE)
+    const panel = await openChatPanel(page)
+    await expect(panel).toHaveAttribute('data-mode', 'docked')
+
+    // Switch to the floating window via the header mode menu.
+    await panel.getByTestId('page-chat-mode').evaluate((el) => (el as HTMLElement).click())
+    await page.getByTestId('page-chat-mode-floating').click()
+    const floating = page.getByTestId('page-chat-sidebar')
+    await expect(floating).toHaveAttribute('data-mode', 'floating', { timeout: 10_000 })
+    await expect(floating).toBeVisible()
+    // Floating window keeps the chat header; the FAB stays hidden while open.
+    await expect(floating.getByText('Чат', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('page-chat-fab')).toBeHidden()
+
+    // Hide via «Скрыть чат» — the FAB comes back.
+    await floating.getByRole('button', { name: 'Скрыть чат' }).click()
+    await expect(page.getByTestId('page-chat-sidebar')).toBeHidden({ timeout: 10_000 })
+    await expect(page.getByTestId('page-chat-fab')).toBeVisible({ timeout: 10_000 })
+
+    // Re-open: the floating preference persisted (localStorage).
+    await page.getByTestId('page-chat-fab').evaluate((el) => (el as HTMLElement).click())
+    await expect(page.getByTestId('page-chat-sidebar')).toHaveAttribute('data-mode', 'floating', {
+      timeout: 10_000,
+    })
   })
 })
