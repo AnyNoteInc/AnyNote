@@ -45,3 +45,16 @@ export function mcpNullableUuidOptional() {
 export function mcpInput<TSchema extends z.ZodTypeAny>(schema: TSchema) {
   return z.preprocess(normalizeNullish, schema)
 }
+
+/** Date input for MCP tool schemas. zod 4's toJSONSchema cannot represent
+ *  z.date()/z.coerce.date() — the MCP SDK converts every tool schema for
+ *  tools/list, and ONE unrepresentable field throws «Date cannot be
+ *  represented in JSON Schema», killing the WHOLE tool listing. Accept an
+ *  ISO-8601 string over the wire and transform to Date at parse time, so the
+ *  tool handlers keep receiving Date. */
+export function mcpDate() {
+  return z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid ISO-8601 date')
+    .transform((value) => new Date(value))
+}
