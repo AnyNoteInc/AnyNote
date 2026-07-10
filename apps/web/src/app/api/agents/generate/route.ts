@@ -86,7 +86,10 @@ async function gatePageChat(
   chat: Pick<Chat, 'kind' | 'pageId' | 'workspaceId'>,
   userId: string,
   pageContext: PageContextInput | undefined,
-): Promise<NextResponse | { attachment: ResolvedAttachment | null }> {
+): Promise<
+  | NextResponse
+  | { attachment: ResolvedAttachment | null; page: { id: string; title: string | null } | null }
+> {
   // pageContext is a PAGE-chat-only channel — reject it outright on NORMAL chats.
   if (pageContext && chat.kind !== 'PAGE') {
     return NextResponse.json(
@@ -94,7 +97,7 @@ async function gatePageChat(
       { status: 400 },
     )
   }
-  if (chat.kind !== 'PAGE') return { attachment: null }
+  if (chat.kind !== 'PAGE') return { attachment: null, page: null }
 
   const features = await getWorkspaceFeatures(chat.workspaceId)
   if (!features.chatsEnabled) {
@@ -118,7 +121,27 @@ async function gatePageChat(
     attachment: pageContext
       ? buildPageContextAttachment(pageContext, contextPage.title ?? '')
       : null,
+    page: contextPage,
   }
+}
+
+/** Page-binding block appended to the agent system prompt for PAGE chats: the
+ *  agent otherwise has no way to know WHICH page «текущая страница» is, and
+ *  the owner's core cases («добавь суммаризацию в конец страницы») degrade
+ *  into title-guessing. Server-built from DB ids — never client input. */
+function buildPageBindingPrompt(page: { id: string; title: string | null }, workspaceId: string) {
+  const title = page.title?.trim() ? page.title : 'Без названия'
+  return [
+    `Этот чат привязан к странице «${title}» (workspaceId=${workspaceId}, pageId=${page.id}).`,
+    'Когда пользователь говорит про «страницу», «текущую страницу» или «эту страницу», он имеет в виду именно её — используй эти идентификаторы в инструментах anynote:',
+    '- appendToPage — добавить текст в конец страницы;',
+    '- replaceInPage — точечно заменить текст на странице;',
+    '- updatePage — полностью переписать содержимое (сначала прочитай getPageMarkdown);',
+    '- renamePage — переименовать страницу;',
+    '- attachFileToPage / uploadFileToPage — вставить файл в страницу;',
+    '- getPageMarkdown — прочитать актуальное содержимое.',
+    'Актуальный снимок страницы может приходить как вложение (attachment) — не запрашивай страницу повторно без необходимости.',
+  ].join('\n')
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -161,6 +184,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const gate = await gatePageChat(chat, session.user.id, body.pageContext)
   if (gate instanceof NextResponse) return gate
   const pageContextAttachment = gate.attachment
+  const boundPage = gate.page
 
   const [files, settings, historyMessages, membership, mcpServerRows, memoryRows] =
     await Promise.all([
@@ -298,7 +322,11 @@ export async function POST(request: NextRequest): Promise<Response> {
             },
           }
         : null,
-    systemPrompt: settings.systemPrompt,
+    systemPrompt: boundPage
+      ? [settings.systemPrompt, buildPageBindingPrompt(boundPage, chat.workspaceId)]
+          .filter(Boolean)
+          .join('\n\n')
+      : settings.systemPrompt,
     temperature: settings.temperature,
     topP: settings.topP,
   }

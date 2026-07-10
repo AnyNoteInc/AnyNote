@@ -62,12 +62,28 @@ const AppendToPageInput = z.object({
   markdown: z.string().min(1).max(50_000),
 })
 
+const RenamePageInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+  title: z.string().min(1).max(255),
+})
+
+const ReplaceInPageInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+  find: z.string().min(1).max(2_000),
+  replace: z.string().max(10_000),
+  all: mcpInput(z.boolean().default(false)),
+})
+
 type CreatePageArgs = z.infer<typeof CreatePageInput>
 type UpdatePageArgs = z.infer<typeof UpdatePageInput>
 type MovePageArgs = z.infer<typeof MovePageInput>
 type PageIdArgs = z.infer<typeof PageIdInput>
 type ListPagesArgs = z.infer<typeof ListPagesInput>
 type AppendToPageArgs = z.infer<typeof AppendToPageInput>
+type RenamePageArgs = z.infer<typeof RenamePageInput>
+type ReplaceInPageArgs = z.infer<typeof ReplaceInPageInput>
 
 function requireAuth(req: AuthedRequest | undefined): AuthContext {
   if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
@@ -169,6 +185,73 @@ export class PageTools {
       workspaceId: args.workspaceId,
     })
     return { ok: true as const }
+  }
+
+  @Tool({
+    name: 'renamePage',
+    description:
+      'Переименовывает страницу (меняет ТОЛЬКО заголовок, содержимое не ' +
+      'трогает). Вызывай когда пользователь просит "переименуй страницу", ' +
+      '"назови страницу X", "смени заголовок". Требует подтверждения. ' +
+      'Параметры: workspaceId, pageId, title (новый заголовок, до 255 символов).',
+    parameters: RenamePageInput,
+  })
+  renamePage(args: RenamePageArgs, _context: Context, req: AuthedRequest) {
+    return this.doRenamePage(requireAuth(req), args)
+  }
+
+  async doRenamePage(auth: AuthContext, args: RenamePageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    // Title-only update: PageWriter.updatePage ignores undefined fields, so the
+    // content/contentYjs stay untouched.
+    await this.writer.updatePage({
+      pageId: args.pageId,
+      title: args.title,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+    })
+    return { ok: true as const, title: args.title }
+  }
+
+  @Tool({
+    name: 'replaceInPage',
+    description:
+      'Заменяет текст на странице: находит подстроку `find` и заменяет её на ' +
+      '`replace` (при all=true — все вхождения, иначе первое). Вызывай для ' +
+      'точечных правок: "замени X на Y", "исправь опечатку", "поменяй термин ' +
+      'во всём тексте". Совпадение ищется внутри одного текстового фрагмента — ' +
+      'если `find` пересекает границы форматирования (жирный/курсив/ссылка), ' +
+      'оно не найдётся: тогда перепиши содержимое через updatePage. Для полной ' +
+      'замены содержимого страницы тоже используй updatePage. Требует ' +
+      'подтверждения. Возвращает replacements — число сделанных замен (0 = ' +
+      'ничего не найдено, страница не изменена). Параметры: workspaceId, ' +
+      'pageId, find (до 2000 символов), replace (до 10 000), all?.',
+    parameters: ReplaceInPageInput,
+  })
+  replaceInPage(args: ReplaceInPageArgs, _context: Context, req: AuthedRequest) {
+    return this.doReplaceInPage(requireAuth(req), args)
+  }
+
+  async doReplaceInPage(auth: AuthContext, args: ReplaceInPageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    const { replacements } = await this.writer.replaceContentText({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      pageId: args.pageId,
+      find: args.find,
+      replace: args.replace,
+      all: args.all ?? false,
+    })
+    if (replacements === 0) {
+      return {
+        ok: false as const,
+        replacements: 0,
+        hint:
+          'Текст не найден (возможно, он разбит форматированием). ' +
+          'Прочитай страницу через getPageMarkdown и перепиши её через updatePage.',
+      }
+    }
+    return { ok: true as const, replacements }
   }
 
   @Tool({
