@@ -85,7 +85,12 @@ export class YjsPageEditor {
 
     try {
       try {
-        await this.waitForSync(provider, socket)
+        // Subscribe BEFORE attach so no event can slip past the waiter. With an
+        // explicit websocketProvider the provider does NOT auto-attach
+        // (manageSocket=false) — without attach() it never authenticates/syncs.
+        const synced = this.waitForSync(provider, socket)
+        provider.attach()
+        await synced
       } catch (err) {
         this.logger.warn(
           `yjs connection failed for page ${args.pageId}: ${(err as Error).message} — falling back to direct DB write`,
