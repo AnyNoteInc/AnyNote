@@ -13,6 +13,7 @@ import { MarkdownParser } from './services/markdown-parser.service.js'
 import { MarkdownRenderer } from './services/markdown-renderer.service.js'
 import { PageWriter } from './services/page-writer.service.js'
 import { StatsService } from './services/stats.service.js'
+import { YjsPageEditor } from './services/yjs-page-editor.service.js'
 import { FileTools } from './tools/file.tools.js'
 import { PageFileTools } from './tools/page-file.tools.js'
 import { PageTools } from './tools/page.tools.js'
@@ -44,6 +45,7 @@ import { KanbanTools } from './tools/kanban.tools.js'
     MarkdownParser,
     MarkdownRenderer,
     PageWriter,
+    YjsPageEditor,
     FileUploader,
     StatsService,
     PageFtsService,

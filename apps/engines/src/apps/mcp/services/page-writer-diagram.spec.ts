@@ -4,6 +4,7 @@ import * as Y from 'yjs'
 
 import { PageWriter } from './page-writer.service.js'
 import { makeFakeDomain } from './__testutils__/fake-domain.js'
+import { makeFakeYjsEditor } from './__testutils__/fake-yjs-editor.js'
 
 // These tests cover direct-Prisma methods (createDiagramPage). Domain is not called;
 // pass a minimal stub to satisfy the constructor signature.
@@ -21,7 +22,7 @@ describe('PageWriter.createDiagramPage', () => {
     const tx = { page: { create, findUnique }, outboxEvent: { create: outbox } }
     const prisma = { $transaction: (fn: (t: typeof tx) => unknown) => fn(tx) } as unknown as PrismaClient
 
-    const id = await new PageWriter(prisma, fakeDomain).createDiagramPage({
+    const id = await new PageWriter(prisma, fakeDomain, makeFakeYjsEditor()).createDiagramPage({
       userId: 'u1', workspaceId: 'w1', title: 'D', kind: 'MERMAID', source: 'graph TD; A-->B',
     })
 
