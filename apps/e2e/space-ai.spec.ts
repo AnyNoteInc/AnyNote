@@ -27,7 +27,7 @@
  *  - `generateAI` is injected whenever the page is editable (page-renderer) —
  *    independent of provider config; the plan gate is server-side (mocked here).
  *  - The empty-line placeholder advertises the trigger when the capability is
- *    injected: «Нажмите «пробел» для AI, «/» — для команд» (data-placeholder).
+ *    injected: «Нажмите «пробел» для AI или «/» — для команд» (data-placeholder).
  */
 import { expect, test, type Page } from '@playwright/test'
 

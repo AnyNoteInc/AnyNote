@@ -144,7 +144,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   // the placeholder advertises it (spec §3.1); otherwise the classic slash hint.
   const placeholder =
     props.placeholder ??
-    (props.generateAI ? 'Нажмите «пробел» для AI, «/» — для команд' : "Введите '/' для команд")
+    (props.generateAI ? 'Нажмите «пробел» для AI или «/» — для команд' : "Введите '/' для команд")
 
   const [popover, setPopover] = useState<OpenPopover | null>(null)
   const [drawioCreate, setDrawioCreate] = useState<{ range: SlashRange } | null>(null)
