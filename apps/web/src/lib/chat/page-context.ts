@@ -27,6 +27,30 @@ export function parsePageContext(raw: unknown): PageContextInput | null | { erro
   return { content: v.content, isSelection: v.isSelection }
 }
 
+/** Page-binding block appended to the agent system prompt for PAGE chats: the
+ *  agent otherwise has no way to know WHICH page «текущая страница» is, and
+ *  «добавь суммаризацию в конец страницы» degrades into title-guessing.
+ *  Server-built from DB ids — never client input. NOTE: the tool list mirrors
+ *  the engines MCP page tools (page.tools.ts / page-file.tools.ts); update it
+ *  when those tools are renamed or added. */
+export function buildPageBindingPrompt(
+  page: { id: string; title: string | null },
+  workspaceId: string,
+): string {
+  const title = page.title?.trim() ? page.title : 'Без названия'
+  return [
+    `Этот чат привязан к странице «${title}» (workspaceId=${workspaceId}, pageId=${page.id}).`,
+    'Когда пользователь говорит про «страницу», «текущую страницу» или «эту страницу», он имеет в виду именно её — используй эти идентификаторы в инструментах anynote:',
+    '- appendToPage — добавить текст в конец страницы;',
+    '- replaceInPage — точечно заменить текст на странице;',
+    '- updatePage — полностью переписать содержимое (сначала прочитай getPageMarkdown);',
+    '- renamePage — переименовать страницу;',
+    '- attachFileToPage / uploadFileToPage — вставить файл в страницу;',
+    '- getPageMarkdown — прочитать актуальное содержимое.',
+    'Актуальный снимок страницы может приходить как вложение (attachment) — не запрашивай страницу повторно без необходимости.',
+  ].join('\n')
+}
+
 /** Page/selection context → synthetic attachment riding the proven attachments
  *  channel (the agents `_attachments.j2` prompt-injection guard wraps it). */
 export function buildPageContextAttachment(

@@ -52,9 +52,20 @@ export function mcpInput<TSchema extends z.ZodTypeAny>(schema: TSchema) {
  *  represented in JSON Schema», killing the WHOLE tool listing. Accept an
  *  ISO-8601 string over the wire and transform to Date at parse time, so the
  *  tool handlers keep receiving Date. */
+const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+const ISO_DATE_TIME_PREFIX_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/
+
 export function mcpDate() {
   return z
     .string()
-    .refine((value) => !Number.isNaN(Date.parse(value)), 'Invalid ISO-8601 date')
+    .refine(
+      // Date.parse alone accepts locale-ambiguous junk ('05/06/2026', '2026')
+      // and silently coerces it to the wrong instant — require ISO-8601
+      // date/datetime shapes before trusting the parse.
+      (value) =>
+        (ISO_DATE_ONLY_RE.test(value) || ISO_DATE_TIME_PREFIX_RE.test(value)) &&
+        !Number.isNaN(Date.parse(value)),
+      'Invalid ISO-8601 date (expected YYYY-MM-DD or YYYY-MM-DDTHH:mm[:ss][Z])',
+    )
     .transform((value) => new Date(value))
 }

@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server'
 
 import { getActiveWorkspaceForUser } from '@/lib/active-workspace'
 import { getSession } from '@/lib/get-session'
+import { UUID_RE } from '@/lib/uuid'
 import {
   computeS3Key,
   extractExt,
@@ -16,8 +17,6 @@ import {
 } from '@/lib/file-validation'
 
 export const runtime = 'nodejs'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const setUserAvatar = (userId: string, fileId: string) =>
   prisma.user.update({

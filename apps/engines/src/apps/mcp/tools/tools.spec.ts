@@ -10,6 +10,7 @@ import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import { PageTools } from './page.tools.js'
 import { WorkspaceTools } from './workspace.tools.js'
+import { makeFakeYjsEditor } from '../services/__testutils__/fake-yjs-editor.js'
 
 describe('Tools access control', () => {
   const mockPrisma = {
@@ -28,6 +29,7 @@ describe('Tools access control', () => {
       {} as MarkdownRenderer,
       {} as MarkdownParser,
       {} as StatsService,
+      makeFakeYjsEditor(),
     )
     await expect(
       tools.createPage({ workspaceId: 'w1', title: 'x', ownership: 'TEXT' }, {} as never, nonMemberReq),

@@ -72,12 +72,23 @@ export class PageWriter {
   }
 
   async updatePage(input: UpdatePageInput): Promise<void> {
+    // Page↔workspace ownership MUST be validated BEFORE the live-doc write:
+    // applyContentEdit mints an EDITOR share token for the raw pageId, so a
+    // member of workspace A passing a foreign pageId with workspaceId=A would
+    // otherwise vandalize B's live document before the tx guard ever fired.
+    const page = await this.prisma.page.findUnique({
+      where: { id: input.pageId },
+      select: { id: true, workspaceId: true, type: true },
+    })
+    if (page?.workspaceId !== input.workspaceId) {
+      throw new PageNotFoundError(input.pageId)
+    }
     // Content rewrites go through the live collaborative doc first (lost-update
     // guard — see YjsPageEditor): open editors see the change instantly and the
-    // yjs server persists content/contentYjs itself. Only Tiptap-shaped content
-    // qualifies; other shapes keep the raw-JSON DB path below.
+    // yjs server persists content/contentYjs itself. Only TEXT pages have the
+    // Tiptap 'default' fragment; other types/shapes keep the raw-JSON DB path.
     let contentAppliedLive = false
-    if (isTiptapDoc(input.content)) {
+    if (page.type === 'TEXT' && isTiptapDoc(input.content)) {
       const live = await this.yjsEditor.applyContentEdit({
         pageId: input.pageId,
         actorUserId: input.userId,
@@ -86,38 +97,44 @@ export class PageWriter {
       contentAppliedLive = live.applied
     }
     await this.prisma.$transaction(async (tx) => {
-      const page = await tx.page.findUnique({
+      const current = await tx.page.findUnique({
         where: { id: input.pageId },
         select: { id: true, workspaceId: true },
       })
-      if (page?.workspaceId !== input.workspaceId) {
+      if (current?.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
+      }
+      if (contentAppliedLive) {
+        // Live path: content/contentYjs + the indexing outbox event ride the
+        // yjs server's store path (the same route user edits take) — an
+        // immediate event here would index the still-old DB snapshot. Only a
+        // title/icon change warrants one now: the row already carries it.
+        await tx.page.update({
+          where: { id: input.pageId },
+          data: { title: input.title, icon: input.icon, updatedById: input.userId },
+        })
+        if (input.title !== undefined || input.icon !== undefined) {
+          await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
+        }
+        return
       }
       // The Tiptap editor loads from contentYjs, so rebuild it whenever content
       // changes — otherwise the JSON content is persisted but the editor renders
       // an empty page (createPage/appendToPage already keep these in sync).
       // tryBuildContentYjs returns undefined for non-Tiptap shapes so a malformed
       // payload still persists the raw content instead of failing the whole write.
-      const contentYjs = contentAppliedLive ? undefined : tryBuildContentYjs(input.content)
+      const contentYjs = tryBuildContentYjs(input.content)
       await tx.page.update({
         where: { id: input.pageId },
         data: {
           title: input.title,
           icon: input.icon,
-          ...(contentAppliedLive ? {} : { content: input.content as never }),
+          content: input.content as never,
           ...(contentYjs === undefined ? {} : { contentYjs }),
           updatedById: input.userId,
         },
       })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
+      await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
     })
   }
 
@@ -166,25 +183,25 @@ export class PageWriter {
       if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
       if (page.type !== 'TEXT')
         throw new BadRequestException('appendToPage supports only TEXT pages')
-      let data: Prisma.PageUpdateInput = { updatedBy: { connect: { id: input.userId } } }
-      if (!live.applied) {
-        const current = (page.content as TiptapDoc | null) ?? { type: 'doc', content: [] }
-        const merged: TiptapDoc = {
-          type: 'doc',
-          content: [...(current.content ?? []), ...(appendedDoc.content ?? [])],
-        }
-        data = { ...data, content: merged as never, contentYjs: buildContentYjs(merged) }
+      if (live.applied) {
+        // Content + the indexing outbox event arrive via the yjs server's
+        // store path (as with user edits) — an immediate event would index
+        // the still-old DB snapshot. Only stamp the actor.
+        await tx.page.update({
+          where: { id: input.pageId },
+          data: { updatedById: input.userId },
+        })
+        return
       }
-      await tx.page.update({ where: { id: input.pageId }, data })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
+      const current = (page.content as TiptapDoc | null) ?? { type: 'doc', content: [] }
+      // Same merge semantics as the live path (computeTargetDoc is the single
+      // source of append logic — the two paths must not diverge).
+      const merged = computeTargetDoc(current, { kind: 'append', doc: appendedDoc }).doc
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { content: merged as never, contentYjs: buildContentYjs(merged), updatedById: input.userId },
       })
+      await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
     })
   }
 
@@ -210,18 +227,15 @@ export class PageWriter {
       actorUserId: input.userId,
       edit,
     })
-    let replacements: number
     if (live.applied) {
-      replacements = live.replacements
-      if (replacements === 0) return { replacements }
-      await this.prisma.$transaction(async (tx) => {
-        await tx.page.update({
-          where: { id: input.pageId },
-          data: { updatedById: input.userId },
-        })
-        await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
+      if (live.replacements === 0) return { replacements: 0 }
+      // Content + the indexing outbox event ride the yjs server's store path;
+      // an immediate event would index the still-old DB snapshot.
+      await this.prisma.page.update({
+        where: { id: input.pageId },
+        data: { updatedById: input.userId },
       })
-      return { replacements }
+      return { replacements: live.replacements }
     }
     // Fallback: no live doc — rewrite content + contentYjs from the snapshot.
     return this.prisma.$transaction(async (tx) => {
@@ -291,15 +305,7 @@ export class PageWriter {
           ? { archivedAt: new Date(), archivedById: input.userId, updatedById: input.userId }
           : { archivedAt: null, archivedById: null, updatedById: input.userId },
       })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
+      await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
     })
   }
 
@@ -326,15 +332,7 @@ export class PageWriter {
         },
         select: { id: true },
       })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
+      await this.enqueuePageUpserted(tx, page.id, input.workspaceId)
       return page.id
     })
   }
@@ -360,15 +358,7 @@ export class PageWriter {
           updatedById: input.userId,
         },
       })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
+      await this.enqueuePageUpserted(tx, input.pageId, input.workspaceId)
     })
   }
 

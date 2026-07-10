@@ -13,6 +13,7 @@ import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
+import { YjsPageEditor } from '../services/yjs-page-editor.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 
 export const CreatePageInput = z.object({
@@ -98,6 +99,7 @@ export class PageTools {
     private readonly renderer: MarkdownRenderer,
     private readonly parser: MarkdownParser,
     private readonly stats: StatsService,
+    private readonly yjsEditor: YjsPageEditor,
   ) {}
 
   @Tool({
@@ -302,13 +304,24 @@ export class PageTools {
           workspaceId: args.workspaceId,
           AND: [pageVisibilityWhere(auth.userId)],
         },
-        select: { content: true },
+        select: { content: true, type: true },
       }),
     ])
     if (!page) {
       throw new PageNotFoundError(args.pageId)
     }
-    return { markdown: this.renderer.render(page.content as never) }
+    // TEXT pages: prefer the LIVE collaborative doc — agent edits apply there
+    // first and the DB snapshot lags until the yjs server's debounced store, so
+    // a read right after appendToPage/replaceInPage must not see pre-edit text.
+    let content = page.content
+    if (page.type === 'TEXT') {
+      const live = await this.yjsEditor.readLiveContent({
+        pageId: args.pageId,
+        actorUserId: auth.userId,
+      })
+      if (live) content = live as never
+    }
+    return { markdown: this.renderer.render(content as never) }
   }
 
   @Tool({

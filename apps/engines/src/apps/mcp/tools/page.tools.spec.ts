@@ -11,6 +11,7 @@ import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import { CreatePageInput, PageTools } from './page.tools.js'
+import { makeFakeYjsEditor } from '../services/__testutils__/fake-yjs-editor.js'
 
 describe('PageTools', () => {
   const userId = '11111111-1111-4111-8111-111111111111'
@@ -49,7 +50,7 @@ describe('PageTools', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId })
-    tools = new PageTools(prisma, mockWriter, mockRenderer, mockParser, mockStats)
+    tools = new PageTools(prisma, mockWriter, mockRenderer, mockParser, mockStats, makeFakeYjsEditor())
   })
 
   it('createPage returns pageId and forwards args to writer', async () => {
@@ -229,7 +230,7 @@ describe('PageTools', () => {
     expect(prisma.page.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: pageId, workspaceId, AND: expect.any(Array) }),
-        select: { content: true },
+        select: { content: true, type: true },
       }),
     )
     expect(mockRenderer.render).toHaveBeenCalledWith({ type: 'doc', content: [] })

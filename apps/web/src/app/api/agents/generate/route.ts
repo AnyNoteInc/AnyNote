@@ -10,6 +10,7 @@ import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
 import { resolveAttachmentContents, type ResolvedAttachment } from '@/lib/chat/file-content'
 import {
+  buildPageBindingPrompt,
   buildPageContextAttachment,
   parsePageContext,
   type PageContextInput,
@@ -23,11 +24,10 @@ import {
 } from '@/lib/chat/agent-sse-bridge'
 import type { StartChatGenerationBody } from '@/lib/chat/types'
 import { getSession } from '@/lib/get-session'
+import { UUID_RE } from '@/lib/uuid'
 import { resolveProviderConnection } from '@/lib/chat/provider-connection'
 
 export const runtime = 'nodejs'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const THINKING_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const
 type ThinkingEffort = (typeof THINKING_EFFORTS)[number]
@@ -125,24 +125,6 @@ async function gatePageChat(
   }
 }
 
-/** Page-binding block appended to the agent system prompt for PAGE chats: the
- *  agent otherwise has no way to know WHICH page «текущая страница» is, and
- *  the owner's core cases («добавь суммаризацию в конец страницы») degrade
- *  into title-guessing. Server-built from DB ids — never client input. */
-function buildPageBindingPrompt(page: { id: string; title: string | null }, workspaceId: string) {
-  const title = page.title?.trim() ? page.title : 'Без названия'
-  return [
-    `Этот чат привязан к странице «${title}» (workspaceId=${workspaceId}, pageId=${page.id}).`,
-    'Когда пользователь говорит про «страницу», «текущую страницу» или «эту страницу», он имеет в виду именно её — используй эти идентификаторы в инструментах anynote:',
-    '- appendToPage — добавить текст в конец страницы;',
-    '- replaceInPage — точечно заменить текст на странице;',
-    '- updatePage — полностью переписать содержимое (сначала прочитай getPageMarkdown);',
-    '- renamePage — переименовать страницу;',
-    '- attachFileToPage / uploadFileToPage — вставить файл в страницу;',
-    '- getPageMarkdown — прочитать актуальное содержимое.',
-    'Актуальный снимок страницы может приходить как вложение (attachment) — не запрашивай страницу повторно без необходимости.',
-  ].join('\n')
-}
 
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()

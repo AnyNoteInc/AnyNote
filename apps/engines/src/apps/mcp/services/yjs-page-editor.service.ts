@@ -8,6 +8,7 @@ import {
   prepareDocUpdate,
   readTiptapDoc,
   type ContentEdit,
+  type TiptapDoc,
 } from './yjs-content.js'
 
 const SYNC_TIMEOUT_MS = 4_000
@@ -54,18 +55,7 @@ export class YjsPageEditor {
       return { applied: false }
     }
 
-    const token = await new SignJWT({
-      typ: 'share',
-      pageId: args.pageId,
-      shareId: 'agent-tools',
-      role: 'EDITOR',
-      name: 'AI-агент',
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setSubject(args.actorUserId)
-      .setIssuedAt()
-      .setExpirationTime('2m')
-      .sign(new TextEncoder().encode(secret))
+    const token = await this.mintShareToken(secret, args.pageId, args.actorUserId, 'EDITOR')
 
     const document = new Y.Doc()
     const socket = new HocuspocusProviderWebsocket({
@@ -104,9 +94,20 @@ export class YjsPageEditor {
         return { applied: true, replacements: 0 }
       }
 
-      // Validation happens before any mutation; from here on errors propagate
-      // (the doc is live — a DB fallback now could race the collab server).
-      const apply = prepareDocUpdate(target)
+      // Validation happens BEFORE any mutation. A schema-invalid target (the
+      // agent can hand updatePage an arbitrary doc-shaped `content`) falls back
+      // to the DB path, which persists the raw JSON — the pre-live-path
+      // behavior (tryBuildContentYjs's graceful degradation). Errors AFTER this
+      // point propagate: the doc is live and a DB fallback would race it.
+      let apply: (ydoc: Y.Doc) => void
+      try {
+        apply = prepareDocUpdate(target)
+      } catch (err) {
+        this.logger.warn(
+          `schema-invalid content for page ${args.pageId}: ${(err as Error).message} — falling back to raw DB persist`,
+        )
+        return { applied: false }
+      }
       apply(document)
       await this.flushOutgoing(provider)
       return { applied: true, replacements }
@@ -114,6 +115,69 @@ export class YjsPageEditor {
       provider.destroy()
       socket.destroy()
     }
+  }
+
+  /** Current TEXT-page content as seen by the LIVE collaborative doc. The DB
+   *  snapshot lags behind it (Hocuspocus persists on debounce/unload), so tool
+   *  reads right after a live edit must come from here or the agent re-reads
+   *  pre-edit content. Returns null when the yjs server is unreachable or
+   *  unconfigured — callers fall back to the DB snapshot, correct then. */
+  async readLiveContent(args: { pageId: string; actorUserId: string }): Promise<TiptapDoc | null> {
+    const url =
+      process.env.YJS_INTERNAL_WS_URL ?? process.env.NEXT_PUBLIC_YJS_URL ?? 'ws://localhost:1234'
+    const secret = process.env.YJS_SHARE_TOKEN_SECRET
+    if (!secret) return null
+
+    const token = await this.mintShareToken(secret, args.pageId, args.actorUserId, 'READER')
+    const document = new Y.Doc()
+    const socket = new HocuspocusProviderWebsocket({
+      url,
+      WebSocketPolyfill: WebSocket,
+      maxAttempts: 1,
+    })
+    const provider = new HocuspocusProvider({
+      websocketProvider: socket,
+      name: args.pageId,
+      document,
+      token,
+    })
+    try {
+      const synced = this.waitForSync(provider, socket)
+      provider.attach()
+      await synced
+      return readTiptapDoc(document)
+    } catch (err) {
+      this.logger.warn(
+        `yjs read failed for page ${args.pageId}: ${(err as Error).message} — using the DB snapshot`,
+      )
+      return null
+    } finally {
+      provider.destroy()
+      socket.destroy()
+    }
+  }
+
+  /** Share token for the collab server (HS256, the same secret apps/web mints
+   *  share tokens with): page-scoped, short-lived, minted only after the MCP
+   *  tool already passed the JWT scope gate and the PageWriter workspace check. */
+  private mintShareToken(
+    secret: string,
+    pageId: string,
+    actorUserId: string,
+    role: 'READER' | 'EDITOR',
+  ) {
+    return new SignJWT({
+      typ: 'share',
+      pageId,
+      shareId: 'agent-tools',
+      role,
+      name: 'AI-агент',
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject(actorUserId)
+      .setIssuedAt()
+      .setExpirationTime('2m')
+      .sign(new TextEncoder().encode(secret))
   }
 
   private waitForSync(provider: HocuspocusProvider, socket: HocuspocusProviderWebsocket) {

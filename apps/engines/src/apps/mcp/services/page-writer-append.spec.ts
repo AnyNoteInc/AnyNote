@@ -63,8 +63,9 @@ describe('PageWriter.appendContent', () => {
     const data = (update.mock.calls[0]![0] as { data: Record<string, unknown> }).data
     expect(data.content).toBeUndefined()
     expect(data.contentYjs).toBeUndefined()
-    // Indexing still gets its outbox row immediately.
-    expect(outbox).toHaveBeenCalledTimes(1)
+    // No immediate outbox row: it would index the still-old DB snapshot; the
+    // yjs server's store path enqueues the event once content is persisted.
+    expect(outbox).not.toHaveBeenCalled()
   })
 
   it('throws PageNotFoundError for a page in another workspace', async () => {

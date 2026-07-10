@@ -738,7 +738,11 @@ export function PageRenderer({
           editor={editor}
           rightOffset={
             (panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0) +
-            (pageChat?.panelOpen ? PAGE_CHAT_SIDEBAR_WIDTH : 0)
+            // The floating chat window is position:fixed outside the flex row —
+            // only the docked column actually reserves layout width.
+            (pageChat?.panelOpen && pageChat.displayMode === 'docked'
+              ? PAGE_CHAT_SIDEBAR_WIDTH
+              : 0)
           }
         />
         <BlockMoveDialog
