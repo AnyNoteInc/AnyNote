@@ -236,7 +236,7 @@ describe('buildChatHistoryMessages', () => {
     ])
   })
 
-  it('skips messages with no extractable text', async () => {
+  it('keeps tool-only assistant turns as a summary line, skips truly empty ones', async () => {
     const messages: MessageRow[] = [
       {
         id: '1',
@@ -249,7 +249,19 @@ describe('buildChatHistoryMessages', () => {
         id: '2',
         role: 'ASSISTANT',
         status: 'DONE',
-        parts: [{ type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'ran' }],
+        parts: [
+          // detail.tool (the machine name) wins over the human title…
+          {
+            type: 'tool',
+            id: 't1',
+            kind: 'tool',
+            state: 'done',
+            title: 'Добавляю текст',
+            detail: JSON.stringify({ tool: 'appendToPage' }),
+          },
+          // …and a detail-less part falls back to its title.
+          { type: 'tool', id: 't2', kind: 'tool', state: 'done', title: 'ran' },
+        ],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
       {
@@ -271,7 +283,66 @@ describe('buildChatHistoryMessages', () => {
       workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: 'user', content: 'real' }])
+    expect(result).toEqual([
+      { role: 'user', content: 'real' },
+      { role: 'assistant', content: '[Выполнены инструменты: appendToPage, ran]' },
+    ])
+  })
+
+  it('fullCurrentChat returns the whole thread instead of the last-10 window', async () => {
+    const messages = makeMessages(15, 'USER')
+    const prisma = createPrismaMock({
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
+      messagesByChat: { c1: messages },
+    })
+
+    const result = await buildChatHistoryMessages({
+      prisma: prisma as never,
+      chatId: 'c1',
+      workspaceId: 'w',
+      fullCurrentChat: true,
+    })
+
+    expect(result.map((m) => m.content)).toEqual(
+      Array.from({ length: 15 }, (_, i) => `m${i}`),
+    )
+  })
+
+  it('fullCurrentChat keeps ancestor chats bounded', async () => {
+    const root = makeMessages(8, 'USER').map((m, i) => ({
+      ...m,
+      id: `root-${i}`,
+      parts: [textPart(`root${i}`)],
+    }))
+    const current = makeMessages(15, 'USER').map((m, i) => ({
+      ...m,
+      id: `cur-${i}`,
+      parts: [textPart(`cur${i}`)],
+    }))
+    const prisma = createPrismaMock({
+      chats: [
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'cur', parentId: 'root', workspaceId: 'w' },
+      ],
+      messagesByChat: { root, cur: current },
+    })
+
+    const result = await buildChatHistoryMessages({
+      prisma: prisma as never,
+      chatId: 'cur',
+      workspaceId: 'w',
+      fullCurrentChat: true,
+    })
+
+    // root stays first + last 4; current is complete.
+    expect(result.map((m) => m.content)).toEqual([
+      'root0',
+      'root4',
+      'root5',
+      'root6',
+      'root7',
+      ...Array.from({ length: 15 }, (_, i) => `cur${i}`),
+    ])
   })
 
   it('only loads DONE messages from prisma (filters STREAMING / ERROR)', async () => {

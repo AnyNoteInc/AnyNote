@@ -189,7 +189,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           embeddingsModel: { include: { provider: true } },
         },
       }),
-      buildChatHistoryMessages({ prisma, chatId: chat.id, workspaceId: chat.workspaceId }),
+      buildChatHistoryMessages({
+        prisma,
+        chatId: chat.id,
+        workspaceId: chat.workspaceId,
+        // «Вся история» for page chats (spec §5): the whole thread rides along
+        // with every page-context send instead of the last-10 window.
+        fullCurrentChat: chat.kind === 'PAGE',
+      }),
       // Active members only — blocked users get no membership, hence no scopes.
       getMembershipForToken(prisma, chat.workspaceId, session.user.id),
       prisma.workspaceMcpServer.findMany({
