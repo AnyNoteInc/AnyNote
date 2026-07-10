@@ -27,6 +27,7 @@ type ChatMessageListProps = Readonly<{
   scrollMode?: 'internal' | 'page'
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
+  density?: 'comfortable' | 'compact'
 }>
 
 function formatTimestamp(value: ChatThreadMessage['createdAt']) {
@@ -71,6 +72,7 @@ export function ChatMessageList({
   scrollMode = 'internal',
   renderLink,
   onConfirm,
+  density = 'comfortable',
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
   const partRenderers = useMemo(() => buildChatPartRenderers({ onConfirm }), [onConfirm])
@@ -145,6 +147,7 @@ export function ChatMessageList({
                     }}
                   >
                     <ChatMessageContent
+                      density={density}
                       onConfirm={onConfirm}
                       parts={message.parts}
                       renderLink={renderLink}

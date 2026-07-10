@@ -207,6 +207,34 @@ describe('ChatMessageContent', () => {
     expect(getComputedStyle(connector).minHeight).toBe('12px')
   })
 
+  it('compact density drops the timeline rail and keeps a tool state dot', () => {
+    const { container } = render(
+      <ChatMessageContent
+        density="compact"
+        parts={[
+          { type: 'text', text: 'Ответ на всю ширину' },
+          { type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'appendToPage' },
+        ]}
+      />,
+    )
+    expect(screen.getByText('Ответ на всю ширину')).toBeTruthy()
+    expect(screen.getByText('appendToPage')).toBeTruthy()
+    // No MUI Timeline scaffolding (the ~36px left rail) in compact mode…
+    expect(container.querySelector('.MuiTimeline-root')).toBeNull()
+    expect(container.querySelector('.MuiTimelineDot-root')).toBeNull()
+    expect(screen.getByTestId('chat-message-compact')).toBeTruthy()
+    // …but tool parts keep the state signal as an inline dot.
+    expect(screen.getByTestId('chat-tool-dot')).toBeTruthy()
+  })
+
+  it('compact density renders text parts without a tool dot', () => {
+    render(
+      <ChatMessageContent density="compact" parts={[{ type: 'text', text: 'Просто текст' }]} />,
+    )
+    expect(screen.getByText('Просто текст')).toBeTruthy()
+    expect(screen.queryByTestId('chat-tool-dot')).toBeNull()
+  })
+
   it('uses compact bottom padding on assistant timeline content', () => {
     const { container } = render(
       <ChatMessageContent

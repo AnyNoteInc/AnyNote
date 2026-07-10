@@ -50,6 +50,9 @@ type ChatThreadProps = Readonly<{
   onComposerClearThinking?: () => void
   composerContextChip?: { label: string } | null
   composerAutoFocus?: boolean
+  /** 'compact' drops the assistant timeline rail so output spans the full
+   *  width — for narrow hosts like the 400px page-chat panel. */
+  density?: 'comfortable' | 'compact'
 }>
 
 function isNearBottom(element: HTMLElement) {
@@ -93,6 +96,7 @@ export function ChatThread({
   onComposerClearThinking,
   composerContextChip,
   composerAutoFocus,
+  density = 'comfortable',
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
@@ -204,6 +208,7 @@ export function ChatThread({
     >
       {isEmpty ? null : (
         <ChatMessageList
+          density={density}
           emptyDescription={emptyDescription}
           emptyTitle={emptyTitle}
           messages={messages}

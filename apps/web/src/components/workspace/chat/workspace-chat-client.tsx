@@ -283,6 +283,7 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
         <ChatThread
           composerAttachments={draftAttachments.attachments}
           composerAutoFocus={activeChatId === null}
+          density={pageProps ? 'compact' : 'comfortable'}
           composerPlaceholder="Спросите что-нибудь..."
           composerReasoningSupported={reasoningSupported}
           composerRecentFiles={recentFiles}
