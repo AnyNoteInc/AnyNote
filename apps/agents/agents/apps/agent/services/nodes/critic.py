@@ -39,6 +39,10 @@ async def critic_node(
         plan=[s.model_dump() for s in state.plan],
         draft_answer=state.draft_answer,
         revision_count=state.revision_count,
+        # The executor's format contract (e.g. the inline-AI «только итоговый
+        # результат» system prompt) — without it the critic judges a bare
+        # paste-ready fragment as "not addressing the request".
+        agent_system_prompt=state.agent_system_prompt,
     )
     msg = await llm.ainvoke([SystemMessage(content=prompt)])
     verdict, feedback, revised_plan = _parse(str(msg.content))

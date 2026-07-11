@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { htmlToMarkdown } from '@repo/editor/lib/html-to-markdown'
 import { markdownToHtml } from '@repo/editor/lib/markdown-to-html'
@@ -57,7 +57,7 @@ type Props = {
 export function PageChatSidebar({ workspaceId, pageId }: Props) {
   const ctx = usePageChatContext()
   const features = usePlanFeaturesOptional()
-  const { getEditor, hasEditor } = usePageEditor()
+  const { getEditor, editor: liveEditor } = usePageEditor()
   const theme = useTheme()
   const [hasSelection, setHasSelection] = useState(false)
 
@@ -76,6 +76,8 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   // Display-mode menu (docked / floating), spec §2.
   const [modeMenuAnchor, setModeMenuAnchor] = useState<HTMLElement | null>(null)
+  // Live resize target: the drag writes this element's width imperatively.
+  const dockedPanelRef = useRef<HTMLDivElement | null>(null)
 
   // Render-time reset on page navigation (comments-context pattern): the
   // provider resets activeChatId/panelOpen itself; the local mount state must
@@ -145,9 +147,8 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
   useEffect(() => {
     // chatsEnabled: the free-plan panel is an upsell without a chat — no
     // context is ever sent, so nothing should be painted as "context".
-    if (!open || !chatsEnabled || !hasEditor) return
-    const editor = getEditor()
-    if (!editor) return
+    if (!open || !chatsEnabled || !liveEditor) return
+    const editor = liveEditor
     const update = () => {
       const { from, to, empty } = editor.state.selection
       setHasSelection(!empty)
@@ -159,7 +160,10 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
       editor.off('selectionUpdate', update)
       if (!editor.isDestroyed) editor.commands.setChatContextHighlight(null)
     }
-  }, [open, chatsEnabled, hasEditor, getEditor])
+    // Depend on the INSTANCE: an in-place Tiptap recreate (same page) must
+    // re-bind the listener — a stable getEditor would leave it on the
+    // destroyed editor.
+  }, [open, chatsEnabled, liveEditor])
 
   const getPageContext = useCallback((): { content: string; isSelection: boolean } | null => {
     const editor = getEditor()
@@ -516,11 +520,14 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
       }}
     >
       <Box
+        ref={dockedPanelRef}
         data-testid="page-chat-sidebar"
         data-mode="docked"
         className="page-chat-sidebar"
+        // Live drag writes style.width imperatively (rAF-throttled by the
+        // handle); the committed context width re-renders the same value.
+        style={{ width: ctx.sidebarWidth }}
         sx={{
-          width: ctx.sidebarWidth,
           bgcolor: 'background.default',
           borderLeft: 1,
           borderColor: 'divider',
@@ -529,6 +536,7 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           flexDirection: 'column',
           minHeight: 0,
           position: 'relative',
+          contain: 'layout style',
         }}
       >
         {panelContent}
@@ -537,7 +545,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           width={ctx.sidebarWidth}
           min={PAGE_CHAT_SIDEBAR_MIN_WIDTH}
           max={PAGE_CHAT_SIDEBAR_MAX_WIDTH}
-          onWidth={ctx.setSidebarWidth}
+          onWidth={(next) => {
+            dockedPanelRef.current?.style.setProperty('width', `${next}px`)
+          }}
           onCommit={ctx.commitSidebarWidth}
           ariaLabel="Изменить ширину чата"
           testId="page-chat-sidebar-resize"

@@ -68,3 +68,36 @@ export class DiagramValidationError extends HttpException {
     )
   }
 }
+
+export class PdfExportUnsupportedPageTypeError extends HttpException {
+  constructor(pageType: string) {
+    super(
+      {
+        code: 'PDF_EXPORT_UNSUPPORTED_PAGE_TYPE',
+        message: `PDF_EXPORT_UNSUPPORTED_PAGE_TYPE: only TEXT pages can be exported to PDF, got ${pageType}`,
+      },
+      422,
+    )
+  }
+}
+
+export class PdfRenderFailedError extends HttpException {
+  constructor(reason: string) {
+    super(
+      { code: 'PDF_RENDER_FAILED', message: `PDF_RENDER_FAILED: ${reason}. Попробуйте позже.` },
+      502,
+    )
+  }
+}
+
+export class WorkspaceStorageLimitError extends HttpException {
+  constructor(maxBytes: bigint) {
+    super(
+      {
+        code: 'WORKSPACE_STORAGE_LIMIT',
+        message: `WORKSPACE_STORAGE_LIMIT: workspace storage quota (${maxBytes} bytes) would be exceeded`,
+      },
+      413,
+    )
+  }
+}

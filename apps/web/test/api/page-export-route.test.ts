@@ -32,9 +32,10 @@ vi.mock('@/lib/get-session', () => ({
   getSession: mocks.getSession,
 }))
 
-vi.mock('@/server/page-export/html-to-pdf', () => ({
-  htmlToPdf: mocks.htmlToPdf,
-}))
+vi.mock('@repo/page-export', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@repo/page-export')>()
+  return { ...actual, htmlToPdf: mocks.htmlToPdf }
+})
 
 // The new route resolves membership via the domain singleton, not prisma. Mock
 // the singleton so we control assertMembership per case.
@@ -164,14 +165,14 @@ describe('GET /api/pages/:p/export/:format', () => {
   })
 
   it('returns 504 when Gotenberg times out', async () => {
-    const { GotenbergTimeoutError } = await import('../../src/server/page-export/errors')
+    const { GotenbergTimeoutError } = await import('@repo/page-export')
     mocks.htmlToPdf.mockRejectedValue(new GotenbergTimeoutError())
     const res = await callRoute('pdf')
     expect(res.status).toBe(504)
   })
 
   it('returns 502 when Gotenberg upstream errors', async () => {
-    const { GotenbergUpstreamError } = await import('../../src/server/page-export/errors')
+    const { GotenbergUpstreamError } = await import('@repo/page-export')
     mocks.htmlToPdf.mockRejectedValue(new GotenbergUpstreamError(503, 'down'))
     const res = await callRoute('pdf')
     expect(res.status).toBe(502)

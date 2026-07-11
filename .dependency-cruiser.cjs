@@ -60,6 +60,21 @@ module.exports = {
       },
     },
     {
+      name: 'infra-page-export-tier',
+      comment:
+        'Tier 2 (page-export) imports only adapters — @repo/editor stays out (the engines Node runtime loads this package as raw .ts).',
+      severity: 'error',
+      from: { path: '^packages/page-export/src' },
+      to: {
+        path: '^packages/',
+        pathNot: [
+          '^packages/(db|mail|storage|yookassa)/',
+          '^packages/page-export/',
+          '^packages/(eslint-config|typescript-config)/',
+        ],
+      },
+    },
+    {
       name: 'domain-only-adapters',
       comment: 'Tier 3 (domain) imports only adapters.',
       severity: 'error',

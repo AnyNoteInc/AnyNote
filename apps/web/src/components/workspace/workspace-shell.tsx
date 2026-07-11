@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
 import { Box } from '@repo/ui/components'
 
@@ -15,9 +15,7 @@ type Props = {
   readonly mode: SidebarMode
   /** Current sidebar column width; defaults to the classic fixed width. */
   readonly sidebarWidth?: number
-  /** Live width while dragging the resize handle. */
-  readonly onSidebarWidthChange?: (width: number) => void
-  /** Final width on drag end — persist here. */
+  /** Final width on drag end — persist here. Presence enables the handle. */
   readonly onSidebarWidthCommit?: (width: number) => void
 }
 
@@ -26,20 +24,24 @@ export function WorkspaceShell({
   main,
   mode,
   sidebarWidth = SIDEBAR_WIDTH,
-  onSidebarWidthChange,
   onSidebarWidthCommit,
 }: Props) {
-  const columns = mode === 'hidden' ? '1fr' : `${sidebarWidth}px minmax(0, 1fr)`
-  // The show/hide animation must not fight the drag: while resizing, width
-  // updates every pointer move and the 150ms ease would rubber-band.
+  // The show/hide animation must not fight the drag: while resizing, the live
+  // width is written straight to the CSS variable every frame and the 150ms
+  // ease would rubber-band.
   const [resizing, setResizing] = useState(false)
-  const resizable = Boolean(onSidebarWidthChange && onSidebarWidthCommit)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const resizable = Boolean(onSidebarWidthCommit)
 
   return (
     <Box
+      ref={gridRef}
+      // Live drag writes this variable imperatively (no React state per frame);
+      // the committed width re-renders it to the same value on drag end.
+      style={{ '--ws-sidebar-w': `${sidebarWidth}px` } as CSSProperties}
       sx={{
         display: 'grid',
-        gridTemplateColumns: columns,
+        gridTemplateColumns: mode === 'hidden' ? '1fr' : 'var(--ws-sidebar-w) minmax(0, 1fr)',
         height: '100vh',
         bgcolor: 'background.default',
         color: 'text.primary',
@@ -50,7 +52,13 @@ export function WorkspaceShell({
       {mode === 'hidden' ? null : (
         <Box
           className="workspace-sidebar"
-          sx={{ height: '100%', minHeight: 0, display: 'flex', position: 'relative' }}
+          sx={{
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            position: 'relative',
+            contain: 'layout style',
+          }}
         >
           {sidebar}
           {resizable ? (
@@ -59,9 +67,9 @@ export function WorkspaceShell({
               width={sidebarWidth}
               min={SIDEBAR_MIN_WIDTH}
               max={SIDEBAR_MAX_WIDTH}
+              onDragStart={() => setResizing(true)}
               onWidth={(next) => {
-                setResizing(true)
-                onSidebarWidthChange?.(next)
+                gridRef.current?.style.setProperty('--ws-sidebar-w', `${next}px`)
               }}
               onCommit={(final) => {
                 setResizing(false)

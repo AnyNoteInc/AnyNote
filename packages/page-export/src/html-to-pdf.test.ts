@@ -4,10 +4,15 @@ import {
   GotenbergTimeoutError,
   GotenbergUnreachableError,
   GotenbergUpstreamError,
-} from '@/server/page-export/errors'
-import { htmlToPdf } from '@/server/page-export/html-to-pdf'
+} from './errors.ts'
+import { htmlToPdf } from './html-to-pdf.ts'
 
 describe('htmlToPdf', () => {
+  it('maps a missing GOTENBERG_URL to GotenbergUnreachableError (no raw env error)', async () => {
+    delete process.env.GOTENBERG_URL
+    await expect(htmlToPdf('<p>x</p>')).rejects.toBeInstanceOf(GotenbergUnreachableError)
+  })
+
   const originalFetch = globalThis.fetch
   beforeEach(() => {
     process.env.GOTENBERG_URL = 'http://gotenberg.test'

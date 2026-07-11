@@ -534,6 +534,16 @@ function applyPlacementDrop(
   const placement = dropPlacementKey.getState(view.state)
   if (!placement?.zone || !placement.target) return false
 
+  // External OS FILE drops arrive with an empty slice (there is no in-editor
+  // content to place) — decline them so the fileUpload plugin, which sits
+  // later in the plugin order, can claim the drop and insert an image/file
+  // placeholder. Without this, the placement no-op-inserted the empty
+  // fragment, preventDefault'ed, and silently swallowed every dropped file.
+  if (slice.size === 0 && (event.dataTransfer?.files.length ?? 0) > 0) {
+    setPlacement(view, CLEARED)
+    return false
+  }
+
   const { zone, target } = placement
   let tr = view.state.tr
 

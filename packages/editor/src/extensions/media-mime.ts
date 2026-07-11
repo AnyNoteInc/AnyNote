@@ -100,3 +100,67 @@ export const mediaToAttachmentNode = (attrs: MediaNodeAttrs): AttachmentNodeJSON
     ext: extFromName(attrs.name),
   },
 })
+
+// ── Convert swap (image ↔ fileAttachment) ────────────────────────────────────
+// The «вставка как файла или изображения» pair: a pasted image can be re-shown
+// as a downloadable attachment, and an image/* attachment as an inline image.
+
+export type ImageNodeMeta = {
+  src: string | null
+  name?: string | null
+  size?: number | null
+  mimeType?: string | null
+}
+
+export type ImageNodeJSON = {
+  type: 'image'
+  attrs: {
+    src: string
+    name: string | null
+    size: number | null
+    mimeType: string | null
+  }
+}
+
+/**
+ * Swap an image node to a fileAttachment («Сохранить как файл»). Metadata is
+ * best-effort: images inserted before name/size/mimeType were stamped fall
+ * back to a generic name (with the mime subtype as extension when known).
+ * Null while the image has no uploaded src (placeholder) — the caller hides
+ * the action.
+ */
+export const imageToAttachmentNode = (attrs: ImageNodeMeta): AttachmentNodeJSON | null => {
+  if (!attrs.src) return null
+  const mimeType = attrs.mimeType || 'image/unknown'
+  const subtype = mimeType.split('/')[1] ?? ''
+  const fallbackName =
+    subtype !== 'unknown' && /^[a-z0-9]+$/.test(subtype) ? `изображение.${subtype}` : 'изображение'
+  const name = attrs.name || fallbackName
+  return {
+    type: 'fileAttachment',
+    attrs: {
+      url: attrs.src,
+      name,
+      size: attrs.size ?? 0,
+      mimeType,
+      ext: extFromName(name),
+    },
+  }
+}
+
+/**
+ * Reverse: an image/* fileAttachment back to an inline image («Показать как
+ * изображение»). Null for non-image attachments — the caller hides the action.
+ */
+export const attachmentToImageNode = (attrs: FileAttachmentAttrs): ImageNodeJSON | null => {
+  if (inferMediaKind(attrs.mimeType) !== 'image') return null
+  return {
+    type: 'image',
+    attrs: {
+      src: attrs.url,
+      name: attrs.name || null,
+      size: attrs.size || null,
+      mimeType: attrs.mimeType || null,
+    },
+  }
+}

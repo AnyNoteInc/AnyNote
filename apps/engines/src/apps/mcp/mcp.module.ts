@@ -16,6 +16,8 @@ import { StatsService } from './services/stats.service.js'
 import { YjsPageEditor } from './services/yjs-page-editor.service.js'
 import { FileTools } from './tools/file.tools.js'
 import { PageFileTools } from './tools/page-file.tools.js'
+import { PagePdfService } from './services/page-pdf.service.js'
+import { PagePdfTools } from './tools/page-pdf.tools.js'
 import { PageTools } from './tools/page.tools.js'
 import { AGENTS_SEARCH_CLIENT, SearchTools } from './tools/search.tools.js'
 import { ReminderService } from './services/reminder.service.js'
@@ -50,8 +52,10 @@ import { KanbanTools } from './tools/kanban.tools.js'
     StatsService,
     PageFtsService,
     EmbeddingConfigService,
+    PagePdfService,
     PageTools,
     PageFileTools,
+    PagePdfTools,
     FileTools,
     WorkspaceTools,
     SearchTools,
@@ -75,6 +79,6 @@ import { KanbanTools } from './tools/kanban.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, FileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools, KanbanTools],
+  exports: [PageTools, PageFileTools, PagePdfTools, FileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools, KanbanTools],
 })
 export class McpModule {}

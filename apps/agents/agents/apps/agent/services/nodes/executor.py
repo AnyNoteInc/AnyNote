@@ -10,6 +10,7 @@ from langchain_core.tools import StructuredTool
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.repositories import AgentJinjaRenderer
 from agents.apps.agent.schemas import AgentState, PlanStepSchema
+from agents.apps.agent.services.plan_echo import NEUTRAL_ECHO_STEP_TITLE, is_question_echo_plan
 
 log = logging.getLogger(__name__)
 _PAGE_URL_RE = re.compile(
@@ -52,9 +53,20 @@ async def executor_node(
             'draft_answer': final_text,
         })
 
+    # A question-echo plan (single step titled with the raw user message) must
+    # not be QUOTED into the system prompt — models repeat the quoted
+    # instruction text into the answer (the inline-AI «Выведи только
+    # результат…» leak). Render a neutral step title instead; the real plan
+    # state (ids, statuses) is untouched.
+    step_for_prompt = step
+    plan_for_prompt = state.plan
+    if is_question_echo_plan(state):
+        step_for_prompt = step.model_copy(update={'title': NEUTRAL_ECHO_STEP_TITLE})
+        plan_for_prompt = [step_for_prompt]
+
     prompt = (renderer or _renderer()).render_executor(
-        current_step=step.model_dump(),
-        plan=[s.model_dump() for s in state.plan],
+        current_step=step_for_prompt.model_dump(),
+        plan=[s.model_dump() for s in plan_for_prompt],
         long_term_memories=[m.model_dump() for m in state.long_term_memories],
         chat_history=[m.model_dump() for m in state.chat_history],
         attachments=[a.model_dump() for a in state.attachments],

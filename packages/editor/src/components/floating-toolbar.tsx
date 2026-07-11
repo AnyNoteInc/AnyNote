@@ -31,73 +31,21 @@ import { NodeSelection } from '@tiptap/pm/state'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useEffect, useRef, useState } from 'react'
 import { attachLinkClickHandler } from '../extensions/link-click-handler'
-import { getInlineAiPreview } from '../extensions/inline-ai'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
 import type { InlineAiCapturedRange } from './inline-ai-popover'
-import type { AskAICallback } from '../types'
+import { readAiStorage } from '../lib/ai-storage'
+import { liveRectAnchor } from '../lib/live-rect-anchor'
 import { normalizeLinkHref } from '../link-href'
 
 type Props = { editor: Editor }
 
-// The inline-AI capability injected onto `editor.storage.ai` (the comments-storage
-// precedent). `askAI` gates the button; `onAskAi` opens the action popover that
-// anynote-editor mounts as a sibling, fed the captured selection range + anchor.
-type AiStorage = {
-  askAI?: AskAICallback | null
-  onAskAi?: (captured: InlineAiCapturedRange) => void
-}
-
-function readAiStorage(editor: Editor): AiStorage | undefined {
-  return (editor.storage as unknown as { ai?: AiStorage }).ai
-}
-
-/** A LIVE virtual anchor at the selection's client rect. Consumed by the
- *  InlineAI POPPER (popper.js virtual element): `getBoundingClientRect`
- *  recomputes from the current positions — preferring the InlineAI plugin's
- *  drift-guarded 'capturing' hold — and `contextElement` points popper at the
- *  editor DOM so it re-positions when the page's INNER scroll container
- *  scrolls (a frozen rect left the popup floating detached mid-page).
- *  Do NOT add `nodeType: 1` here: that is the MUI *Popover* contract (types.ts
- *  VirtualAnchor) — on a Popper it makes MUI treat the object as a live DOM
- *  element and dev-warn about zero rects. Conversely, if this anchor is ever
- *  fed to a Popover again, nodeType becomes REQUIRED or MUI silently anchors
- *  to document.body (the popup lands at the viewport bottom). */
+/** A LIVE virtual anchor at the selection's client rect (see liveRectAnchor). */
 function selectionRectAnchor(editor: Editor): InlineAiCapturedRange['anchorEl'] {
-  const computeRect = (): DOMRect => {
-    const held = getInlineAiPreview(editor)
-    const range =
-      held.active && held.status === 'capturing'
-        ? held
-        : { from: editor.state.selection.from, to: editor.state.selection.to }
-    const start = editor.view.coordsAtPos(range.from)
-    const end = editor.view.coordsAtPos(range.to)
-    const left = Math.min(start.left, end.left)
-    const top = Math.min(start.top, end.top)
-    const right = Math.max(start.right, end.right)
-    const bottom = Math.max(start.bottom, end.bottom)
-    return new DOMRect(left, top, right - left, bottom - top)
-  }
-  try {
-    // Validate up-front (preserving the null fallback) and keep the last good
-    // rect for moments when a recompute throws mid-scroll.
-    let lastRect = computeRect()
-    return {
-      contextElement: editor.view.dom,
-      getBoundingClientRect: () => {
-        if (!editor.isDestroyed) {
-          try {
-            lastRect = computeRect()
-          } catch {
-            // keep the last good rect
-          }
-        }
-        return lastRect
-      },
-    }
-  } catch {
-    return null
-  }
+  return liveRectAnchor(editor, () => ({
+    from: editor.state.selection.from,
+    to: editor.state.selection.to,
+  }))
 }
 
 type TextToolbarSelection = {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { handleInlineAi, type InlineAiDeps } from '../src/app/api/ai/inline/handler'
+import { INLINE_AI_SYSTEM_PROMPT } from '../src/lib/ai/inline-prompts'
 import { __resetInlineAiRateLimit, INLINE_AI_RATE_LIMIT_MAX } from '../src/lib/ai/inline-rate-limit'
 
 const workspaceId = '22222222-2222-4222-9222-222222222222'
@@ -227,6 +228,37 @@ describe('POST /api/ai/inline — happy path', () => {
     // the client never supplies a system prompt.
     expect(sent.user_message).toContain(SELECTED)
     expect(sent.user_message.toLowerCase()).toMatch(/сократ|кратк|резюм/)
+    // The "output only the result" meta-instructions ride the SYSTEM prompt
+    // (appended to the workspace prompt), never the user message — in the user
+    // message models echoed the boilerplate back into the answer.
+    expect(sent.user_message).not.toContain('Выведи только результат')
+    expect(sent.agent_system_prompt).toContain('sys')
+    expect(sent.agent_system_prompt).toContain(INLINE_AI_SYSTEM_PROMPT)
+  })
+
+  it('appends the inline meta-instructions to the system prompt when the workspace has none', async () => {
+    const deps = makeDeps()
+    const settings = deps.prisma.workspaceAiSettings.findUnique as ReturnType<typeof vi.fn>
+    settings.mockImplementation(async () => ({
+      temperature: 0.4,
+      topP: 0.9,
+      systemPrompt: null,
+      defaultModel: {
+        slug: 'gpt-4o-mini',
+        provider: {
+          kind: 'OPENAI',
+          workspaceId,
+          connection: { apiKey: 'sk-test' },
+          connectionEnc: null,
+        },
+      },
+      embeddingsModel: null,
+    }))
+
+    await drain(await handleInlineAi(makeRequest(), deps))
+    const [, init] = (deps.upstreamFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    const sent = JSON.parse((init as RequestInit).body as string)
+    expect(sent.agent_system_prompt).toBe(INLINE_AI_SYSTEM_PROMPT)
   })
 
   it('mints the agents JWT bound to the ephemeral chat with the membership role', async () => {

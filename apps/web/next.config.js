@@ -25,6 +25,7 @@ const nextConfig = {
     '@repo/auth',
     '@repo/db',
     '@repo/notifications',
+    '@repo/page-export',
     '@repo/storage',
     '@repo/editor',
     '@repo/likec4',

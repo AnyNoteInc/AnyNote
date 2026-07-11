@@ -141,6 +141,12 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                    _summary_attach_file, _preview_default, page_arg='pageId'),
     'attachImageToPage': ToolMeta('attachImageToPage', SCOPE_FILES_WRITE, True,
                                    _summary_attach_file, _preview_default, page_arg='pageId'),
+    # No confirmation: generating a PDF attachment is non-destructive (the page
+    # itself is untouched; the file can be deleted) and the user asked for it
+    # in the same message — an interrupt here would only add friction.
+    'exportPageToPdf':   ToolMeta('exportPageToPdf', SCOPE_FILES_WRITE, False,
+                                   lambda a: f'Сформировать PDF из страницы {a.get("pageId")}',
+                                   _preview_default, page_arg='pageId'),
     'createReminder':   ToolMeta('createReminder', SCOPE_REMINDERS_WRITE, True,
                                   lambda a: f'Создать напоминание на странице {a.get("pageId")}', _preview_default,
                                   page_arg='pageId'),

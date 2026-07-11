@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { wrapHtmlDocument } from '@/server/page-export/wrap-html-document'
+import { wrapHtmlDocument } from './wrap-html-document.ts'
 
 describe('wrapHtmlDocument', () => {
   it('produces a complete HTML document with title and body', () => {

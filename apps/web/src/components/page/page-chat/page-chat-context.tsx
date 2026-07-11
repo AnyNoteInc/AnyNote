@@ -39,10 +39,10 @@ type PageChatContextValue = {
   setActiveChatId: (id: string | null) => void
   displayMode: PageChatDisplayMode
   setDisplayMode: (mode: PageChatDisplayMode) => void
-  /** Docked-panel width (spec item 4) — draggable, persisted per browser. */
+  /** Docked-panel width (spec item 4) — draggable, persisted per browser.
+   *  Live drag widths are applied imperatively by the sidebar (no per-move
+   *  context invalidation); this value updates once, on commit. */
   sidebarWidth: number
-  /** Live width during a drag; does not persist. */
-  setSidebarWidth: (width: number) => void
   /** Final width on drag end; persists to localStorage. */
   commitSidebarWidth: (width: number) => void
 }
@@ -88,9 +88,6 @@ export function PageChatProvider({
     const stored = Number.parseInt(window.localStorage.getItem(SIDEBAR_WIDTH_KEY) ?? '', 10)
     if (!Number.isNaN(stored)) setSidebarWidthState(clampSidebarWidth(stored))
   }, [])
-  const setSidebarWidth = useCallback((width: number) => {
-    setSidebarWidthState(clampSidebarWidth(width))
-  }, [])
   const commitSidebarWidth = useCallback((width: number) => {
     const clamped = clampSidebarWidth(width)
     setSidebarWidthState(clamped)
@@ -120,7 +117,6 @@ export function PageChatProvider({
       displayMode: storedDisplayMode,
       setDisplayMode,
       sidebarWidth,
-      setSidebarWidth,
       commitSidebarWidth,
     }),
     [
@@ -132,7 +128,6 @@ export function PageChatProvider({
       storedDisplayMode,
       setDisplayMode,
       sidebarWidth,
-      setSidebarWidth,
       commitSidebarWidth,
     ],
   )

@@ -11,6 +11,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 
 from agents.apps.agent.schemas import AgentState, ServerEventSchema
+from agents.apps.agent.services.plan_echo import is_question_echo_plan
 
 
 class _Done:
@@ -171,16 +172,13 @@ class GraphStreamingService:
         Pending -> Running -> Done.
 
         A single-step plan whose only title is the raw user_message is suppressed
-        entirely (no plan_step events). Two code paths produce it: trivial routing
-        (route_node seeds it just to give the executor a current_step_id, planner
-        bypassed) and the planner fallback on unparseable LLM output (_fallback
-        titles the lone step with user_message). Either way the step carries no
-        user-facing planning value — surfacing it makes the chat render the user's
-        own question back as the first assistant service block. The internal plan
-        stays intact; we just don't surface this content-free echo. Genuine
-        multi-step plans are unaffected.
+        entirely (no plan_step events) — see plan_echo.is_question_echo_plan for
+        the two code paths that produce it. Surfacing it makes the chat render
+        the user's own question back as the first assistant service block. The
+        internal plan stays intact; we just don't surface this content-free
+        echo. Genuine multi-step plans are unaffected.
         """
-        if self._is_question_echo_plan(state):
+        if is_question_echo_plan(state):
             return []
         out: list[ServerEventSchema] = []
         for idx, s in enumerate(state.plan):
@@ -191,14 +189,6 @@ class GraphStreamingService:
                 ServerEventSchema.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value),
             )
         return out
-
-    @staticmethod
-    def _is_question_echo_plan(state: AgentState) -> bool:
-        """True when the plan is a single step that merely echoes the question."""
-        return (
-            len(state.plan) == 1
-            and state.plan[0].title.strip() == state.user_message.strip()
-        )
 
     async def _node_events(
         self,

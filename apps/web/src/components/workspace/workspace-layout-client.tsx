@@ -333,7 +333,6 @@ export function WorkspaceLayoutClient({
           mode={mode}
           sidebar={sidebar}
           sidebarWidth={sidebarWidth}
-          onSidebarWidthChange={setSidebarWidth}
           onSidebarWidthCommit={commitSidebarWidth}
           main={activePageId ? pageMain : mainContent}
         />

@@ -71,10 +71,12 @@ class AgentJinjaRenderer:
         plan: list[Any],
         draft_answer: str,
         revision_count: int,
+        agent_system_prompt: str | None = None,
     ) -> str:
         return self.env.get_template('critic.j2').render(
             user_message=user_message,
             plan=plan,
             draft_answer=draft_answer,
             revision_count=revision_count,
+            agent_system_prompt=agent_system_prompt,
         )

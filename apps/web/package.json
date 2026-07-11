@@ -33,6 +33,7 @@
     "@repo/likec4": "workspace:*",
     "@repo/mermaid": "workspace:*",
     "@repo/notifications": "workspace:*",
+    "@repo/page-export": "workspace:*",
     "@repo/plantuml": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/telegram": "workspace:*",

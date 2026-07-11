@@ -6,9 +6,8 @@ import { strToU8, zipSync } from 'fflate'
 
 import { renderPageBodyHtml } from '@/server/page-export'
 import { htmlToMarkdown } from '@/server/page-export/html-to-markdown'
-import { htmlToPdf } from '@/server/page-export/html-to-pdf'
+import { htmlToPdf, wrapHtmlDocument } from '@repo/page-export'
 import { tiptapJsonToHtml } from '@/server/page-export/tiptap-to-html'
-import { wrapHtmlDocument } from '@/server/page-export/wrap-html-document'
 import {
   collectExportPages,
   type ExportPageRecord,
@@ -174,7 +173,12 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
           rec.type === PageType.TEXT
             ? await renderPageBodyHtml(
                 { content: rec.content },
-                { prisma: ctx.prisma, storage: ctx.storage, baseUrl: ctx.baseUrl },
+                {
+                  prisma: ctx.prisma,
+                  storage: ctx.storage,
+                  baseUrl: ctx.baseUrl,
+                  workspaceId: job.workspaceId,
+                },
               )
             : rec.type === PageType.DATABASE
               ? await renderDatabaseBodyHtml(ctx, job.userId, rec)

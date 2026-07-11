@@ -1,4 +1,4 @@
-import { GotenbergTimeoutError, GotenbergUnreachableError, GotenbergUpstreamError } from './errors'
+import { GotenbergTimeoutError, GotenbergUnreachableError, GotenbergUpstreamError } from './errors.ts'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const A4_PAPER_WIDTH_IN = '8.27'
@@ -13,7 +13,12 @@ function getEnv(key: string, fallback?: string): string {
 }
 
 export async function htmlToPdf(html: string): Promise<ReadableStream<Uint8Array>> {
-  const url = `${getEnv('GOTENBERG_URL')}/forms/chromium/convert/html`
+  // Missing configuration surfaces as the same typed error as a downed
+  // service — callers (web export route, engines exportPageToPdf) map it to a
+  // user-facing "PDF service unavailable" instead of leaking a raw env error.
+  const base = process.env.GOTENBERG_URL
+  if (!base) throw new GotenbergUnreachableError('GOTENBERG_URL is not configured')
+  const url = `${base}/forms/chromium/convert/html`
   const timeoutMs = Number(getEnv('GOTENBERG_TIMEOUT_MS', String(DEFAULT_TIMEOUT_MS)))
 
   const fd = new FormData()

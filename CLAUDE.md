@@ -88,6 +88,7 @@ Packages (selected):
 - `packages/diagram-board` — shared Monaco-source-editor + live-preview split-pane "diagram board" (Yjs-collaborative, zoom/pan, SVG/PNG export) extracted from `@repo/mermaid`; consumed by `@repo/mermaid` and `@repo/plantuml` via a configurable `DiagramBoard` (parametrised by render function, Monaco language, Y.Text doc name, and id prefix). Same `moduleResolution: "Bundler"` + `next/dynamic ssr:false` pattern.
 - `packages/plantuml` — PlantUML diagram page. Same board as mermaid but renders **server-side**: the source is sent to `apps/web` `/api/plantuml/render`, which proxies the private `plantuml/plantuml-server:jetty` container (Gotenberg-style; never exposed via Traefik). Source lives in a `Y.Text` named `plantuml`.
 - `packages/mail` — synchronous transactional email via SendSay HTTP API (`sendMailNow`, templates).
+- `packages/page-export` — editor-independent export building blocks: Gotenberg client (`htmlToPdf`), print stylesheet + HTML document wrapper, image base64-embedding. NodeNext-clean (loaded as raw `.ts` by the engines Node runtime — erasable syntax only). The RICH Tiptap→HTML render stays per-consumer: `apps/web/src/server/page-export/` keeps the full `@repo/editor` server-extension set; `apps/engines` renders with a published-extension subset + JSON sanitizer (`page-pdf.service.ts`).
 - `packages/storage` — typed S3/MinIO client.
 - `packages/yookassa` — billing client + webhook signature verification.
 - `packages/eslint-config`, `packages/typescript-config` — consumed via `workspace:*`.

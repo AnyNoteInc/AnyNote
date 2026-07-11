@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 
 import { Box } from '@repo/ui/components'
 
@@ -14,7 +14,12 @@ type Props = Readonly<{
   width: number
   min: number
   max: number
-  /** Live width updates while dragging (state only — do not persist here). */
+  /** Pointer drag began — hosts disable their width transitions here (one
+   *  render per drag instead of one per pixel). Not fired for keyboard steps. */
+  onDragStart?: () => void
+  /** Live width while dragging: called at most once per animation frame.
+   *  Apply it imperatively (element style / CSS variable) — routing this into
+   *  setState re-renders the whole panel subtree on every frame. */
   onWidth: (next: number) => void
   /** Final width on pointer-up / keyboard step — persist here. */
   onCommit: (final: number) => void
@@ -29,14 +34,27 @@ export function PanelResizeHandle({
   width,
   min,
   max,
+  onDragStart,
   onWidth,
   onCommit,
   ariaLabel,
   testId,
 }: Props) {
   const dragRef = useRef<{ startX: number; startWidth: number; current: number } | null>(null)
+  const rafRef = useRef<number | null>(null)
   const widthRef = useRef(width)
   widthRef.current = width
+
+  const cancelPendingFrame = () => {
+    if (rafRef.current != null) {
+      window.cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+  }
+
+  // A drag can outlive the component (unmount mid-drag) — drop the pending
+  // frame so it can't fire onWidth against a torn-down host.
+  useEffect(() => cancelPendingFrame, [])
 
   const clamp = (value: number) => Math.min(max, Math.max(min, value))
 
@@ -47,7 +65,13 @@ export function PanelResizeHandle({
       startWidth: widthRef.current,
       current: widthRef.current,
     }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    onDragStart?.()
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // No active pointer (synthetic events) — the drag still works while the
+      // pointer stays over the handle.
+    }
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
@@ -55,19 +79,28 @@ export function PanelResizeHandle({
     if (!drag) return
     const delta = event.clientX - drag.startX
     const next = clamp(edge === 'right' ? drag.startWidth + delta : drag.startWidth - delta)
-    if (next !== drag.current) {
-      drag.current = next
-      onWidth(next)
-    }
+    if (next === drag.current) return
+    drag.current = next
+    // Coalesce pointermove bursts (high-rate mice report >60Hz) to one live
+    // width application per frame.
+    rafRef.current ??= window.requestAnimationFrame(() => {
+      rafRef.current = null
+      const live = dragRef.current
+      if (live) onWidth(live.current)
+    })
   }
 
   const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
     const drag = dragRef.current
     if (!drag) return
     dragRef.current = null
+    cancelPendingFrame()
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+    // Flush the last live value BEFORE committing so the imperative DOM width
+    // can never lag one frame behind the committed state.
+    onWidth(drag.current)
     onCommit(drag.current)
   }
 
