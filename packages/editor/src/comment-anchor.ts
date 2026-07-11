@@ -28,9 +28,9 @@ export function decodeAnchor(b64: string): Y.RelativePosition {
 // The Y binding mapping type is not exported, so mirror its shape locally to
 // type the binding without `any`.
 type ProsemirrorMapping = Map<Y.AbstractType<unknown>, PMNode | PMNode[]>
-type YState = { doc: Y.Doc; type: Y.XmlFragment; binding: { mapping: ProsemirrorMapping } }
+export type YState = { doc: Y.Doc; type: Y.XmlFragment; binding: { mapping: ProsemirrorMapping } }
 
-function ystate(state: EditorState): YState | null {
+export function ystate(state: EditorState): YState | null {
   const st = ySyncPluginKey.getState(state) as YState | undefined
   return st?.binding ? st : null
 }

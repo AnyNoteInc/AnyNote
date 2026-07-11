@@ -53,6 +53,7 @@ class AgentJinjaRenderer:
         long_term_memories: list[Any],
         chat_history: list[Any] | None = None,
         attachments: list[Any] | None = None,
+        agent_system_prompt: str | None = None,
     ) -> str:
         return self.env.get_template('executor.j2').render(
             current_step=current_step,
@@ -60,6 +61,7 @@ class AgentJinjaRenderer:
             long_term_memories=long_term_memories,
             chat_history=chat_history or [],
             attachments=attachments or [],
+            agent_system_prompt=agent_system_prompt,
         )
 
     def render_critic(

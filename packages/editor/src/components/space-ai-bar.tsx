@@ -202,6 +202,11 @@ export function SpaceAiBar({ editor, open, anchor, generateAI, onClose }: Props)
       if (current.active && current.status === 'streaming') {
         finishInlineAiPreview(editor)
         setPhase('done')
+      } else if (!current.active) {
+        // The draft slot was cleared by another surface (cross-surface
+        // supersession, e.g. a selection-AI run) — close rather than strand
+        // the bar in a spinner with no draft behind it.
+        onClose()
       }
     })
   }

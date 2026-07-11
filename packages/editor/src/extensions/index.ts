@@ -24,6 +24,7 @@ import { Audio } from './audio'
 import { Bookmark } from './bookmark'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
+import { ChatContextHighlight } from './chat-context-highlight'
 import { buildCollaboration } from './collaboration'
 import { CollapsibleHeadings } from './collapsible-headings'
 import { Comments } from './comments'
@@ -228,4 +229,5 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     askAI: opts.askAI ?? null,
     renderPreview: opts.inlineAiRenderPreview ?? null,
   }),
+  ChatContextHighlight,
 ]

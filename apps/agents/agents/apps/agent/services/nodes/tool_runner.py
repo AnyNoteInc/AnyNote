@@ -244,6 +244,36 @@ def _topic_matches_previous_reply(words: Sequence[str], previous_reply: str | No
     return False
 
 
+def _page_binding_denial(
+    name: str,
+    args: dict[str, Any] | None,
+    meta: ToolMeta | None,
+    state: AgentState,
+) -> str | None:
+    """Return a denial message when a page-bound chat targets another page.
+
+    In a page-bound chat, modifications may only apply to the bound page.
+    The caller denies BEFORE the confirmation interrupt so the user is never
+    asked to confirm a forbidden call. The message names the bound page id on
+    purpose — it teaches the LLM the correct id even when the binding prompt
+    never reached it.
+    """
+    page_id = state.context.page_id
+    if page_id is None or meta is None:
+        return None
+    if meta.forbidden_when_page_bound:
+        return (
+            f'Permission denied: this chat is bound to page {page_id}; '
+            f'tool {name} cannot be used in a page-bound chat.'
+        )
+    if meta.page_arg and str((args or {}).get(meta.page_arg)) != str(page_id):
+        return (
+            f'Permission denied: this chat is bound to page {page_id}; '
+            f'{name} may only target pageId={page_id}.'
+        )
+    return None
+
+
 async def _run_tool(
     call: dict[str, Any],
     tools: Sequence[StructuredTool],
@@ -259,6 +289,9 @@ async def _run_tool(
             content=f'Permission denied: tool {name} requires scope {meta.required_scope}',
             tool_call_id=call_id,
         )
+    denial = _page_binding_denial(name, args, meta, state)
+    if denial is not None:
+        return ToolMessage(content=denial, tool_call_id=call_id)
     if meta and meta.requires_confirmation and not state.context.allow_destructive:
         decision = interrupt({
             'confirmation_id': str(uuid4()),

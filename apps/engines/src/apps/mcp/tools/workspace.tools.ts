@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertNotPageBound } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
 import { PageWriter } from '../services/page-writer.service.js'
@@ -163,6 +164,7 @@ export class WorkspaceTools {
           })
         : Promise.resolve(null),
     ])
+    assertNotPageBound(auth, 'создание новых страниц')
     if (file?.workspaceId !== args.workspaceId) {
       throw new FileNotFoundError(args.fileId)
     }

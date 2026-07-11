@@ -35,6 +35,7 @@ export class AgentsInternalAuthGuard implements CanActivate {
     const auth = pick(headers['authorization'])
     const userId = pick(headers['x-agents-user'])
     const tsRaw = pick(headers['x-agents-timestamp'])
+    const boundPageId = pick(headers['x-agents-bound-page'])
 
     if (!auth?.startsWith('Bearer ') || !userId || !tsRaw) {
       throw new UnauthorizedException('missing agents internal auth headers')
@@ -50,16 +51,23 @@ export class AgentsInternalAuthGuard implements CanActivate {
       throw new UnauthorizedException('AGENTS_TO_ENGINES_SECRET not configured')
     }
 
+    // The bound-page header is covered by the HMAC: apps/web signs
+    // `${userId}:${ts}:${boundPageId}` for page-bound chats, so the binding
+    // cannot be stripped or retargeted in transit. Absent header keeps the
+    // legacy `${userId}:${ts}` message for backward compatibility.
+    const message = boundPageId ? `${userId}:${ts}:${boundPageId}` : `${userId}:${ts}`
     const expected = crypto
       .createHmac('sha256', Buffer.from(secret, 'base64'))
-      .update(`${userId}:${ts}`)
+      .update(message)
       .digest('base64')
 
     if (!safeEqualB64(expected, auth.slice('Bearer '.length))) {
       throw new UnauthorizedException('invalid HMAC')
     }
 
-    req.auth = { userId, source: 'internal' }
+    req.auth = boundPageId
+      ? { userId, source: 'internal', boundPageId }
+      : { userId, source: 'internal' }
     return true
   }
 }

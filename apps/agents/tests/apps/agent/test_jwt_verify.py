@@ -48,6 +48,30 @@ def test_accepts_valid_token() -> None:
     assert ctx.scopes == frozenset({'pages:read'})
 
 
+def test_maps_pid_claim_to_page_id() -> None:
+    page_id = str(uuid4())
+    token = sign({
+        'sub': str(uuid4()),
+        'wsid': str(uuid4()),
+        'cid': str(uuid4()),
+        'scopes': ['pages:read'],
+        'pid': page_id,
+    })
+    ctx = _verifier().verify_chat(token)
+    assert str(ctx.page_id) == page_id
+
+
+def test_missing_pid_claim_yields_none_page_id() -> None:
+    token = sign({
+        'sub': str(uuid4()),
+        'wsid': str(uuid4()),
+        'cid': str(uuid4()),
+        'scopes': [],
+    })
+    ctx = _verifier().verify_chat(token)
+    assert ctx.page_id is None
+
+
 def test_rejects_expired() -> None:
     token = sign(
         {'sub': str(uuid4()), 'wsid': str(uuid4()), 'cid': str(uuid4()), 'scopes': []},

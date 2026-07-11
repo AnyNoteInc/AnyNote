@@ -125,7 +125,6 @@ async function gatePageChat(
   }
 }
 
-
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -246,9 +245,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const ts = Math.floor(Date.now() / 1000)
+  // PAGE chats are HARD-bound to their page: the bound id rides the HMAC-signed
+  // engines headers (engines rejects writes to any other page) and the agents
+  // JWT `pid` claim below (tool_runner denies them before they reach engines).
   const enginesMcpHeaders = buildEnginesMcpHeaders({
     userId: session.user.id,
     ts,
+    boundPageId: boundPage?.id ?? null,
   })
 
   const enginesMcpServer = {
@@ -352,6 +355,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     workspaceId: chat.workspaceId,
     chatId: chat.id,
     role: membership.role,
+    boundPageId: boundPage?.id ?? null,
   })
 
   // Per-request thinking flags (from the composer) take precedence over the

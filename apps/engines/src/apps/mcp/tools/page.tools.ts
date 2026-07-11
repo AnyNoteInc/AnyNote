@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertNotPageBound, assertPageBindingAllows } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { excludeDatabaseRowPages, pageVisibilityWhere } from '../page-visibility.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
@@ -50,7 +51,18 @@ const ListPagesInput = z.object({
   parentId: mcpNullableUuidOptional(),
   type: mcpInput(
     z
-      .enum(['TEXT', 'EXCALIDRAW', 'GENOGRAM', 'MERMAID', 'PLANTUML', 'LIKEC4', 'DRAWIO', 'DATABASE', 'KANBAN', 'FORM'])
+      .enum([
+        'TEXT',
+        'EXCALIDRAW',
+        'GENOGRAM',
+        'MERMAID',
+        'PLANTUML',
+        'LIKEC4',
+        'DRAWIO',
+        'DATABASE',
+        'KANBAN',
+        'FORM',
+      ])
       .optional(),
   ),
   query: mcpInput(z.string().max(200).optional()),
@@ -137,6 +149,7 @@ export class PageTools {
 
   async doCreatePage(auth: AuthContext, args: CreatePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertNotPageBound(auth, 'создание новых страниц')
     const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
       userId: auth.userId,
@@ -173,11 +186,13 @@ export class PageTools {
 
   async doUpdatePage(auth: AuthContext, args: UpdatePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     // Prefer markdown: the agent passes a Markdown string, which we parse into a
     // Tiptap doc so PageWriter can rebuild contentYjs and the editor renders it
     // (a raw string/markdown left in `content` shows as an empty page). Fall back
     // to a pre-built `content` doc when no markdown is supplied.
-    const content = typeof args.markdown === 'string' ? this.parser.parse(args.markdown) : args.content
+    const content =
+      typeof args.markdown === 'string' ? this.parser.parse(args.markdown) : args.content
     await this.writer.updatePage({
       pageId: args.pageId,
       title: args.title,
@@ -204,6 +219,7 @@ export class PageTools {
 
   async doRenamePage(auth: AuthContext, args: RenamePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     // Title-only update: PageWriter.updatePage ignores undefined fields, so the
     // content/contentYjs stay untouched.
     await this.writer.updatePage({
@@ -236,6 +252,7 @@ export class PageTools {
 
   async doReplaceInPage(auth: AuthContext, args: ReplaceInPageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const { replacements } = await this.writer.replaceContentText({
       userId: auth.userId,
       workspaceId: args.workspaceId,
@@ -270,6 +287,7 @@ export class PageTools {
 
   async doMovePage(auth: AuthContext, args: MovePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     await this.writer.movePage({
       pageId: args.pageId,
       newParentId: args.newParentId,
@@ -366,7 +384,13 @@ export class PageTools {
 
   async doSetArchived(auth: AuthContext, args: PageIdArgs, archived: boolean) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
-    await this.writer.setArchived({ userId: auth.userId, workspaceId: args.workspaceId, pageId: args.pageId, archived })
+    assertPageBindingAllows(auth, args.pageId)
+    await this.writer.setArchived({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      pageId: args.pageId,
+      archived,
+    })
     return { ok: true as const }
   }
 
@@ -384,6 +408,7 @@ export class PageTools {
 
   async doAppendToPage(auth: AuthContext, args: AppendToPageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const appended = this.parser.parse(args.markdown)
     await this.writer.appendContent({
       userId: auth.userId,

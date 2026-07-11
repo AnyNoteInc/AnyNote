@@ -18,16 +18,38 @@
 // offsets (the image-paste 4→204 drift documented in MEMORY); without re-mapping
 // the accept would delete the wrong range. Accept always uses the CURRENT mapped
 // range from plugin state, never a numeric offset captured at popover-open time.
+//
+// Yjs hardening: `tr.mapping` is blind to how y-prosemirror applies REMOTE
+// updates — every remote sync lands as ONE whole-document ReplaceStep
+// (sync-plugin `_typeChanged`: `tr.replace(0, doc.content.size, …)`), and
+// mapping an interior position through that step collapses the range to
+// [0, docEnd]. So alongside the raw numbers the plugin anchors the range as
+// Yjs RelativePositions (the comment-anchor precedent) and, on transactions
+// carrying the ySync meta, re-RESOLVES the anchors instead of mapping.
+// Without a collab binding (pure tests, plain editors) the anchors are simply
+// absent and the mapping path is used unchanged.
 
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Editor } from '@tiptap/core'
+import type * as Y from 'yjs'
+import {
+  ySyncPluginKey,
+  absolutePositionToRelativePosition,
+  relativePositionToAbsolutePosition,
+} from '@tiptap/y-tiptap'
+
+import { ystate } from '../comment-anchor'
+import { markdownToHtml } from '../lib/markdown-to-html'
 
 // --- public types -----------------------------------------------------------
 
-/** Status of the streaming preview while a transform is in flight or settled. */
-export type InlineAiStatus = 'streaming' | 'done' | 'error'
+/** Status of the streaming preview while a transform is in flight or settled.
+ *  'capturing' = the ask-AI popover is open over a held selection: the source
+ *  range is highlighted and drift-tracked, but no stream has started and no
+ *  preview widget is shown. */
+export type InlineAiStatus = 'capturing' | 'streaming' | 'done' | 'error'
 
 /** The local (per-viewer) preview state held by the plugin, keyed by PluginKey. */
 export type InlineAiPreviewState = {
@@ -45,6 +67,11 @@ export type InlineAiPreviewState = {
   status: InlineAiStatus
   /** A user-facing error message when status === 'error'. */
   error?: string
+  /** Yjs anchor of `from` — survives y-prosemirror's whole-doc remote re-syncs.
+   *  Absent without a collab binding (plain editors, pure tests). */
+  relFrom?: Y.RelativePosition | null
+  /** Yjs anchor of `to` (see relFrom). */
+  relTo?: Y.RelativePosition | null
 }
 
 const INACTIVE: InlineAiPreviewState = {
@@ -63,11 +90,21 @@ const INACTIVE: InlineAiPreviewState = {
 // (the popover, the apps/web wiring) honest and the union closed.
 
 type InlineAiMeta =
+  | { type: 'capture'; from: number; to: number }
   | { type: 'start'; from: number; to: number; action: string }
   | { type: 'appendToken'; token: string }
   | { type: 'finish' }
   | { type: 'fail'; error: string }
   | { type: 'clear' }
+
+/** Hold [from,to] while the ask-AI popover is open: highlight + drift-track the
+ *  selection (the popover-open gap was previously untracked — a remote edit in
+ *  that window aimed the preview at the wrong range). */
+export const inlineAiCaptureMeta = (args: { from: number; to: number }): InlineAiMeta => ({
+  type: 'capture',
+  from: args.from,
+  to: args.to,
+})
 
 /** Begin a preview over [from,to] for `action` with empty streamed text. */
 export const inlineAiStartMeta = (args: {
@@ -101,6 +138,15 @@ const SOURCE_CLASS = 'anynote-inline-ai-source'
 /** Apply a meta on top of the prior state (pure state-machine step). */
 const applyMeta = (value: InlineAiPreviewState, meta: InlineAiMeta): InlineAiPreviewState => {
   switch (meta.type) {
+    case 'capture':
+      return {
+        active: true,
+        from: meta.from,
+        to: meta.to,
+        action: '',
+        text: '',
+        status: 'capturing',
+      }
     case 'start':
       return {
         active: true,
@@ -154,6 +200,11 @@ const buildDecorations = (
   if (preview.to > preview.from) {
     decos.push(Decoration.inline(preview.from, preview.to, { class: SOURCE_CLASS }))
   }
+  // While the ask-AI popover merely HOLDS the selection (no stream yet), paint
+  // only the source highlight — the preview widget appears at 'start'.
+  if (preview.status === 'capturing') {
+    return DecorationSet.create(state.doc, decos)
+  }
   // The preview/toolbar widget sits just after the selection (at `to`).
   decos.push(
     Decoration.widget(
@@ -197,6 +248,44 @@ const buildDecorations = (
  * toolbar; the exported singleton `inlineAiPlugin` (renderer-less) is what the
  * pure tests drive.
  */
+/** The tr.mapping drift step (local edits): assoc=1 with the collapse guard. */
+const mapRangeThrough = (value: InlineAiPreviewState, tr: Transaction): InlineAiPreviewState => {
+  // Re-map the pending range through this tr. Default bias assoc=1 keeps a
+  // plain insertion BEFORE/AT `from` shifting the whole range right (the
+  // collaborator-edits-before-selection case the pure tests pin).
+  const wasNonEmpty = value.to > value.from
+  let mappedFrom = tr.mapping.map(value.from, 1)
+  const mappedTo = tr.mapping.map(value.to, 1)
+  // COLLAPSE GUARD: a Yjs sync that re-materializes the paragraph as
+  // delete-then-reinsert (the empty-page contentYjs sync racing the
+  // `start` meta) maps a non-empty range to a degenerate [end,end] with
+  // assoc=1 on `from` — the start binds to the END of the reinsertion.
+  // When the mapping collapses a previously non-empty range, re-bias
+  // `from` LEFT (assoc=-1) so it sticks to the start of the reinserted
+  // content. Without this, accept appends at the doc end instead of
+  // replacing the selection.
+  if (wasNonEmpty && mappedFrom >= mappedTo) {
+    mappedFrom = tr.mapping.map(value.from, -1)
+  }
+  return { ...value, from: mappedFrom, to: mappedTo }
+}
+
+/** Anchor the CURRENT {from,to} as Yjs RelativePositions (null without a
+ *  collab binding — plain editors and the pure tests keep mapping-only). */
+const withYjsAnchors = (value: InlineAiPreviewState, state: EditorState): InlineAiPreviewState => {
+  const st = ystate(state)
+  if (!st) return value
+  try {
+    return {
+      ...value,
+      relFrom: absolutePositionToRelativePosition(value.from, st.type, st.binding.mapping),
+      relTo: absolutePositionToRelativePosition(value.to, st.type, st.binding.mapping),
+    }
+  } catch {
+    return value
+  }
+}
+
 export const createInlineAiPlugin = (opts: {
   renderPreview: InlineAiRenderPreview | null
   editor: Editor | null
@@ -205,34 +294,52 @@ export const createInlineAiPlugin = (opts: {
     key: inlineAiPluginKey,
     state: {
       init: () => INACTIVE,
-      apply(tr: Transaction, value: InlineAiPreviewState): InlineAiPreviewState {
-        // 1. THE DRIFT GUARD — re-map the stored range through this tr's mapping
-        //    on every transaction while active, so a remote/local edit before
-        //    the selection keeps {from,to} pointing at the same content.
+      apply(
+        tr: Transaction,
+        value: InlineAiPreviewState,
+        _oldState: EditorState,
+        newState: EditorState,
+      ): InlineAiPreviewState {
+        // 1. THE DRIFT GUARD — keep the stored range pointing at the same
+        //    content on every doc-changing transaction while active.
         let next = value
         if (value.active && tr.docChanged) {
-          // Re-map the pending range through this tr. Default bias assoc=1 keeps a
-          // plain insertion BEFORE/AT `from` shifting the whole range right (the
-          // collaborator-edits-before-selection case the pure tests pin).
-          const wasNonEmpty = value.to > value.from
-          let mappedFrom = tr.mapping.map(value.from, 1)
-          const mappedTo = tr.mapping.map(value.to, 1)
-          // COLLAPSE GUARD: a Yjs sync that re-materializes the paragraph as
-          // delete-then-reinsert (the empty-page contentYjs sync racing the
-          // `start` meta) maps a non-empty range to a degenerate [end,end] with
-          // assoc=1 on `from` — the start binds to the END of the reinsertion.
-          // When the mapping collapses a previously non-empty range, re-bias
-          // `from` LEFT (assoc=-1) so it sticks to the start of the reinserted
-          // content. Without this, accept appends at the doc end instead of
-          // replacing the selection.
-          if (wasNonEmpty && mappedFrom >= mappedTo) {
-            mappedFrom = tr.mapping.map(value.from, -1)
+          // A remote Yjs update arrives as ONE whole-document ReplaceStep
+          // (y-prosemirror sync-plugin) — tr.mapping through it collapses
+          // interior positions to [0, docEnd]. Re-RESOLVE the Yjs anchors
+          // instead; they survive any remote edit by construction.
+          const isYjsSync = Boolean(tr.getMeta(ySyncPluginKey))
+          const st = isYjsSync && value.relFrom && value.relTo ? ystate(newState) : null
+          let resolved: InlineAiPreviewState | null = null
+          if (st && value.relFrom && value.relTo) {
+            const from = relativePositionToAbsolutePosition(
+              st.doc,
+              st.type,
+              value.relFrom,
+              st.binding.mapping,
+            )
+            const to = relativePositionToAbsolutePosition(
+              st.doc,
+              st.type,
+              value.relTo,
+              st.binding.mapping,
+            )
+            if (from != null && to != null && from <= to) {
+              resolved = { ...value, from, to }
+            }
           }
-          next = { ...value, from: mappedFrom, to: mappedTo }
+          // Local edits (and anchor-less/orphaned states) take the mapping path.
+          next = resolved ?? mapRangeThrough(value, tr)
         }
-        // 2. Fold in any meta-action.
+        // 2. Fold in any meta-action. A new range ('capture'/'start') is
+        //    re-anchored in the Yjs doc immediately.
         const meta = tr.getMeta(inlineAiPluginKey) as InlineAiMeta | undefined
-        if (meta) next = applyMeta(next, meta)
+        if (meta) {
+          next = applyMeta(next, meta)
+          if (meta.type === 'capture' || meta.type === 'start') {
+            next = withYjsAnchors(next, newState)
+          }
+        }
         return next
       },
     },
@@ -262,67 +369,101 @@ export const inlineAiPlugin: Plugin<InlineAiPreviewState> = createInlineAiPlugin
  */
 export type InlineAiApplyMode = 'replace' | 'insertBelow'
 
+/** Where the accepted preview lands: replace a range, or insert at a position. */
+export type InlineAiAcceptTarget =
+  { kind: 'replaceRange'; from: number; to: number } | { kind: 'insertAt'; pos: number }
+
 /**
- * Build the ONE transaction that lands the accepted preview (spec §4.2 / §7
- * invariant 5): a single doc mutation = a single Yjs op = one collaborative-undo
- * step. It uses the CURRENT mapped range from plugin state (the drift guard),
- * never a captured offset. The same transaction carries the `clear` meta so the
- * preview is dismissed atomically with the edit. Returns `null` when no preview
- * is active (nothing to accept).
+ * Resolve WHERE the accepted preview lands (pure over state — the drift-guarded
+ * range math, testable without a DOM). Positions are clamped to the doc so a
+ * stale range can never throw out of applyInlineAiResult. Returns `null` when
+ * no preview is active.
  *
- *   - mode 'insertBelow': the original content is untouched; the result is
- *     inserted as a new sibling paragraph right after the selection's
- *     top-level block.
+ *   - mode 'insertBelow': after the selection's top-level block (Notion's
+ *     «Вставить ниже», spec §5) — the original content is untouched.
  *   - mode 'replace' (default):
- *     - replace actions (summarize/rewrite/grammar/translate/shorten): delete
- *       [from,to] then insert the text at `from`.
- *     - expand: insert the text at `to`, leaving the original selection intact.
+ *     - replace actions (summarize/rewrite/grammar/translate/shorten/custom):
+ *       the CURRENT mapped [from,to];
+ *     - expand: insert at `to`, leaving the original selection intact.
  */
-export const buildInlineAiAcceptTransaction = (
+export const resolveInlineAiAcceptTarget = (
   state: EditorState,
   mode: InlineAiApplyMode = 'replace',
-): Transaction | null => {
+): InlineAiAcceptTarget | null => {
   const preview = inlineAiPluginKey.getState(state)
   if (!preview?.active) return null
-  const { from, to, action, text } = preview
-  const tr = state.tr
+  const docSize = state.doc.content.size
+  const from = Math.max(0, Math.min(preview.from, docSize))
+  const to = Math.max(from, Math.min(preview.to, docSize))
   if (mode === 'insertBelow') {
-    // Keep the original; add the result as a sibling paragraph after the
-    // selection's top-level block (Notion's «Вставить ниже», spec §5).
-    const paragraph = state.schema.nodes.paragraph
-    if (!paragraph) return null
-    const $to = tr.doc.resolve(Math.min(to, tr.doc.content.size))
-    const insertPos = $to.depth >= 1 ? $to.after(1) : tr.doc.content.size
-    tr.insert(insertPos, paragraph.create(null, text ? state.schema.text(text) : undefined))
-  } else if (action === 'expand') {
-    // Append after the selection; original content untouched.
-    tr.insertText(text, to)
-  } else {
-    // Replace the selection with the transformed text.
-    tr.replaceWith(from, to, text ? state.schema.text(text) : [])
+    const $to = state.doc.resolve(to)
+    return { kind: 'insertAt', pos: $to.depth >= 1 ? $to.after(1) : docSize }
   }
-  // Dismiss the preview atomically (same transaction).
-  tr.setMeta(inlineAiPluginKey, inlineAiClearMeta())
-  return tr
+  if (preview.action === 'expand') {
+    // Append after the selection; original content untouched.
+    return { kind: 'insertAt', pos: to }
+  }
+  // Replace the selection with the transformed content.
+  return { kind: 'replaceRange', from, to }
 }
 
 /**
  * Accept the active preview against a live editor in ONE transaction (the popover
- * «Принять» / «Вставить ниже» handlers). No-op when no preview is active or the
- * editor is destroyed. Returns true when an accept transaction was dispatched.
+ * «Принять» / «Вставить ниже» handlers): a single chain = a single doc mutation =
+ * a single Yjs op = one collaborative-undo step (spec §4.2 / §7 invariant 5).
+ * The answer is parsed as MARKDOWN (markdownToHtml → insertContentAt — the
+ * SpaceAiBar accept precedent): models answer in markdown (`**жирный**`, lists,
+ * fenced code), and the generate prompt explicitly demands it — inserting the
+ * raw string as one text node left literal `**` in the doc. The same chain
+ * carries the `clear` meta so the preview is dismissed atomically with the
+ * edit. No-op when no preview is active or the editor is destroyed. Returns
+ * true when the accept was dispatched.
  */
 export const applyInlineAiResult = (
   editor: Editor,
   mode: InlineAiApplyMode = 'replace',
 ): boolean => {
   if (editor.isDestroyed) return false
-  const tr = buildInlineAiAcceptTransaction(editor.state, mode)
-  if (!tr) return false
-  editor.view.dispatch(tr.scrollIntoView())
-  return true
+  const preview = getInlineAiPreview(editor)
+  if (!preview.active) return false
+  const target = resolveInlineAiAcceptTarget(editor.state, mode)
+  if (!target) return false
+  const chain = editor.chain().focus()
+  if (!preview.text) {
+    // Nothing streamed (unreachable from the UI — accept is disabled without
+    // text): replacing with nothing = deleting the range; inserting nothing is
+    // a no-op. Keep the old semantics.
+    if (target.kind === 'replaceRange' && target.to > target.from) {
+      chain.deleteRange({ from: target.from, to: target.to })
+    }
+  } else {
+    const html = markdownToHtml(preview.text)
+    if (target.kind === 'replaceRange') {
+      chain.insertContentAt({ from: target.from, to: target.to }, html)
+    } else {
+      chain.insertContentAt(target.pos, html)
+    }
+  }
+  return chain
+    .command(({ tr }) => {
+      // Dismiss the preview atomically (same transaction).
+      tr.setMeta(inlineAiPluginKey, inlineAiClearMeta())
+      return true
+    })
+    .scrollIntoView()
+    .run()
 }
 
 // --- command helpers (dispatch the metas from the popover / apps/web) --------
+
+/** Hold the captured selection while the ask-AI popover is open: the range is
+ *  highlighted (the popover's autofocused input steals the native selection
+ *  paint) and drift-tracked, so a doc edit in the popover-open gap can't aim
+ *  the eventual preview at the wrong range. */
+export const captureInlineAiRange = (editor: Editor, args: { from: number; to: number }): void => {
+  if (editor.isDestroyed) return
+  editor.view.dispatch(editor.state.tr.setMeta(inlineAiPluginKey, inlineAiCaptureMeta(args)))
+}
 
 /** Start a preview over [from,to] for `action` (the popover action-pick). */
 export const startInlineAiPreview = (

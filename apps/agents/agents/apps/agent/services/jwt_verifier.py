@@ -45,9 +45,12 @@ class JwtVerifierService:
         scopes: frozenset[str] = frozenset(
             s for s in (raw_scopes if isinstance(raw_scopes, list) else []) if isinstance(s, str)
         )
+        raw_pid = claims.get('pid')
         return AgentContext(
             user_id=claims['sub'],
             workspace_id=claims['wsid'],
             chat_id=claims['cid'],
             scopes=scopes,
+            # Optional bound-page claim, present only for PAGE chats.
+            page_id=raw_pid if isinstance(raw_pid, str) and raw_pid else None,
         )

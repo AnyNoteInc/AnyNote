@@ -35,6 +35,28 @@ def test_executor_template_lists_plan() -> None:
     assert '1. [running] Найти страницы' in out
 
 
+def test_executor_template_renders_agent_system_prompt() -> None:
+    renderer = AgentJinjaRenderer(settings)
+    out = renderer.render_executor(
+        current_step={'id': '1', 'title': 'Обновить страницу'},
+        plan=[{'id': '1', 'status': 'running', 'title': 'Обновить страницу'}],
+        long_term_memories=[],
+        agent_system_prompt='Работай только на странице заметок.',
+    )
+    assert 'Additional workspace instructions:' in out
+    assert 'Работай только на странице заметок.' in out
+
+
+def test_executor_template_omits_instructions_block_without_prompt() -> None:
+    renderer = AgentJinjaRenderer(settings)
+    out = renderer.render_executor(
+        current_step={'id': '1', 'title': 'Шаг'},
+        plan=[{'id': '1', 'status': 'running', 'title': 'Шаг'}],
+        long_term_memories=[],
+    )
+    assert 'Additional workspace instructions:' not in out
+
+
 def test_critic_template_includes_revision_count() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_critic(

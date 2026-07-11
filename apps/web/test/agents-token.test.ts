@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { PrismaClient } from '@repo/db'
 
-import { getMembershipForToken, scopesForRole } from '../src/lib/agents-token'
+import {
+  getMembershipForToken,
+  scopesForRole,
+  signAgentsJwt,
+  verifyAgentsCallback,
+} from '../src/lib/agents-token'
 
 // Scopes the engines MCP tools require (mirror of tool_registry.py DEFAULT_ENGINES_TOOLS).
 // If a new tool adds a scope, grant it in agents-token.ts or this guard fails.
@@ -48,6 +53,39 @@ describe('files:delete scope', () => {
     expect(scopesForRole('OWNER')).toContain('files:delete')
     for (const role of ['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER', 'GUEST'] as const) {
       expect(scopesForRole(role)).not.toContain('files:delete')
+    }
+  })
+})
+
+describe('signAgentsJwt page binding (`pid` claim)', () => {
+  // The claim name `pid` is a cross-service contract: apps/agents
+  // jwt_verifier._context_from_claims maps it to AgentContext.page_id, and
+  // tool_runner denies page-write tools targeting any other pageId.
+  const SECRET = Buffer.alloc(32, 7).toString('base64')
+
+  it('carries pid for a page-bound chat and omits it otherwise', async () => {
+    vi.stubEnv('AGENTS_JWT_SECRET', SECRET)
+    try {
+      const base = {
+        userId: 'u1',
+        workspaceId: 'w1',
+        chatId: 'c1',
+        role: 'EDITOR' as const,
+      }
+      const bound = await signAgentsJwt({ ...base, boundPageId: 'p1' })
+      const boundClaims = await verifyAgentsCallback(`Bearer ${bound}`)
+      expect(boundClaims?.pid).toBe('p1')
+
+      const unbound = await signAgentsJwt(base)
+      const unboundClaims = await verifyAgentsCallback(`Bearer ${unbound}`)
+      expect(unboundClaims).not.toBeNull()
+      expect(unboundClaims?.pid).toBeUndefined()
+
+      const nullBound = await signAgentsJwt({ ...base, boundPageId: null })
+      const nullClaims = await verifyAgentsCallback(`Bearer ${nullBound}`)
+      expect(nullClaims?.pid).toBeUndefined()
+    } finally {
+      vi.unstubAllEnvs()
     }
   })
 })

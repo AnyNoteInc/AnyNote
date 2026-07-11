@@ -137,18 +137,29 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     },
   })
 
-  // Live selection → context chip (Notion: selection narrows the context).
+  // Live selection → context chip (Notion: selection narrows the context) +
+  // the in-editor context highlight: the composer's autofocus blurs the editor
+  // and erases the native selection paint, so the editor re-paints the range
+  // as a decoration (setChatContextHighlight) while the panel is open — the
+  // user always SEES which fragment is in context.
   useEffect(() => {
-    if (!open || !hasEditor) return
+    // chatsEnabled: the free-plan panel is an upsell without a chat — no
+    // context is ever sent, so nothing should be painted as "context".
+    if (!open || !chatsEnabled || !hasEditor) return
     const editor = getEditor()
     if (!editor) return
-    const update = () => setHasSelection(!editor.state.selection.empty)
+    const update = () => {
+      const { from, to, empty } = editor.state.selection
+      setHasSelection(!empty)
+      editor.commands.setChatContextHighlight(empty ? null : { from, to })
+    }
     update()
     editor.on('selectionUpdate', update)
     return () => {
       editor.off('selectionUpdate', update)
+      if (!editor.isDestroyed) editor.commands.setChatContextHighlight(null)
     }
-  }, [open, hasEditor, getEditor])
+  }, [open, chatsEnabled, hasEditor, getEditor])
 
   const getPageContext = useCallback((): { content: string; isSelection: boolean } | null => {
     const editor = getEditor()
@@ -208,7 +219,11 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     <>
       {/* Header (spec §7): no static «Чат» label — the thread switcher IS the
           title and stretches to the panel's left edge. */}
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', p: 1.5, pb: 1, flexShrink: 0 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'center', p: 1.5, pb: 1, flexShrink: 0 }}
+      >
         {chatsEnabled ? (
           <>
             {(list.data?.length ?? 0) > 0 ? (

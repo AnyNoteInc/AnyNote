@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertPageBindingAllows } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { FileUploader } from '../services/file-uploader.service.js'
@@ -57,6 +58,7 @@ export class PageFileTools {
 
   async doUploadFileToPage(auth: AuthContext, args: UploadInlineArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: auth.userId,
@@ -81,6 +83,7 @@ export class PageFileTools {
 
   async doUploadImageToPage(auth: AuthContext, args: UploadInlineArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: auth.userId,
@@ -105,6 +108,7 @@ export class PageFileTools {
 
   async doAttachFileToPage(auth: AuthContext, args: AttachArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     await this.uploader.attach({
       pageId: args.pageId,
       fileId: args.fileId,
@@ -126,6 +130,7 @@ export class PageFileTools {
 
   async doAttachImageToPage(auth: AuthContext, args: AttachArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     await this.uploader.attach({
       pageId: args.pageId,
       fileId: args.fileId,

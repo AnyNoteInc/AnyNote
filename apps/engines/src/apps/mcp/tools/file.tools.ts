@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertNotPageBound } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { FileNotFoundError, FileTooLargeError } from '../errors/mcp.errors.js'
 import { STORAGE } from '../services/file-uploader.service.js'
@@ -37,7 +38,9 @@ const FileIdInput = z.object({
 const GetFileContentInput = z.object({
   workspaceId: z.string().uuid(),
   fileId: mcpUuid(),
-  maxBytes: mcpInput(z.number().int().positive().max(MAX_INLINE_FILE_BYTES).default(MAX_INLINE_FILE_BYTES)),
+  maxBytes: mcpInput(
+    z.number().int().positive().max(MAX_INLINE_FILE_BYTES).default(MAX_INLINE_FILE_BYTES),
+  ),
 })
 
 const DeleteFileInput = z.object({
@@ -224,6 +227,9 @@ export class FileTools {
 
   async doDeleteFile(auth: AuthContext, args: DeleteFileArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    // Files are workspace-scoped and can be attached to pages other than the
+    // bound one, so a page-bound chat must not destroy them at all.
+    assertNotPageBound(auth, 'удаление файлов')
     if (!args.confirm) {
       throw new BadRequestException('delete_file requires confirm=true')
     }

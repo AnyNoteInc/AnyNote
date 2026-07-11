@@ -816,6 +816,14 @@
   border-radius: 2px;
 }
 
+/* Page-chat context highlight — keeps the selection visible while the chat
+   composer holds focus (the native selection paint dies with the blur; the
+   ProseMirror selection — the actual chat context — survives). */
+.anynote-editor .anynote-chat-context-highlight {
+  background: color-mix(in srgb, #1976d2 14%, transparent);
+  border-radius: 2px;
+}
+
 .anynote-editor .anynote-inline-ai-preview {
   display: inline-flex;
   flex-direction: column;
