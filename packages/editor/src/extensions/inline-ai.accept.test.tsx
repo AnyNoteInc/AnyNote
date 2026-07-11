@@ -81,6 +81,26 @@ describe('applyInlineAiResult parses the answer as markdown', () => {
     expect(getInlineAiPreview(ed).active).toBe(false)
   })
 
+  it('replace inside a code block: a fenced answer lands as code text, no literal backticks', () => {
+    // The block Ask-AI case: the captured range is the code block's INNER
+    // content; models wrap code answers in ```sql fences despite the system
+    // prompt. ProseMirror must fit the parsed <pre> into the codeBlock as
+    // plain code text — the fence characters must never reach the doc.
+    const ed = makeEditor('<pre><code>SELECT 1;</code></pre>')
+    const inner = { from: 1, to: ed.state.doc.child(0).nodeSize - 1 }
+    streamAndFinish(
+      ed,
+      { ...inner, action: 'custom' },
+      '```sql\nCREATE TABLE users (\n    age INTEGER\n);\n```',
+    )
+
+    expect(applyInlineAiResult(ed)).toBe(true)
+    expect(ed.state.doc.child(0).type.name).toBe('codeBlock')
+    expect(ed.state.doc.textContent).toContain('age INTEGER')
+    expect(ed.state.doc.textContent).not.toContain('```')
+    expect(getInlineAiPreview(ed).active).toBe(false)
+  })
+
   it('no-op when no preview is active', () => {
     const ed = makeEditor('<p>Hello</p>')
     expect(applyInlineAiResult(ed)).toBe(false)
