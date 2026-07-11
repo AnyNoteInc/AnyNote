@@ -13,8 +13,9 @@ const ACTIVE_OFFSET_PX = 96
 // leaves the page parked at the wrong position.
 const FOCUS_DEFER_MS = 450
 // Grace period before the hover popover closes, so the pointer can travel
-// from the mini bars to the panel without it vanishing (a hover bridge).
-const HOVER_CLOSE_MS = 150
+// from the mini bars to the panel without it vanishing (a hover bridge), and
+// so a brief slip past the panel edge while aiming doesn't dismiss the menu.
+const HOVER_CLOSE_MS = 300
 
 const LEVEL_INDENT_PX: Record<1 | 2 | 3, number> = {
   1: 0,
@@ -79,6 +80,14 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const panelScrollRef = useRef<HTMLElement | null>(null)
   const closeTimerRef = useRef<number | null>(null)
+  // Deferred caret-placement timer for the last outline click. Kept so a
+  // second click cancels the first one's pending focus instead of letting it
+  // fire mid-scroll with a stale position.
+  const focusTimerRef = useRef<number | null>(null)
+  // True while the pointer is over the popover panel. The active-item
+  // auto-follow must pause then, or list items shift under the cursor while
+  // the page smooth-scrolls and the user's next click lands on the wrong one.
+  const panelHoverRef = useRef(false)
   // Cached query of the editor's heading DOM nodes. Refreshed only when the
   // outline structure actually changes; the scroll handler reads it on every
   // frame and shouldn't pay for a fresh querySelectorAll each time.
@@ -148,24 +157,42 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
   }, [editor])
 
   // Keep the active item visible inside the popover's own scroll viewport.
-  useLayoutEffect(() => {
-    const container = panelScrollRef.current
-    if (!container) return
-    const target = container.querySelector<HTMLElement>(`[data-outline-index="${activeIndex}"]`)
+  // Relative rect math only, so it's safe to run before MUI has positioned
+  // the paper.
+  const followActiveInPanel = (container: HTMLElement, index: number) => {
+    const target = container.querySelector<HTMLElement>(`[data-outline-index="${index}"]`)
     if (!target) return
     const containerRect = container.getBoundingClientRect()
     const targetRect = target.getBoundingClientRect()
     const padding = 8
-    if (targetRect.top < containerRect.top + padding) {
+    if (targetRect.bottom < containerRect.top || targetRect.top > containerRect.bottom) {
+      // Fully out of view (fresh open far from the top): center it so the
+      // neighbouring sections — the likely next click targets — are visible.
+      container.scrollTop +=
+        targetRect.top - containerRect.top - (container.clientHeight - targetRect.height) / 2
+    } else if (targetRect.top < containerRect.top + padding) {
       container.scrollTop += targetRect.top - containerRect.top - padding
     } else if (targetRect.bottom > containerRect.bottom - padding) {
       container.scrollTop += targetRect.bottom - containerRect.bottom + padding
     }
-  }, [activeIndex, anchorEl, headings.length])
+  }
+
+  // Follow the active item as it changes — but not while the pointer is over
+  // the panel, so items never move under the cursor between two clicks.
+  // The on-open follow happens in the panel's callback ref instead: MUI's
+  // Portal mounts the popover content a commit later than `anchorEl` is set,
+  // so this effect fires before the panel exists.
+  useLayoutEffect(() => {
+    if (panelHoverRef.current) return
+    const container = panelScrollRef.current
+    if (!container) return
+    followActiveInPanel(container, activeIndex)
+  }, [activeIndex, headings.length])
 
   useEffect(() => {
     return () => {
       if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+      if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current)
     }
   }, [])
 
@@ -206,7 +233,25 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
     } else {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-    window.setTimeout(() => {
+    // Bring the clicked item to the panel's center so the sections right
+    // below it — the likely next targets — are reachable without the pointer
+    // leaving the panel.
+    const panel = panelScrollRef.current
+    const item = panel?.querySelector<HTMLElement>(`[data-outline-index="${index}"]`)
+    if (panel && item) {
+      const panelRect = panel.getBoundingClientRect()
+      const itemRect = item.getBoundingClientRect()
+      panel.scrollTo({
+        top:
+          panel.scrollTop +
+          (itemRect.top - panelRect.top) -
+          (panel.clientHeight - itemRect.height) / 2,
+        behavior: 'smooth',
+      })
+    }
+    if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current)
+    focusTimerRef.current = window.setTimeout(() => {
+      focusTimerRef.current = null
       if (editor.isDestroyed) return
       editor.commands.focus(heading.pos + 1, { scrollIntoView: false })
     }, FOCUS_DEFER_MS)
@@ -298,44 +343,71 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
       <Popover
         open={open}
         anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
+        onClose={() => {
+          panelHoverRef.current = false
+          setAnchorEl(null)
+        }}
         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         disableRestoreFocus
         disableAutoFocus
         disableEnforceFocus
         disableScrollLock
+        // No enter animation: the panel opens on hover and must be click-safe
+        // immediately. The default Grow scales the paper for ~300ms, moving
+        // item coordinates under the pointer — clicks land on the wrong
+        // section or on none at all (mousedown/mouseup on different items).
+        transitionDuration={0}
         sx={{ pointerEvents: 'none' }}
         slotProps={{
           paper: {
-            onMouseEnter: cancelClose,
-            onMouseLeave: scheduleClose,
+            onMouseEnter: () => {
+              panelHoverRef.current = true
+              cancelClose()
+            },
+            onMouseLeave: () => {
+              panelHoverRef.current = false
+              scheduleClose()
+            },
             sx: {
               pointerEvents: 'auto',
               width: 264,
               maxHeight: 'calc(100vh - 120px)',
-              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
               p: 1,
               mr: 1,
             },
           },
         }}
       >
-        <Box ref={panelScrollRef}>
-          <Typography
-            component="h2"
-            sx={{
-              color: 'text.secondary',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              px: 1,
-              mb: 0.75,
-            }}
-          >
-            Содержание
-          </Typography>
+        <Typography
+          component="h2"
+          sx={{
+            color: 'text.secondary',
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            px: 1,
+            mb: 0.75,
+            flexShrink: 0,
+          }}
+        >
+          Содержание
+        </Typography>
+        {/* The ref must sit on the element that actually scrolls: the active-
+            item follow assigns scrollTop here. Callback ref so the on-open
+            follow runs the moment the portal content mounts. */}
+        <Box
+          ref={(el: HTMLElement | null) => {
+            panelScrollRef.current = el
+            // Inline ref fires on every render of the open popover; the hover
+            // guard keeps re-runs from moving items under the pointer.
+            if (el && !panelHoverRef.current) followActiveInPanel(el, activeIndex)
+          }}
+          sx={{ overflowY: 'auto', minHeight: 0, flex: 1 }}
+        >
           <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
             {headings.map((heading, index) => {
               const isActive = index === activeIndex
