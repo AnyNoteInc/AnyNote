@@ -1,5 +1,5 @@
-// Doc-level "rich embeds" toggle (spec §4, cl9 line 157). LOCAL per-viewer, like
-// the collapse state — stored in localStorage keyed by pageId, never in Yjs.
+// Doc-level "rich embeds" toggle (spec §4, cl9 line 157). LOCAL per-viewer —
+// stored in localStorage keyed by pageId, never in Yjs.
 // When OFF, the embed NodeView renders a bookmark-style card instead of an
 // iframe. Default is ON. PURE-ish: only touches localStorage, guarded so SSR /
 // privacy-mode (where storage throws or is absent) falls back to the default.

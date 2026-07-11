@@ -7,10 +7,10 @@
 // transaction mutates the doc (= one collaborative-undo step; StarterKit undo is
 // off, the Yjs UndoManager owns undo — see collaboration.ts).
 //
-// This is modeled exactly on collapsible-headings.ts (the local-decoration
-// precedent: a PluginKey, a plugin state, setMeta-driven transitions, a
-// decorations prop) and synced-block.tsx (the lazy current-state apply + the
-// single chain()-transaction accept).
+// This follows the editor's local-decoration pattern (a PluginKey, a plugin
+// state, setMeta-driven transitions, a decorations prop — see comments.ts) and
+// synced-block.tsx (the lazy current-state apply + the single
+// chain()-transaction accept).
 //
 // Position handling — THE DRIFT GUARD: the pending range {from,to} is stored as
 // raw numbers and re-mapped through `tr.mapping.map(...)` on EVERY transaction
@@ -86,8 +86,8 @@ const INACTIVE: InlineAiPreviewState = {
 // --- the meta-action union --------------------------------------------------
 //
 // Transitions are driven by setMeta(inlineAiPluginKey, meta) — exactly the
-// collapsible-headings / comments precedent. Helper constructors keep call sites
-// (the popover, the apps/web wiring) honest and the union closed.
+// comments precedent. Helper constructors keep call sites (the popover, the
+// apps/web wiring) honest and the union closed.
 
 type InlineAiMeta =
   | { type: 'capture'; from: number; to: number }
@@ -230,8 +230,8 @@ const buildDecorations = (
       // `renderPreview`, that teardown would destroy+remount the React subtree
       // per token (lost focus/hover/press, flicker). A stable key keeps the host
       // node mounted across the whole stream; the injected renderer updates its
-      // OWN subtree from live plugin state. (Mirrors collapsible-headings, which
-      // keys on stable identity + a discrete state flag, never content length.)
+      // OWN subtree from live plugin state. (Keyed on stable identity + a
+      // discrete state flag, never content length.)
       // NB: the fallback `<span>` below paints `preview.text` in toDOM; with a
       // reused node toDOM is not re-invoked, so the fallback box reflects the
       // text at first render of each status — fine for SSR/tests; the production
