@@ -50,9 +50,15 @@ type Props = Readonly<{
 }>
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
+const WIDTH_STORAGE_KEY = 'workspace.sidebar.width'
 const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
+export const SIDEBAR_MIN_WIDTH = 220
+export const SIDEBAR_MAX_WIDTH = 480
 export type WorkspaceSidebarSection = 'chats' | 'pages'
+
+const clampSidebarWidth = (value: number) =>
+  Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, value))
 
 function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection | null {
   if (pathname.includes('/chats')) return 'chats'
@@ -97,6 +103,18 @@ export function WorkspaceLayoutClient({
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, mode)
   }, [mode])
+
+  // Draggable sidebar width (spec item 4): default → hydrate from
+  // localStorage after mount (the sidebar.mode pattern), persist on drag end.
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_WIDTH)
+  useEffect(() => {
+    const stored = Number.parseInt(window.localStorage.getItem(WIDTH_STORAGE_KEY) ?? '', 10)
+    if (!Number.isNaN(stored)) setSidebarWidth(clampSidebarWidth(stored))
+  }, [])
+  const commitSidebarWidth = (width: number) => {
+    setSidebarWidth(width)
+    window.localStorage.setItem(WIDTH_STORAGE_KEY, String(width))
+  }
 
   useEffect(() => {
     if (lastSidebarPathnameRef.current === pathname) return
@@ -314,6 +332,9 @@ export function WorkspaceLayoutClient({
         <WorkspaceShell
           mode={mode}
           sidebar={sidebar}
+          sidebarWidth={sidebarWidth}
+          onSidebarWidthChange={setSidebarWidth}
+          onSidebarWidthCommit={commitSidebarWidth}
           main={activePageId ? pageMain : mainContent}
         />
       </SettingsDialogProvider>

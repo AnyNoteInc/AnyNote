@@ -19,16 +19,20 @@ describe('parsePageContext', () => {
     })
   })
 
+  it.each(['string', 42, ['array'], { content: 'x', isSelection: 'yes' }, { isSelection: true }])(
+    'rejects invalid input %#',
+    (raw) => {
+      expect(parsePageContext(raw)).toEqual({ error: expect.any(String) })
+    },
+  )
+
   it.each([
-    'string',
-    42,
-    ['array'],
     { content: '', isSelection: false },
     { content: '   ', isSelection: true },
-    { content: 'x', isSelection: 'yes' },
-    { isSelection: true },
-  ])('rejects invalid input %#', (raw) => {
-    expect(parsePageContext(raw)).toEqual({ error: expect.any(String) })
+  ])('treats empty content as "no context", not an error %#', (raw) => {
+    // An empty page must not fail generation — the client just sends nothing,
+    // and a defensive server treats an empty string the same way.
+    expect(parsePageContext(raw)).toBeNull()
   })
 })
 

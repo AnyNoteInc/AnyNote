@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 
 import { htmlToMarkdown } from '@repo/editor/lib/html-to-markdown'
+import { markdownToHtml } from '@repo/editor/lib/markdown-to-html'
 import {
   AddRoundedIcon,
   Box,
@@ -25,6 +26,7 @@ import {
   MoreVertIcon,
   Paper,
   PictureInPictureAltIcon,
+  RemoveIcon,
   Select,
   Stack,
   TextField,
@@ -36,12 +38,14 @@ import {
 
 import { usePageEditor } from '@/components/page/editor-context'
 import { usePlanFeaturesOptional } from '@/components/workspace/plan-features-context'
+import { PanelResizeHandle } from '@/components/workspace/panel-resize-handle'
 import { WorkspaceChatClient } from '@/components/workspace/chat/workspace-chat-client'
 import { trpc } from '@/trpc/client'
 
 import {
   PAGE_CHAT_CONTEXT_LABEL,
-  PAGE_CHAT_SIDEBAR_WIDTH,
+  PAGE_CHAT_SIDEBAR_MAX_WIDTH,
+  PAGE_CHAT_SIDEBAR_MIN_WIDTH,
   usePageChatContext,
 } from './page-chat-context'
 
@@ -150,11 +154,43 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
     const editor = getEditor()
     if (!editor) return null
     const { from, to, empty } = editor.state.selection
-    if (!empty) {
-      return { content: editor.state.doc.textBetween(from, to, '\n'), isSelection: true }
-    }
-    return { content: htmlToMarkdown(editor.getHTML()), isSelection: false }
+    const ctx = empty
+      ? { content: htmlToMarkdown(editor.getHTML()), isSelection: false }
+      : { content: editor.state.doc.textBetween(from, to, '\n'), isSelection: true }
+    // Empty page (or whitespace-only selection): send no context at all — the
+    // generate route rejects an empty pageContext.content, and the agent can
+    // always pull the page through getPageMarkdown when it needs it.
+    if (!ctx.content.trim()) return null
+    return ctx
   }, [getEditor])
+
+  // Per-answer page actions (spec item 6). All go through the LIVE editor so
+  // they collaborate correctly: snapshots are editor HTML, and both restore
+  // and append propagate through the shared Yjs doc.
+  const capturePageSnapshot = useCallback((): string | null => {
+    const editor = getEditor()
+    return editor ? editor.getHTML() : null
+  }, [getEditor])
+
+  const restorePageSnapshot = useCallback(
+    (snapshot: string): boolean => {
+      const editor = getEditor()
+      if (!editor) return false
+      editor.commands.setContent(snapshot)
+      return true
+    },
+    [getEditor],
+  )
+
+  const appendToPage = useCallback(
+    (markdown: string): boolean => {
+      const editor = getEditor()
+      if (!editor) return false
+      const end = editor.state.doc.content.size
+      return editor.chain().insertContentAt(end, markdownToHtml(markdown)).run()
+    },
+    [getEditor],
+  )
 
   if (!ctx?.enabled) return null
 
@@ -170,10 +206,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
 
   const panelContent = (
     <>
+      {/* Header (spec §7): no static «Чат» label — the thread switcher IS the
+          title and stretches to the panel's left edge. */}
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', p: 1.5, pb: 1, flexShrink: 0 }}>
-        <Typography variant="subtitle2" sx={{ flex: 1 }}>
-          Чат
-        </Typography>
         {chatsEnabled ? (
           <>
             {(list.data?.length ?? 0) > 0 ? (
@@ -184,7 +219,7 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
                   const v = e.target.value as string
                   switchThread(v === 'new' ? null : v)
                 }}
-                sx={{ maxWidth: 160 }}
+                sx={{ flex: 1, minWidth: 0 }}
                 inputProps={{ 'aria-label': 'Выбор чата' }}
                 data-testid="page-chat-switcher"
               >
@@ -195,7 +230,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
                   </MenuItem>
                 ))}
               </Select>
-            ) : null}
+            ) : (
+              <Box sx={{ flex: 1 }} />
+            )}
             <IconButton
               size="small"
               aria-label="Новый чат"
@@ -215,7 +252,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
               </IconButton>
             ) : null}
           </>
-        ) : null}
+        ) : (
+          <Box sx={{ flex: 1 }} />
+        )}
         <Tooltip title="Режим отображения">
           <IconButton
             size="small"
@@ -232,7 +271,13 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
         </Tooltip>
         <Tooltip title="Скрыть чат">
           <IconButton size="small" aria-label="Скрыть чат" onClick={ctx.closePanel}>
-            <KeyboardDoubleArrowRightIcon fontSize="small" />
+            {/* Floating window closes like a minimized window (RemoveIcon);
+                the docked column slides away to the right (»). */}
+            {ctx.displayMode === 'floating' ? (
+              <RemoveIcon fontSize="small" />
+            ) : (
+              <KeyboardDoubleArrowRightIcon fontSize="small" />
+            )}
           </IconButton>
         </Tooltip>
       </Stack>
@@ -254,6 +299,9 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
               getPageContext={getPageContext}
               onChatCreated={ctx.setActiveChatId}
               contextChipLabel={hasSelection ? 'Контекст: Выделение' : PAGE_CHAT_CONTEXT_LABEL}
+              capturePageSnapshot={capturePageSnapshot}
+              restorePageSnapshot={restorePageSnapshot}
+              appendToPage={appendToPage}
             />
           ) : (
             <Box
@@ -457,7 +505,7 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
         data-mode="docked"
         className="page-chat-sidebar"
         sx={{
-          width: PAGE_CHAT_SIDEBAR_WIDTH,
+          width: ctx.sidebarWidth,
           bgcolor: 'background.default',
           borderLeft: 1,
           borderColor: 'divider',
@@ -465,9 +513,20 @@ export function PageChatSidebar({ workspaceId, pageId }: Props) {
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
+          position: 'relative',
         }}
       >
         {panelContent}
+        <PanelResizeHandle
+          edge="left"
+          width={ctx.sidebarWidth}
+          min={PAGE_CHAT_SIDEBAR_MIN_WIDTH}
+          max={PAGE_CHAT_SIDEBAR_MAX_WIDTH}
+          onWidth={ctx.setSidebarWidth}
+          onCommit={ctx.commitSidebarWidth}
+          ariaLabel="Изменить ширину чата"
+          testId="page-chat-sidebar-resize"
+        />
       </Box>
     </Collapse>
   )

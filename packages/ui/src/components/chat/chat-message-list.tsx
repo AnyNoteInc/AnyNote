@@ -4,7 +4,7 @@ import { ChatMessage, ChatMessageList as MuiChatMessageList } from '@mui/x-chat'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import { ChatProvider } from '@mui/x-chat-headless'
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatLoadingPhrases } from './chat-loading-phrases'
@@ -28,6 +28,8 @@ type ChatMessageListProps = Readonly<{
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
   density?: 'comfortable' | 'compact'
+  /** Per-message action row rendered under the message body/timestamp. */
+  renderMessageActions?: (message: ChatThreadMessage) => ReactNode
 }>
 
 function formatTimestamp(value: ChatThreadMessage['createdAt']) {
@@ -73,6 +75,7 @@ export function ChatMessageList({
   renderLink,
   onConfirm,
   density = 'comfortable',
+  renderMessageActions,
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
   const partRenderers = useMemo(() => buildChatPartRenderers({ onConfirm }), [onConfirm])
@@ -168,6 +171,7 @@ export function ChatMessageList({
                     {isEmptyStreamingAssistant ? <ChatLoadingPhrases /> : status}
                   </Typography>
                 ) : null}
+                {renderMessageActions?.(message) ?? null}
               </Box>
             </ChatMessage>
           )

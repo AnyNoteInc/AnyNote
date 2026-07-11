@@ -36,7 +36,7 @@ import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
-import { PAGE_CHAT_SIDEBAR_WIDTH, usePageChatContext } from './page-chat/page-chat-context'
+import { usePageChatContext } from './page-chat/page-chat-context'
 import { createAskAI, createGenerateAi } from './inline-ai-bridge'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
@@ -179,6 +179,12 @@ export function PageRenderer({
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
+  // Which page's editor is currently registered in PageEditorProvider, and the
+  // latest provider ctx (its identity changes per render — a mount-scoped
+  // effect must read it through a ref).
+  const registeredEditorRef = useRef<{ pageId: string; editor: Editor } | null>(null)
+  const pageEditorCtxRef = useRef(pageEditor)
+  pageEditorCtxRef.current = pageEditor
 
   const [editor, setEditor] = useState<Editor | null>(null)
   // The `/база данных` slash item opens a promise-based picker dialog; we keep
@@ -464,11 +470,30 @@ export function PageRenderer({
   const handleEditorReady = useCallback(
     (e: Editor) => {
       editorRef.current = e
+      registeredEditorRef.current = { pageId: page.id, editor: e }
       pageEditor.setEditor(e)
       setEditor(e)
     },
-    [pageEditor],
+    [pageEditor, page.id],
   )
+
+  // Deregister the editor when the page changes or the renderer unmounts.
+  // PageEditorProvider outlives page navigation (it wraps the whole workspace
+  // layout), so without this the page chat's getPageContext() keeps reading
+  // the PREVIOUS page's editor until the next page's editor finishes its async
+  // mount — and sends stale page content to the agent. The registration is
+  // tagged with its pageId so a late cleanup can never null out an editor the
+  // NEXT page already registered.
+  useEffect(() => {
+    const pageId = page.id
+    return () => {
+      const registered = registeredEditorRef.current
+      if (!registered || registered.pageId !== pageId) return
+      registeredEditorRef.current = null
+      const ctx = pageEditorCtxRef.current
+      if (ctx.getEditor() === registered.editor) ctx.setEditor(null)
+    }
+  }, [page.id])
 
   useEffect(() => {
     if (!editor) return
@@ -739,9 +764,10 @@ export function PageRenderer({
           rightOffset={
             (panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0) +
             // The floating chat window is position:fixed outside the flex row —
-            // only the docked column actually reserves layout width.
+            // only the docked column actually reserves layout width (which is
+            // user-resizable, so read the live width from the context).
             (pageChat?.panelOpen && pageChat.displayMode === 'docked'
-              ? PAGE_CHAT_SIDEBAR_WIDTH
+              ? pageChat.sidebarWidth
               : 0)
           }
         />

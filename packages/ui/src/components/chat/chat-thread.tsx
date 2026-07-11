@@ -8,7 +8,7 @@ import Fade from '@mui/material/Fade'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import useMediaQuery from '@mui/material/useMediaQuery'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
   ChatComposer,
@@ -53,6 +53,9 @@ type ChatThreadProps = Readonly<{
   /** 'compact' drops the assistant timeline rail so output spans the full
    *  width — for narrow hosts like the 400px page-chat panel. */
   density?: 'comfortable' | 'compact'
+  /** Per-message action row rendered under a message (e.g. copy / insert /
+   *  undo under assistant answers). Return null to render nothing. */
+  renderMessageActions?: (message: ChatThreadMessage) => ReactNode
 }>
 
 function isNearBottom(element: HTMLElement) {
@@ -97,13 +100,25 @@ export function ChatThread({
   composerContextChip,
   composerAutoFocus,
   density = 'comfortable',
+  renderMessageActions,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const usesPageScroll = Boolean(scrollContainerSelector)
   const isEmpty = messages.length === 0
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+
+  // Internal-scroll hosts (the page-chat panel): land on the LATEST message.
+  // @mui/x-chat's autoScroll follows newly appended messages, but a list that
+  // mounts already populated (opening the panel, switching docked↔floating —
+  // both remount, switching threads — scrollKey changes) starts at the top.
+  useLayoutEffect(() => {
+    if (usesPageScroll) return
+    const scroller = rootRef.current?.querySelector<HTMLElement>('.MuiChatMessageList-scroller')
+    if (scroller) scrollToBottom(scroller, 'auto')
+  }, [usesPageScroll, scrollKey])
 
   useLayoutEffect(() => {
     if (!scrollContainerSelector) {
@@ -198,6 +213,7 @@ export function ChatThread({
   return (
     <Stack
       data-testid="chat-thread"
+      ref={rootRef}
       spacing={0}
       sx={{
         flex: usesPageScroll ? 1 : undefined,
@@ -214,6 +230,7 @@ export function ChatThread({
           messages={messages}
           onConfirm={onConfirm}
           renderLink={renderLink}
+          renderMessageActions={renderMessageActions}
           showEmptyState={false}
           scrollMode={usesPageScroll ? 'page' : 'internal'}
         />

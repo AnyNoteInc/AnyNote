@@ -18,12 +18,16 @@ export function parsePageContext(raw: unknown): PageContextInput | null | { erro
     return { error: 'pageContext must be an object' }
   }
   const v = raw as Record<string, unknown>
-  if (typeof v.content !== 'string' || v.content.trim().length === 0) {
-    return { error: 'pageContext.content must be a non-empty string' }
+  if (typeof v.content !== 'string') {
+    return { error: 'pageContext.content must be a string' }
   }
   if (typeof v.isSelection !== 'boolean') {
     return { error: 'pageContext.isSelection must be a boolean' }
   }
+  // An empty page is not an error — it is simply "no context": the binding
+  // prompt still tells the agent which page the chat is about, and generation
+  // must not fail just because the page has no text yet.
+  if (v.content.trim().length === 0) return null
   return { content: v.content, isSelection: v.isSelection }
 }
 

@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sniffImageMime, sniffMediaMime, validateUpload } from '../../src/lib/file-validation'
+import {
+  isInlineSafeMime,
+  sniffImageMime,
+  sniffMediaMime,
+  validateUpload,
+} from '../../src/lib/file-validation'
 
 const mocks = vi.hoisted(() => ({
   fileFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
@@ -302,6 +307,57 @@ describe('POST /api/files/upload — magic-byte validation (avatar/icon/cover)',
     })
     const res = await POST(makeUploadRequest('attachment', zip))
     expect(res.status).toBe(200)
+  })
+})
+
+// ── validateUpload: the attachment kind (no MIME whitelist) ──────────────────
+
+describe('validateUpload — attachment kind (any MIME, 50MB)', () => {
+  it.each([
+    'application/octet-stream',
+    'text/html',
+    'application/json',
+    'application/x-msdownload',
+    'video/mp4',
+  ])('accepts %s (attachments have no MIME whitelist)', (mime) => {
+    expect(validateUpload('attachment', 100, mime)).toBeNull()
+  })
+
+  it('still enforces the 50MB cap', () => {
+    expect(validateUpload('attachment', 50 * MB + 1, 'text/plain')).toMatchObject({ status: 400 })
+  })
+
+  it('still rejects an empty file', () => {
+    expect(validateUpload('attachment', 0, 'text/plain')).toMatchObject({ status: 400 })
+  })
+})
+
+// ── isInlineSafeMime: the serving-side counterpart of "any MIME uploads" ─────
+
+describe('isInlineSafeMime', () => {
+  it.each([
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'audio/mpeg',
+    'application/pdf',
+    'text/plain',
+    'text/markdown',
+    'text/csv',
+  ])('%s is inline-safe', (mime) => {
+    expect(isInlineSafeMime(mime)).toBe(true)
+  })
+
+  it.each([
+    'text/html',
+    'image/svg+xml',
+    'application/xhtml+xml',
+    'application/zip',
+    'application/octet-stream',
+    'application/javascript',
+    '',
+  ])('%s must download', (mime) => {
+    expect(isInlineSafeMime(mime)).toBe(false)
   })
 })
 

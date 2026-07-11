@@ -381,8 +381,9 @@ test.describe('page chat — панель чата по странице', () =>
     const floating = page.getByTestId('page-chat-sidebar')
     await expect(floating).toHaveAttribute('data-mode', 'floating', { timeout: 10_000 })
     await expect(floating).toBeVisible()
-    // Floating window keeps the chat header; the FAB stays hidden while open.
-    await expect(floating.getByText('Чат', { exact: true })).toBeVisible()
+    // Floating window keeps the header controls (the static «Чат» label is
+    // gone — the mode button anchors the header now); the FAB stays hidden.
+    await expect(floating.getByTestId('page-chat-mode')).toBeVisible()
     await expect(page.getByTestId('page-chat-fab')).toBeHidden()
 
     // Hide via «Скрыть чат» — the FAB comes back.
