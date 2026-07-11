@@ -4,7 +4,7 @@ import pytest
 from agents.apps.agent.schemas import AgentState
 from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, StateGraph
@@ -62,6 +62,38 @@ async def test_final_answer_not_emitted_twice() -> None:
     # arrives exactly once (no duplicate from _yield_final_events).
     token_text = ''.join(e.text or '' for e in events if e.type == 'token')
     assert token_text == 'Answer A'
+
+
+@pytest.mark.asyncio
+async def test_state_written_human_message_is_not_echoed_as_tokens() -> None:
+    """The executor's first pass writes HumanMessage(user_message) into
+    state.messages next to the AI reply (executor.py). LangGraph messages-mode
+    re-emits state-written messages at node completion (the AI one is deduped
+    by its streamed run id, the Human one is not) — it must NOT become a token
+    event, or the user's own prompt is appended to the streamed answer (the
+    inline-AI «ответ + мой же промпт» bug).
+    """
+    answer_model = GenericFakeChatModel(messages=iter([AIMessage(content='clean answer')]))
+
+    async def executor(state: AgentState) -> dict[str, Any]:
+        ai = await answer_model.ainvoke('q')
+        return {
+            'messages': [HumanMessage(content=state.user_message), ai],
+            'final_answer': str(ai.content),
+            'current_step_id': None,
+        }
+
+    g = StateGraph(AgentState)
+    g.add_node('executor', executor)
+    g.add_edge(START, 'executor')
+    compiled = g.compile(checkpointer=MemorySaver())
+
+    initial = make_state(user_message='измени запрос добавив поле age')
+    config: RunnableConfig = {'configurable': {'thread_id': 'no-echo'}}
+
+    events = [e async for e in GraphStreamingService().stream(compiled, initial, config, initial)]
+    token_text = ''.join(e.text or '' for e in events if e.type == 'token')
+    assert token_text == 'clean answer'
 
 
 @pytest.mark.asyncio

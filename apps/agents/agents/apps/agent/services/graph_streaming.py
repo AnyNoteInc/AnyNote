@@ -8,6 +8,7 @@ of (mode, data). Values mode emits the full state dict; updates mode emits
 from collections.abc import AsyncIterator
 from typing import Any
 
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 
 from agents.apps.agent.schemas import AgentState, ServerEventSchema
@@ -134,10 +135,20 @@ class GraphStreamingService:
         same llm is reused by every node, so we filter by langgraph_node to keep
         only the user-facing answer tokens (executor). Empty-content chunks
         (tool-call deltas, role headers) are skipped.
+
+        Messages-mode also RE-EMITS messages the node WRITES to state at node
+        completion: the streamed AIMessage is deduped by its run id, but the
+        HumanMessage(user_message) the executor seeds on its first pass is not —
+        without the AIMessage type gate it would stream the user's own prompt
+        back as answer tokens right after the real answer. Full (non-chunk)
+        AIMessages stay allowed: non-streaming providers deliver the whole
+        answer that way.
         """
         if not isinstance(data, tuple) or len(data) != 2:
             return None
         msg, metadata = data
+        if not isinstance(msg, AIMessage):
+            return None
         if not isinstance(metadata, dict) or metadata.get('langgraph_node') != 'executor':
             return None
         text = getattr(msg, 'content', None)
