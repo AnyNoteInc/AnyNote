@@ -1,3 +1,31 @@
+# [1.37.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.36.0...v1.37.0) (2026-07-11)
+
+
+### Bug Fixes
+
+* **agents:** gate messages-mode tokens to AIMessage to stop prompt echo ([9f80b55](https://github.com/AnyNoteInc/AnyNote/commit/9f80b551ee43432bf2ed029aef20b2ed272ee626))
+* **editor:** empty-line placeholder wording — «пробел» для AI или «/» для команд ([1d6fbea](https://github.com/AnyNoteInc/AnyNote/commit/1d6fbea7b512fa1a2d671adaad1d26f5e658728d))
+* **engines,web:** apply review findings — auth-order, live reads, index staleness, history hardening ([5a3c28f](https://github.com/AnyNoteInc/AnyNote/commit/5a3c28f952a06bfc660964cda9e3832a2f701147))
+* **engines:** attach the Hocuspocus provider to its shared socket ([e5471ff](https://github.com/AnyNoteInc/AnyNote/commit/e5471ff2223460c639147fcb22c5f74b759a2e99))
+* **engines:** restore MCP tools/list broken by the zod 4 upgrade ([1db19c8](https://github.com/AnyNoteInc/AnyNote/commit/1db19c8ad0bf7ae327c4552ff88fae26276ef3c3))
+* **ui:** raise vitest testTimeout to survive parallel CI load ([5e71658](https://github.com/AnyNoteInc/AnyNote/commit/5e71658b29c9ad6280f60ffe5ed2866a23a51c6b))
+* **web:** make page outline quick-nav clicks land reliably ([798528a](https://github.com/AnyNoteInc/AnyNote/commit/798528a0362d729b1eac2bf7472fe48d646000c6))
+* **web:** page chats send the full thread history; tool-only turns stay in the prompt ([267250d](https://github.com/AnyNoteInc/AnyNote/commit/267250d8c7eba9b3541fe629911ed3a698bbbd4f))
+* **web:** pin chat attachment uploads to the chat's workspace ([039985c](https://github.com/AnyNoteInc/AnyNote/commit/039985ce20a6b5cc6393c66812245c3a175f0c29))
+
+
+### Features
+
+* **editor,web,agents,engines:** page-chat wave 3 — inline-AI fixes + hard page binding ([f783a7a](https://github.com/AnyNoteInc/AnyNote/commit/f783a7a91ca5a658dcef86eff2b6bc1c13c74a62))
+* **editor,web,engines,agents:** page-chat wave 4 — block Ask-AI, PDF tool, image↔file, echo fix, resize perf ([342e6e4](https://github.com/AnyNoteInc/AnyNote/commit/342e6e4a72223df3490a4588c180f1b8725a6b07))
+* **editor:** center drag handle on the first line and enlarge controls ([fe287dc](https://github.com/AnyNoteInc/AnyNote/commit/fe287dc3844f018acdffcbe1d4f34fd00f9b7bec))
+* **engines,agents,web:** renamePage/replaceInPage tools + page-bound system prompt ([2dacd9f](https://github.com/AnyNoteInc/AnyNote/commit/2dacd9fa1642f6ecf9e269405afff83c6b9dfad7))
+* **engines:** apply agent page edits through the live yjs doc ([501f9fc](https://github.com/AnyNoteInc/AnyNote/commit/501f9fc55bb22c2ca36533b5cbdc13be2cf8c4a4))
+* **ui:** compact chat density — full-width assistant output in the page panel ([c02da96](https://github.com/AnyNoteInc/AnyNote/commit/c02da96aac2d7aa9f6dc333466d413469527ed3e))
+* **ui:** re-export icons/transitions for the page-chat panel ([27e9c48](https://github.com/AnyNoteInc/AnyNote/commit/27e9c488b92f3642d0fbda478bcd81f7d7dda196))
+* **web,ui,editor:** page-chat wave 2 — resizable sidebars, answer actions, any-file uploads ([f20a166](https://github.com/AnyNoteInc/AnyNote/commit/f20a16625878d29be096ae1b6e9cbd8110bba886))
+* **web:** page-chat panel — FAB auto-hide, slide-in animation, docked/floating modes, «Чат» header ([3f56ec5](https://github.com/AnyNoteInc/AnyNote/commit/3f56ec574500b960efd7c7912989ef00a4b34e4f))
+
 # [1.36.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.35.1...v1.36.0) (2026-07-09)
 
 
