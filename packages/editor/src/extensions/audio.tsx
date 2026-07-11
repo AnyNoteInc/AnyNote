@@ -13,10 +13,11 @@ import { useCallback, useRef, useState } from 'react'
 import { AudioSchema } from './audio.schema'
 import { mediaToAttachmentNode, type MediaNodeAttrs } from './media-mime'
 import { normalizeLinkHref } from '../link-href'
-import type { UploadHandler } from '../types'
+import type { OpenFilePreview, UploadHandler } from '../types'
 
 export type AudioOptions = {
   uploadHandler: UploadHandler | null
+  onOpenFilePreview: OpenFilePreview | null
 }
 
 function AudioView({
@@ -259,6 +260,7 @@ export const Audio = AudioSchema.extend<AudioOptions>({
     return {
       ...(this.parent?.() ?? {}),
       uploadHandler: null,
+      onOpenFilePreview: null,
     }
   },
   addNodeView() {

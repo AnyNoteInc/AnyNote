@@ -10,6 +10,7 @@ import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
 import { FileAttachmentSchema } from './file-attachment.schema'
 import { attachmentToImageNode, attachmentToMediaNode, inferMediaKind } from './media-mime'
+import type { OpenFilePreview } from '../types'
 
 export type FileAttachmentAttrs = {
   url: string
@@ -182,7 +183,14 @@ function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
   )
 }
 
-export const FileAttachment = FileAttachmentSchema.extend({
+export type FileAttachmentOptions = {
+  onOpenFilePreview: OpenFilePreview | null
+}
+
+export const FileAttachment = FileAttachmentSchema.extend<FileAttachmentOptions>({
+  addOptions() {
+    return { onOpenFilePreview: null }
+  },
   addNodeView() {
     return ReactNodeViewRenderer(FileAttachmentView)
   },

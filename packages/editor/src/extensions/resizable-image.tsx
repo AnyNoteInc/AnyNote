@@ -16,13 +16,14 @@ import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
 import { imageToAttachmentNode } from './media-mime'
-import type { UploadHandler } from '../types'
+import type { OpenFilePreview, UploadHandler } from '../types'
 
 type Align = 'left' | 'center' | 'right'
 type Side = 'left' | 'right'
 
 export type ResizableImageOptions = {
   uploadHandler: UploadHandler | null
+  onOpenFilePreview: OpenFilePreview | null
 }
 
 const ALIGN_FLEX: Record<Align, 'flex-start' | 'center' | 'flex-end'> = {
@@ -380,6 +381,7 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
     return {
       ...(this.parent?.() ?? {}),
       uploadHandler: null,
+      onOpenFilePreview: null,
     }
   },
   addAttributes() {

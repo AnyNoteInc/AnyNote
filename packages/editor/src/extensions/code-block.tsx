@@ -25,6 +25,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { sanitizeSvg } from '@repo/diagram-board/sanitize-svg'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 import { renderPlantuml, type PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
+import type { OpenFilePreview } from '../types'
 
 type CodeLanguage = { value: string; label: string }
 
@@ -105,6 +106,7 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 
 type CodeBlockOptions = CodeBlockLowlightOptions & {
   plantumlRenderAuth?: PlantumlRenderAuth
+  onOpenFilePreview?: OpenFilePreview | null
 }
 
 function CodeBlockView({
@@ -239,6 +241,7 @@ export const CodeBlock = CodeBlockLowlight.extend<CodeBlockOptions>({
       tabSize: 4,
       HTMLAttributes: {},
       plantumlRenderAuth: undefined,
+      onOpenFilePreview: null,
     }
   },
   addNodeView() {

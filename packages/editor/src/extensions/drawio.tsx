@@ -10,9 +10,11 @@ import { DrawioViewerDialog } from '../components/drawio-viewer-dialog'
 import { getDrawioClickTarget } from './drawio-interaction'
 import { DrawioSchema } from './drawio.schema'
 import type { DrawioNodeAttrs } from './drawio-save'
+import type { OpenFilePreview } from '../types'
 
 export type DrawioOptions = {
   drawioUrl: string
+  onOpenFilePreview: OpenFilePreview | null
 }
 
 function DrawioView({ node, updateAttributes, extension, editor }: NodeViewProps) {
@@ -91,7 +93,7 @@ function DrawioView({ node, updateAttributes, extension, editor }: NodeViewProps
 
 export const Drawio = DrawioSchema.extend<DrawioOptions>({
   addOptions() {
-    return { drawioUrl: '' }
+    return { drawioUrl: '', onOpenFilePreview: null }
   },
   addNodeView() {
     return ReactNodeViewRenderer(DrawioView)
