@@ -1,9 +1,11 @@
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.schemas import PlanStepSchema
 from agents.apps.agent.services.nodes.executor import executor_node
+from agents.apps.agent.services.plan_echo import NEUTRAL_ECHO_STEP_TITLE
 from langchain_core.messages import AIMessage, ToolMessage
 
 from tests.apps.agent.factories import make_state
@@ -14,6 +16,17 @@ def _fake_llm(response: AIMessage) -> AsyncMock:
     llm.bind_tools = lambda tools: llm
     llm.ainvoke = AsyncMock(return_value=response)
     return llm
+
+
+class _CapturingRenderer:
+    """Stands in for AgentJinjaRenderer; records the render_executor kwargs."""
+
+    def __init__(self) -> None:
+        self.kwargs: dict[str, Any] = {}
+
+    def render_executor(self, **kwargs: Any) -> str:
+        self.kwargs = kwargs
+        return 'PROMPT'
 
 
 @pytest.mark.asyncio
@@ -78,6 +91,44 @@ async def test_executor_returns_empty_pending_when_no_tool_calls() -> None:
 
     out = await executor_node(state, llm=_fake_llm(AIMessage(content='done')), tools=[])
     assert out.pending_tool_calls == []
+
+
+@pytest.mark.asyncio
+async def test_executor_neutralizes_question_echo_step_in_prompt() -> None:
+    """A trivial-route plan (one step titled with the raw user message) must not
+    be quoted into the executor system prompt — models echo the quoted
+    instruction text into the answer (the inline-AI prompt leak)."""
+    question = 'Сделай текст короче\n\nТекст:\n"""\nдлинный текст\n"""'
+    state = make_state(user_message=question)
+    state.plan = [PlanStepSchema(id='1', title=question, status=PlanStepStatus.RUNNING)]
+    state.current_step_id = '1'
+    renderer = _CapturingRenderer()
+
+    out = await executor_node(
+        state, llm=_fake_llm(AIMessage(content='короче')), tools=[], renderer=renderer,
+    )
+
+    assert renderer.kwargs['current_step']['title'] == NEUTRAL_ECHO_STEP_TITLE
+    assert all(s['title'] == NEUTRAL_ECHO_STEP_TITLE for s in renderer.kwargs['plan'])
+    # The REAL plan state keeps the original title (ids/statuses untouched).
+    assert out.plan[0].title == question
+    assert out.plan[0].status == PlanStepStatus.DONE
+
+
+@pytest.mark.asyncio
+async def test_executor_keeps_genuine_step_titles_in_prompt() -> None:
+    state = make_state(user_message='Q')
+    state.plan = [
+        PlanStepSchema(id='1', title='Собрать данные', status=PlanStepStatus.RUNNING),
+        PlanStepSchema(id='2', title='Написать ответ', status=PlanStepStatus.PENDING),
+    ]
+    state.current_step_id = '1'
+    renderer = _CapturingRenderer()
+
+    await executor_node(state, llm=_fake_llm(AIMessage(content='ok')), tools=[], renderer=renderer)
+
+    assert renderer.kwargs['current_step']['title'] == 'Собрать данные'
+    assert [s['title'] for s in renderer.kwargs['plan']] == ['Собрать данные', 'Написать ответ']
 
 
 @pytest.mark.asyncio

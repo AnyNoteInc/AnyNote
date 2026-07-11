@@ -7,6 +7,7 @@ import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import { PageTools } from './page.tools.js'
+import { makeFakeYjsEditor } from '../services/__testutils__/fake-yjs-editor.js'
 
 describe('PageTools archive/restore', () => {
   const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
@@ -20,7 +21,7 @@ describe('PageTools archive/restore', () => {
     jest.clearAllMocks()
     memberFindUnique.mockResolvedValue({ workspaceId: 'w1' })
     setArchived.mockResolvedValue()
-    tools = new PageTools(prisma, writer, {} as MarkdownRenderer, {} as MarkdownParser, {} as StatsService)
+    tools = new PageTools(prisma, writer, {} as MarkdownRenderer, {} as MarkdownParser, {} as StatsService, makeFakeYjsEditor())
   })
 
   it('archivePage sets archived=true', async () => {

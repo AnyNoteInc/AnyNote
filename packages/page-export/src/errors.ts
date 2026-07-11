@@ -1,3 +1,7 @@
+// NB: no constructor parameter properties here — this package is loaded as raw
+// .ts by the Node runtime of apps/engines (type stripping), which rejects
+// non-erasable syntax (ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX).
+
 export class GotenbergTimeoutError extends Error {
   constructor() {
     super('Gotenberg request timed out')
@@ -6,12 +10,14 @@ export class GotenbergTimeoutError extends Error {
 }
 
 export class GotenbergUpstreamError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly body: string,
-  ) {
+  readonly status: number
+  readonly body: string
+
+  constructor(status: number, body: string) {
     super(`Gotenberg returned ${status}`)
     this.name = 'GotenbergUpstreamError'
+    this.status = status
+    this.body = body
   }
 }
 

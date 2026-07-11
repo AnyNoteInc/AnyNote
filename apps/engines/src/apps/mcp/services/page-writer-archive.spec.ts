@@ -4,6 +4,7 @@ import type { PrismaClient } from '@repo/db'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { PageWriter } from './page-writer.service.js'
 import { makeFakeDomain } from './__testutils__/fake-domain.js'
+import { makeFakeYjsEditor } from './__testutils__/fake-yjs-editor.js'
 
 // These tests cover direct-Prisma methods (setArchived). Domain is not called;
 // pass a minimal stub to satisfy the constructor signature.
@@ -25,7 +26,7 @@ describe('PageWriter.setArchived', () => {
 
   it('sets archived true', async () => {
     const { prisma, update } = makePrisma({ id: 'p1', workspaceId: 'w1' })
-    await new PageWriter(prisma, fakeDomain).setArchived({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', archived: true })
+    await new PageWriter(prisma, fakeDomain, makeFakeYjsEditor()).setArchived({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', archived: true })
     expect(update).toHaveBeenCalledWith({
       where: { id: 'p1' },
       data: { archivedAt: expect.any(Date), archivedById: 'u1', updatedById: 'u1' },
@@ -35,7 +36,7 @@ describe('PageWriter.setArchived', () => {
   it('throws for a page in another workspace', async () => {
     const { prisma } = makePrisma({ id: 'p1', workspaceId: 'w-other' })
     await expect(
-      new PageWriter(prisma, fakeDomain).setArchived({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', archived: false }),
+      new PageWriter(prisma, fakeDomain, makeFakeYjsEditor()).setArchived({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', archived: false }),
     ).rejects.toBeInstanceOf(PageNotFoundError)
   })
 })

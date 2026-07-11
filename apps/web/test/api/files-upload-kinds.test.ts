@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sniffImageMime, sniffMediaMime, validateUpload } from '../../src/lib/file-validation'
+import {
+  isInlineSafeMime,
+  sniffImageMime,
+  sniffMediaMime,
+  validateUpload,
+} from '../../src/lib/file-validation'
 
 const mocks = vi.hoisted(() => ({
   fileFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
@@ -15,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   storagePut: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
   getSession: vi.fn<() => Promise<unknown>>(),
   getActiveWorkspaceForUser: vi.fn<() => Promise<unknown>>(async () => null),
+  workspaceFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
 }))
 
 vi.mock('@repo/db', () => ({
@@ -22,6 +28,7 @@ vi.mock('@repo/db', () => ({
   Prisma: { PrismaClientKnownRequestError: class extends Error {} },
   prisma: {
     file: { findFirst: mocks.fileFindFirst, aggregate: mocks.fileAggregate },
+    workspace: { findFirst: mocks.workspaceFindFirst },
     workspaceLimit: { findUnique: mocks.limitFindUnique },
     user: { update: mocks.userUpdate },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
@@ -57,8 +64,9 @@ const createdRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
-function makeUploadRequest(kind: string, file: File): NextRequest {
-  const url = `http://localhost:3000/api/files/upload?kind=${kind}`
+function makeUploadRequest(kind: string, file: File, workspaceId?: string): NextRequest {
+  const wsParam = workspaceId === undefined ? '' : `&workspaceId=${workspaceId}`
+  const url = `http://localhost:3000/api/files/upload?kind=${kind}${wsParam}`
   const fd = new FormData()
   fd.set('file', file)
   const req = new Request(url, { method: 'POST', body: fd })
@@ -125,6 +133,7 @@ beforeEach(() => {
   mocks.storagePut.mockReset().mockResolvedValue(undefined)
   mocks.getSession.mockReset().mockResolvedValue({ user: { id: USER_ID } })
   mocks.getActiveWorkspaceForUser.mockReset().mockResolvedValue(null)
+  mocks.workspaceFindFirst.mockReset().mockResolvedValue(null)
 })
 
 // ── validateUpload: the new kinds ────────────────────────────────────────────
@@ -301,6 +310,57 @@ describe('POST /api/files/upload — magic-byte validation (avatar/icon/cover)',
   })
 })
 
+// ── validateUpload: the attachment kind (no MIME whitelist) ──────────────────
+
+describe('validateUpload — attachment kind (any MIME, 50MB)', () => {
+  it.each([
+    'application/octet-stream',
+    'text/html',
+    'application/json',
+    'application/x-msdownload',
+    'video/mp4',
+  ])('accepts %s (attachments have no MIME whitelist)', (mime) => {
+    expect(validateUpload('attachment', 100, mime)).toBeNull()
+  })
+
+  it('still enforces the 50MB cap', () => {
+    expect(validateUpload('attachment', 50 * MB + 1, 'text/plain')).toMatchObject({ status: 400 })
+  })
+
+  it('still rejects an empty file', () => {
+    expect(validateUpload('attachment', 0, 'text/plain')).toMatchObject({ status: 400 })
+  })
+})
+
+// ── isInlineSafeMime: the serving-side counterpart of "any MIME uploads" ─────
+
+describe('isInlineSafeMime', () => {
+  it.each([
+    'image/png',
+    'image/webp',
+    'video/mp4',
+    'audio/mpeg',
+    'application/pdf',
+    'text/plain',
+    'text/markdown',
+    'text/csv',
+  ])('%s is inline-safe', (mime) => {
+    expect(isInlineSafeMime(mime)).toBe(true)
+  })
+
+  it.each([
+    'text/html',
+    'image/svg+xml',
+    'application/xhtml+xml',
+    'application/zip',
+    'application/octet-stream',
+    'application/javascript',
+    '',
+  ])('%s must download', (mime) => {
+    expect(isInlineSafeMime(mime)).toBe(false)
+  })
+})
+
 // ── validateUpload: the media kind (Phase 9B) ────────────────────────────────
 
 describe('validateUpload — media kind (200MB, video/audio MIME)', () => {
@@ -458,5 +518,64 @@ describe('POST /api/files/upload — media kind (workspace-quota, auth-gated)', 
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: string }
     expect(body.error).toBe('No active workspace')
+  })
+})
+
+describe('POST /api/files/upload — explicit workspaceId (chat context pinning)', () => {
+  const WS_ID = '44444444-4444-4444-8444-444444444444'
+  const zip = new File([new Uint8Array(64)], 'a.zip', { type: 'application/zip' })
+
+  it('pins the file to the requested workspace when the user is a member', async () => {
+    mocks.workspaceFindFirst.mockResolvedValue({ id: WS_ID })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+    mocks.txFileCreate.mockResolvedValue(createdRow({ isPublic: false, name: 'a.zip' }))
+
+    const res = await POST(makeUploadRequest('attachment', zip, WS_ID))
+    expect(res.status).toBe(200)
+    // Membership was checked against the REQUESTED workspace…
+    expect(mocks.workspaceFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: WS_ID,
+          members: { some: { userId: USER_ID } },
+          blockedUsers: { none: { userId: USER_ID } },
+        }),
+      }),
+    )
+    // …the active-workspace fallback never ran, and the row landed there.
+    expect(mocks.getActiveWorkspaceForUser).not.toHaveBeenCalled()
+    expect(mocks.txFileCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ workspaceId: WS_ID }) }),
+    )
+  })
+
+  it('403s when the user is not a member of the requested workspace', async () => {
+    mocks.workspaceFindFirst.mockResolvedValue(null)
+    const res = await POST(makeUploadRequest('attachment', zip, WS_ID))
+    expect(res.status).toBe(403)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('Нет доступа к пространству')
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('400s on a malformed workspaceId', async () => {
+    const res = await POST(makeUploadRequest('attachment', zip, 'not-a-uuid'))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('Invalid workspaceId')
+    expect(mocks.workspaceFindFirst).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the active workspace when no workspaceId is passed', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-active' })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+    mocks.txFileCreate.mockResolvedValue(createdRow({ isPublic: false, name: 'a.zip' }))
+
+    const res = await POST(makeUploadRequest('attachment', zip))
+    expect(res.status).toBe(200)
+    expect(mocks.workspaceFindFirst).not.toHaveBeenCalled()
+    expect(mocks.txFileCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ workspaceId: 'ws-active' }) }),
+    )
   })
 })

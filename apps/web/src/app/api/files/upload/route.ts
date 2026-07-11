@@ -6,6 +6,7 @@ import type { NextRequest } from 'next/server'
 
 import { getActiveWorkspaceForUser } from '@/lib/active-workspace'
 import { getSession } from '@/lib/get-session'
+import { UUID_RE } from '@/lib/uuid'
 import {
   computeS3Key,
   extractExt,
@@ -22,6 +23,33 @@ const setUserAvatar = (userId: string, fileId: string) =>
     where: { id: userId },
     data: { image: `/api/files/${fileId}` },
   })
+
+/** Workspace for a quota-counted upload. An explicit `workspaceId` pins the
+ *  file to the caller's context (page chat binds to the PAGE's workspace,
+ *  which can diverge from the stored active workspace — другой таб, гостевая
+ *  страница) and is membership-gated; without it the legacy active-workspace
+ *  resolution stays. */
+async function resolveUploadWorkspace(
+  userId: string,
+  requestedWorkspaceId: string | null,
+): Promise<{ id: string } | { error: string; status: number }> {
+  if (requestedWorkspaceId !== null) {
+    if (!UUID_RE.test(requestedWorkspaceId)) {
+      return { error: 'Invalid workspaceId', status: 400 }
+    }
+    const workspace = await prisma.workspace.findFirst({
+      where: {
+        id: requestedWorkspaceId,
+        members: { some: { userId } },
+        blockedUsers: { none: { userId } },
+      },
+      select: { id: true },
+    })
+    return workspace ?? { error: 'Нет доступа к пространству', status: 403 }
+  }
+  const active = await getActiveWorkspaceForUser(userId)
+  return active ? { id: active.id } : { error: 'No active workspace', status: 400 }
+}
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
@@ -53,11 +81,14 @@ export async function POST(request: NextRequest) {
 
   let workspaceScopedId: string | null = null
   if (isWorkspaceKind) {
-    const ws = await getActiveWorkspaceForUser(session.user.id)
-    if (!ws) {
-      return Response.json({ error: 'No active workspace' }, { status: 400 })
+    const resolved = await resolveUploadWorkspace(
+      session.user.id,
+      request.nextUrl.searchParams.get('workspaceId'),
+    )
+    if ('error' in resolved) {
+      return Response.json({ error: resolved.error }, { status: resolved.status })
     }
-    workspaceScopedId = ws.id
+    workspaceScopedId = resolved.id
   }
 
   const formData = await request.formData()

@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
-import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/components'
+import {
+  Alert,
+  Box,
+  ChatThread,
+  Stack,
+  type ChatSendPayload,
+  type ChatTextPart,
+  type ChatThreadMessage,
+} from '@repo/ui/components'
 
 type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
 
@@ -10,6 +18,7 @@ import { trpc } from '@/trpc/client'
 
 import { renderChatLink } from '@/components/chat/chat-link-renderer'
 import { PAGE_CHAT_CONTEXT_LABEL } from '@/components/page/page-chat/page-chat-context'
+import { PageChatMessageActions } from '@/components/page/page-chat/page-chat-message-actions'
 import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
 import { useChatStream } from './use-chat-stream'
 import { useDraftAttachments } from './use-draft-attachments'
@@ -29,8 +38,24 @@ type WorkspaceChatClientProps = {
       getPageContext: () => { content: string; isSelection: boolean } | null
       onChatCreated?: (chatId: string) => void
       contextChipLabel?: string | null
+      /** Serialized page state (editor HTML) captured right before a send —
+       *  the per-answer undo restores it. Null when no live editor. */
+      capturePageSnapshot?: () => string | null
+      /** Restore a previously captured snapshot; false when no live editor. */
+      restorePageSnapshot?: (snapshot: string) => boolean
+      /** Append assistant markdown to the end of the page. */
+      appendToPage?: (markdown: string) => boolean
     }
 )
+
+/** Plain text of an assistant answer — the copy/insert payload. */
+function extractMessageText(message: ChatThreadMessage): string {
+  return message.parts
+    .filter((part): part is ChatTextPart => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n\n')
+    .trim()
+}
 
 export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
   const { chatId, workspaceId, initialMessages } = props
@@ -47,8 +72,12 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
   )
   const createChat = trpc.chat.createChat.useMutation()
   const updateChatSettings = trpc.chat.updateChatSettings.useMutation()
-  const draftAttachments = useDraftAttachments()
+  const draftAttachments = useDraftAttachments({ workspaceId })
   const resumeAttemptRef = useRef<string | null>(null)
+  // Pre-request page snapshots keyed by assistant message id (optimistic AND
+  // reconciled server id — onAssistantMessageId fires for both), powering the
+  // per-answer undo. Session-scoped by design: history answers can't undo.
+  const pageSnapshotsRef = useRef(new Map<string, string>())
 
   const [thinking, setThinking] = useState<{ effort: ThinkingEffort } | null>(null)
 
@@ -191,12 +220,20 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
     }
 
     setActionError(null)
+    // Capture the page BEFORE the agent can touch it, so this answer's undo
+    // restores the exact pre-request state.
+    const pageSnapshot = pageProps?.capturePageSnapshot?.() ?? null
     const started = await send({
       attachments: draftAttachments.uploadedAttachments,
       text,
       useThinking: thinking !== null,
       ...(thinking ? { thinkingEffort: thinking.effort } : {}),
       ...(pageProps ? { pageContext: pageProps.getPageContext() ?? undefined } : {}),
+      ...(pageSnapshot !== null
+        ? {
+            onAssistantMessageId: (id: string) => pageSnapshotsRef.current.set(id, pageSnapshot),
+          }
+        : {}),
     })
 
     if (started) {
@@ -264,6 +301,25 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
     [confirmResume],
   )
 
+  // Copy / insert-into-page / undo row under finished assistant answers —
+  // page-panel mode only (the actions operate on the bound page's editor).
+  const renderPageMessageActions = (message: ChatThreadMessage) => {
+    if (!pageProps || message.role !== 'assistant' || message.status === 'streaming') return null
+    const text = extractMessageText(message)
+    if (!text) return null
+    const snapshot = pageSnapshotsRef.current.get(message.id)
+    return (
+      <PageChatMessageActions
+        text={text}
+        canUndo={snapshot !== undefined && Boolean(pageProps.restorePageSnapshot)}
+        onAppend={() => pageProps.appendToPage?.(text) ?? false}
+        onUndo={() =>
+          snapshot !== undefined ? (pageProps.restorePageSnapshot?.(snapshot) ?? false) : false
+        }
+      />
+    )
+  }
+
   const combinedError =
     actionError ?? draftAttachments.error ?? streamError ?? query.error?.message ?? null
 
@@ -283,6 +339,7 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
         <ChatThread
           composerAttachments={draftAttachments.attachments}
           composerAutoFocus={activeChatId === null}
+          density={pageProps ? 'compact' : 'comfortable'}
           composerPlaceholder="Спросите что-нибудь..."
           composerReasoningSupported={reasoningSupported}
           composerRecentFiles={recentFiles}
@@ -301,6 +358,7 @@ export function WorkspaceChatClient(props: WorkspaceChatClientProps) {
           onConfirm={handleConfirm}
           onSend={handleComposerSend}
           renderLink={renderChatLink}
+          renderMessageActions={pageProps ? renderPageMessageActions : undefined}
           scrollContainerSelector={pageProps ? undefined : '.page-content-scroll'}
           scrollKey={activeChatId ?? 'new-chat'}
         />

@@ -70,48 +70,6 @@
   margin: 0.5rem 0 0.25rem;
 }
 
-/* Collapsible-headings toggle (spec §5). A real <button> placed just before the
-   heading text; appears on hover (or whenever the section is collapsed) and is
-   keyboard-operable. Folding is a per-viewer view aid — never touches the doc. */
-.anynote-editor .anynote-collapse-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.1em;
-  height: 1.1em;
-  margin-left: -1.35em;
-  margin-right: 0.25em;
-  padding: 0;
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.5));
-  font-size: 0.7em;
-  line-height: 1;
-  cursor: pointer;
-  user-select: none;
-  vertical-align: middle;
-  opacity: 0;
-  transition:
-    opacity 0.12s ease,
-    background-color 0.12s ease;
-}
-.anynote-editor h1:hover .anynote-collapse-toggle,
-.anynote-editor h2:hover .anynote-collapse-toggle,
-.anynote-editor h3:hover .anynote-collapse-toggle,
-.anynote-editor h4:hover .anynote-collapse-toggle,
-.anynote-editor h5:hover .anynote-collapse-toggle,
-.anynote-editor h6:hover .anynote-collapse-toggle,
-.anynote-editor .anynote-collapse-toggle:focus-visible,
-.anynote-editor .anynote-collapse-toggle[aria-expanded='false'] {
-  opacity: 1;
-}
-.anynote-editor .anynote-collapse-toggle:hover {
-  background: var(--mui-palette-action-hover, rgba(0, 0, 0, 0.06));
-}
-.anynote-editor .anynote-collapsed-section {
-  display: none !important;
-}
 .anynote-editor p,
 .anynote-editor ul,
 .anynote-editor ol {
@@ -812,6 +770,14 @@
    accept/retry/discard toolbar render just after the selection. None of this is
    written to Yjs until «Принять». */
 .anynote-editor .anynote-inline-ai-source {
+  background: color-mix(in srgb, #1976d2 14%, transparent);
+  border-radius: 2px;
+}
+
+/* Page-chat context highlight — keeps the selection visible while the chat
+   composer holds focus (the native selection paint dies with the blur; the
+   ProseMirror selection — the actual chat context — survives). */
+.anynote-editor .anynote-chat-context-highlight {
   background: color-mix(in srgb, #1976d2 14%, transparent);
   border-radius: 2px;
 }

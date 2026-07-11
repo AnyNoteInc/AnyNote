@@ -46,6 +46,9 @@ importers:
 
   apps/engines:
     dependencies:
+      '@hocuspocus/provider':
+        specifier: ^4.3.0
+        version: 4.3.0(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@hocuspocus/transformer':
         specifier: ^4.3.0
         version: 4.3.0(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)(y-prosemirror@1.3.7(prosemirror-model@1.25.10)(prosemirror-state@1.4.4)(prosemirror-view@1.42.0)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31))(yjs@13.6.31)
@@ -82,6 +85,9 @@ importers:
       '@repo/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@repo/page-export':
+        specifier: workspace:*
+        version: link:../../packages/page-export
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -97,6 +103,15 @@ importers:
       '@sentry/nestjs':
         specifier: ^10.64.0
         version: 10.64.0(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/core@2.9.0(@opentelemetry/api@1.9.1))
+      '@tiptap/core':
+        specifier: ^3.27.3
+        version: 3.27.3(@tiptap/pm@3.27.3)
+      '@tiptap/extension-code-block-lowlight':
+        specifier: 3.27.3
+        version: 3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/extension-code-block@3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)(highlight.js@11.11.1)(lowlight@3.3.0)
+      '@tiptap/extension-image':
+        specifier: 3.27.3
+        version: 3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))
       '@tiptap/extension-table':
         specifier: 3.27.3
         version: 3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)
@@ -109,6 +124,15 @@ importers:
       '@tiptap/extension-table-row':
         specifier: 3.27.3
         version: 3.27.3(@tiptap/extension-table@3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3))
+      '@tiptap/extension-task-item':
+        specifier: 3.27.3
+        version: 3.27.3(@tiptap/extension-list@3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3))
+      '@tiptap/extension-task-list':
+        specifier: 3.27.3
+        version: 3.27.3(@tiptap/extension-list@3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3))
+      '@tiptap/html':
+        specifier: 3.27.3
+        version: 3.27.3(@tiptap/core@3.27.3(@tiptap/pm@3.27.3))(@tiptap/pm@3.27.3)(happy-dom@20.10.6)
       '@tiptap/starter-kit':
         specifier: ^3.27.3
         version: 3.27.3
@@ -124,6 +148,12 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      jose:
+        specifier: ^6.2.3
+        version: 6.2.3
+      lowlight:
+        specifier: ^3.3.0
+        version: 3.3.0
       marked:
         specifier: ^18.0.5
         version: 18.0.5
@@ -139,6 +169,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      y-prosemirror:
+        specifier: ^1.3.7
+        version: 1.3.7(prosemirror-model@1.25.10)(prosemirror-state@1.4.4)(prosemirror-view@1.42.0)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       yjs:
         specifier: ^13.6.31
         version: 13.6.31
@@ -266,6 +299,9 @@ importers:
       '@repo/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@repo/page-export':
+        specifier: workspace:*
+        version: link:../../packages/page-export
       '@repo/plantuml':
         specifier: workspace:*
         version: link:../../packages/plantuml
@@ -732,6 +768,9 @@ importers:
 
   packages/editor:
     dependencies:
+      '@floating-ui/dom':
+        specifier: ^1.6.13
+        version: 1.7.6
       '@hocuspocus/provider':
         specifier: ^4.3.0
         version: 4.3.0(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
@@ -1192,6 +1231,31 @@ importers:
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.7.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(happy-dom@20.10.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(vite@8.1.3(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.101.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.0))
+
+  packages/page-export:
+    dependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/storage':
+        specifier: workspace:*
+        version: link:../storage
+      linkedom:
+        specifier: ^0.18.13
+        version: 0.18.13
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.1.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

@@ -7,6 +7,7 @@ import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import { PageTools } from './page.tools.js'
+import { makeFakeYjsEditor } from '../services/__testutils__/fake-yjs-editor.js'
 
 describe('PageTools.appendToPage', () => {
   const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
@@ -21,7 +22,7 @@ describe('PageTools.appendToPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     memberFindUnique.mockResolvedValue({ workspaceId: 'w1' })
-    tools = new PageTools(prisma, writer, {} as MarkdownRenderer, parser, {} as StatsService)
+    tools = new PageTools(prisma, writer, {} as MarkdownRenderer, parser, {} as StatsService, makeFakeYjsEditor())
   })
 
   it('parses markdown and forwards to PageWriter.appendContent', async () => {

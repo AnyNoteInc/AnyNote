@@ -3,6 +3,7 @@
 /* eslint-disable react/prop-types -- plugin can't unwrap the Readonly<> props generic */
 
 import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
 import Timeline from '@mui/lab/Timeline'
 import TimelineConnector, { timelineConnectorClasses } from '@mui/lab/TimelineConnector'
 import TimelineContent from '@mui/lab/TimelineContent'
@@ -27,6 +28,9 @@ type ChatMessageContentProps = Readonly<{
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
   variant?: 'assistant' | 'user'
+  /** 'compact' renders assistant parts full-width (no timeline rail) with a
+   *  small inline state dot on tool parts — for narrow hosts (page-chat panel). */
+  density?: 'comfortable' | 'compact'
 }>
 
 function linkifyWorkspacePageReferences(text: string): string {
@@ -47,11 +51,19 @@ function dotVariantForPart(part: ChatMessagePart): 'filled' | 'outlined' {
   return part.type === 'tool' ? 'filled' : 'outlined'
 }
 
+const COMPACT_DOT_COLOR: Record<TimelineDotColor, string> = {
+  grey: 'action.disabled',
+  primary: 'primary.main',
+  error: 'error.main',
+  warning: 'warning.main',
+}
+
 export function ChatMessageContent({
   parts,
   renderLink,
   onConfirm,
   variant = 'assistant',
+  density = 'comfortable',
 }: ChatMessageContentProps) {
   const markdownComponents = renderLink
     ? {
@@ -126,6 +138,42 @@ export function ChatMessageContent({
           <Box key={keyFor(part, index)}>{renderPartBody(part)}</Box>
         ))}
       </Box>
+    )
+  }
+
+  // Compact: no timeline rail — text spans the full host width; tool parts keep
+  // the state signal as a small inline dot instead of the rail dot.
+  if (density === 'compact') {
+    return (
+      <Stack data-testid="chat-message-compact" spacing={1} sx={{ minWidth: 0 }}>
+        {parts.map((part, index) =>
+          part.type === 'tool' ? (
+            <Stack
+              key={keyFor(part, index)}
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'flex-start', minWidth: 0 }}
+            >
+              <Box
+                data-testid="chat-tool-dot"
+                sx={{
+                  bgcolor: COMPACT_DOT_COLOR[dotColorForPart(part)],
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  height: 8,
+                  mt: '10px',
+                  width: 8,
+                }}
+              />
+              <Box sx={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>{renderPartBody(part)}</Box>
+            </Stack>
+          ) : (
+            <Box key={keyFor(part, index)} sx={{ minWidth: 0, overflow: 'hidden' }}>
+              {renderPartBody(part)}
+            </Box>
+          ),
+        )}
+      </Stack>
     )
   }
 

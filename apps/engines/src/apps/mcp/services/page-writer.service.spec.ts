@@ -8,6 +8,7 @@ import type { Domain } from '@repo/domain'
 // and that direct-Prisma methods (updatePage) continue to use this.prisma.
 import { PageWriter } from './page-writer.service.js'
 import { makeFakeDomain } from './__testutils__/fake-domain.js'
+import { makeFakeYjsEditor } from './__testutils__/fake-yjs-editor.js'
 
 function makePageWriterDomain(): Domain & {
   __mocks: { pagesCreate: ReturnType<typeof jest.fn>; pagesReorder: ReturnType<typeof jest.fn> }
@@ -60,7 +61,7 @@ describe('PageWriter', () => {
     jest.clearAllMocks()
     fakeDomain = makePageWriterDomain()
     mockPrisma = makeMockPrisma()
-    writer = new PageWriter(mockPrisma, fakeDomain)
+    writer = new PageWriter(mockPrisma, fakeDomain, makeFakeYjsEditor())
   })
 
   it('createPage delegates to domain.pages.create and returns the id', async () => {

@@ -12,6 +12,10 @@ type Ctx = {
   storage: Pick<StorageClient, 'get'>
   prisma: Pick<PrismaClient, 'file'>
   baseUrl: string
+  /** Scope for the file reads: page content can reference ANY /api/files/<id>
+   *  src, so embedding must not become a cross-tenant read (the download route
+   *  enforces membership; this embed path must too). */
+  workspaceId: string
 }
 
 export function extractFileId(src: string): string | null {
@@ -66,7 +70,7 @@ export async function embedImagesAndRewriteLinks(html: string, ctx: Ctx): Promis
   if (targets.length > 0) {
     const ids = Array.from(new Set(targets.map((t) => t.fileId)))
     const records = await ctx.prisma.file.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, OR: [{ workspaceId: ctx.workspaceId }, { isPublic: true }] },
       select: { id: true, path: true, mimeType: true },
     })
     const byId = new Map(records.map((r) => [r.id, r] as const))

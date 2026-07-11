@@ -22,20 +22,6 @@ const MEDIA_MAX_BYTES = 200 * 1024 * 1024
 
 const AVATAR_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 
-const ATTACHMENT_MIME = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain',
-  'text/markdown',
-  'application/zip',
-])
-
 // The media whitelist (spec §2): video/* + audio/* containers we can sniff.
 const MEDIA_MIME = new Set([
   'video/mp4',
@@ -57,10 +43,13 @@ const MAX_BYTES_BY_KIND: Record<UploadKind, number> = {
   media: MEDIA_MAX_BYTES,
 }
 
-// icon/cover are images only — same whitelist as avatars.
-const MIME_BY_KIND: Record<UploadKind, Set<string>> = {
+// icon/cover are images only — same whitelist as avatars. `attachment` has NO
+// MIME whitelist (null): chat/page attachments accept любой файл — they are
+// auth-gated, quota-counted, and served with a download-only disposition for
+// anything that isn't inline-safe (see /api/files/[id]).
+const MIME_BY_KIND: Record<UploadKind, Set<string> | null> = {
   avatar: AVATAR_MIME,
-  attachment: ATTACHMENT_MIME,
+  attachment: null,
   icon: AVATAR_MIME,
   cover: AVATAR_MIME,
   media: MEDIA_MIME,
@@ -79,10 +68,31 @@ export const validateUpload = (
     return { status: 400, message: 'File too large' }
   }
   const allowed = MIME_BY_KIND[kind]
-  if (!allowed.has(mimeType)) {
+  if (allowed && !allowed.has(mimeType)) {
     return { status: 400, message: 'File type not allowed' }
   }
   return null
+}
+
+// ── Inline-safe serving whitelist ────────────────────────────────────────────
+// Attachments accept ANY declared MIME, and /api/files/[id] serves bytes back
+// on the app origin. Active content rendered inline there (text/html, SVG,
+// XML) would be same-origin stored XSS, so only types a browser can't script
+// may keep `Content-Disposition: inline`; everything else is forced to
+// download. The declared MIME is client-controlled — treat unknown as unsafe.
+const INLINE_SAFE_EXACT = new Set([
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+])
+
+export const isInlineSafeMime = (mimeType: string): boolean => {
+  if (mimeType === 'image/svg+xml') return false
+  if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+    return true
+  }
+  return INLINE_SAFE_EXACT.has(mimeType)
 }
 
 // ── Magic-byte sniffing for the image whitelist ──────────────────────────────

@@ -5,10 +5,7 @@ import { z } from 'zod'
 import { getMembershipForToken, signAgentsJwt } from '@/lib/agents-token'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import type { ServiceBlock } from '@/lib/chat/types'
-import {
-  createEntryResponse,
-  streamAgentSseToRegistry,
-} from '@/lib/chat/agent-sse-bridge'
+import { createEntryResponse, streamAgentSseToRegistry } from '@/lib/chat/agent-sse-bridge'
 import { getSession } from '@/lib/get-session'
 
 export const runtime = 'nodejs'
@@ -21,7 +18,15 @@ const bodySchema = z.object({
 
 type PersistedPart =
   | { type: 'text'; text: string }
-  | { type: 'tool'; id: string; kind: 'tool' | 'confirmation'; state: ServiceBlock['state']; title: string; detail?: string; result?: string }
+  | {
+      type: 'tool'
+      id: string
+      kind: 'tool' | 'confirmation'
+      state: ServiceBlock['state']
+      title: string
+      detail?: string
+      result?: string
+    }
   | { type: string }
 
 function isTextPart(p: PersistedPart): p is { type: 'text'; text: string } {
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
         blockedUsers: { none: { userId: session.user.id } },
       },
     },
-    select: { id: true, workspaceId: true },
+    select: { id: true, workspaceId: true, kind: true, pageId: true },
   })
   if (!chat) return new Response('forbidden', { status: 403 })
 
@@ -99,12 +104,15 @@ export async function POST(req: NextRequest) {
     data: { status: 'STREAMING', errorMessage: null },
   })
 
-  // Mint a fresh agents JWT
+  // Mint a fresh agents JWT. PAGE chats keep their `pid` binding on resume too
+  // (the checkpointed AgentContext already carries page_id — this keeps the
+  // fresh token consistent with it).
   const jwt = await signAgentsJwt({
     userId: session.user.id,
     workspaceId: chat.workspaceId,
     chatId,
     role: membership.role,
+    boundPageId: chat.kind === 'PAGE' ? chat.pageId : null,
   })
 
   // Create a registry entry (no userMessageId — bubble already exists)
@@ -129,7 +137,14 @@ export async function POST(req: NextRequest) {
     const isResolved = part.kind === 'confirmation' && part.id === confirmationId
     const block = isResolved
       ? resolveConfirmationBlock(part, action)
-      : { id: part.id, kind: part.kind, state: part.state, title: part.title, detail: part.detail, result: part.result }
+      : {
+          id: part.id,
+          kind: part.kind,
+          state: part.state,
+          title: part.title,
+          detail: part.detail,
+          result: part.result,
+        }
     entry.publishToolStatus(block)
   }
 

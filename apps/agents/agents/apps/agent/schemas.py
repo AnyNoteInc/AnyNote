@@ -104,6 +104,9 @@ class AgentContext(BaseModel):
     chat_id: UUID
     scopes: frozenset[str]
     allow_destructive: bool = False
+    # Bound page for PAGE chats: agent-driven modifications may only target
+    # this page. None for regular workspace chats (no restriction).
+    page_id: UUID | None = None
 
     model_config = ConfigDict(frozen=True)
 

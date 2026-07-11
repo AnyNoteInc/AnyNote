@@ -23,16 +23,22 @@ export type DraftAttachment = ChatComposerAttachment & {
   uploadedFileSize?: string
 }
 
-export function useDraftAttachments() {
+export function useDraftAttachments(options?: { workspaceId?: string }) {
   const [attachments, setAttachments] = useState<DraftAttachment[]>([])
   const [error, setError] = useState<string | null>(null)
+  const workspaceId = options?.workspaceId
 
   const uploadAttachment = useEffectEvent(async (localId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
 
     try {
-      const response = await fetch(`/api/files/upload?kind=attachment`, {
+      // Pin the upload to the chat's workspace: without it the route falls back
+      // to the STORED active workspace, which can diverge from the page/chat
+      // workspace and strand the file where generate() will reject it.
+      const query = new URLSearchParams({ kind: 'attachment' })
+      if (workspaceId) query.set('workspaceId', workspaceId)
+      const response = await fetch(`/api/files/upload?${query.toString()}`, {
         method: 'POST',
         body: formData,
       })

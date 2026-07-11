@@ -70,7 +70,12 @@ export async function GET(
 
   const titleForOutput = (page.title ?? '').trim() || 'Без названия'
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? new URL(req.url).origin
-  const bodyHtml = await renderPageBodyHtml(page, { prisma, storage, baseUrl })
+  const bodyHtml = await renderPageBodyHtml(page, {
+    prisma,
+    storage,
+    baseUrl,
+    workspaceId: page.workspaceId,
+  })
   const filename = buildFilename(page.title, format)
 
   if (format === 'html') {

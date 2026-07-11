@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertNotPageBound, assertPageBindingAllows } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { excludeDatabaseRowPages, pageVisibilityWhere } from '../page-visibility.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
@@ -13,6 +14,7 @@ import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
+import { YjsPageEditor } from '../services/yjs-page-editor.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 
 export const CreatePageInput = z.object({
@@ -49,7 +51,18 @@ const ListPagesInput = z.object({
   parentId: mcpNullableUuidOptional(),
   type: mcpInput(
     z
-      .enum(['TEXT', 'EXCALIDRAW', 'GENOGRAM', 'MERMAID', 'PLANTUML', 'LIKEC4', 'DRAWIO', 'DATABASE', 'KANBAN', 'FORM'])
+      .enum([
+        'TEXT',
+        'EXCALIDRAW',
+        'GENOGRAM',
+        'MERMAID',
+        'PLANTUML',
+        'LIKEC4',
+        'DRAWIO',
+        'DATABASE',
+        'KANBAN',
+        'FORM',
+      ])
       .optional(),
   ),
   query: mcpInput(z.string().max(200).optional()),
@@ -62,12 +75,28 @@ const AppendToPageInput = z.object({
   markdown: z.string().min(1).max(50_000),
 })
 
+const RenamePageInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+  title: z.string().min(1).max(255),
+})
+
+const ReplaceInPageInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+  find: z.string().min(1).max(2_000),
+  replace: z.string().max(10_000),
+  all: mcpInput(z.boolean().default(false)),
+})
+
 type CreatePageArgs = z.infer<typeof CreatePageInput>
 type UpdatePageArgs = z.infer<typeof UpdatePageInput>
 type MovePageArgs = z.infer<typeof MovePageInput>
 type PageIdArgs = z.infer<typeof PageIdInput>
 type ListPagesArgs = z.infer<typeof ListPagesInput>
 type AppendToPageArgs = z.infer<typeof AppendToPageInput>
+type RenamePageArgs = z.infer<typeof RenamePageInput>
+type ReplaceInPageArgs = z.infer<typeof ReplaceInPageInput>
 
 function requireAuth(req: AuthedRequest | undefined): AuthContext {
   if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
@@ -82,6 +111,7 @@ export class PageTools {
     private readonly renderer: MarkdownRenderer,
     private readonly parser: MarkdownParser,
     private readonly stats: StatsService,
+    private readonly yjsEditor: YjsPageEditor,
   ) {}
 
   @Tool({
@@ -119,6 +149,7 @@ export class PageTools {
 
   async doCreatePage(auth: AuthContext, args: CreatePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertNotPageBound(auth, 'создание новых страниц')
     const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
       userId: auth.userId,
@@ -155,11 +186,13 @@ export class PageTools {
 
   async doUpdatePage(auth: AuthContext, args: UpdatePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     // Prefer markdown: the agent passes a Markdown string, which we parse into a
     // Tiptap doc so PageWriter can rebuild contentYjs and the editor renders it
     // (a raw string/markdown left in `content` shows as an empty page). Fall back
     // to a pre-built `content` doc when no markdown is supplied.
-    const content = typeof args.markdown === 'string' ? this.parser.parse(args.markdown) : args.content
+    const content =
+      typeof args.markdown === 'string' ? this.parser.parse(args.markdown) : args.content
     await this.writer.updatePage({
       pageId: args.pageId,
       title: args.title,
@@ -169,6 +202,75 @@ export class PageTools {
       workspaceId: args.workspaceId,
     })
     return { ok: true as const }
+  }
+
+  @Tool({
+    name: 'renamePage',
+    description:
+      'Переименовывает страницу (меняет ТОЛЬКО заголовок, содержимое не ' +
+      'трогает). Вызывай когда пользователь просит "переименуй страницу", ' +
+      '"назови страницу X", "смени заголовок". Требует подтверждения. ' +
+      'Параметры: workspaceId, pageId, title (новый заголовок, до 255 символов).',
+    parameters: RenamePageInput,
+  })
+  renamePage(args: RenamePageArgs, _context: Context, req: AuthedRequest) {
+    return this.doRenamePage(requireAuth(req), args)
+  }
+
+  async doRenamePage(auth: AuthContext, args: RenamePageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
+    // Title-only update: PageWriter.updatePage ignores undefined fields, so the
+    // content/contentYjs stay untouched.
+    await this.writer.updatePage({
+      pageId: args.pageId,
+      title: args.title,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+    })
+    return { ok: true as const, title: args.title }
+  }
+
+  @Tool({
+    name: 'replaceInPage',
+    description:
+      'Заменяет текст на странице: находит подстроку `find` и заменяет её на ' +
+      '`replace` (при all=true — все вхождения, иначе первое). Вызывай для ' +
+      'точечных правок: "замени X на Y", "исправь опечатку", "поменяй термин ' +
+      'во всём тексте". Совпадение ищется внутри одного текстового фрагмента — ' +
+      'если `find` пересекает границы форматирования (жирный/курсив/ссылка), ' +
+      'оно не найдётся: тогда перепиши содержимое через updatePage. Для полной ' +
+      'замены содержимого страницы тоже используй updatePage. Требует ' +
+      'подтверждения. Возвращает replacements — число сделанных замен (0 = ' +
+      'ничего не найдено, страница не изменена). Параметры: workspaceId, ' +
+      'pageId, find (до 2000 символов), replace (до 10 000), all?.',
+    parameters: ReplaceInPageInput,
+  })
+  replaceInPage(args: ReplaceInPageArgs, _context: Context, req: AuthedRequest) {
+    return this.doReplaceInPage(requireAuth(req), args)
+  }
+
+  async doReplaceInPage(auth: AuthContext, args: ReplaceInPageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
+    const { replacements } = await this.writer.replaceContentText({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      pageId: args.pageId,
+      find: args.find,
+      replace: args.replace,
+      all: args.all ?? false,
+    })
+    if (replacements === 0) {
+      return {
+        ok: false as const,
+        replacements: 0,
+        hint:
+          'Текст не найден (возможно, он разбит форматированием). ' +
+          'Прочитай страницу через getPageMarkdown и перепиши её через updatePage.',
+      }
+    }
+    return { ok: true as const, replacements }
   }
 
   @Tool({
@@ -185,6 +287,7 @@ export class PageTools {
 
   async doMovePage(auth: AuthContext, args: MovePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     await this.writer.movePage({
       pageId: args.pageId,
       newParentId: args.newParentId,
@@ -219,13 +322,24 @@ export class PageTools {
           workspaceId: args.workspaceId,
           AND: [pageVisibilityWhere(auth.userId)],
         },
-        select: { content: true },
+        select: { content: true, type: true },
       }),
     ])
     if (!page) {
       throw new PageNotFoundError(args.pageId)
     }
-    return { markdown: this.renderer.render(page.content as never) }
+    // TEXT pages: prefer the LIVE collaborative doc — agent edits apply there
+    // first and the DB snapshot lags until the yjs server's debounced store, so
+    // a read right after appendToPage/replaceInPage must not see pre-edit text.
+    let content = page.content
+    if (page.type === 'TEXT') {
+      const live = await this.yjsEditor.readLiveContent({
+        pageId: args.pageId,
+        actorUserId: auth.userId,
+      })
+      if (live) content = live as never
+    }
+    return { markdown: this.renderer.render(content as never) }
   }
 
   @Tool({
@@ -270,7 +384,13 @@ export class PageTools {
 
   async doSetArchived(auth: AuthContext, args: PageIdArgs, archived: boolean) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
-    await this.writer.setArchived({ userId: auth.userId, workspaceId: args.workspaceId, pageId: args.pageId, archived })
+    assertPageBindingAllows(auth, args.pageId)
+    await this.writer.setArchived({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      pageId: args.pageId,
+      archived,
+    })
     return { ok: true as const }
   }
 
@@ -288,6 +408,7 @@ export class PageTools {
 
   async doAppendToPage(auth: AuthContext, args: AppendToPageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const appended = this.parser.parse(args.markdown)
     await this.writer.appendContent({
       userId: auth.userId,

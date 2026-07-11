@@ -9,6 +9,20 @@
 /** Hard cap on how much of the selection is sent to the model. */
 export const MAX_SELECTION_CHARS = 8_000
 
+/**
+ * The inline-AI meta-instructions, appended to the workspace system prompt by
+ * the handler. They used to live inside the user message («Выведи только
+ * результат без пояснений.») — weaker models echoed that boilerplate (and the
+ * quoted source text) back into the streamed answer, which then landed in the
+ * document on accept. System-level placement keeps the user message down to
+ * instruction + text, leaving nothing echo-worthy.
+ */
+export const INLINE_AI_SYSTEM_PROMPT =
+  'Ты выполняешь инлайн-задачу в текстовом редакторе: твой ответ вставляется в документ как есть. ' +
+  'Выведи ТОЛЬКО итоговый результат в markdown — без пояснений, вступлений и завершающих комментариев, ' +
+  'без повторения инструкции или исходного текста, без обрамляющих кавычек и без код-фенса вокруг всего ответа. ' +
+  'Для диаграмм используй fenced-блоки кода (например ```mermaid). Отвечай на языке инструкции.'
+
 /** The six preset transform instructions (the action allow-list authority). */
 export const INLINE_AI_ACTIONS = {
   summarize: 'Сократи следующий текст до краткого резюме, сохранив главные мысли.',
@@ -35,8 +49,9 @@ export function isInlineAiAction(value: string): value is InlineAiAction {
 
 /**
  * Build the `user_message` sent to the agent: the preset instruction plus the
- * (length-capped) selected text. Output is kept paste-ready — the model is told
- * to return only the transformed text, no preamble.
+ * (length-capped) selected text. The "output only the result" meta-instruction
+ * lives in INLINE_AI_SYSTEM_PROMPT (system-level), NOT here — in the user
+ * message the model tended to echo it back into the answer.
  */
 export function buildInlinePrompt(
   action: InlineAiAction,
@@ -48,7 +63,7 @@ export function buildInlinePrompt(
     '{targetLang}',
     opts.targetLang?.trim() || DEFAULT_TARGET_LANG,
   )
-  return `${instruction}\n\nВыведи только результат без пояснений.\n\nТекст:\n"""\n${capped}\n"""`
+  return `${instruction}\n\nТекст:\n"""\n${capped}\n"""`
 }
 
 /** Caps for the space-bar `generate` and free-form `custom` actions (spec §4). */
@@ -78,16 +93,12 @@ export function buildGeneratePrompt(instruction: string, opts: { contextBefore?:
   const contextBlock = context
     ? `Контекст страницы над курсором (для продолжения и стиля):\n"""\n${context}\n"""\n\n`
     : ''
-  return (
-    `${contextBlock}Инструкция: ${cappedInstruction}\n\n` +
-    'Сгенерируй ТОЛЬКО итоговый markdown для вставки в документ, без пояснений и вступлений. ' +
-    'Для диаграмм используй fenced-блоки кода (например ```mermaid). Отвечай на языке инструкции.'
-  )
+  return `${contextBlock}Инструкция: ${cappedInstruction}`
 }
 
 /** Free-form transform of the selection (spec §4) — same shape as the presets. */
 export function buildCustomPrompt(instruction: string, selectedText: string): string {
   const cappedInstruction = instruction.slice(0, MAX_CUSTOM_INSTRUCTION_CHARS)
   const cappedText = selectedText.slice(0, MAX_SELECTION_CHARS)
-  return `${cappedInstruction}\n\nВыведи только результат без пояснений.\n\nТекст:\n"""\n${cappedText}\n"""`
+  return `${cappedInstruction}\n\nТекст:\n"""\n${cappedText}\n"""`
 }

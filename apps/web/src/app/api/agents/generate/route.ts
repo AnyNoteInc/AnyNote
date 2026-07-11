@@ -10,6 +10,7 @@ import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
 import { resolveAttachmentContents, type ResolvedAttachment } from '@/lib/chat/file-content'
 import {
+  buildPageBindingPrompt,
   buildPageContextAttachment,
   parsePageContext,
   type PageContextInput,
@@ -23,11 +24,10 @@ import {
 } from '@/lib/chat/agent-sse-bridge'
 import type { StartChatGenerationBody } from '@/lib/chat/types'
 import { getSession } from '@/lib/get-session'
+import { UUID_RE } from '@/lib/uuid'
 import { resolveProviderConnection } from '@/lib/chat/provider-connection'
 
 export const runtime = 'nodejs'
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const THINKING_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const
 type ThinkingEffort = (typeof THINKING_EFFORTS)[number]
@@ -86,7 +86,10 @@ async function gatePageChat(
   chat: Pick<Chat, 'kind' | 'pageId' | 'workspaceId'>,
   userId: string,
   pageContext: PageContextInput | undefined,
-): Promise<NextResponse | { attachment: ResolvedAttachment | null }> {
+): Promise<
+  | NextResponse
+  | { attachment: ResolvedAttachment | null; page: { id: string; title: string | null } | null }
+> {
   // pageContext is a PAGE-chat-only channel — reject it outright on NORMAL chats.
   if (pageContext && chat.kind !== 'PAGE') {
     return NextResponse.json(
@@ -94,7 +97,7 @@ async function gatePageChat(
       { status: 400 },
     )
   }
-  if (chat.kind !== 'PAGE') return { attachment: null }
+  if (chat.kind !== 'PAGE') return { attachment: null, page: null }
 
   const features = await getWorkspaceFeatures(chat.workspaceId)
   if (!features.chatsEnabled) {
@@ -118,6 +121,7 @@ async function gatePageChat(
     attachment: pageContext
       ? buildPageContextAttachment(pageContext, contextPage.title ?? '')
       : null,
+    page: contextPage,
   }
 }
 
@@ -161,6 +165,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const gate = await gatePageChat(chat, session.user.id, body.pageContext)
   if (gate instanceof NextResponse) return gate
   const pageContextAttachment = gate.attachment
+  const boundPage = gate.page
 
   const [files, settings, historyMessages, membership, mcpServerRows, memoryRows] =
     await Promise.all([
@@ -189,7 +194,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           embeddingsModel: { include: { provider: true } },
         },
       }),
-      buildChatHistoryMessages({ prisma, chatId: chat.id, workspaceId: chat.workspaceId }),
+      buildChatHistoryMessages({
+        prisma,
+        chatId: chat.id,
+        workspaceId: chat.workspaceId,
+        // «Вся история» for page chats (spec §5): the whole thread rides along
+        // with every page-context send instead of the last-10 window.
+        fullCurrentChat: chat.kind === 'PAGE',
+      }),
       // Active members only — blocked users get no membership, hence no scopes.
       getMembershipForToken(prisma, chat.workspaceId, session.user.id),
       prisma.workspaceMcpServer.findMany({
@@ -233,9 +245,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const ts = Math.floor(Date.now() / 1000)
+  // PAGE chats are HARD-bound to their page: the bound id rides the HMAC-signed
+  // engines headers (engines rejects writes to any other page) and the agents
+  // JWT `pid` claim below (tool_runner denies them before they reach engines).
   const enginesMcpHeaders = buildEnginesMcpHeaders({
     userId: session.user.id,
     ts,
+    boundPageId: boundPage?.id ?? null,
   })
 
   const enginesMcpServer = {
@@ -291,7 +307,11 @@ export async function POST(request: NextRequest): Promise<Response> {
             },
           }
         : null,
-    systemPrompt: settings.systemPrompt,
+    systemPrompt: boundPage
+      ? [settings.systemPrompt, buildPageBindingPrompt(boundPage, chat.workspaceId)]
+          .filter(Boolean)
+          .join('\n\n')
+      : settings.systemPrompt,
     temperature: settings.temperature,
     topP: settings.topP,
   }
@@ -335,6 +355,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     workspaceId: chat.workspaceId,
     chatId: chat.id,
     role: membership.role,
+    boundPageId: boundPage?.id ?? null,
   })
 
   // Per-request thinking flags (from the composer) take precedence over the

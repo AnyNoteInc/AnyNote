@@ -34,38 +34,18 @@ import { attachLinkClickHandler } from '../extensions/link-click-handler'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
 import type { InlineAiCapturedRange } from './inline-ai-popover'
-import type { AskAICallback } from '../types'
+import { readAiStorage } from '../lib/ai-storage'
+import { liveRectAnchor } from '../lib/live-rect-anchor'
 import { normalizeLinkHref } from '../link-href'
 
 type Props = { editor: Editor }
 
-// The inline-AI capability injected onto `editor.storage.ai` (the comments-storage
-// precedent). `askAI` gates the button; `onAskAi` opens the action popover that
-// anynote-editor mounts as a sibling, fed the captured selection range + anchor.
-type AiStorage = {
-  askAI?: AskAICallback | null
-  onAskAi?: (captured: InlineAiCapturedRange) => void
-}
-
-function readAiStorage(editor: Editor): AiStorage | undefined {
-  return (editor.storage as unknown as { ai?: AiStorage }).ai
-}
-
-/** A virtual anchor at the selection's client rect (the slash-popover precedent). */
+/** A LIVE virtual anchor at the selection's client rect (see liveRectAnchor). */
 function selectionRectAnchor(editor: Editor): InlineAiCapturedRange['anchorEl'] {
-  const { from, to } = editor.state.selection
-  try {
-    const start = editor.view.coordsAtPos(from)
-    const end = editor.view.coordsAtPos(to)
-    const left = Math.min(start.left, end.left)
-    const top = Math.min(start.top, end.top)
-    const right = Math.max(start.right, end.right)
-    const bottom = Math.max(start.bottom, end.bottom)
-    const rect = new DOMRect(left, top, right - left, bottom - top)
-    return { getBoundingClientRect: () => rect }
-  } catch {
-    return null
-  }
+  return liveRectAnchor(editor, () => ({
+    from: editor.state.selection.from,
+    to: editor.state.selection.to,
+  }))
 }
 
 type TextToolbarSelection = {

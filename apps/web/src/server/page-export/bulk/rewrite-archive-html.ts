@@ -1,6 +1,6 @@
 import { parseHTML } from 'linkedom'
 
-import { extractFileId } from '../embed-images'
+import { extractFileId } from '@repo/page-export'
 import { relativePath } from './naming'
 
 const FILE_PATH_PREFIX = '/api/files/'

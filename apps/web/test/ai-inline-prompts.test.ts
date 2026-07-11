@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   INLINE_AI_ACTIONS,
+  INLINE_AI_SYSTEM_PROMPT,
   MAX_SELECTION_CHARS,
   buildInlinePrompt,
   isInlineAiAction,
@@ -66,11 +67,14 @@ describe('extended inline AI actions', () => {
     expect(isExtendedInlineAiAction('')).toBe(false)
   })
 
-  it('buildGeneratePrompt embeds instruction and demands markdown-only output', () => {
+  it('buildGeneratePrompt embeds the instruction; meta-instructions live in the system prompt', () => {
     const prompt = buildGeneratePrompt('сделай базу данных в mermaid', {})
     expect(prompt).toContain('сделай базу данных в mermaid')
-    expect(prompt).toContain('ТОЛЬКО итоговый markdown')
+    // The markdown-only demand moved to INLINE_AI_SYSTEM_PROMPT — in the user
+    // message models echoed it into the answer.
+    expect(prompt).not.toContain('ТОЛЬКО итоговый markdown')
     expect(prompt).not.toContain('Контекст страницы')
+    expect(INLINE_AI_SYSTEM_PROMPT).toContain('ТОЛЬКО итоговый результат')
   })
 
   it('buildGeneratePrompt embeds trimmed page context when present', () => {
@@ -95,7 +99,20 @@ describe('extended inline AI actions', () => {
     const prompt = buildCustomPrompt('сделай списком', 'один два три')
     expect(prompt).toContain('сделай списком')
     expect(prompt).toContain('"""\nодин два три\n"""')
-    expect(prompt).toContain('Выведи только результат без пояснений.')
+    // The echo-prone meta-instruction must NOT ride the user message.
+    expect(prompt).not.toContain('Выведи только результат без пояснений.')
+  })
+
+  it('no prompt builder leaks meta-instructions into the user message', () => {
+    const prompts = [
+      buildInlinePrompt('summarize', 'текст', {}),
+      buildCustomPrompt('инструкция', 'текст'),
+      buildGeneratePrompt('инструкция', { contextBefore: 'контекст' }),
+    ]
+    for (const p of prompts) {
+      expect(p).not.toContain('Выведи только результат')
+      expect(p).not.toContain('без пояснений')
+    }
   })
 
   it('buildCustomPrompt caps instruction and selection', () => {

@@ -122,6 +122,7 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
           <Divider flexItem />
 
           <TextField
+            autoFocus
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder="# Заголовок&#10;&#10;Текст в формате Markdown..."

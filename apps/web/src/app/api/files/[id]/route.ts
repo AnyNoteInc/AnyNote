@@ -5,6 +5,7 @@ import { storage } from '@repo/storage'
 import type { NextRequest } from 'next/server'
 
 import { getSession } from '@/lib/get-session'
+import { isInlineSafeMime } from '@/lib/file-validation'
 
 export const runtime = 'nodejs'
 
@@ -98,7 +99,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const filenameStem = file.ext ? `${file.name}.${file.ext}` : file.name
   const filenameStar = encodeURIComponent(filenameStem)
-  const disposition = `inline; filename="${filenameStar}"; filename*=UTF-8''${filenameStar}`
+  // Attachments accept any declared MIME (file-validation.ts), and this route
+  // serves them on the app origin — inline text/html or SVG here would be
+  // same-origin stored XSS. Anything not on the inline-safe list downloads.
+  const dispositionType = isInlineSafeMime(file.mimeType) ? 'inline' : 'attachment'
+  const disposition = `${dispositionType}; filename="${filenameStar}"; filename*=UTF-8''${filenameStar}`
 
   // Public files (avatars/page icons/covers) are content-addressed per id —
   // the bytes behind an id never change, so browsers/CDNs may cache hard.

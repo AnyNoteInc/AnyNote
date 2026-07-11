@@ -10,7 +10,7 @@ Imports point **downward** only. Enforced by `.dependency-cruiser.cjs`
 | 4a · UI foundation         | `@repo/ui`, `@repo/diagram-board`                                               | nothing `@repo/*`                                               |
 | 4b · UI feature            | `drawio`, `excalidraw`, `genogram`, `likec4`, `mermaid`, `plantuml`, `editor`\* | UI foundation (\*`editor` may also import `mermaid`/`plantuml`) |
 | 3 · Domain                 | `@repo/domain`                                                                  | adapters only                                                   |
-| 2 · Infra services         | `@repo/auth` → `@repo/notifications` → `@repo/mail`                             | adapters + infra below                                          |
+| 2 · Infra services         | `@repo/auth` → `@repo/notifications` → `@repo/mail`, `@repo/page-export`        | adapters + infra below                                          |
 | 1 · Pure adapters          | `@repo/db`, `@repo/mail`, `@repo/storage`, `@repo/yookassa`                     | nothing `@repo/*` (db types ok)                                 |
 | 0 · Tooling                | `@repo/eslint-config`, `@repo/typescript-config`                                | devDependency anywhere                                          |
 

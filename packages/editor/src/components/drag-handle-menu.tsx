@@ -5,6 +5,7 @@ import type { Editor } from '@tiptap/core'
 import type { ResolvedPos } from '@tiptap/pm/model'
 
 import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import CheckIcon from '@mui/icons-material/Check'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import ControlPointDuplicateIcon from '@mui/icons-material/ControlPointDuplicate'
@@ -13,6 +14,8 @@ import FormatPaintOutlinedIcon from '@mui/icons-material/FormatPaintOutlined'
 import ShortcutIcon from '@mui/icons-material/Shortcut'
 import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined'
 
+import { readAiStorage } from '../lib/ai-storage'
+import { blockAskAiCapture } from '../lib/block-ask-ai'
 import { blockDisplayName, isConvertible } from '../lib/block-names'
 import {
   convertBlock,
@@ -80,6 +83,11 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null)
   const [copied, setCopied] = useState(false)
   const copyTimerRef = useRef<number | null>(null)
+  // The Menu has disableRestoreFocus (MUI's restore fires after the exit
+  // transition and would steal focus from the inline-AI popover's autofocused
+  // input), so handleClose restores focus to the anchor MANUALLY on every
+  // other close path (Escape, click-away, copy) — this flag skips it for AI.
+  const skipFocusRestoreRef = useRef(false)
 
   useEffect(
     () => () => {
@@ -94,6 +102,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   )
   const displayName = node ? blockDisplayName(node) : ''
   const convertible = node ? isConvertible(node) : false
+  // «Спросить AI» needs both the injected capability (page editors only) and a
+  // block with text to transform (atoms/empty blocks capture as null).
+  const ai = readAiStorage(editor)
+  const canAskAi = Boolean(
+    ai?.askAI && ai?.onAskAi && pos != null && node && !node.isAtom && node.textContent.trim(),
+  )
 
   const handleClose = () => {
     if (copyTimerRef.current != null) {
@@ -103,7 +117,12 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     setCopied(false)
     setSubmenu(null)
     setSubmenuAnchor(null)
+    const restoreTo = skipFocusRestoreRef.current ? null : anchorEl
+    skipFocusRestoreRef.current = false
     onClose()
+    // Deferred a tick: synchronously the Menu's FocusTrap is still enforcing
+    // (open flips false only on the re-render) and would steal the focus back.
+    if (restoreTo) window.setTimeout(() => restoreTo.focus(), 0)
   }
 
   const handleOpenSubmenu = (kind: 'convert' | 'color') => (e: MouseEvent<HTMLElement>) => {
@@ -183,12 +202,31 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     handleClose()
   }
 
+  const handleAskAi = () => {
+    if (pos == null) return
+    const storage = readAiStorage(editor)
+    const captured = blockAskAiCapture(editor, pos)
+    if (!storage?.onAskAi || !captured) {
+      handleClose()
+      return
+    }
+    // Close the menu WITHOUT restoring focus to the anchor — the popover's
+    // autofocused input must keep it. The popover then holds the block range
+    // in the InlineAI plugin (Yjs-anchored) exactly like the selection path.
+    skipFocusRestoreRef.current = true
+    handleClose()
+    storage.onAskAi(captured)
+  }
+
   return (
     <>
       <Menu
         open={Boolean(anchorEl && pos != null)}
         anchorEl={anchorEl}
         onClose={handleClose}
+        // Focus restore would steal focus from the inline-AI popover's
+        // autofocused input right after «Спросить AI» closes this menu.
+        disableRestoreFocus
         slotProps={{ paper: { sx: { minWidth: 220 } } }}
       >
         <MenuItem disabled dense>
@@ -235,6 +273,15 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         </MenuItem>
 
         <Divider />
+
+        {canAskAi && (
+          <MenuItem onClick={handleAskAi} data-testid="block-ask-ai">
+            <ListItemIcon>
+              <AutoAwesomeIcon fontSize="small" color="primary" />
+            </ListItemIcon>
+            <ListItemText>Спросить AI</ListItemText>
+          </MenuItem>
+        )}
 
         <MenuItem onClick={handleCopyText} data-testid="block-copy-text">
           <ListItemIcon>

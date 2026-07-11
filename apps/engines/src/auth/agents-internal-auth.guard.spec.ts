@@ -13,11 +13,9 @@ function makeCtx(headers: Record<string, string>): ExecutionContext {
   } as unknown as ExecutionContext
 }
 
-function sign(secret: string, userId: string, ts: number) {
-  return crypto
-    .createHmac('sha256', Buffer.from(secret, 'base64'))
-    .update(`${userId}:${ts}`)
-    .digest('base64')
+function sign(secret: string, userId: string, ts: number, boundPageId?: string) {
+  const message = boundPageId ? `${userId}:${ts}:${boundPageId}` : `${userId}:${ts}`
+  return crypto.createHmac('sha256', Buffer.from(secret, 'base64')).update(message).digest('base64')
 }
 
 const SECRET = crypto.randomBytes(32).toString('base64')
@@ -45,6 +43,59 @@ describe('AgentsInternalAuthGuard', () => {
     } as unknown as ExecutionContext
     expect(guard.canActivate(ctx)).toBe(true)
     expect(request.auth).toEqual({ userId: 'u', source: 'internal' })
+  })
+
+  it('accepts a bound-page header covered by the HMAC and exposes boundPageId', async () => {
+    const ts = Math.floor(Date.now() / 1000)
+    const moduleRef = await Test.createTestingModule({
+      providers: [AgentsInternalAuthGuard],
+    }).compile()
+    const guard = moduleRef.get(AgentsInternalAuthGuard)
+    const request: Record<string, unknown> = {
+      headers: {
+        authorization: `Bearer ${sign(SECRET, 'u', ts, 'p1')}`,
+        'x-agents-user': 'u',
+        'x-agents-timestamp': String(ts),
+        'x-agents-bound-page': 'p1',
+      },
+    }
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext
+    expect(guard.canActivate(ctx)).toBe(true)
+    expect(request.auth).toEqual({ userId: 'u', source: 'internal', boundPageId: 'p1' })
+  })
+
+  it('rejects a bound-page header the HMAC does not cover', async () => {
+    const ts = Math.floor(Date.now() / 1000)
+    const moduleRef = await Test.createTestingModule({
+      providers: [AgentsInternalAuthGuard],
+    }).compile()
+    const guard = moduleRef.get(AgentsInternalAuthGuard)
+    // HMAC signed over the legacy `userId:ts` message only — a binding header
+    // spliced onto such a request must not authenticate.
+    const ctx = makeCtx({
+      authorization: `Bearer ${sign(SECRET, 'u', ts)}`,
+      'x-agents-user': 'u',
+      'x-agents-timestamp': String(ts),
+      'x-agents-bound-page': 'p1',
+    })
+    expect(() => guard.canActivate(ctx)).toThrow(/invalid HMAC/i)
+  })
+
+  it('rejects a tampered bound-page header', async () => {
+    const ts = Math.floor(Date.now() / 1000)
+    const moduleRef = await Test.createTestingModule({
+      providers: [AgentsInternalAuthGuard],
+    }).compile()
+    const guard = moduleRef.get(AgentsInternalAuthGuard)
+    const ctx = makeCtx({
+      authorization: `Bearer ${sign(SECRET, 'u', ts, 'p1')}`,
+      'x-agents-user': 'u',
+      'x-agents-timestamp': String(ts),
+      'x-agents-bound-page': 'p2',
+    })
+    expect(() => guard.canActivate(ctx)).toThrow(/invalid HMAC/i)
   })
 
   it('rejects an expired timestamp', async () => {

@@ -1,7 +1,10 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from '@jest/globals'
 import { prisma } from '@repo/db'
+import { createDomain } from '@repo/domain'
+import { rebuildDeliveries, cancelPendingDeliveries } from '@repo/notifications'
 
 import { PageWriter } from '../../src/apps/mcp/services/page-writer.service.js'
+import { makeFakeYjsEditor } from '../../src/apps/mcp/services/__testutils__/fake-yjs-editor.js'
 
 /**
  * Proves the engines write path runs end-to-end against a real Postgres:
@@ -13,7 +16,11 @@ import { PageWriter } from '../../src/apps/mcp/services/page-writer.service.js'
  * AND a page.upserted outbox row is enqueued.
  */
 describe('Pages engines → @repo/domain → DB (integration)', () => {
-  const writer = new PageWriter(prisma)
+  const domain = createDomain({
+    prisma,
+    scheduler: { rebuild: rebuildDeliveries, cancel: cancelPendingDeliveries },
+  })
+  const writer = new PageWriter(prisma, domain, makeFakeYjsEditor())
 
   let workspaceId: string
   let userId: string

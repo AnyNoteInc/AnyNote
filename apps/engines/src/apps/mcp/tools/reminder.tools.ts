@@ -6,14 +6,15 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertPageBindingAllows } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { ReminderService } from '../services/reminder.service.js'
-import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
+import { mcpDate, mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 
 const CreateReminderInput = z.object({
   workspaceId: z.string().uuid(),
   pageId: mcpUuid(),
-  dueAt: z.coerce.date(),
+  dueAt: mcpDate(),
   label: mcpInput(z.string().max(200).optional()),
   audience: mcpInput(z.enum(['ME', 'WORKSPACE', 'LIST']).default('ME')),
   offsets: mcpInput(z.array(z.number().int()).optional()),
@@ -26,7 +27,7 @@ const ListRemindersInput = z.object({
 const MoveReminderInput = z.object({
   workspaceId: z.string().uuid(),
   reminderId: mcpUuid(),
-  dueAt: mcpInput(z.coerce.date().optional()),
+  dueAt: mcpInput(mcpDate().optional()),
   shift: mcpInput(
     z
       .object({
@@ -82,6 +83,7 @@ export class ReminderTools {
 
   async doCreateReminder(auth: AuthContext, args: CreateReminderArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const reminderId = await this.reminders.createReminder({
       userId: auth.userId,
       workspaceId: args.workspaceId,
@@ -161,7 +163,8 @@ export class ReminderTools {
 
   async doDeleteReminder(auth: AuthContext, args: DeleteReminderArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
-    const hasSelector = args.reminderId != null || (args.reminderIds?.length ?? 0) > 0 || args.all === true
+    const hasSelector =
+      args.reminderId != null || (args.reminderIds?.length ?? 0) > 0 || args.all === true
     if (!hasSelector) {
       throw new BadRequestException('Provide reminderId, reminderIds, or all:true')
     }

@@ -5,10 +5,10 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { loadEnvFromRoot, signUpAndAuthAs } from './helpers/auth'
 
 /**
- * Phase 9B E2E (plan Task 6 / spec §6): the media + embeds + collapsible-heading
- * journeys, all asserted IN-SESSION. The Playwright webServer is just `next dev`
- * with NO yjs server, so editor node state does NOT survive a reload — every
- * assertion here happens while the page stays loaded.
+ * Phase 9B E2E (plan Task 6 / spec §6): the media + embeds journeys, all
+ * asserted IN-SESSION. The Playwright webServer is just `next dev` with NO yjs
+ * server, so editor node state does NOT survive a reload — every assertion
+ * here happens while the page stays loaded.
  *
  * Insertion paths under test:
  *  - /video, /audio  → the media FileUploadPopover ("Выбрать файлы") → a tiny
@@ -22,9 +22,6 @@ import { loadEnvFromRoot, signUpAndAuthAs } from './helpers/auth'
  *  - /bookmark → EmbedUrlPopover: any https URL inserts a bookmark card; the
  *    preview route is real but best-effort, so we assert the card + the rendered
  *    URL/host, not the exact title.
- *  - collapsible heading: an h2 + a paragraph below → the ▸/▾ toggle widget
- *    (`.anynote-collapse-toggle`) folds/unfolds the section via a `display:none`
- *    node decoration (the doc/Yjs is never touched).
  *
  * The shared dev Postgres means UI-created File rows are registered in an array
  * and dropped in afterAll (with --retries each attempt appends fresh rows).
@@ -178,47 +175,4 @@ test('slash /bookmark: an https URL renders a bookmark card with its host', asyn
   const card = editor.locator('[data-type="bookmark"]')
   await expect(card).toBeVisible({ timeout: 10_000 })
   await expect(card).toContainText('example.com')
-})
-
-test('collapsible heading: the toggle folds and unfolds the following section', async ({ page }) => {
-  await signUpAndCreateWorkspace(page, 'media-collapse')
-  const editor = await createTextPage(page)
-
-  // Build an h2 + a paragraph beneath it via the markdown input rule.
-  await editor.click()
-  await page.keyboard.type('## Заголовок')
-  await page.keyboard.press('Enter')
-  await page.keyboard.type('Скрытый текст')
-
-  const heading = editor.locator('h2', { hasText: 'Заголовок' })
-  await expect(heading).toBeVisible()
-  const hidden = editor.getByText('Скрытый текст', { exact: true })
-  await expect(hidden).toBeVisible()
-
-  // The ▸/▾ toggle widget sits inside the heading (decoration, not in the doc).
-  const toggle = editor.locator('.anynote-collapse-toggle').first()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-
-  // The toggle lives in the left gutter, where the editor's drag-handle overlay
-  // also sits and intercepts pointer events; a Playwright .click() can't land on
-  // it. Dispatch a native click — the ProseMirror plugin handles the DOM `click`
-  // event directly, so el.click() reaches its handler. (The same widget-overlay
-  // workaround used by the other editor specs.)
-  await toggle.evaluate((el) => (el as HTMLElement).click())
-  await expect(editor.locator('.anynote-collapse-toggle').first()).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  )
-  await expect(editor.getByText('Скрытый текст', { exact: true })).toBeHidden()
-
-  // Unfold: the paragraph shows again. Re-query the toggle (decorations rebuild).
-  await editor
-    .locator('.anynote-collapse-toggle')
-    .first()
-    .evaluate((el) => (el as HTMLElement).click())
-  await expect(editor.locator('.anynote-collapse-toggle').first()).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  )
-  await expect(editor.getByText('Скрытый текст', { exact: true })).toBeVisible()
 })

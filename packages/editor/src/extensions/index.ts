@@ -24,8 +24,8 @@ import { Audio } from './audio'
 import { Bookmark } from './bookmark'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
+import { ChatContextHighlight } from './chat-context-highlight'
 import { buildCollaboration } from './collaboration'
-import { CollapsibleHeadings } from './collapsible-headings'
 import { Comments } from './comments'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
@@ -216,7 +216,6 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     },
   }),
   BlockIndexAttributes,
-  CollapsibleHeadings.configure({ pageId: opts.pageId ?? null }),
   ColumnLayout,
   Column,
   Tabs,
@@ -228,4 +227,5 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     askAI: opts.askAI ?? null,
     renderPreview: opts.inlineAiRenderPreview ?? null,
   }),
+  ChatContextHighlight,
 ]

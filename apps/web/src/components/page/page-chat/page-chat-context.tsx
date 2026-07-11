@@ -1,10 +1,29 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { PageType } from '@repo/db'
 
 export const PAGE_CHAT_SIDEBAR_WIDTH = 400
+export const PAGE_CHAT_SIDEBAR_MIN_WIDTH = 320
+export const PAGE_CHAT_SIDEBAR_MAX_WIDTH = 640
+
+/** Notion-style display modes: docked right column vs floating window. */
+export type PageChatDisplayMode = 'docked' | 'floating'
+
+const DISPLAY_MODE_KEY = 'pageChat.displayMode'
+const SIDEBAR_WIDTH_KEY = 'pageChat.sidebar.width'
+
+const clampSidebarWidth = (value: number) =>
+  Math.min(PAGE_CHAT_SIDEBAR_MAX_WIDTH, Math.max(PAGE_CHAT_SIDEBAR_MIN_WIDTH, value))
 
 /** Default composer context chip (spec §7). Single source: the sidebar passes
  *  it (or the selection label) explicitly, and WorkspaceChatClient imports it
@@ -18,6 +37,14 @@ type PageChatContextValue = {
   closePanel: () => void
   activeChatId: string | null
   setActiveChatId: (id: string | null) => void
+  displayMode: PageChatDisplayMode
+  setDisplayMode: (mode: PageChatDisplayMode) => void
+  /** Docked-panel width (spec item 4) — draggable, persisted per browser.
+   *  Live drag widths are applied imperatively by the sidebar (no per-move
+   *  context invalidation); this value updates once, on commit. */
+  sidebarWidth: number
+  /** Final width on drag end; persists to localStorage. */
+  commitSidebarWidth: (width: number) => void
 }
 
 const PageChatContext = createContext<PageChatContextValue | null>(null)
@@ -43,6 +70,29 @@ export function PageChatProvider({
   const enabled = pageType === 'TEXT'
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  // Display mode survives navigation and reloads (the workspace.sidebar.mode
+  // pattern): default docked, hydrate from localStorage after mount.
+  const [storedDisplayMode, setStoredDisplayMode] = useState<PageChatDisplayMode>('docked')
+  useEffect(() => {
+    const stored = window.localStorage.getItem(DISPLAY_MODE_KEY)
+    if (stored === 'docked' || stored === 'floating') setStoredDisplayMode(stored)
+  }, [])
+  const setDisplayMode = useCallback((mode: PageChatDisplayMode) => {
+    setStoredDisplayMode(mode)
+    window.localStorage.setItem(DISPLAY_MODE_KEY, mode)
+  }, [])
+
+  // Draggable docked-panel width — same hydrate-after-mount pattern.
+  const [sidebarWidth, setSidebarWidthState] = useState(PAGE_CHAT_SIDEBAR_WIDTH)
+  useEffect(() => {
+    const stored = Number.parseInt(window.localStorage.getItem(SIDEBAR_WIDTH_KEY) ?? '', 10)
+    if (!Number.isNaN(stored)) setSidebarWidthState(clampSidebarWidth(stored))
+  }, [])
+  const commitSidebarWidth = useCallback((width: number) => {
+    const clamped = clampSidebarWidth(width)
+    setSidebarWidthState(clamped)
+    window.localStorage.setItem(SIDEBAR_WIDTH_KEY, String(clamped))
+  }, [])
 
   // Reset transient chat UI when navigating to a different page WITHOUT
   // remounting the provider (the comments-context render-time pattern).
@@ -57,8 +107,29 @@ export function PageChatProvider({
   const closePanel = useCallback(() => setPanelOpen(false), [])
 
   const value = useMemo(
-    () => ({ enabled, panelOpen, togglePanel, closePanel, activeChatId, setActiveChatId }),
-    [enabled, panelOpen, togglePanel, closePanel, activeChatId],
+    () => ({
+      enabled,
+      panelOpen,
+      togglePanel,
+      closePanel,
+      activeChatId,
+      setActiveChatId,
+      displayMode: storedDisplayMode,
+      setDisplayMode,
+      sidebarWidth,
+      commitSidebarWidth,
+    }),
+    [
+      enabled,
+      panelOpen,
+      togglePanel,
+      closePanel,
+      activeChatId,
+      storedDisplayMode,
+      setDisplayMode,
+      sidebarWidth,
+      commitSidebarWidth,
+    ],
   )
 
   return <PageChatContext.Provider value={value}>{children}</PageChatContext.Provider>

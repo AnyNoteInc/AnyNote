@@ -11,6 +11,7 @@ import {
   FileTooLargeError,
   PageNotFoundError,
   UnsupportedMimeTypeError,
+  WorkspaceStorageLimitError,
 } from '../errors/mcp.errors.js'
 
 export const STORAGE = Symbol('STORAGE_CLIENT')
@@ -41,6 +42,13 @@ export type AttachInput = {
   imageOnly: boolean
 }
 
+export type UploadGeneratedInput = Omit<UploadInlineInput, 'imageOnly'>
+
+/** Cap for server-GENERATED artifacts (PDF export) — mirrors apps/web's
+ *  ATTACHMENT_MAX_BYTES (50MB), NOT the 1MB inline-base64 limit: the bytes
+ *  never ride an LLM tool-call payload. */
+const GENERATED_MAX_BYTES = 52_428_800
+
 @Injectable()
 export class FileUploader {
   constructor(
@@ -56,7 +64,20 @@ export class FileUploader {
     if (input.imageOnly && !IMAGE_MIME_TYPES.includes(input.mimeType)) {
       throw new UnsupportedMimeTypeError(input.mimeType)
     }
+    return this.persistFileOnPage(input)
+  }
 
+  /** Persist a server-generated artifact (e.g. an exported PDF) as a page
+   *  attachment — same File+PageFile transaction as uploadInline, without the
+   *  inline-base64 size cap and MIME allow-list. */
+  async uploadGenerated(input: UploadGeneratedInput): Promise<string> {
+    if (input.buffer.length > GENERATED_MAX_BYTES) {
+      throw new FileTooLargeError(input.buffer.length, GENERATED_MAX_BYTES)
+    }
+    return this.persistFileOnPage(input)
+  }
+
+  private persistFileOnPage(input: UploadGeneratedInput): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
       const page = await tx.page.findUnique({
         where: { id: input.pageId },
@@ -64,6 +85,21 @@ export class FileUploader {
       })
       if (!page || page.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
+      }
+
+      // Plan storage quota — mirrors /api/files/upload (the web route sums
+      // ACTIVE file sizes against WorkspaceLimit.maxFileBytes and 413s):
+      // MCP-created files count toward the same quota and must not bypass it.
+      const [usage, limits] = await Promise.all([
+        tx.file.aggregate({
+          where: { workspaceId: input.workspaceId, status: 'ACTIVE' },
+          _sum: { fileSize: true },
+        }),
+        tx.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
+      ])
+      const used = usage._sum.fileSize ?? 0n
+      if (limits && used + BigInt(input.buffer.length) > limits.maxFileBytes) {
+        throw new WorkspaceStorageLimitError(limits.maxFileBytes)
       }
 
       const hash = createHash('sha256').update(input.buffer).digest('hex')

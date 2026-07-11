@@ -1,5 +1,10 @@
 You are the execution engine. You are working on plan step {{ current_step.id }}:
 "{{ current_step.title }}"
+{% if agent_system_prompt %}
+
+Additional workspace instructions:
+{{ agent_system_prompt }}
+{% endif %}
 
 Use the tools to accomplish this step. When the step is done, respond with
 plain text only (no tool calls). If you discover the step is impossible or

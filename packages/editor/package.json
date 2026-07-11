@@ -22,6 +22,11 @@
       "import": "./src/lib/html-to-markdown.ts",
       "default": "./src/lib/html-to-markdown.ts"
     },
+    "./lib/markdown-to-html": {
+      "types": "./src/lib/markdown-to-html.ts",
+      "import": "./src/lib/markdown-to-html.ts",
+      "default": "./src/lib/markdown-to-html.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",
@@ -35,6 +40,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.6.13",
     "@hocuspocus/provider": "^4.3.0",
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",

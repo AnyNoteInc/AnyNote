@@ -15,10 +15,13 @@ function textPart(text: string) {
   return { type: 'text', text }
 }
 
-function makeMessages(count: number, role: 'USER' | 'ASSISTANT' = 'USER'): MessageRow[] {
+/** Real threads alternate user/assistant (the generate route persists them in
+ *  pairs); default to that so the same-role merge only fires where a fixture
+ *  deliberately creates adjacency (window seams, tool-only turns). */
+function makeMessages(count: number, role?: 'USER' | 'ASSISTANT'): MessageRow[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `msg-${index}`,
-    role,
+    role: role ?? (index % 2 === 0 ? 'USER' : 'ASSISTANT'),
     status: 'DONE' as const,
     parts: [textPart(`m${index}`)],
     createdAt: new Date(2026, 3, 1, 0, index),
@@ -99,7 +102,7 @@ describe('buildChatHistoryMessages', () => {
   })
 
   it('returns all messages when count <= 1 + lastN (no parent, count = 5)', async () => {
-    const messages = makeMessages(5, 'USER')
+    const messages = makeMessages(5)
     const prisma = createPrismaMock({
       chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
@@ -115,7 +118,7 @@ describe('buildChatHistoryMessages', () => {
   })
 
   it('returns first + last 10 with no overlap (no parent, count = 15)', async () => {
-    const messages = makeMessages(15, 'USER')
+    const messages = makeMessages(15)
     const prisma = createPrismaMock({
       chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
@@ -143,17 +146,17 @@ describe('buildChatHistoryMessages', () => {
   })
 
   it('walks parent chain root → current with correct slicing per chat', async () => {
-    const root = makeMessages(8, 'USER').map((m, i) => ({
+    const root = makeMessages(8).map((m, i) => ({
       ...m,
       id: `root-${i}`,
       parts: [textPart(`root${i}`)],
     }))
-    const middle = makeMessages(8, 'USER').map((m, i) => ({
+    const middle = makeMessages(8).map((m, i) => ({
       ...m,
       id: `mid-${i}`,
       parts: [textPart(`mid${i}`)],
     }))
-    const current = makeMessages(15, 'USER').map((m, i) => ({
+    const current = makeMessages(15).map((m, i) => ({
       ...m,
       id: `cur-${i}`,
       parts: [textPart(`cur${i}`)],
@@ -177,14 +180,13 @@ describe('buildChatHistoryMessages', () => {
     // root: first + last 4 = root0, root4, root5, root6, root7
     // mid: first + last 4 = mid0, mid4, mid5, mid6, mid7
     // cur: first + last 10 = cur0, cur5, cur6, cur7, cur8, cur9, cur10, cur11, cur12, cur13, cur14
+    // root0/root4 and mid0/mid4 are both USER (window seam) → merged turns.
     expect(result.map((m) => m.content)).toEqual([
-      'root0',
-      'root4',
+      'root0\n\nroot4',
       'root5',
       'root6',
       'root7',
-      'mid0',
-      'mid4',
+      'mid0\n\nmid4',
       'mid5',
       'mid6',
       'mid7',
@@ -236,7 +238,7 @@ describe('buildChatHistoryMessages', () => {
     ])
   })
 
-  it('skips messages with no extractable text', async () => {
+  it('keeps tool-only assistant turns as a summary line, skips truly empty ones', async () => {
     const messages: MessageRow[] = [
       {
         id: '1',
@@ -249,7 +251,19 @@ describe('buildChatHistoryMessages', () => {
         id: '2',
         role: 'ASSISTANT',
         status: 'DONE',
-        parts: [{ type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'ran' }],
+        parts: [
+          // detail.tool (the machine name) wins over the human title…
+          {
+            type: 'tool',
+            id: 't1',
+            kind: 'tool',
+            state: 'done',
+            title: 'Добавляю текст',
+            detail: JSON.stringify({ tool: 'appendToPage' }),
+          },
+          // …and a detail-less part falls back to its title.
+          { type: 'tool', id: 't2', kind: 'tool', state: 'done', title: 'ran' },
+        ],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
       {
@@ -271,7 +285,65 @@ describe('buildChatHistoryMessages', () => {
       workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: 'user', content: 'real' }])
+    expect(result).toEqual([
+      { role: 'user', content: 'real' },
+      { role: 'assistant', content: '[Выполнены инструменты: appendToPage, ran]' },
+    ])
+  })
+
+  it('fullCurrentChat returns the whole thread instead of the last-10 window', async () => {
+    const messages = makeMessages(15)
+    const prisma = createPrismaMock({
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
+      messagesByChat: { c1: messages },
+    })
+
+    const result = await buildChatHistoryMessages({
+      prisma: prisma as never,
+      chatId: 'c1',
+      workspaceId: 'w',
+      fullCurrentChat: true,
+    })
+
+    expect(result.map((m) => m.content)).toEqual(
+      Array.from({ length: 15 }, (_, i) => `m${i}`),
+    )
+  })
+
+  it('fullCurrentChat keeps ancestor chats bounded', async () => {
+    const root = makeMessages(8).map((m, i) => ({
+      ...m,
+      id: `root-${i}`,
+      parts: [textPart(`root${i}`)],
+    }))
+    const current = makeMessages(15).map((m, i) => ({
+      ...m,
+      id: `cur-${i}`,
+      parts: [textPart(`cur${i}`)],
+    }))
+    const prisma = createPrismaMock({
+      chats: [
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'cur', parentId: 'root', workspaceId: 'w' },
+      ],
+      messagesByChat: { root, cur: current },
+    })
+
+    const result = await buildChatHistoryMessages({
+      prisma: prisma as never,
+      chatId: 'cur',
+      workspaceId: 'w',
+      fullCurrentChat: true,
+    })
+
+    // root stays first + last 4 (root0/root4 both USER → merged); current is complete.
+    expect(result.map((m) => m.content)).toEqual([
+      'root0\n\nroot4',
+      'root5',
+      'root6',
+      'root7',
+      ...Array.from({ length: 15 }, (_, i) => `cur${i}`),
+    ])
   })
 
   it('only loads DONE messages from prisma (filters STREAMING / ERROR)', async () => {
@@ -315,7 +387,7 @@ describe('buildChatHistoryMessages', () => {
   })
 
   it('bounds the per-chat fetch with take and returns first + last 10 for a 30-message chat', async () => {
-    const messages = makeMessages(30, 'USER')
+    const messages = makeMessages(30)
     const prisma = createPrismaMock({
       chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
@@ -331,11 +403,10 @@ describe('buildChatHistoryMessages', () => {
     const calls = prisma.chatMessage.findMany.mock.calls as Array<[{ take?: number }]>
     expect(calls.some(([arg]) => typeof arg.take === 'number')).toBe(true)
 
-    // Output is still exactly [first message] + [last 10], no duplication, length 11.
-    expect(result).toHaveLength(11)
+    // [first message] + [last 10]; m0/m20 are both USER (window seam) → merged.
+    expect(result).toHaveLength(10)
     expect(result.map((m) => m.content)).toEqual([
-      'm0',
-      'm20',
+      'm0\n\nm20',
       'm21',
       'm22',
       'm23',
@@ -349,7 +420,7 @@ describe('buildChatHistoryMessages', () => {
   })
 
   it('concatenates the last 10 messages including first when count = 11', async () => {
-    const messages = makeMessages(11, 'USER')
+    const messages = makeMessages(11)
     const prisma = createPrismaMock({
       chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },

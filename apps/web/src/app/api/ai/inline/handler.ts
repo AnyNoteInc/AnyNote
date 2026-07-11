@@ -14,6 +14,7 @@ import {
   buildCustomPrompt,
   buildGeneratePrompt,
   buildInlinePrompt,
+  INLINE_AI_SYSTEM_PROMPT,
   isExtendedInlineAiAction,
   isInlineAiAction,
   MAX_CONTEXT_BEFORE_CHARS,
@@ -237,7 +238,11 @@ export async function handleInlineAi(
     settings: {
       temperature: settings.temperature,
       topP: settings.topP,
-      systemPrompt: settings.systemPrompt,
+      // The inline meta-instructions ride the system prompt (rendered into the
+      // executor's SystemMessage), NOT the user message — see INLINE_AI_SYSTEM_PROMPT.
+      systemPrompt: [settings.systemPrompt, INLINE_AI_SYSTEM_PROMPT]
+        .filter(Boolean)
+        .join('\n\n'),
       defaultModel: {
         slug: modelSlug,
         provider: { kind: providerKind, connection: providerConnection },

@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
+import { assertNotPageBound, assertPageBindingAllows } from '../../api/auth/page-binding.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { DiagramValidatorService, type DiagramKind } from '../services/diagram-validator.service.js'
@@ -56,6 +57,7 @@ export class DiagramTools {
 
   async doCreateDiagramPage(auth: AuthContext, args: CreateDiagramPageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertNotPageBound(auth, 'создание новых страниц')
     this.validator.validate(args.kind, args.source)
     const pageId = await this.writer.createDiagramPage({
       userId: auth.userId,
@@ -81,6 +83,7 @@ export class DiagramTools {
 
   async doUpdateDiagramSource(auth: AuthContext, args: UpdateDiagramSourceArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    assertPageBindingAllows(auth, args.pageId)
     const page = await this.prisma.page.findUnique({
       where: { id: args.pageId },
       select: { workspaceId: true, type: true },

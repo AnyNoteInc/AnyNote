@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { offset } from '@floating-ui/dom'
 import AddIcon from '@mui/icons-material/Add'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { Box, IconButton } from '@mui/material'
@@ -9,6 +10,7 @@ import DragHandle from '@tiptap/extension-drag-handle-react'
 import type { Node as PMNode } from '@tiptap/pm/model'
 
 import { DragHandleMenu } from './drag-handle-menu'
+import { dragHandleCrossAxis } from './drag-handle-position'
 import { excludeColumnNodes, excludeFirstContainerChild } from './drag-handle-rules'
 
 // `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
@@ -20,6 +22,10 @@ const nestedOptions = {
   rules: [excludeColumnNodes, excludeFirstContainerChild],
   edgeDetection: 'none' as const,
 }
+
+// Horizontal gap between the controls and the block's text edge. The default
+// left-start placement puts the handle flush against the text (gap 0).
+const GAP_FROM_TEXT_PX = 10
 
 type Props = {
   editor: Editor
@@ -34,45 +40,78 @@ type HoverNodePos = {
 
 export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const hoverNodeRef = useRef<HoverNodePos>(null)
+  const hoverDomRef = useRef<HTMLElement | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPos, setMenuPos] = useState<number | null>(null)
 
-  const onNodeChange = ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
-    if (!node) {
-      hoverNodeRef.current = null
-      return
-    }
-    hoverNodeRef.current = {
-      from: pos,
-      to: pos + node.nodeSize,
-      isEmpty: node.textContent.length === 0,
-    }
-  }
+  // Referentially stable: the react wrapper re-registers the whole PM plugin
+  // whenever this prop's identity changes. The plugin invokes onNodeChange
+  // right before repositioning, so hoverDomRef is fresh when the middleware
+  // runs. mainAxis pushes the handle away from the text; crossAxis re-centers
+  // it on the block's first rendered line (left-start top-aligns by default).
+  const computePositionConfig = useMemo(
+    () => ({
+      placement: 'left-start' as const,
+      strategy: 'absolute' as const,
+      middleware: [
+        offset(({ rects }) => ({
+          mainAxis: GAP_FROM_TEXT_PX,
+          crossAxis: dragHandleCrossAxis(hoverDomRef.current, rects.floating.height),
+        })),
+      ],
+    }),
+    [],
+  )
 
-  const onElementDragStart = (event: DragEvent) => {
-    const info = hoverNodeRef.current
-    if (!info || !event.dataTransfer) return
-    const dom = editor.view.nodeDOM(info.from) as HTMLElement | null
-    if (!dom) return
-    const rect = dom.getBoundingClientRect()
-    // Upstream's dragHandler builds an off-screen clone wrapper and anchors
-    // the drag image via `event.clientX - wrapperRect.left`. Because the
-    // wrapper sits at body.left ≈ 0, the preview jumps to the viewport's
-    // left edge whenever the block lives in the centered reading column.
-    // Shadow setDragImage so the library's call re-anchors to the *original*
-    // block's rect — the ghost then stays under the cursor where it was
-    // grabbed.
-    const nativeSet = event.dataTransfer.setDragImage.bind(event.dataTransfer)
-    Object.defineProperty(event.dataTransfer, 'setDragImage', {
-      configurable: true,
-      value: (image: Element) => {
-        const width = (image as HTMLElement).getBoundingClientRect().width || rect.width
-        const x = Math.max(0, Math.min(event.clientX - rect.left, width))
-        const y = Math.max(0, Math.min(event.clientY - rect.top, rect.height))
-        nativeSet(image, x, y)
-      },
-    })
-  }
+  // Both plugin callbacks are useCallback'd for the same reason the position
+  // config is memoized: a fresh identity makes the react wrapper tear down and
+  // re-register the PM plugin, which resets the handle to visibility:hidden
+  // until the next mousemove.
+  const onNodeChange = useCallback(
+    ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
+      if (!node) {
+        hoverNodeRef.current = null
+        hoverDomRef.current = null
+        return
+      }
+      const dom = editor.view.nodeDOM(pos)
+      hoverDomRef.current = dom instanceof HTMLElement ? dom : null
+      hoverNodeRef.current = {
+        from: pos,
+        to: pos + node.nodeSize,
+        isEmpty: node.textContent.length === 0,
+      }
+    },
+    [editor],
+  )
+
+  const onElementDragStart = useCallback(
+    (event: DragEvent) => {
+      const info = hoverNodeRef.current
+      if (!info || !event.dataTransfer) return
+      const dom = editor.view.nodeDOM(info.from) as HTMLElement | null
+      if (!dom) return
+      const rect = dom.getBoundingClientRect()
+      // Upstream's dragHandler builds an off-screen clone wrapper and anchors
+      // the drag image via `event.clientX - wrapperRect.left`. Because the
+      // wrapper sits at body.left ≈ 0, the preview jumps to the viewport's
+      // left edge whenever the block lives in the centered reading column.
+      // Shadow setDragImage so the library's call re-anchors to the *original*
+      // block's rect — the ghost then stays under the cursor where it was
+      // grabbed.
+      const nativeSet = event.dataTransfer.setDragImage.bind(event.dataTransfer)
+      Object.defineProperty(event.dataTransfer, 'setDragImage', {
+        configurable: true,
+        value: (image: Element) => {
+          const width = (image as HTMLElement).getBoundingClientRect().width || rect.width
+          const x = Math.max(0, Math.min(event.clientX - rect.left, width))
+          const y = Math.max(0, Math.min(event.clientY - rect.top, rect.height))
+          nativeSet(image, x, y)
+        },
+      })
+    },
+    [editor],
+  )
 
   const openSlashMenu = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
@@ -123,6 +162,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
       <DragHandle
         editor={editor}
         nested={nestedOptions}
+        computePositionConfig={computePositionConfig}
         onNodeChange={onNodeChange}
         onElementDragStart={onElementDragStart}
       >
@@ -142,7 +182,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
             sx={{ p: 0.25, color: 'text.secondary' }}
             aria-label="Добавить блок"
           >
-            <AddIcon fontSize="small" />
+            <AddIcon fontSize="medium" />
           </IconButton>
           <IconButton
             size="small"
@@ -151,7 +191,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
             sx={{ p: 0.25, cursor: 'grab', color: 'text.secondary' }}
             aria-label="Действия блока"
           >
-            <DragIndicatorIcon fontSize="small" />
+            <DragIndicatorIcon fontSize="medium" />
           </IconButton>
         </Box>
       </DragHandle>

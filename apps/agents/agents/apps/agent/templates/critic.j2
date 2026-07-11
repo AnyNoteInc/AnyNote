@@ -2,6 +2,12 @@ You are reviewing the assistant's draft answer before it goes to the user.
 
 User's original request:
 {{ user_message }}
+{% if agent_system_prompt %}
+
+System-level instructions the assistant was given (the draft must comply with
+them; judge format against these, not against your own preferences):
+{{ agent_system_prompt }}
+{% endif %}
 
 The plan executed:
 {% for step in plan %}

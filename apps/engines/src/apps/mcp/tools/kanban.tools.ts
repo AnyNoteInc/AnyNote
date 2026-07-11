@@ -6,7 +6,7 @@ import { z } from 'zod'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { KanbanReadService } from '../services/kanban-read.service.js'
 import { KanbanWriteService } from '../services/kanban-write.service.js'
-import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
+import { mcpDate, mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 
 const WorkspaceOnly = z.object({ workspaceId: z.string().uuid() })
 const BoardScoped = z.object({ workspaceId: z.string().uuid(), boardPageId: mcpNullableUuidOptional() })
@@ -28,7 +28,7 @@ const CreateTask = z.object({
   priority: mcpInput(z.string().max(120).optional()),
   sprint: mcpInput(z.string().max(120).optional()),
   assignees: mcpInput(z.array(z.string().min(1)).optional()),
-  dueDate: mcpInput(z.coerce.date().optional()),
+  dueDate: mcpInput(mcpDate().optional()),
 })
 const MoveTask = z.object({
   workspaceId: z.string().uuid(),
@@ -46,8 +46,8 @@ const SetDates = z.object({
   workspaceId: z.string().uuid(),
   boardPageId: mcpNullableUuidOptional(),
   taskId: mcpUuid(),
-  startDate: mcpInput(z.coerce.date().optional()),
-  dueDate: mcpInput(z.coerce.date().optional()),
+  startDate: mcpInput(mcpDate().optional()),
+  dueDate: mcpInput(mcpDate().optional()),
 })
 const SetSprint = z.object({
   workspaceId: z.string().uuid(),
@@ -72,8 +72,8 @@ const CreateSprint = z.object({
   boardPageId: mcpNullableUuidOptional(),
   name: z.string().min(1).max(120),
   description: mcpInput(z.string().max(2000).optional()),
-  startDate: mcpInput(z.coerce.date().optional()),
-  endDate: mcpInput(z.coerce.date().optional()),
+  startDate: mcpInput(mcpDate().optional()),
+  endDate: mcpInput(mcpDate().optional()),
 })
 const SprintRef = z.object({
   workspaceId: z.string().uuid(),

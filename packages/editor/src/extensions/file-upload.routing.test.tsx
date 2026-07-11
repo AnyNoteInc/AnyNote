@@ -1,10 +1,12 @@
 // @vitest-environment happy-dom
 import { Editor } from '@tiptap/core'
+import Image from '@tiptap/extension-image'
 import StarterKit from '@tiptap/starter-kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AudioSchema } from './audio.schema'
 import { buildFileUpload } from './file-upload'
+import { buildImagePaste } from './image-paste'
 import { FileAttachmentSchema } from './file-attachment.schema'
 import { VideoSchema } from './video.schema'
 import type { UploadHandler } from '../types'
@@ -14,7 +16,7 @@ import type { UploadHandler } from '../types'
 // only assert which node type the plugin inserts).
 const noopUpload: UploadHandler = vi.fn(async () => ({ id: 'x', src: '/api/files/x' }))
 
-const makeEditor = () => {
+const makeEditor = (extraExtensions: object[] = []) => {
   const element = document.createElement('div')
   return new Editor({
     element,
@@ -24,13 +26,14 @@ const makeEditor = () => {
       AudioSchema,
       FileAttachmentSchema,
       buildFileUpload(noopUpload),
+      ...(extraExtensions as never[]),
     ],
   })
 }
 
-const pasteFile = (editor: Editor, file: File) => {
+const pasteFiles = (editor: Editor, files: File[]) => {
   const clipboardData = {
-    files: [file],
+    files,
     getData: () => '',
     types: [] as string[],
   } as unknown as DataTransfer
@@ -38,6 +41,8 @@ const pasteFile = (editor: Editor, file: File) => {
   Object.defineProperty(event, 'clipboardData', { value: clipboardData })
   editor.view.dom.dispatchEvent(event)
 }
+
+const pasteFile = (editor: Editor, file: File) => pasteFiles(editor, [file])
 
 const nodeNames = (editor: Editor): string[] => {
   const names: string[] = []
@@ -101,6 +106,26 @@ describe('fileUpload paste routing (synchronous placeholder)', () => {
       const names = nodeNames(editor)
       expect(names).not.toContain('video')
       expect(names).not.toContain('fileAttachment')
+    } finally {
+      editor.destroy()
+    }
+  })
+})
+
+describe('mixed clipboard (images + other files in one paste)', () => {
+  it('routes images to the image node AND the rest to fileAttachment', () => {
+    // Both plugins mounted, like the real editor; base Image gives the schema
+    // node without the React view.
+    const editor = makeEditor([Image, buildImagePaste(noopUpload)])
+    try {
+      pasteFiles(editor, [
+        new File([new Uint8Array([1])], 'shot.png', { type: 'image/png' }),
+        new File(['hello'], 'note.txt', { type: 'text/plain' }),
+      ])
+      const names = nodeNames(editor)
+      expect(names).toContain('image')
+      // The non-image file must NOT be silently dropped.
+      expect(names).toContain('fileAttachment')
     } finally {
       editor.destroy()
     }

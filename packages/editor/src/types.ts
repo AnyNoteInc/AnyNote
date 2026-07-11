@@ -133,6 +133,10 @@ export type SlashRange = { from: number; to: number }
 export type VirtualAnchor = {
   getBoundingClientRect: () => DOMRect
   nodeType?: number
+  /** Popper-only (popper.js virtual element): the element whose scroll
+   *  ancestors popper listens to, so the popup tracks the editor's inner
+   *  scroll container. Ignored by Popover. */
+  contextElement?: Element
 }
 
 export type AnyNoteEditorProps = {

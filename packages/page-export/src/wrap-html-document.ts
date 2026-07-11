@@ -1,4 +1,4 @@
-import { PRINT_STYLESHEET } from './print-stylesheet'
+import { PRINT_STYLESHEET } from './print-stylesheet.ts'
 
 function escapeHtml(s: string): string {
   return s

@@ -8,12 +8,14 @@ import CachedIcon from '@mui/icons-material/Cached'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import SubtitlesIcon from '@mui/icons-material/Subtitles'
 import Image from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
+import { imageToAttachmentNode } from './media-mime'
 import type { UploadHandler } from '../types'
 
 type Align = 'left' | 'center' | 'right'
@@ -36,6 +38,7 @@ function ResizableImageView({
   editor,
   selected,
   extension,
+  getPos,
 }: NodeViewProps) {
   const src = (node.attrs.src as string | null) ?? null
   const alt = (node.attrs.alt as string | null) ?? undefined
@@ -66,7 +69,13 @@ function ResizableImageView({
       setError(null)
       try {
         const result = await uploadHandler({ blob: file, filename: file.name })
-        updateAttributes({ src: result.src })
+        // Metadata feeds the «Сохранить как файл» swap (image → fileAttachment).
+        updateAttributes({
+          src: result.src,
+          name: file.name || null,
+          size: file.size || null,
+          mimeType: file.type || null,
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Не удалось загрузить изображение')
       } finally {
@@ -295,6 +304,22 @@ function ResizableImageView({
               {toolbarButton('Заменить', <CachedIcon fontSize="small" />, () =>
                 updateAttributes({ src: null, width: null, caption: null, align: 'center' }),
               )}
+              {toolbarButton('Сохранить как файл', <InsertDriveFileOutlinedIcon fontSize="small" />, () => {
+                const pos = getPos()
+                if (typeof pos !== 'number') return
+                const swap = imageToAttachmentNode({
+                  src,
+                  name: node.attrs.name as string | null,
+                  size: node.attrs.size as number | null,
+                  mimeType: node.attrs.mimeType as string | null,
+                })
+                if (!swap) return
+                editor
+                  .chain()
+                  .focus()
+                  .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
+                  .run()
+              })}
               <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
               {toolbarButton('Удалить', <DeleteIcon fontSize="small" />, () => deleteNode(), true)}
             </Paper>
@@ -365,6 +390,38 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
       // pasted placeholder after its async upload resolves. Deliberately not
       // rendered to / parsed from the DOM so it never persists in saved content.
       uploadId: { default: null, rendered: false },
+      // File metadata stamped at upload time; feeds the «Сохранить как файл»
+      // swap (image → fileAttachment). Null on legacy images — the swap then
+      // falls back to a generic name.
+      name: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-name'),
+        renderHTML: (attrs) => {
+          const v = attrs.name as string | null
+          return v ? { 'data-name': v } : {}
+        },
+      },
+      size: {
+        default: null,
+        parseHTML: (element) => {
+          const raw = element.getAttribute('data-size')
+          if (!raw) return null
+          const n = Number(raw)
+          return Number.isFinite(n) ? n : null
+        },
+        renderHTML: (attrs) => {
+          const v = attrs.size as number | null
+          return v ? { 'data-size': String(v) } : {}
+        },
+      },
+      mimeType: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-mime'),
+        renderHTML: (attrs) => {
+          const v = attrs.mimeType as string | null
+          return v ? { 'data-mime': v } : {}
+        },
+      },
       width: {
         default: null,
         parseHTML: (element) => {

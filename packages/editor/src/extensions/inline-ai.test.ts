@@ -7,9 +7,11 @@
 //     (the drift guard) — insert N chars at 0 → from/to shift by N
 //   - clear resets to inactive
 //   - finish sets status:'done'
-//   - applyInlineAiResult (accept) for a replace action removes [from,to] and
-//     inserts the text at from, in ONE transaction; for expand it appends at to
-//     leaving the original; after accept the plugin state is inactive
+//   - resolveInlineAiAcceptTarget (accept) for a replace action targets the
+//     CURRENT mapped [from,to]; for expand it targets `to`; insertBelow targets
+//     the position after the selection's block (the markdown insertion itself
+//     is editor-level — see inline-ai.accept.test.tsx)
+//   - capture holds the range: capturing status, source highlight, NO widget
 //   - discard (clear) yields a byte-identical doc to before start
 //   - retry resets the preview (clear → start again)
 
@@ -21,12 +23,13 @@ import type { Decoration, DecorationSet } from '@tiptap/pm/view'
 import {
   inlineAiPlugin,
   inlineAiPluginKey,
+  inlineAiCaptureMeta,
   inlineAiStartMeta,
   inlineAiAppendTokenMeta,
   inlineAiFinishMeta,
   inlineAiFailMeta,
   inlineAiClearMeta,
-  buildInlineAiAcceptTransaction,
+  resolveInlineAiAcceptTarget,
   type InlineAiPreviewState,
 } from './inline-ai'
 
@@ -159,25 +162,18 @@ describe('inline-ai plugin state', () => {
   })
 })
 
-describe('buildInlineAiAcceptTransaction', () => {
-  it('replace action removes [from,to] and inserts the text at from, in ONE transaction', () => {
-    // doc: <p>Hello world</p>, preview over "Hello" → replace with "Привет".
+describe('resolveInlineAiAcceptTarget', () => {
+  it('replace action targets the current [from,to]', () => {
+    // doc: <p>Hello world</p>, preview over "Hello".
     let state = stateFrom('Hello world')
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'summarize' })),
     )
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Привет')))
-    const tr = buildInlineAiAcceptTransaction(state)
-    expect(tr).not.toBeNull()
-    // Exactly one transaction = one undo step (the whole accept).
-    const next = state.apply(tr!)
-    expect(next.doc.textContent).toBe('Привет world')
-    // And the transaction also cleared the preview (the same tr carries the meta).
-    expect(previewState(next).active).toBe(false)
+    expect(resolveInlineAiAcceptTarget(state)).toEqual({ kind: 'replaceRange', from: 1, to: 6 })
   })
 
-  it('expand action inserts at to, leaving the original selection intact', () => {
-    // doc: <p>Hello world</p>, preview over "Hello" → expand appends " (greeting)".
+  it('expand action targets `to`, leaving the original selection intact', () => {
     let state = stateFrom('Hello world')
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'expand' })),
@@ -185,20 +181,15 @@ describe('buildInlineAiAcceptTransaction', () => {
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta(' (greeting)')),
     )
-    const tr = buildInlineAiAcceptTransaction(state)
-    expect(tr).not.toBeNull()
-    const next = state.apply(tr!)
-    // Original "Hello" preserved; the expansion inserted right after it (at `to`).
-    expect(next.doc.textContent).toBe('Hello (greeting) world')
-    expect(previewState(next).active).toBe(false)
+    expect(resolveInlineAiAcceptTarget(state)).toEqual({ kind: 'insertAt', pos: 6 })
   })
 
   it('returns null when no preview is active', () => {
     const state = stateFrom('Hello world')
-    expect(buildInlineAiAcceptTransaction(state)).toBeNull()
+    expect(resolveInlineAiAcceptTarget(state)).toBeNull()
   })
 
-  it('accept uses the CURRENT mapped range (after a drift), not the captured one', () => {
+  it('uses the CURRENT mapped range (after a drift), not the captured one', () => {
     let state = stateFrom('Hello world')
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'summarize' })),
@@ -206,10 +197,72 @@ describe('buildInlineAiAcceptTransaction', () => {
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Hi')))
     // Collaborator inserts 3 chars at the start; the range drifts 1..6 → 4..9.
     state = apply(state, (tr) => tr.insertText('XYZ', 1))
-    const tr = buildInlineAiAcceptTransaction(state)
-    const next = state.apply(tr!)
-    // "XYZ" preserved, the drifted "Hello" replaced by "Hi".
-    expect(next.doc.textContent).toBe('XYZHi world')
+    expect(resolveInlineAiAcceptTarget(state)).toEqual({ kind: 'replaceRange', from: 4, to: 9 })
+  })
+
+  it('clamps a stale out-of-doc range to the document size', () => {
+    // A range that outlived its content (the whole tail deleted) must clamp,
+    // not throw out of the accept.
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 999, action: 'summarize' })),
+    )
+    const target = resolveInlineAiAcceptTarget(state)
+    expect(target).toEqual({
+      kind: 'replaceRange',
+      from: 1,
+      to: state.doc.content.size,
+    })
+  })
+})
+
+describe('capture (the popover-open hold)', () => {
+  it('capture meta holds the range: active, capturing, empty action/text', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiCaptureMeta({ from: 1, to: 6 })),
+    )
+    const s = previewState(state)
+    expect(s.active).toBe(true)
+    expect(s.status).toBe('capturing')
+    expect(s.from).toBe(1)
+    expect(s.to).toBe(6)
+    expect(s.action).toBe('')
+    expect(s.text).toBe('')
+  })
+
+  it('paints ONLY the source highlight while capturing — no preview widget', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiCaptureMeta({ from: 1, to: 6 })),
+    )
+    const all = decorationsFor(state).find() as Decoration[]
+    expect(all).toHaveLength(1)
+    // The widget carries a string spec.key; the source inline deco does not.
+    expect(all.some((d) => typeof d.spec?.key === 'string')).toBe(false)
+  })
+
+  it('drift-guards the held range through edits made while the popover is open', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiCaptureMeta({ from: 1, to: 6 })),
+    )
+    // A collaborator edits before the selection during the popover-open gap.
+    state = apply(state, (tr) => tr.insertText('XYZ', 1))
+    const s = previewState(state)
+    expect(s.from).toBe(4)
+    expect(s.to).toBe(9)
+    expect(state.doc.textBetween(s.from, s.to)).toBe('Hello')
+  })
+
+  it('clear releases the hold (dismissal without picking an action)', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiCaptureMeta({ from: 1, to: 6 })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiClearMeta()))
+    expect(previewState(state).active).toBe(false)
+    expect(decorationsFor(state).find() as Decoration[]).toHaveLength(0)
   })
 })
 
@@ -284,7 +337,8 @@ describe('streaming-preview widget decoration key (no per-token DOM thrash)', ()
 })
 
 describe('insertBelow apply mode', () => {
-  it('inserts the result as a new paragraph after the selection block, keeping the original', () => {
+  it('targets the position right after the selection block, keeping the original', () => {
+    // doc: <p>Привет мир</p> — the block spans 0..12, so "below" is 12.
     let state = stateFrom('Привет мир')
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
@@ -293,26 +347,19 @@ describe('insertBelow apply mode', () => {
       tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Новый абзац')),
     )
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiFinishMeta()))
-
-    const tr = buildInlineAiAcceptTransaction(state, 'insertBelow')
-    expect(tr).not.toBeNull()
-    const next = state.apply(tr!)
-    expect(next.doc.childCount).toBe(2)
-    expect(next.doc.child(0).textContent).toBe('Привет мир')
-    expect(next.doc.child(1).textContent).toBe('Новый абзац')
-    // Preview cleared atomically in the same transaction.
-    expect(inlineAiPluginKey.getState(next)?.active).toBe(false)
+    expect(resolveInlineAiAcceptTarget(state, 'insertBelow')).toEqual({
+      kind: 'insertAt',
+      pos: 12,
+    })
   })
 
-  it('replace mode is the default and unchanged', () => {
+  it('replace mode is the default', () => {
     let state = stateFrom('Привет мир')
     state = apply(state, (tr) =>
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
     )
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Замена')))
-    const next = state.apply(buildInlineAiAcceptTransaction(state)!)
-    expect(next.doc.childCount).toBe(1)
-    expect(next.doc.child(0).textContent).toBe('Замена')
+    expect(resolveInlineAiAcceptTarget(state)).toEqual({ kind: 'replaceRange', from: 1, to: 11 })
   })
 
   it('insertBelow lands after the selection block, not at doc end (multi-block)', () => {
@@ -322,10 +369,10 @@ describe('insertBelow apply mode', () => {
       tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 11, action: 'rewrite' })),
     )
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('Вставка')))
-    const next = state.apply(buildInlineAiAcceptTransaction(state, 'insertBelow')!)
-    expect(next.doc.childCount).toBe(3)
-    expect(next.doc.child(0).textContent).toBe('Привет мир')
-    expect(next.doc.child(1).textContent).toBe('Вставка')
-    expect(next.doc.child(2).textContent).toBe('хвост')
+    // First block spans 0..12; "below" must be 12 (before «хвост»), not doc end.
+    expect(resolveInlineAiAcceptTarget(state, 'insertBelow')).toEqual({
+      kind: 'insertAt',
+      pos: 12,
+    })
   })
 })

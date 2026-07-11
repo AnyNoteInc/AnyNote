@@ -29,12 +29,14 @@
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import {
   Box,
+  ClickAwayListener,
   Divider,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Popover,
+  Paper,
+  Popper,
   Stack,
   TextField,
   Typography,
@@ -48,7 +50,7 @@ import NotesIcon from '@mui/icons-material/Notes'
 import type { Editor } from '@tiptap/core'
 import { useEffect, useState } from 'react'
 
-import type { AskAICallback, AskAIArgs } from '../types'
+import type { AskAICallback, AskAIArgs, VirtualAnchor } from '../types'
 import {
   appendInlineAiToken,
   applyInlineAiResult,
@@ -169,7 +171,7 @@ export type InlineAiCapturedRange = {
   from: number
   to: number
   selectedText: string
-  anchorEl: HTMLElement | { getBoundingClientRect: () => DOMRect } | null
+  anchorEl: HTMLElement | VirtualAnchor | null
 }
 
 type PopoverProps = Readonly<{
@@ -190,120 +192,169 @@ export function InlineAiPopover({ editor, open, captured, askAI, onClose }: Popo
     if (open) setInstruction('')
   }, [open, captured])
 
+  // The range to act on: PREFER the plugin's live 'capturing' hold (dispatched
+  // by anynote-editor's onAskAi) — its drift guard kept re-mapping the range
+  // through every doc change while the popover was open. The click-time capture
+  // is only the fallback (plugin inactive, e.g. a destroyed-and-recreated view).
+  const heldRange = (): { from: number; to: number; selectedText: string } | null => {
+    if (!captured) return null
+    if (!editor.isDestroyed) {
+      const held = getInlineAiPreview(editor)
+      if (held.active && held.status === 'capturing') {
+        return {
+          from: held.from,
+          to: held.to,
+          selectedText: editor.state.doc.textBetween(held.from, held.to, ' '),
+        }
+      }
+    }
+    return { from: captured.from, to: captured.to, selectedText: captured.selectedText }
+  }
+
   const submitCustom = () => {
     const trimmed = instruction.trim()
-    if (!trimmed || !captured || !askAI) return
+    const range = heldRange()
+    if (!trimmed || !range || !askAI) return
     setLangChoice(false)
     onClose()
     runInlineAi(editor, askAI, {
       action: 'custom',
-      from: captured.from,
-      to: captured.to,
-      selectedText: captured.selectedText,
+      from: range.from,
+      to: range.to,
+      selectedText: range.selectedText,
       instruction: trimmed,
     })
   }
 
   const pick = (action: ActionId, targetLang?: string) => {
-    if (!captured || !askAI) {
-      onClose()
+    const range = heldRange()
+    if (!range || !askAI) {
+      dismiss()
       return
     }
     setLangChoice(false)
     onClose()
     runInlineAi(editor, askAI, {
       action,
-      from: captured.from,
-      to: captured.to,
-      selectedText: captured.selectedText,
+      from: range.from,
+      to: range.to,
+      selectedText: range.selectedText,
       ...(targetLang ? { targetLang } : {}),
     })
   }
 
-  const handleClose = () => {
+  // Dismissal WITHOUT picking an action (click-away / Escape): release the
+  // plugin's 'capturing' hold so its highlight doesn't linger. The status guard
+  // makes this safe against ordering changes — a streaming preview started by
+  // pick() is never cleared here.
+  const dismiss = () => {
     setLangChoice(false)
+    if (!editor.isDestroyed) {
+      const held = getInlineAiPreview(editor)
+      if (held.active && held.status === 'capturing') clearInlineAiPreview(editor)
+    }
     onClose()
   }
 
+  if (!open || !captured?.anchorEl) return null
+
   return (
-    <Popover
-      open={open}
-      anchorEl={(captured?.anchorEl ?? null) as Element | null}
-      onClose={handleClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { width: 260 } } }}
+    // Popper (not Popover) — deliberately NON-modal, the SpaceAiBar precedent:
+    // no backdrop, no focus trap (the modal Popover aria-hid the app root while
+    // the editor still held focus — the console error), no scroll lock, and no
+    // focus RESTORE on close (MUI restores without preventScroll, which yanked
+    // the page scroll position when the tall contenteditable re-focused).
+    // Click-away and Escape dismiss explicitly below.
+    <Popper
+      open
+      anchorEl={captured.anchorEl}
+      placement="bottom-start"
+      style={{ zIndex: 12 }}
+      modifiers={[{ name: 'offset', options: { offset: [0, 6] } }]}
     >
-      <Box sx={{ py: 0.5 }}>
-        <Stack
-          direction="row"
-          spacing={0.75}
-          sx={{
-            alignItems: 'center',
-            px: 1.5,
-            py: 0.75,
-            color: 'text.secondary',
+      <ClickAwayListener onClickAway={dismiss}>
+        <Paper
+          elevation={6}
+          sx={{ width: 260, py: 0.5 }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              e.stopPropagation()
+              dismiss()
+            }
           }}
+          data-testid="inline-ai-popover"
         >
-          <AutoAwesomeIcon fontSize="small" color="primary" />
-          <Typography variant="subtitle2">Спросить AI</Typography>
-        </Stack>
-        <Box sx={{ px: 1, pt: 1 }}>
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            placeholder="Спросите AI изменить или создать…"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                submitCustom()
-              }
+          <Stack
+            direction="row"
+            spacing={0.75}
+            sx={{
+              alignItems: 'center',
+              px: 1.5,
+              py: 0.75,
+              color: 'text.secondary',
             }}
-            slotProps={{
-              htmlInput: {
-                'data-testid': 'inline-ai-custom-input',
-                'aria-label': 'Инструкция для AI',
-              },
-            }}
-          />
-        </Box>
-        <Divider sx={{ mt: 1 }} />
-        {langChoice ? (
-          <List dense disablePadding>
-            <ListItemButton onClick={() => setLangChoice(false)} sx={{ color: 'text.secondary' }}>
-              <ListItemText primary="‹ Назад" />
-            </ListItemButton>
-            {TARGET_LANGS.map((lang) => (
-              <ListItemButton key={lang} onClick={() => pick('translate', lang)}>
-                <ListItemText primary={lang} />
+          >
+            <AutoAwesomeIcon fontSize="small" color="primary" />
+            <Typography variant="subtitle2">Спросить AI</Typography>
+          </Stack>
+          <Box sx={{ px: 1, pt: 1 }}>
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              placeholder="Спросите AI изменить или создать…"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  submitCustom()
+                }
+              }}
+              slotProps={{
+                htmlInput: {
+                  'data-testid': 'inline-ai-custom-input',
+                  'aria-label': 'Инструкция для AI',
+                },
+              }}
+            />
+          </Box>
+          <Divider sx={{ mt: 1 }} />
+          {langChoice ? (
+            <List dense disablePadding>
+              <ListItemButton onClick={() => setLangChoice(false)} sx={{ color: 'text.secondary' }}>
+                <ListItemText primary="‹ Назад" />
               </ListItemButton>
-            ))}
-          </List>
-        ) : (
-          <List dense disablePadding>
-            {ACTIONS.map((action) => {
-              const Icon = action.icon
-              return (
-                <ListItemButton
-                  key={action.id}
-                  onClick={() =>
-                    action.id === 'translate' ? setLangChoice(true) : pick(action.id)
-                  }
-                >
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    <Icon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={action.label} />
+              {TARGET_LANGS.map((lang) => (
+                <ListItemButton key={lang} onClick={() => pick('translate', lang)}>
+                  <ListItemText primary={lang} />
                 </ListItemButton>
-              )
-            })}
-          </List>
-        )}
-      </Box>
-    </Popover>
+              ))}
+            </List>
+          ) : (
+            <List dense disablePadding>
+              {ACTIONS.map((action) => {
+                const Icon = action.icon
+                return (
+                  <ListItemButton
+                    key={action.id}
+                    onClick={() =>
+                      action.id === 'translate' ? setLangChoice(true) : pick(action.id)
+                    }
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <Icon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={action.label} />
+                  </ListItemButton>
+                )
+              })}
+            </List>
+          )}
+        </Paper>
+      </ClickAwayListener>
+    </Popper>
   )
 }
 

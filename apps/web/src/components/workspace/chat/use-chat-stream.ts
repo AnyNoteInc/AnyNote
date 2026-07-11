@@ -28,12 +28,18 @@ type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
 type PendingSend = {
   attachments: DraftAttachmentSummary[]
   text: string
+  onAssistantMessageId?: (id: string) => void
 }
 
 type SendOptions = {
   useThinking?: boolean
   thinkingEffort?: ThinkingEffort
   pageContext?: { content: string; isSelection: boolean }
+  /** Fired with this send's assistant message id as soon as it is known:
+   *  first the optimistic temp id, then again with the real server id when
+   *  message.created reconciles it. Lets callers key per-answer state (e.g.
+   *  the page-chat's pre-request page snapshot) by message id. */
+  onAssistantMessageId?: (id: string) => void
 }
 
 type UseChatStreamArgs = {
@@ -109,6 +115,7 @@ export function useChatStream({
         }
 
         activeAssistantMessageIdRef.current = event.assistantMessageId
+        pendingSend.onAssistantMessageId?.(event.assistantMessageId)
 
         const optimisticPair = optimisticPairRef.current
         if (optimisticPair) {
@@ -292,7 +299,14 @@ export function useChatStream({
   })
 
   const send = useEffectEvent(
-    async ({ attachments, text, useThinking, thinkingEffort, pageContext }: StartSendArgs) => {
+    async ({
+      attachments,
+      text,
+      useThinking,
+      thinkingEffort,
+      pageContext,
+      onAssistantMessageId,
+    }: StartSendArgs) => {
       const trimmedText = text.trim()
       if (!trimmedText || isStreaming) {
         return false
@@ -307,6 +321,7 @@ export function useChatStream({
       pendingSendRef.current = {
         attachments,
         text: trimmedText,
+        onAssistantMessageId,
       }
 
       // Optimistic insert: show the user's message and an empty streaming
@@ -321,6 +336,7 @@ export function useChatStream({
       })
       optimisticPairRef.current = { userId: userMessage.id, assistantId: assistantMessage.id }
       activeAssistantMessageIdRef.current = assistantMessage.id
+      onAssistantMessageId?.(assistantMessage.id)
       setMessages((current) => [...current, userMessage, assistantMessage])
 
       return await openStream((signal) =>

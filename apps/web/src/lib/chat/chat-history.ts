@@ -5,6 +5,7 @@ import type { AgentConversationMessage } from './agents-payload'
 const MAX_ANCESTORS = 50
 const CURRENT_CHAT_LAST_COUNT = 10
 const ANCESTOR_LAST_COUNT = 4
+const FULL_THREAD_MAX_MESSAGES = 200
 
 type MessageRow = {
   id: string
@@ -36,15 +37,47 @@ function isTextPart(value: unknown): value is { type: 'text'; text: string } {
   )
 }
 
+function isToolPart(value: unknown): value is { type: 'tool'; title?: string; detail?: string } {
+  return !!value && typeof value === 'object' && (value as { type?: unknown }).type === 'tool'
+}
+
+/** Tool name for the history summary line: the machine name from `detail`
+ *  (JSON `{tool}` — the shape ChatServiceBlock parses) beats the human title. */
+function toolName(part: { title?: string; detail?: string }): string | null {
+  if (part.detail) {
+    try {
+      const parsed = JSON.parse(part.detail) as { tool?: unknown }
+      if (typeof parsed.tool === 'string' && parsed.tool) return parsed.tool
+    } catch {
+      // fall through to title
+    }
+  }
+  return typeof part.title === 'string' && part.title ? part.title : null
+}
+
 function extractText(parts: Prisma.JsonValue): string {
   if (!Array.isArray(parts)) {
     return ''
   }
-  return parts
+  const text = parts
     .filter(isTextPart)
     .map((part) => part.text)
     .join('\n\n')
     .trim()
+  // Tool calls used to vanish from history entirely (and tool-ONLY turns
+  // dropped the whole message), breaking follow-ups like «добавь ЭТО в конец
+  // страницы» right after a tool call. Keep the thread coherent with a
+  // summary line — appended to the turn's text, or standing alone for
+  // tool-only turns.
+  const tools = parts
+    .filter(isToolPart)
+    .map(toolName)
+    .filter((name): name is string => name !== null)
+  if (tools.length === 0) {
+    return text
+  }
+  const summary = `[Выполнены инструменты: ${[...new Set(tools)].join(', ')}]`
+  return text ? `${text}\n\n${summary}` : summary
 }
 
 // Bound the per-chat fetch using the (chatId, createdAt) index: pull the
@@ -56,13 +89,27 @@ function extractText(parts: Prisma.JsonValue): string {
 async function fetchBoundedHistory(
   prisma: PrismaLike,
   chatId: string,
-  lastCount: number,
+  lastCount: number | 'all',
 ): Promise<MessageRow[]> {
   const where: Prisma.ChatMessageWhereInput = {
     chatId,
     status: 'DONE' satisfies ChatMessageStatus,
   }
   const select = { id: true, role: true, parts: true, createdAt: true } as const
+
+  // Page chats ship their WHOLE thread («вся история», spec §5) — they are
+  // page-scoped and short-lived; the agents-side trim_chat_history cap stays
+  // as the context-window safety valve, and FULL_THREAD_MAX_MESSAGES bounds a
+  // pathological thread so the per-send fetch can't grow without limit.
+  if (lastCount === 'all') {
+    const lastDesc = (await prisma.chatMessage.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: FULL_THREAD_MAX_MESSAGES,
+      select,
+    })) as MessageRow[]
+    return lastDesc.reverse()
+  }
 
   const [lastDesc, firstRows] = await Promise.all([
     prisma.chatMessage.findMany({
@@ -95,6 +142,8 @@ export async function buildChatHistoryMessages(args: {
   prisma: PrismaLike
   chatId: string
   workspaceId: string
+  /** PAGE chats send the full current-chat thread instead of the last-10 window. */
+  fullCurrentChat?: boolean
 }): Promise<AgentConversationMessage[]> {
   const chain: string[] = []
   let cursorId: string | null = args.chatId
@@ -115,18 +164,36 @@ export async function buildChatHistoryMessages(args: {
 
   const conversation: AgentConversationMessage[] = []
 
+  const currentWindow = args.fullCurrentChat ? ('all' as const) : CURRENT_CHAT_LAST_COUNT
+
   for (let i = 0; i < chain.length; i += 1) {
     const isCurrent = i === chain.length - 1
-    const lastCount = isCurrent ? CURRENT_CHAT_LAST_COUNT : ANCESTOR_LAST_COUNT
+    const lastCount = isCurrent ? currentWindow : ANCESTOR_LAST_COUNT
 
     const messages = await fetchBoundedHistory(args.prisma, chain[i]!, lastCount)
 
     for (const message of messages) {
       const content = extractText(message.parts)
       if (!content) continue
-      conversation.push({ role: mapRole(message.role), content })
+      pushConversationMessage(conversation, mapRole(message.role), content)
     }
   }
 
   return conversation
+}
+
+/** Strict-alternation providers (e.g. GigaChat) reject consecutive same-role
+ *  messages; formerly-skipped tool-only turns can now produce them, so merge
+ *  adjacent same-role turns instead of pushing a second one. */
+function pushConversationMessage(
+  conversation: AgentConversationMessage[],
+  role: AgentConversationMessage['role'],
+  content: string,
+): void {
+  const previous = conversation.at(-1)
+  if (previous?.role === role) {
+    previous.content = `${previous.content}\n\n${content}`
+    return
+  }
+  conversation.push({ role, content })
 }

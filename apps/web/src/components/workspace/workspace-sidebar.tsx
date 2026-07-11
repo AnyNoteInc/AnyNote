@@ -48,7 +48,6 @@ import { SharedPagesSection } from './shared-pages-section'
 import { SIDEBAR_ZONES, SidebarDndProvider, SidebarDropZone } from './sidebar-dnd-context'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
-import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import type { WorkspaceAccessKind, WorkspaceSidebarSection } from './workspace-layout-client'
 import { WorkspaceAvatar } from './workspace-avatar'
 import type { PlanFeatures } from '@repo/trpc'
@@ -149,7 +148,10 @@ export function WorkspaceSidebar({
     <Box
       component="aside"
       sx={{
-        width: SIDEBAR_WIDTH,
+        // The host decides the width: the shell's resizable grid column, or
+        // the toolbar popper's fixed-width Paper (hidden mode).
+        width: '100%',
+        minWidth: 0,
         borderRight: '1px solid',
         borderColor: 'divider',
         display: 'flex',

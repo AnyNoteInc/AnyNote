@@ -100,6 +100,10 @@ export type AgentsJwtClaims = JWTPayload & {
   wsid: string
   cid: string
   scopes: AgentsScope[]
+  /** Bound page id — present only for PAGE chats. apps/agents maps it to
+   *  AgentContext.page_id and its tool_runner denies any page-write tool call
+   *  targeting a different pageId (hard page binding, not just the prompt). */
+  pid?: string
 }
 
 const TTL_SECONDS = 300
@@ -123,6 +127,8 @@ export async function signAgentsJwt(args: {
   workspaceId: string
   chatId: string
   role: AgentsRole
+  /** Bound page id for PAGE chats — becomes the `pid` claim (see AgentsJwtClaims). */
+  boundPageId?: string | null
 }): Promise<string> {
   const scopes = scopesForRole(args.role)
   const now = Math.floor(Date.now() / 1000)
@@ -130,6 +136,7 @@ export async function signAgentsJwt(args: {
     wsid: args.workspaceId,
     cid: args.chatId,
     scopes,
+    ...(args.boundPageId ? { pid: args.boundPageId } : {}),
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt(now)

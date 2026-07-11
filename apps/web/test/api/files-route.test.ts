@@ -107,6 +107,32 @@ describe('GET /api/files/[id] — membership arm block enforcement', () => {
   })
 })
 
+describe('GET /api/files/[id] — content disposition (inline-safe gate)', () => {
+  // Attachments accept ANY declared MIME now — active content served inline
+  // on the app origin would be stored XSS, so it must download instead.
+  it.each(['text/html', 'image/svg+xml', 'application/xhtml+xml', 'application/octet-stream'])(
+    'forces download for %s',
+    async (mimeType) => {
+      mocks.fileFindUnique.mockResolvedValue(fileRow({ mimeType }))
+      mocks.memberFindUnique.mockResolvedValue({ userId: USER_ID })
+      const res = await callRoute()
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Disposition')).toMatch(/^attachment; /)
+    },
+  )
+
+  it.each(['image/png', 'application/pdf', 'text/plain', 'video/mp4', 'audio/mpeg'])(
+    'keeps %s inline',
+    async (mimeType) => {
+      mocks.fileFindUnique.mockResolvedValue(fileRow({ mimeType }))
+      mocks.memberFindUnique.mockResolvedValue({ userId: USER_ID })
+      const res = await callRoute()
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Disposition')).toMatch(/^inline; /)
+    },
+  )
+})
+
 describe('GET /api/files/[id] — cache headers', () => {
   it('public files (avatars/icons/covers) get an immutable public cache header', async () => {
     mocks.fileFindUnique.mockResolvedValue(fileRow({ isPublic: true, workspaceId: null }))

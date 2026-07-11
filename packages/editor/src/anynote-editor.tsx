@@ -16,10 +16,12 @@ import { EmbedUrlPopover } from './components/embed-url-popover'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
 import {
+  abortInlineAiSession,
   InlineAiPopover,
   inlineAiRenderPreview,
   type InlineAiCapturedRange,
 } from './components/inline-ai-popover'
+import { captureInlineAiRange, getInlineAiPreview } from './extensions/inline-ai'
 import { MarkdownUploadPopover } from './components/markdown-upload-popover'
 import { MentionMenuPopover } from './components/mention-menu-popover'
 import type { MentionMenuPopoverHandle } from './components/mention-menu-popover'
@@ -46,14 +48,7 @@ type MentionSuggestionProps = SuggestionProps<MentionLookupItem, MentionLookupIt
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
 type PopoverKind =
-  | 'date'
-  | 'datetime'
-  | 'file'
-  | 'media'
-  | 'markdown'
-  | 'pageLink'
-  | 'bookmark'
-  | 'embed'
+  'date' | 'datetime' | 'file' | 'media' | 'markdown' | 'pageLink' | 'bookmark' | 'embed'
 
 type OpenPopover = {
   kind: PopoverKind
@@ -144,7 +139,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   // the placeholder advertises it (spec §3.1); otherwise the classic slash hint.
   const placeholder =
     props.placeholder ??
-    (props.generateAI ? 'Нажмите «пробел» для AI, «/» — для команд' : "Введите '/' для команд")
+    (props.generateAI ? 'Нажмите «пробел» для AI или «/» — для команд' : "Введите '/' для команд")
 
   const [popover, setPopover] = useState<OpenPopover | null>(null)
   const [drawioCreate, setDrawioCreate] = useState<{ range: SlashRange } | null>(null)
@@ -513,7 +508,28 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     if (!editor) return
     ;(editor.storage as unknown as Record<string, unknown>).ai = {
       askAI: props.askAI ?? null,
-      onAskAi: (captured: InlineAiCapturedRange) => setAiCapture(captured),
+      onAskAi: (captured: InlineAiCapturedRange) => {
+        // No anchor rect (coordsAtPos threw) → the Popper can't render; skip
+        // entirely so the plugin isn't left holding an invisible capture.
+        if (!captured.anchorEl) return
+        if (!editor.isDestroyed) {
+          // HOLD the new range in the plugin: it gets the source highlight
+          // (the popover's autofocused input steals the native selection
+          // paint) and the drift guard re-maps it while the popover is open —
+          // pick() reads the live range, not this stale capture. ONLY when the
+          // preview slot is free (or holds a stale popover hold): opening the
+          // menu must stay non-destructive — an un-accepted preview / a
+          // streaming Space-AI draft survives until an action is actually
+          // PICKED (runInlineAi's 'start' + session abort supersede then);
+          // heldRange() in the popover falls back to this click-time capture.
+          const held = getInlineAiPreview(editor)
+          if (!held.active || held.status === 'capturing') {
+            abortInlineAiSession(editor)
+            captureInlineAiRange(editor, { from: captured.from, to: captured.to })
+          }
+        }
+        setAiCapture(captured)
+      },
       generateAI: props.generateAI ?? null,
       onSpaceAi: props.generateAI ? (args: SpaceAiTriggerArgs) => setSpaceAi(args) : undefined,
     }
