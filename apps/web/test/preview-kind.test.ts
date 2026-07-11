@@ -52,6 +52,14 @@ describe('resolvePreviewType', () => {
     expect(resolvePreviewType(null, '.DOCX')).toBe('office')
   })
 
+  it('strips MIME parameters', () => {
+    expect(resolvePreviewType('text/plain; charset=utf-8', null)).toBe('text')
+  })
+
+  it('MIME family wins over a conflicting extension', () => {
+    expect(resolvePreviewType('image/png', 'docx')).toBe('image')
+  })
+
   it('returns null for unknown types', () => {
     expect(resolvePreviewType('application/zip', 'zip')).toBeNull()
     expect(resolvePreviewType(null, null)).toBeNull()

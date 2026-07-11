@@ -50,7 +50,8 @@ export function resolvePreviewType(
   mimeType: string | null,
   ext: string | null,
 ): PreviewType | null {
-  const mime = (mimeType ?? '').toLowerCase()
+  // Strip MIME parameters: 'text/plain; charset=utf-8' → 'text/plain'.
+  const mime = (mimeType ?? '').toLowerCase().split(';')[0]?.trim() ?? ''
   const extension = normalizeExt(ext)
   // SVG first — it matches image/* but needs the blob-in-<img> path (XSS-safe).
   if (mime === 'image/svg+xml' || extension === 'svg') return 'svg'
