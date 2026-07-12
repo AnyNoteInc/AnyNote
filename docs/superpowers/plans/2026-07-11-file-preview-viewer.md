@@ -1365,7 +1365,12 @@ export function ZoomPanViewport({ children, getNaturalScale }: Props) {
   const naturalScale = () => {
     const natural = getNaturalScale?.()
     if (!natural || !Number.isFinite(natural)) return
-    setT({ scale: clampScale(natural), tx: 0, ty: 0 })
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const scale = clampScale(natural)
+    // Держим центр контейнера на месте: origin '0 0' + центрированный контент —
+    // {scale, 0, 0} унёс бы центр в (n·W/2, n·H/2), при n>2 контент за экраном.
+    setT({ scale, tx: ((1 - scale) * rect.width) / 2, ty: ((1 - scale) * rect.height) / 2 })
   }
 
   const isIdentity = t.scale === 1 && t.tx === 0 && t.ty === 0
@@ -1841,6 +1846,14 @@ git commit -m "feat(web): просмотрщики по типам + zoom/pan в
 - Create: `apps/web/src/components/page/file-preview/file-preview-header.tsx`
 - Create: `apps/web/src/components/page/file-preview/file-preview-sidebar.tsx`
 - Create: `apps/web/src/components/page/file-preview/file-preview-dialog.tsx`
+- Modify: `apps/web/src/components/page/file-preview/file-preview-content.tsx` — добавить экспорт
+  ключа идентичности файла (используется обоими маунт-сайтами ниже):
+
+```ts
+/** Смена файла обязана пересоздавать просмотрщик (см. key в сайдбаре/диалоге). */
+export const previewContentKey = (payload: FilePreviewPayload): string =>
+  payload.kind === 'file' ? payload.url : payload.svg
+```
 
 - [ ] **Step 1: `file-preview-header.tsx`**
 
@@ -2011,7 +2024,9 @@ export function FilePreviewSidebar() {
         {ctx.payload ? (
           <>
             <FilePreviewHeader payload={ctx.payload} />
-            <FilePreviewContent payload={ctx.payload} />
+            {/* key: смена файла ДОЛЖНА пересоздать просмотрщик — иначе залипают
+                error/text-состояния и zoom/pan-трансформация прошлого файла. */}
+            <FilePreviewContent key={previewContentKey(ctx.payload)} payload={ctx.payload} />
           </>
         ) : null}
         <PanelResizeHandle
@@ -2063,7 +2078,8 @@ export function FilePreviewDialog() {
           sx={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
           <FilePreviewHeader payload={ctx.payload} />
-          <FilePreviewContent payload={ctx.payload} />
+          {/* key — как в сайдбаре: смена файла пересоздаёт просмотрщик. */}
+          <FilePreviewContent key={previewContentKey(ctx.payload)} payload={ctx.payload} />
         </Box>
       ) : null}
     </Dialog>
