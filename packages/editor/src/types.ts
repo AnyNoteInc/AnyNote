@@ -122,7 +122,10 @@ export type FilePreviewFilePayload = {
 
 export type FilePreviewDiagramPayload = {
   kind: 'diagram'
-  /** Raw SVG markup ('<svg …') OR a data:image/svg+xml URI (drawio). */
+  /** Raw SVG markup ('<svg …', geometry-normalized but NOT script-sanitized —
+   *  render via an encoded <img src> / Blob URL only, never innerHTML) OR a
+   *  data:image/svg+xml URI (drawio — render via <img src> only; never
+   *  decode + inject). */
   svg: string
   title?: string
 }

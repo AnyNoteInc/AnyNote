@@ -214,12 +214,15 @@ function CodeBlockView({
             <Box
               onClick={
                 svg && onOpenFilePreview
-                  ? () =>
+                  ? (event: React.MouseEvent) => {
+                      // PlantUML [[link]] anchors keep their own navigation.
+                      if ((event.target as Element).closest('a')) return
                       onOpenFilePreview({
                         kind: 'diagram',
                         svg,
                         title: isPlantuml ? 'PlantUML' : 'Mermaid',
                       })
+                    }
                   : undefined
               }
               sx={{
