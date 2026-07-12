@@ -37,7 +37,7 @@ import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
 import { usePageChatContext } from './page-chat/page-chat-context'
-import { useFilePreview } from '@/components/page/file-preview/file-preview-context'
+import { useFilePreview } from './file-preview/file-preview-context'
 import { createAskAI, createGenerateAi } from './inline-ai-bridge'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
