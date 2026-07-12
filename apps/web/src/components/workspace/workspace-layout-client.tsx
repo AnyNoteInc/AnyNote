@@ -18,6 +18,9 @@ import { HistorySidebar } from '@/components/page/history/history-sidebar'
 import { PageChatProvider } from '@/components/page/page-chat/page-chat-context'
 import { PageChatFab } from '@/components/page/page-chat/page-chat-fab'
 import { PageChatSidebar } from '@/components/page/page-chat/page-chat-sidebar'
+import { FilePreviewProvider } from '@/components/page/file-preview/file-preview-context'
+import { FilePreviewSidebar } from '@/components/page/file-preview/file-preview-sidebar'
+import { FilePreviewDialog } from '@/components/page/file-preview/file-preview-dialog'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 
@@ -292,6 +295,8 @@ export function WorkspaceLayoutClient({
       {activePageId ? <CommentsSidebar /> : null}
       {activePageId ? <HistorySidebar /> : null}
       {activePageId ? <PageChatSidebar workspaceId={workspace.id} pageId={activePageId} /> : null}
+      {activePageId ? <FilePreviewSidebar /> : null}
+      {activePageId ? <FilePreviewDialog /> : null}
       {activePageId ? <PageChatFab /> : null}
     </Box>
   )
@@ -313,7 +318,9 @@ export function WorkspaceLayoutClient({
         enabled={historyEnabled}
       >
         <PageChatProvider pageId={activePageId ?? ''} pageType={activePageType}>
-          <PageEditorProvider>{mainContent}</PageEditorProvider>
+          <FilePreviewProvider pageId={activePageId ?? ''}>
+            <PageEditorProvider>{mainContent}</PageEditorProvider>
+          </FilePreviewProvider>
         </PageChatProvider>
       </PageHistoryProvider>
     </PageCommentsProvider>

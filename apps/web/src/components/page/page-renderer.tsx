@@ -37,6 +37,7 @@ import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
 import { usePageChatContext } from './page-chat/page-chat-context'
+import { useFilePreview } from '@/components/page/file-preview/file-preview-context'
 import { createAskAI, createGenerateAi } from './inline-ai-bridge'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
@@ -175,6 +176,7 @@ export function PageRenderer({
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
   const pageChat = usePageChatContext()
+  const filePreview = useFilePreview()
   const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor, panelOpen } =
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
@@ -726,6 +728,7 @@ export function PageRenderer({
           onPickMeetingBlock={meetingsEnabled ? onPickMeetingBlock : undefined}
           askAI={editable ? askAI : undefined}
           generateAI={editable ? generateAI : undefined}
+          onOpenFilePreview={filePreview ? filePreview.open : undefined}
         />
         <EmbeddedDatabasePicker
           open={dbPickerOpen}
@@ -768,6 +771,11 @@ export function PageRenderer({
             // user-resizable, so read the live width from the context).
             (pageChat?.panelOpen && pageChat.displayMode === 'docked'
               ? pageChat.sidebarWidth
+              : 0) +
+            // Докованная панель просмотра резервирует layout-ширину как чат
+            // (в фуллскрине она поверх всего — ширины не занимает).
+            (filePreview?.payload && filePreview.effectiveMode === 'split'
+              ? filePreview.sidebarWidth
               : 0)
           }
         />
