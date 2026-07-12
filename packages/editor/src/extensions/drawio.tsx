@@ -20,6 +20,7 @@ export type DrawioOptions = {
 function DrawioView({ node, updateAttributes, extension, editor }: NodeViewProps) {
   const attrs = node.attrs as DrawioNodeAttrs
   const drawioUrl = (extension.options as DrawioOptions).drawioUrl
+  const onOpenFilePreview = (extension.options as DrawioOptions).onOpenFilePreview
   const [view, setView] = useState<'idle' | 'viewer' | 'editor'>('idle')
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -30,10 +31,21 @@ function DrawioView({ node, updateAttributes, extension, editor }: NodeViewProps
     [],
   )
 
+  const openTarget = (target: 'viewer' | 'editor') => {
+    // The app-level viewer replaces the legacy fullscreen dialog when wired;
+    // without the callback (template editor, public pages) the dialog stays.
+    if (target === 'viewer' && onOpenFilePreview) {
+      if (attrs.svg)
+        onOpenFilePreview({ kind: 'diagram', svg: attrs.svg, title: 'Диаграмма draw.io' })
+      return
+    }
+    setView(target)
+  }
+
   const handleClick = () => {
     if (clickTimer.current) clearTimeout(clickTimer.current)
     clickTimer.current = setTimeout(
-      () => setView(getDrawioClickTarget({ isEditable: editor.isEditable })),
+      () => openTarget(getDrawioClickTarget({ isEditable: editor.isEditable })),
       250,
     )
   }

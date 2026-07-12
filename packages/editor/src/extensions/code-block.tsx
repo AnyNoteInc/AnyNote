@@ -106,7 +106,7 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 
 type CodeBlockOptions = CodeBlockLowlightOptions & {
   plantumlRenderAuth?: PlantumlRenderAuth
-  onOpenFilePreview?: OpenFilePreview | null
+  onOpenFilePreview: OpenFilePreview | null
 }
 
 function CodeBlockView({
@@ -125,6 +125,7 @@ function CodeBlockView({
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
   const showPreview = isDiagram && view === 'preview'
+  const onOpenFilePreview = extension.options.onOpenFilePreview ?? null
 
   useEffect(() => {
     if (!showPreview) return
@@ -211,7 +212,22 @@ function CodeBlockView({
             <Box className="anynote-code-block__error">{error}</Box>
           ) : (
             <Box
-              sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+              onClick={
+                svg && onOpenFilePreview
+                  ? () =>
+                      onOpenFilePreview({
+                        kind: 'diagram',
+                        svg,
+                        title: isPlantuml ? 'PlantUML' : 'Mermaid',
+                      })
+                  : undefined
+              }
+              sx={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                cursor: svg && onOpenFilePreview ? 'zoom-in' : undefined,
+              }}
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
