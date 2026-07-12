@@ -56,6 +56,7 @@ import type {
   AnyNoteEditorUser,
   AskAICallback,
   MentionLookupItem,
+  OpenFilePreview,
   SlashCommandItem,
   UploadHandler,
 } from '../types'
@@ -106,6 +107,9 @@ export type BuildExtensionsOptions = {
   // schema-only extensions barrel stays free of UI imports; anynote-editor passes
   // it in. Absent → the plugin falls back to a bare text span.
   inlineAiRenderPreview?: InlineAiRenderPreview
+  // apps/web injects the file-preview opener; node views call it on click.
+  // Absent → nodes keep their current click behavior (spec §1).
+  onOpenFilePreview?: OpenFilePreview
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -147,22 +151,38 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Typography,
   AnynoteTextColor,
   BlockBackground,
-  ResizableImage.configure({ uploadHandler: opts.uploadHandler }),
-  Video.configure({ uploadHandler: opts.uploadHandler }),
-  Audio.configure({ uploadHandler: opts.uploadHandler }),
+  ResizableImage.configure({
+    uploadHandler: opts.uploadHandler,
+    onOpenFilePreview: opts.onOpenFilePreview ?? null,
+  }),
+  Video.configure({
+    uploadHandler: opts.uploadHandler,
+    onOpenFilePreview: opts.onOpenFilePreview ?? null,
+  }),
+  Audio.configure({
+    uploadHandler: opts.uploadHandler,
+    onOpenFilePreview: opts.onOpenFilePreview ?? null,
+  }),
   TaskList,
   TaskItemWithCheckbox.configure({ nested: true }),
   Table.configure({ resizable: true }),
   TableRow,
   TableHeader,
   TableCell,
-  CodeBlock.configure({ lowlight, plantumlRenderAuth: opts.plantumlRenderAuth }),
+  CodeBlock.configure({
+    lowlight,
+    plantumlRenderAuth: opts.plantumlRenderAuth,
+    onOpenFilePreview: opts.onOpenFilePreview ?? null,
+  }),
   Callout,
   HiddenText,
-  FileAttachment,
+  FileAttachment.configure({ onOpenFilePreview: opts.onOpenFilePreview ?? null }),
   Bookmark,
   Embed.configure({ pageId: opts.pageId ?? null }),
-  Drawio.configure({ drawioUrl: opts.drawioUrl }),
+  Drawio.configure({
+    drawioUrl: opts.drawioUrl,
+    onOpenFilePreview: opts.onOpenFilePreview ?? null,
+  }),
   EmbeddedDatabase.configure({ renderEmbed: opts.renderEmbeddedDatabase ?? null }),
   SyncedBlock.configure({
     renderSyncedBlock: opts.renderSyncedBlock ?? null,

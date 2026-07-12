@@ -465,6 +465,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         bookmarkPreview: props.bookmarkPreview,
         askAI: props.askAI,
         inlineAiRenderPreview,
+        onOpenFilePreview: props.onOpenFilePreview,
       }),
       onCreate: ({ editor: ed }) => {
         editorInstanceRef.current = ed

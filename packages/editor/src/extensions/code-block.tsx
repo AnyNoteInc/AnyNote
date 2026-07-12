@@ -25,6 +25,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { sanitizeSvg } from '@repo/diagram-board/sanitize-svg'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 import { renderPlantuml, type PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
+import type { OpenFilePreview } from '../types'
 
 type CodeLanguage = { value: string; label: string }
 
@@ -105,6 +106,7 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 
 type CodeBlockOptions = CodeBlockLowlightOptions & {
   plantumlRenderAuth?: PlantumlRenderAuth
+  onOpenFilePreview: OpenFilePreview | null
 }
 
 function CodeBlockView({
@@ -123,6 +125,7 @@ function CodeBlockView({
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
   const showPreview = isDiagram && view === 'preview'
+  const onOpenFilePreview = extension.options.onOpenFilePreview ?? null
 
   useEffect(() => {
     if (!showPreview) return
@@ -209,7 +212,25 @@ function CodeBlockView({
             <Box className="anynote-code-block__error">{error}</Box>
           ) : (
             <Box
-              sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+              onClick={
+                svg && onOpenFilePreview
+                  ? (event: React.MouseEvent) => {
+                      // PlantUML [[link]] anchors keep their own navigation.
+                      if ((event.target as Element).closest('a')) return
+                      onOpenFilePreview({
+                        kind: 'diagram',
+                        svg,
+                        title: isPlantuml ? 'PlantUML' : 'Mermaid',
+                      })
+                    }
+                  : undefined
+              }
+              sx={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                cursor: svg && onOpenFilePreview ? 'zoom-in' : undefined,
+              }}
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
@@ -239,6 +260,7 @@ export const CodeBlock = CodeBlockLowlight.extend<CodeBlockOptions>({
       tabSize: 4,
       HTMLAttributes: {},
       plantumlRenderAuth: undefined,
+      onOpenFilePreview: null,
     }
   },
   addNodeView() {

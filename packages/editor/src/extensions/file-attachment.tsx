@@ -10,6 +10,8 @@ import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
 import { FileAttachmentSchema } from './file-attachment.schema'
 import { attachmentToImageNode, attachmentToMediaNode, inferMediaKind } from './media-mime'
+import { attachmentPreviewPayload } from './file-preview-interaction'
+import type { OpenFilePreview } from '../types'
 
 export type FileAttachmentAttrs = {
   url: string
@@ -27,12 +29,13 @@ const formatBytes = (bytes: number): string => {
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
-function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
+function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeViewProps) {
   const attrs = node.attrs as FileAttachmentAttrs
   const Icon = getFileIcon(attrs.ext)
   const mediaKind = inferMediaKind(attrs.mimeType)
   const playable = mediaKind === 'video' || mediaKind === 'audio'
   const showableAsImage = mediaKind === 'image' && Boolean(attrs.url)
+  const onOpenFilePreview = (extension.options as FileAttachmentOptions).onOpenFilePreview
 
   const swapNode = (swap: object | null) => {
     const pos = getPos()
@@ -107,10 +110,14 @@ function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
           </Paper>
         ) : null}
         <Box
+          onClick={
+            onOpenFilePreview ? () => onOpenFilePreview(attachmentPreviewPayload(attrs)) : undefined
+          }
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
+            cursor: onOpenFilePreview ? 'pointer' : undefined,
             textDecoration: 'none',
             color: 'text.primary',
             border: '1px solid',
@@ -182,7 +189,14 @@ function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
   )
 }
 
-export const FileAttachment = FileAttachmentSchema.extend({
+export type FileAttachmentOptions = {
+  onOpenFilePreview: OpenFilePreview | null
+}
+
+export const FileAttachment = FileAttachmentSchema.extend<FileAttachmentOptions>({
+  addOptions() {
+    return { onOpenFilePreview: null }
+  },
   addNodeView() {
     return ReactNodeViewRenderer(FileAttachmentView)
   },

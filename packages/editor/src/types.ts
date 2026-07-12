@@ -105,6 +105,35 @@ export type UploadedFile = {
 
 export type UploadHandler = (args: { blob: Blob; filename: string }) => Promise<UploadedFile>
 
+// --- File preview (просмотрщик файлов, spec 2026-07-11) --------------------
+//
+// The editor owns NO preview UI. apps/web injects `onOpenFilePreview`; node
+// views call it with a payload and the app decides: side panel, fullscreen
+// dialog, or a download fallback for non-previewable types. When absent
+// (template editor, public pages) every node keeps its current behavior.
+
+export type FilePreviewFilePayload = {
+  kind: 'file'
+  url: string
+  name: string | null
+  mimeType: string | null
+  size: number | null
+}
+
+export type FilePreviewDiagramPayload = {
+  kind: 'diagram'
+  /** Raw SVG markup ('<svg …', geometry-normalized but NOT script-sanitized —
+   *  render via an encoded <img src> / Blob URL only, never innerHTML) OR a
+   *  data:image/svg+xml URI (drawio — render via <img src> only; never
+   *  decode + inject). */
+  svg: string
+  title?: string
+}
+
+export type FilePreviewPayload = FilePreviewFilePayload | FilePreviewDiagramPayload
+
+export type OpenFilePreview = (payload: FilePreviewPayload) => void
+
 export type AnyNoteEditorUser = {
   id: string
   name: string
@@ -206,6 +235,10 @@ export type AnyNoteEditorProps = {
   // Space on an empty top-level paragraph opens the AI bar and the empty-line
   // placeholder advertises it.
   generateAI?: GenerateAICallback
+  // apps/web injects the file-preview opener (spec §1). When present, clicks on
+  // image/fileAttachment/video/audio/drawio/diagram-preview nodes open the
+  // split-panel / fullscreen viewer. Absent → current behavior everywhere.
+  onOpenFilePreview?: OpenFilePreview
 }
 
 export type { CommentThreadAnchor } from './types-comments'
