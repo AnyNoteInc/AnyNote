@@ -40,6 +40,7 @@ describe('authorizeFileRead', () => {
 
     mocks.fileFindUnique.mockResolvedValue({ ...baseFile, status: 'DELETED' })
     res = await authorizeFileRead('f1')
+    expect(res.ok).toBe(false)
     if (!res.ok) expect(res.response.status).toBe(404)
   })
 
@@ -61,6 +62,7 @@ describe('authorizeFileRead', () => {
     mocks.fileFindUnique.mockResolvedValue(baseFile)
     mocks.getSession.mockResolvedValue(null)
     const res = await authorizeFileRead('f1')
+    expect(res.ok).toBe(false)
     if (!res.ok) expect(res.response.status).toBe(401)
   })
 
@@ -88,6 +90,7 @@ describe('authorizeFileRead', () => {
     mocks.blockedFindUnique.mockResolvedValue({ id: 'b1' })
     mocks.pageFileFindFirst.mockResolvedValue(null)
     const res = await authorizeFileRead('f1')
+    expect(res.ok).toBe(false)
     if (!res.ok) expect(res.response.status).toBe(403)
   })
 
