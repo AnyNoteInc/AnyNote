@@ -10,11 +10,13 @@ import DownloadIcon from '@mui/icons-material/Download'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import SubtitlesIcon from '@mui/icons-material/Subtitles'
+import ZoomInIcon from '@mui/icons-material/ZoomIn'
 import Image from '@tiptap/extension-image'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
+import { imagePreviewPayload, shouldOpenImagePreview } from './file-preview-interaction'
 import { imageToAttachmentNode } from './media-mime'
 import type { OpenFilePreview, UploadHandler } from '../types'
 
@@ -50,6 +52,18 @@ function ResizableImageView({
   const captionShown = caption !== null
   const options = extension.options as ResizableImageOptions
   const uploadHandler = options.uploadHandler
+  const onOpenFilePreview = options.onOpenFilePreview
+
+  const openPreview = useCallback(() => {
+    if (!onOpenFilePreview) return
+    const payload = imagePreviewPayload({
+      src,
+      name: (node.attrs.name as string | null) ?? null,
+      size: (node.attrs.size as number | null) ?? null,
+      mimeType: (node.attrs.mimeType as string | null) ?? null,
+    })
+    if (payload) onOpenFilePreview(payload)
+  }, [onOpenFilePreview, src, node.attrs.name, node.attrs.size, node.attrs.mimeType])
 
   const outerRef = useRef<HTMLDivElement | null>(null)
   const imgRef = useRef<HTMLImageElement | null>(null)
@@ -288,6 +302,9 @@ function ResizableImageView({
                 () => updateAttributes({ caption: captionShown ? null : '' }),
               )}
               <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+              {onOpenFilePreview
+                ? toolbarButton('Просмотр', <ZoomInIcon fontSize="small" />, openPreview)
+                : null}
               <Tooltip title="Скачать" arrow>
                 <IconButton
                   size="small"
@@ -333,6 +350,14 @@ function ResizableImageView({
               alt={alt}
               title={title}
               draggable={false}
+              onClick={() => {
+                if (shouldOpenImagePreview({ isEditable: editor.isEditable, isDoubleClick: false }))
+                  openPreview()
+              }}
+              onDoubleClick={() => {
+                if (shouldOpenImagePreview({ isEditable: editor.isEditable, isDoubleClick: true }))
+                  openPreview()
+              }}
               sx={{
                 display: 'block',
                 maxWidth: '100%',
@@ -340,6 +365,7 @@ function ResizableImageView({
                 width: width ? `${width}px` : 'auto',
                 borderRadius: 0.75,
                 userSelect: 'none',
+                cursor: onOpenFilePreview && !editor.isEditable ? 'zoom-in' : undefined,
               }}
             />
             {editor.isEditable ? (
