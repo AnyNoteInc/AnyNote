@@ -344,7 +344,7 @@ function VideoView({
                     right: 8,
                     bgcolor: 'background.paper',
                     boxShadow: 1,
-                    opacity: 0,
+                    opacity: selected ? 1 : 0,
                     transition: 'opacity .15s',
                     '.anynote-video-wrapper:hover &': { opacity: 1 },
                     '&:focus-visible': { opacity: 1 },
