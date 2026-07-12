@@ -24,7 +24,7 @@ export function FilePreviewSidebar() {
   useEffect(() => {
     if (!shown || !close) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
+      if (e.key === 'Escape' && !e.defaultPrevented) close()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

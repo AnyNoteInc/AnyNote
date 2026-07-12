@@ -34,7 +34,12 @@ const downloadPayload = (payload: FilePreviewPayload) => {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  if (objectUrl) URL.revokeObjectURL(objectUrl)
+  // Отложенный revoke: синхронный после click() может оборвать скачивание в
+  // Firefox/Safari (как в diagram-preview.tsx).
+  if (objectUrl) {
+    const url = objectUrl
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
 }
 
 export function FilePreviewHeader({ payload }: { payload: FilePreviewPayload }) {
