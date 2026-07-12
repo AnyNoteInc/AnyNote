@@ -10,6 +10,7 @@ import {
   DownloadIcon,
   InsertDriveFileOutlinedIcon,
   Typography,
+  useTheme,
 } from '@repo/ui/components'
 
 import { TEXT_PREVIEW_MAX_BYTES, extractApiFileId } from '@/lib/preview-kind'
@@ -43,6 +44,7 @@ export function DownloadPrompt({
   name: string | null
   reason: string
 }) {
+  const theme = useTheme()
   return (
     <Center>
       <InsertDriveFileOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
@@ -58,6 +60,8 @@ export function DownloadPrompt({
         rel="noopener noreferrer"
         startIcon={<DownloadIcon />}
         size="small"
+        // Инлайн-стиль: глобальный нелейерный a{color:inherit} бьёт @layer mui.
+        style={{ color: theme.palette.primary.main }}
       >
         Скачать
       </Button>
@@ -100,16 +104,18 @@ export function SvgViewer({ source, name }: { source: SvgSource; name?: string |
   useEffect(() => {
     let cancelled = false
     let objectUrl: string | null = null
+    setError(null)
     const assign = (markup: string) => {
+      if (cancelled) return
       objectUrl = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
-      if (!cancelled) setSrc(objectUrl)
+      setSrc(objectUrl)
     }
     if (source.kind === 'inline') {
       if (source.value.startsWith('data:')) setSrc(source.value)
       else assign(source.value)
     } else {
       setSrc(null)
-      fetch(source.value, { credentials: 'include' })
+      fetch(source.value, { credentials: 'same-origin' })
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           return res.text()
@@ -145,6 +151,8 @@ export function SvgViewer({ source, name }: { source: SvgSource; name?: string |
 }
 
 export function PdfViewer({ url, name }: { url: string; name: string | null }) {
+  // Без sandbox: он ломает встроенные PDF-просмотрщики; реальный контроль —
+  // серверный inline-MIME-гейт (isInlineSafeMime) + nosniff.
   return (
     <Box
       component="iframe"
@@ -221,7 +229,9 @@ export function TextViewer({
   useEffect(() => {
     if (tooBig) return
     let cancelled = false
-    fetch(url, { credentials: 'include' })
+    setError(null)
+    setText(null)
+    fetch(url, { credentials: 'same-origin' })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.text()

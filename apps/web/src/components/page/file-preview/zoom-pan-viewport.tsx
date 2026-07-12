@@ -16,13 +16,16 @@ import {
 const MIN_SCALE = 0.2
 const MAX_SCALE = 8
 
+const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
+
 type Transform = { scale: number; tx: number; ty: number }
 const IDENTITY: Transform = { scale: 1, tx: 0, ty: 0 }
 
 type Props = {
   children: ReactNode
-  /** Масштаб «100%» (naturalWidth / отображаемая ширина при fit). Null пока
-   *  неизвестен (картинка не загрузилась) — кнопка 1:1 скрыта. */
+  /** Масштаб «100%» (naturalWidth / отображаемая ширина при fit). Кнопка 1:1
+   *  рендерится, когда проп передан; пока значение null (картинка не
+   *  загрузилась) — клик тихо ничего не делает. */
   getNaturalScale?: () => number | null
 }
 
@@ -34,14 +37,12 @@ export function ZoomPanViewport({ children, getNaturalScale }: Props) {
   const [t, setT] = useState<Transform>(IDENTITY)
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
 
-  const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
-
   const zoomAt = useCallback((factor: number, cx?: number, cy?: number) => {
     setT((prev) => {
       const rect = containerRef.current?.getBoundingClientRect()
       const px = cx ?? (rect ? rect.width / 2 : 0)
       const py = cy ?? (rect ? rect.height / 2 : 0)
-      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev.scale * factor))
+      const scale = clampScale(prev.scale * factor)
       const k = scale / prev.scale
       return { scale, tx: px - k * (px - prev.tx), ty: py - k * (py - prev.ty) }
     })
@@ -64,7 +65,11 @@ export function ZoomPanViewport({ children, getNaturalScale }: Props) {
   const naturalScale = () => {
     const natural = getNaturalScale?.()
     if (!natural || !Number.isFinite(natural)) return
-    setT({ scale: clampScale(natural), tx: 0, ty: 0 })
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const scale = clampScale(natural)
+    // Держим центр контейнера на месте: origin '0 0' + центрированный контент.
+    setT({ scale, tx: ((1 - scale) * rect.width) / 2, ty: ((1 - scale) * rect.height) / 2 })
   }
 
   const isIdentity = t.scale === 1 && t.tx === 0 && t.ty === 0
@@ -74,6 +79,7 @@ export function ZoomPanViewport({ children, getNaturalScale }: Props) {
       ref={containerRef}
       data-testid="zoom-pan-viewport"
       onPointerDown={(e) => {
+        if (e.button !== 0) return
         if ((e.target as HTMLElement).closest('[data-zoom-toolbar]')) return
         dragRef.current = { x: e.clientX, y: e.clientY, tx: t.tx, ty: t.ty }
         try {
@@ -153,17 +159,17 @@ export function ZoomPanViewport({ children, getNaturalScale }: Props) {
         }}
       >
         <Tooltip title="Уменьшить">
-          <IconButton size="small" onClick={() => zoomAt(1 / 1.25)}>
+          <IconButton size="small" aria-label="Уменьшить" onClick={() => zoomAt(1 / 1.25)}>
             <ZoomOutIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Увеличить">
-          <IconButton size="small" onClick={() => zoomAt(1.25)}>
+          <IconButton size="small" aria-label="Увеличить" onClick={() => zoomAt(1.25)}>
             <ZoomInIcon fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title="Вписать">
-          <IconButton size="small" onClick={() => setT(IDENTITY)}>
+          <IconButton size="small" aria-label="Вписать" onClick={() => setT(IDENTITY)}>
             <FitScreenIcon fontSize="small" />
           </IconButton>
         </Tooltip>
