@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream'
 
-import { GotenbergTimeoutError, officeToPdf } from '@repo/page-export'
+import { GotenbergTimeoutError, GotenbergUpstreamError, officeToPdf } from '@repo/page-export'
 import { storage } from '@repo/storage'
 import type { NextRequest } from 'next/server'
 
@@ -12,6 +12,10 @@ export const runtime = 'nodejs'
 // Office-файл → PDF для просмотрщика (spec §6). Результат детерминирован
 // содержимым (файлы content-addressed по hash), поэтому кэшируется в S3
 // навсегда; авторизация — та же, что у /api/files/[id].
+
+// Office-вложения капятся 50MB на аплоаде (attachment kind); дублируем ceiling
+// здесь, т.к. resolvePreviewType классифицирует по MIME/ext, не по upload-kind.
+const MAX_PREVIEW_SOURCE_BYTES = 50 * 1024 * 1024
 
 const pdfHeaders = (extra?: Record<string, string>) => ({
   'Content-Type': 'application/pdf',
@@ -32,23 +36,33 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     return new Response('Unsupported media type', { status: 415 })
   }
 
+  if (file.fileSize > BigInt(MAX_PREVIEW_SOURCE_BYTES)) {
+    return new Response('Payload too large', { status: 413 })
+  }
+
   const cacheKey = `preview-pdf/${file.hash || file.id}.pdf`
 
   if (await storage.exists(cacheKey).catch(() => false)) {
-    const cached = (await storage.get(cacheKey)) as Readable
-    const stream = Readable.toWeb(cached) as unknown as ReadableStream<Uint8Array>
-    return new Response(stream, { status: 200, headers: pdfHeaders() })
+    try {
+      const cached = await storage.get(cacheKey)
+      const stream = Readable.toWeb(cached) as unknown as ReadableStream<Uint8Array>
+      return new Response(stream, { status: 200, headers: pdfHeaders() })
+    } catch {
+      // Кэш испарился между exists и get (или transient) — регенерируем ниже.
+    }
   }
 
-  let source: Readable
+  let bytes: Uint8Array<ArrayBuffer>
   try {
-    source = (await storage.get(file.path)) as Readable
+    const source = await storage.get(file.path)
+    const chunks: Buffer[] = []
+    for await (const chunk of source) chunks.push(chunk as Buffer)
+    // Zero-copy view (Buffer.concat уже даёт непрерывный буфер) — без второй копии.
+    const buf = Buffer.concat(chunks)
+    bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
   } catch {
     return new Response('Not found', { status: 404 })
   }
-  const chunks: Buffer[] = []
-  for await (const chunk of source) chunks.push(chunk as Buffer)
-  const bytes = Uint8Array.from(Buffer.concat(chunks))
 
   const filename = file.ext ? `${file.name}.${file.ext}` : file.name
 
@@ -59,6 +73,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (err instanceof GotenbergTimeoutError) {
       return new Response('PDF service timeout', { status: 504 })
     }
+    if (err instanceof GotenbergUpstreamError) {
+      return new Response('Document could not be converted', { status: 422 })
+    }
     return new Response('PDF service unavailable', { status: 502 })
   }
 
@@ -67,8 +84,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const pdfBytes = Buffer.from(await new Response(pdfStream).arrayBuffer())
   await storage
     .put(cacheKey, pdfBytes, { contentType: 'application/pdf', size: pdfBytes.length })
-    .catch(() => {
-      // best-effort кэш: конвертация уже удалась, отдаём результат
+    .catch((err) => {
+      // best-effort кэш: конвертация удалась, отдаём результат; но логируем,
+      // иначе перманентно сломанный кэш молча реконвертит на каждый запрос.
+      console.warn('[preview-pdf] cache put failed', err)
     })
 
   return new Response(pdfBytes, {

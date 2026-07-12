@@ -19,7 +19,11 @@ vi.mock('@repo/page-export', async (importOriginal) => {
   return { ...actual, officeToPdf: mocks.officeToPdf }
 })
 
-import { GotenbergTimeoutError, GotenbergUnreachableError } from '@repo/page-export'
+import {
+  GotenbergTimeoutError,
+  GotenbergUnreachableError,
+  GotenbergUpstreamError,
+} from '@repo/page-export'
 
 import { GET } from '../src/app/api/files/[id]/preview-pdf/route'
 
@@ -32,6 +36,7 @@ const officeFile = {
   ext: 'docx',
   hash: 'abc123',
   path: 'ab/abc123.docx',
+  fileSize: BigInt(1000),
   mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
@@ -104,5 +109,31 @@ describe('GET /api/files/[id]/preview-pdf', () => {
     mocks.get.mockResolvedValue(Readable.from(Buffer.from('x')))
     mocks.officeToPdf.mockRejectedValue(new GotenbergUnreachableError('down'))
     expect((await GET(req as never, params('f1'))).status).toBe(502)
+  })
+
+  it('413 когда исходник больше лимита', async () => {
+    mocks.authorizeFileRead.mockResolvedValue({
+      ok: true,
+      file: { ...officeFile, fileSize: BigInt(60 * 1024 * 1024) },
+    })
+    const res = await GET(req as never, params('f1'))
+    expect(res.status).toBe(413)
+    expect(mocks.officeToPdf).not.toHaveBeenCalled()
+  })
+
+  it('422 на нконвертируемом документе', async () => {
+    mocks.exists.mockResolvedValue(false)
+    mocks.get.mockResolvedValue(Readable.from(Buffer.from('битый-docx')))
+    mocks.officeToPdf.mockRejectedValue(new GotenbergUpstreamError(500, 'boom'))
+    const res = await GET(req as never, params('f1'))
+    expect(res.status).toBe(422)
+  })
+
+  it('404 когда исходник недоступен', async () => {
+    mocks.exists.mockResolvedValue(false)
+    mocks.get.mockRejectedValue(new Error('gone'))
+    const res = await GET(req as never, params('f1'))
+    expect(res.status).toBe(404)
+    expect(mocks.officeToPdf).not.toHaveBeenCalled()
   })
 })
