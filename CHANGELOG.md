@@ -1,3 +1,31 @@
+# [1.38.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.37.0...v1.38.0) (2026-07-12)
+
+
+### Bug Fixes
+
+* **editor:** кнопка просмотра видео видима при выделенной ноде ([d9b9ca6](https://github.com/AnyNoteInc/AnyNote/commit/d9b9ca68d03f51f170c406b3fee7bbe5dda32991))
+* **editor:** контракт diagram-svg в типах + гард ссылок в превью PlantUML ([77727ae](https://github.com/AnyNoteInc/AnyNote/commit/77727aef62ebe7bab00f2866f959d90144d172f8))
+* **web:** preview-kind — обработка MIME-параметров + тест приоритета MIME над ext ([9e7e1d1](https://github.com/AnyNoteInc/AnyNote/commit/9e7e1d1242c38c4dd583161033168d602b09bb17))
+* **web:** preview-pdf — size guard, guarded S3-чтение, 422 на битом doc, наблюдаемость ([9e026ff](https://github.com/AnyNoteInc/AnyNote/commit/9e026ff23bc59307ef31641e250efc363672400f))
+* **web:** правки ревью просмотрщиков — центр 1:1, сброс состояния, blob-утечка, a11y, цвет кнопки ([66f0711](https://github.com/AnyNoteInc/AnyNote/commit/66f0711c111d809fabd856794577a04b0556f4f9))
+* **web:** просмотр — отложенный revoke SVG-blob + Esc уважает defaultPrevented ([8c35bcb](https://github.com/AnyNoteInc/AnyNote/commit/8c35bcb5a18f3f23988b4babc51f926f833d7774))
+
+
+### Features
+
+* **editor:** клик по drawio и diagram-превью открывает общий просмотрщик ([ab87f01](https://github.com/AnyNoteInc/AnyNote/commit/ab87f0165a2e03a5325da626e9a2910b91a674e7))
+* **editor:** клик по карточке вложения открывает просмотр ([82fbde5](https://github.com/AnyNoteInc/AnyNote/commit/82fbde5c31247f298835a479f67c7e13cdc31829))
+* **editor:** кнопка «Открыть просмотр» у видео и аудио ([0d358c2](https://github.com/AnyNoteInc/AnyNote/commit/0d358c25153f8faeb5072d3bd34fac076b4fe0b5))
+* **editor:** контракт onOpenFilePreview — типы, хелперы, протяжка опций ([f632a65](https://github.com/AnyNoteInc/AnyNote/commit/f632a65c3d2fe100e9a944b4d51c1f689ead757e))
+* **editor:** просмотр изображения — клик (read-only), dblclick и кнопка тулбара ([59e9764](https://github.com/AnyNoteInc/AnyNote/commit/59e97649b68797409e419bc9c95f640178b51eb0))
+* **page-export:** officeToPdf — конвертация office-документов через Gotenberg LibreOffice ([40c9e25](https://github.com/AnyNoteInc/AnyNote/commit/40c9e25cbe4cc6b6e31dd8e5d841587a5ca68ac8))
+* **web:** resolvePreviewType — классификация файлов для просмотрщика ([aaf48f3](https://github.com/AnyNoteInc/AnyNote/commit/aaf48f374cabd7f1b6a80cb05f38771df8c6a735))
+* **web:** контекст просмотра файлов + иконки фуллскрина/зума в @repo/ui ([0976d33](https://github.com/AnyNoteInc/AnyNote/commit/0976d33986d945e39bbfb6cff4a8dec79766560e))
+* **web:** монтирование просмотрщика — провайдер, панели, оффсеты outline/FAB ([8d589e0](https://github.com/AnyNoteInc/AnyNote/commit/8d589e08477d634fb236c98c3cd3472f53fc1e93))
+* **web:** просмотрщики по типам + zoom/pan вьюпорт ([de1d007](https://github.com/AnyNoteInc/AnyNote/commit/de1d007d66a1667e45200a9652504bd351a78358))
+* **web:** роут preview-pdf — office → PDF через Gotenberg с S3-кэшем ([15805eb](https://github.com/AnyNoteInc/AnyNote/commit/15805eb8bab49704277292f9ea691aebfb85314c))
+* **web:** сплит-панель и фуллскрин-диалог просмотра файлов ([24a8c8c](https://github.com/AnyNoteInc/AnyNote/commit/24a8c8c2ee0f4222d0f729b96562b2a846456975))
+
 # [1.37.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.36.0...v1.37.0) (2026-07-11)
 
 
