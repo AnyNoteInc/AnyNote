@@ -15,6 +15,11 @@ import {
   TextViewer,
 } from './viewers'
 
+/** Смена файла обязана пересоздавать просмотрщик (см. key в сайдбаре/диалоге) —
+ *  иначе залипают error/text-состояния и zoom/pan-трансформация прошлого файла. */
+export const previewContentKey = (payload: FilePreviewPayload): string =>
+  payload.kind === 'file' ? payload.url : payload.svg
+
 /** Общий контент сплит-панели и фуллскрин-диалога (спека §5). */
 export function FilePreviewContent({ payload }: { payload: FilePreviewPayload }) {
   if (payload.kind === 'diagram') {
