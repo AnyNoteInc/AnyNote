@@ -5,11 +5,13 @@ import CachedIcon from '@mui/icons-material/Cached'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
+import { mediaPreviewPayload } from './file-preview-interaction'
 import { mediaToAttachmentNode, type MediaNodeAttrs } from './media-mime'
 import { VideoSchema } from './video.schema'
 import { normalizeLinkHref } from '../link-href'
@@ -40,6 +42,19 @@ function VideoView({
   const width = node.attrs.width as number | null
   const options = extension.options as VideoOptions
   const uploadHandler = options.uploadHandler
+  const onOpenFilePreview = options.onOpenFilePreview
+
+  const openPreview = () => {
+    if (!onOpenFilePreview || !safeUrl) return
+    onOpenFilePreview(
+      mediaPreviewPayload({
+        url: safeUrl,
+        name,
+        size: (node.attrs.size as number) || 0,
+        mimeType: (node.attrs.mimeType as string) || '',
+      }),
+    )
+  }
 
   const outerRef = useRef<HTMLDivElement | null>(null)
   const mediaRef = useRef<HTMLVideoElement | null>(null)
@@ -311,6 +326,34 @@ function VideoView({
                 <Box onMouseDown={handleResizeStart('left')} sx={handleStyle('left')} />
                 <Box onMouseDown={handleResizeStart('right')} sx={handleStyle('right')} />
               </>
+            ) : null}
+            {onOpenFilePreview ? (
+              <Tooltip title="Открыть просмотр" arrow>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    openPreview()
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  data-testid="video-open-preview"
+                  sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    bgcolor: 'background.paper',
+                    boxShadow: 1,
+                    opacity: 0,
+                    transition: 'opacity .15s',
+                    '.anynote-video-wrapper:hover &': { opacity: 1 },
+                    '&:focus-visible': { opacity: 1 },
+                    '&:hover': { bgcolor: 'background.paper' },
+                  }}
+                >
+                  <OpenInFullIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             ) : null}
           </Box>
         </Box>

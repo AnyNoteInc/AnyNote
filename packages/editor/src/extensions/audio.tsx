@@ -6,11 +6,13 @@ import CachedIcon from '@mui/icons-material/Cached'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import OpenInFullIcon from '@mui/icons-material/OpenInFull'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
 import { AudioSchema } from './audio.schema'
+import { mediaPreviewPayload } from './file-preview-interaction'
 import { mediaToAttachmentNode, type MediaNodeAttrs } from './media-mime'
 import { normalizeLinkHref } from '../link-href'
 import type { OpenFilePreview, UploadHandler } from '../types'
@@ -35,6 +37,19 @@ function AudioView({
   const name = (node.attrs.name as string) || ''
   const options = extension.options as AudioOptions
   const uploadHandler = options.uploadHandler
+  const onOpenFilePreview = options.onOpenFilePreview
+
+  const openPreview = () => {
+    if (!onOpenFilePreview || !safeUrl) return
+    onOpenFilePreview(
+      mediaPreviewPayload({
+        url: safeUrl,
+        name,
+        size: (node.attrs.size as number) || 0,
+        mimeType: (node.attrs.mimeType as string) || '',
+      }),
+    )
+  }
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
@@ -232,13 +247,32 @@ function AudioView({
             {toolbarButton('Удалить', <DeleteIcon fontSize="small" />, () => deleteNode(), true)}
           </Paper>
         ) : null}
-        <Box
-          component="audio"
-          src={safeUrl}
-          controls
-          preload="metadata"
-          sx={{ display: 'block', width: '100%' }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box
+            component="audio"
+            src={safeUrl}
+            controls
+            preload="metadata"
+            sx={{ display: 'block', width: '100%', flex: 1, minWidth: 0 }}
+          />
+          {onOpenFilePreview ? (
+            <Tooltip title="Открыть просмотр" arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  openPreview()
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                data-testid="audio-open-preview"
+                sx={{ color: 'text.secondary' }}
+              >
+                <OpenInFullIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+        </Box>
         {name ? (
           <Typography
             variant="caption"
