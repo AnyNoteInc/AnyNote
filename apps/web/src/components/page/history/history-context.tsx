@@ -4,10 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
+
+import { usePagePanelRegion } from '@/components/page/panel-region-context'
 
 export type PageHistoryContextValue = {
   /** History is only available to editors (the tRPC queries are edit-gated). */
@@ -25,6 +28,12 @@ export function usePageHistoryContext(): PageHistoryContextValue {
   const ctx = useContext(PageHistoryContext)
   if (!ctx) throw new Error('usePageHistoryContext must be used within PageHistoryProvider')
   return ctx
+}
+
+/** Non-throwing: PageRenderer монтируется и без провайдера истории
+ *  (share view, database item modal) — там оффсет панели просто 0. */
+export function usePageHistoryContextOptional(): PageHistoryContextValue | null {
+  return useContext(PageHistoryContext)
 }
 
 export function PageHistoryProvider({
@@ -50,6 +59,13 @@ export function PageHistoryProvider({
 
   const closePanel = useCallback(() => setPanelOpen(false), [])
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
+
+  // Единый регион панелей: открытая история вытесняет комментарии/просмотр.
+  const region = usePagePanelRegion()
+  useEffect(() => region?.register('history', () => setPanelOpen(false)), [region])
+  useEffect(() => {
+    if (panelOpen) region?.claim('history')
+  }, [panelOpen, region])
 
   const value = useMemo<PageHistoryContextValue>(
     () => ({ enabled, pageId, workspaceId, panelOpen, togglePanel, closePanel }),

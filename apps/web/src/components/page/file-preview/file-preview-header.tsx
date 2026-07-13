@@ -13,6 +13,8 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { WORKSPACE_HEADER_MIN_HEIGHT } from '@/components/workspace/workspace-layout-client'
+
 import { useFilePreview } from './file-preview-context'
 
 const downloadPayload = (payload: FilePreviewPayload) => {
@@ -55,7 +57,8 @@ export function FilePreviewHeader({ payload }: { payload: FilePreviewPayload }) 
         alignItems: 'center',
         gap: 0.5,
         px: 1.5,
-        py: 1,
+        py: 0.5,
+        minHeight: WORKSPACE_HEADER_MIN_HEIGHT,
         borderBottom: 1,
         borderColor: 'divider',
         flexShrink: 0,

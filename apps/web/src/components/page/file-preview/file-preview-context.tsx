@@ -13,6 +13,7 @@ import {
 import type { FilePreviewPayload } from '@repo/editor'
 import { useMediaQuery, useTheme } from '@repo/ui/components'
 
+import { usePagePanelRegion } from '@/components/page/panel-region-context'
 import { extFromFileName, resolvePreviewType } from '@/lib/preview-kind'
 
 export const FILE_PREVIEW_MIN_WIDTH = 360
@@ -119,6 +120,15 @@ export function FilePreviewProvider({ pageId, children }: { pageId: string; chil
     setPayload(next)
   }, [])
   const close = useCallback(() => setPayload(null), [])
+
+  // Единый регион панелей: сплит-колонка просмотра вытесняет комментарии/
+  // историю и наоборот. Fullscreen-диалог регион не занимает.
+  const region = usePagePanelRegion()
+  useEffect(() => region?.register('preview', () => setPayload(null)), [region])
+  const splitShown = payload !== null && effectiveMode === 'split'
+  useEffect(() => {
+    if (splitShown) region?.claim('preview')
+  }, [splitShown, region])
 
   // Сброс при смене страницы без перемонтирования провайдера (паттерн
   // prevPageId из page-chat-context).

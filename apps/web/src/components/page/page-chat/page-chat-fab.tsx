@@ -5,6 +5,8 @@ import { Box, Fab, ForumRoundedIcon, Tooltip, Zoom } from '@repo/ui/components'
 import { usePageCommentsContext } from '@/components/page/comments/comments-context'
 import { COMMENTS_SIDEBAR_WIDTH } from '@/components/page/comments/comments-sidebar'
 import { useFilePreview } from '@/components/page/file-preview/file-preview-context'
+import { usePageHistoryContextOptional } from '@/components/page/history/history-context'
+import { HISTORY_SIDEBAR_WIDTH } from '@/components/page/history/history-sidebar'
 import { usePlanFeaturesOptional } from '@/components/workspace/plan-features-context'
 
 import { usePageChatContext } from './page-chat-context'
@@ -18,12 +20,16 @@ export function PageChatFab() {
   const features = usePlanFeaturesOptional()
   const { panelOpen: commentsOpen } = usePageCommentsContext()
   const preview = useFilePreview()
+  const history = usePageHistoryContextOptional()
 
   if (!chat?.enabled || !features) return null
 
   const previewOffset =
     preview?.payload && preview.effectiveMode === 'split' ? preview.sidebarWidth : 0
-  const rightOffset = (commentsOpen ? COMMENTS_SIDEBAR_WIDTH : 0) + previewOffset
+  const rightOffset =
+    (commentsOpen ? COMMENTS_SIDEBAR_WIDTH : 0) +
+    (history?.panelOpen ? HISTORY_SIDEBAR_WIDTH : 0) +
+    previewOffset
 
   return (
     <Zoom in={!chat.panelOpen} unmountOnExit>

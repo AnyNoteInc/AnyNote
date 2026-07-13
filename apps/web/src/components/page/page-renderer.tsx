@@ -36,6 +36,8 @@ import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
 import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
+import { usePageHistoryContextOptional } from './history/history-context'
+import { HISTORY_SIDEBAR_WIDTH } from './history/history-sidebar'
 import { usePageChatContext } from './page-chat/page-chat-context'
 import { useFilePreview } from './file-preview/file-preview-context'
 import { createAskAI, createGenerateAi } from './inline-ai-bridge'
@@ -177,6 +179,7 @@ export function PageRenderer({
   const pageEditor = usePageEditor()
   const pageChat = usePageChatContext()
   const filePreview = useFilePreview()
+  const pageHistory = usePageHistoryContextOptional()
   const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor, panelOpen } =
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
@@ -766,6 +769,7 @@ export function PageRenderer({
           editor={editor}
           rightOffset={
             (panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0) +
+            (pageHistory?.panelOpen ? HISTORY_SIDEBAR_WIDTH : 0) +
             // The floating chat window is position:fixed outside the flex row —
             // only the docked column actually reserves layout width (which is
             // user-resizable, so read the live width from the context).

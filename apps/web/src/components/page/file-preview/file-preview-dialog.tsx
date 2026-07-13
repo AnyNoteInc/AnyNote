@@ -19,7 +19,9 @@ export function FilePreviewDialog() {
   }
 
   return (
-    <Dialog open={open} onClose={handleClose} fullScreen>
+    // disableRestoreFocus: возврат фокуса в огромный contenteditable редактора
+    // заставил бы браузер проскроллить страницу к его началу (focus-reveal).
+    <Dialog open={open} onClose={handleClose} fullScreen disableRestoreFocus>
       {ctx.payload ? (
         <Box
           data-testid="file-preview-dialog"

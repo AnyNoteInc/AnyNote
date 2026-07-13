@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { normalizeSvgForImg } from '@repo/diagram-board/sanitize-svg'
 import {
   Box,
   Button,
@@ -71,11 +72,22 @@ export function DownloadPrompt({
 
 export function ImageViewer({ url, name }: { url: string; name: string | null }) {
   const imgRef = useRef<HTMLImageElement | null>(null)
+  const [failed, setFailed] = useState(false)
   const getNaturalScale = useCallback(() => {
     const img = imgRef.current
     if (!img || !img.naturalWidth || !img.clientWidth) return null
     return img.naturalWidth / img.clientWidth
   }, [])
+  useEffect(() => setFailed(false), [url])
+  if (failed) {
+    return (
+      <Center>
+        <Typography variant="body2" color="text.secondary">
+          Не удалось загрузить файл
+        </Typography>
+      </Center>
+    )
+  }
   return (
     <ZoomPanViewport getNaturalScale={getNaturalScale}>
       <Box
@@ -84,6 +96,7 @@ export function ImageViewer({ url, name }: { url: string; name: string | null })
         src={url}
         alt={name ?? ''}
         draggable={false}
+        onError={() => setFailed(true)}
         sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', userSelect: 'none' }}
       />
     </ZoomPanViewport>
@@ -112,7 +125,10 @@ export function SvgViewer({ source, name }: { source: SvgSource; name?: string |
     }
     if (source.kind === 'inline') {
       if (source.value.startsWith('data:')) setSrc(source.value)
-      else assign(source.value)
+      // Инлайн-разметка (mermaid после DOMPurify) бывает XML-невалидной и без
+      // интринсик-размеров — чиним перед заворачиванием в Blob, иначе <img>
+      // молча падает или рендерится 300×150.
+      else assign(normalizeSvgForImg(source.value))
     } else {
       setSrc(null)
       fetch(source.value, { credentials: 'same-origin' })
