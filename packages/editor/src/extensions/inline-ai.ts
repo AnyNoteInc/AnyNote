@@ -205,10 +205,15 @@ const buildDecorations = (
   if (preview.status === 'capturing') {
     return DecorationSet.create(state.doc, decos)
   }
-  // The preview/toolbar widget sits just after the selection (at `to`).
+  // The preview/toolbar widget sits just after the selection (at `to`) — но для
+  // code-текстблоков (plantuml/mermaid) позиция внутри блока рендерилась бы в
+  // contentDOM NodeView, т.е. в скрытый в режиме «Просмотр» <pre>: стрим и
+  // тулбар «Принять» были бы невидимы. Выносим виджет сразу ЗА блок.
+  const $to = state.doc.resolve(preview.to)
+  const widgetPos = $to.parent.type.spec.code ? $to.after($to.depth) : preview.to
   decos.push(
     Decoration.widget(
-      preview.to,
+      widgetPos,
       () => {
         if (renderPreview && editor) {
           return renderPreview({ state: preview, editor })
@@ -408,6 +413,17 @@ export const resolveInlineAiAcceptTarget = (
 }
 
 /**
+ * Модель отвечает на «диаграммные» вопросы fenced-блоком (системный промпт
+ * это явно требует). Для вставки В code-блок обёртка не нужна — снимаем её,
+ * если ответ ЦЕЛИКОМ один fence; смешанный ответ оставляем как есть.
+ */
+export const stripMarkdownFence = (text: string): string => {
+  const trimmed = text.trim()
+  const m = /^```[^\n]*\n([\s\S]*?)\n?```$/.exec(trimmed)
+  return m ? m[1]! : trimmed
+}
+
+/**
  * Accept the active preview against a live editor in ONE transaction (the popover
  * «Принять» / «Вставить ниже» handlers): a single chain = a single doc mutation =
  * a single Yjs op = one collaborative-undo step (spec §4.2 / §7 invariant 5).
@@ -436,6 +452,21 @@ export const applyInlineAiResult = (
     if (target.kind === 'replaceRange' && target.to > target.from) {
       chain.deleteRange({ from: target.from, to: target.to })
     }
+  } else if (
+    target.kind === 'replaceRange' &&
+    editor.state.doc.resolve(target.from).parent.type.spec.code
+  ) {
+    // Цель — содержимое code-блока (блочный «Спроси AI» на plantuml/mermaid):
+    // markdownToHtml дал бы БЛОЧНЫЙ <pre>, который фиттер не может вложить в
+    // code_block и выталкивает НОВЫМ соседним блоком. Вместо этого снимаем
+    // обёртку-fence с ответа и заменяем исходник плейн-текстом — контейнер и
+    // его language сохраняются, источник меняется на месте.
+    const code = stripMarkdownFence(preview.text)
+    chain.command(({ tr }) => {
+      if (code) tr.replaceWith(target.from, target.to, editor.schema.text(code))
+      else if (target.to > target.from) tr.delete(target.from, target.to)
+      return true
+    })
   } else {
     const html = markdownToHtml(preview.text)
     if (target.kind === 'replaceRange') {

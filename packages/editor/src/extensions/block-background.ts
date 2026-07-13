@@ -23,7 +23,8 @@ export const BACKGROUND_SUPPORTED_TYPES = [
   'callout',
   'details',
   'hiddenText',
-  'resizableImage',
+  // ResizableImage = Image.extend без переименования: нода зовётся 'image'.
+  'image',
   'fileAttachment',
   'pageLink',
 ]

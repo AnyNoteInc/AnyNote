@@ -11,12 +11,21 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import ControlPointDuplicateIcon from '@mui/icons-material/ControlPointDuplicate'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FormatPaintOutlinedIcon from '@mui/icons-material/FormatPaintOutlined'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import ShortcutIcon from '@mui/icons-material/Shortcut'
 import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined'
 
 import { readAiStorage } from '../lib/ai-storage'
 import { blockAskAiCapture } from '../lib/block-ask-ai'
 import { blockDisplayName, isConvertible } from '../lib/block-names'
+import {
+  attachmentToImageNode,
+  imageToAttachmentNode,
+  inferMediaKind,
+  type FileAttachmentAttrs,
+  type ImageNodeMeta,
+} from '../extensions/media-mime'
 import {
   convertBlock,
   CONVERSION_ICONS,
@@ -102,6 +111,30 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   )
   const displayName = node ? blockDisplayName(node) : ''
   const convertible = node ? isConvertible(node) : false
+  // «Превратить в» для медиа-карточек: файл с картиночным MIME → «Изображение»,
+  // изображение → «Файл». Полная замена типа ноды (attachmentToImageNode /
+  // imageToAttachmentNode), как раньше делали кнопки на самих карточках.
+  const mediaTarget = useMemo(() => {
+    if (!node) return null
+    if (node.type.name === 'image' && node.attrs.src) {
+      return {
+        label: 'Файл',
+        icon: <InsertDriveFileOutlinedIcon fontSize="small" />,
+        build: () => imageToAttachmentNode(node.attrs as ImageNodeMeta),
+      }
+    }
+    if (node.type.name === 'fileAttachment') {
+      const attrs = node.attrs as FileAttachmentAttrs
+      if (inferMediaKind(attrs.mimeType) === 'image' && attrs.url) {
+        return {
+          label: 'Изображение',
+          icon: <ImageOutlinedIcon fontSize="small" />,
+          build: () => attachmentToImageNode(attrs),
+        }
+      }
+    }
+    return null
+  }, [node])
   // «Спросить AI» needs both the injected capability (page editors only) and a
   // block with text to transform (atoms/empty blocks capture as null).
   const ai = readAiStorage(editor)
@@ -156,6 +189,19 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
       .setTextSelection(pos + 1)
       .run()
     convertBlock(editor, target)
+    handleClose()
+  }
+
+  const handleMediaConvert = () => {
+    if (pos == null || !node || !mediaTarget) return
+    const swap = mediaTarget.build()
+    if (swap) {
+      editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
+        .run()
+    }
     handleClose()
   }
 
@@ -240,7 +286,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           </Typography>
         </MenuItem>
 
-        {convertible && (
+        {(convertible || mediaTarget != null) && (
           <MenuItem onClick={handleOpenSubmenu('convert')}>
             <ListItemIcon>
               <SyncAltOutlinedIcon fontSize="small" />
@@ -322,19 +368,32 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
-        {(Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => {
-          const Icon = CONVERSION_ICONS[target]
-          return (
-            <MenuItem key={target} onClick={() => handleConvert(target)} sx={denseMenuItemSx}>
-              <ListItemIcon sx={{ minWidth: 24 }}>
-                <Icon width={16} height={16} />
-              </ListItemIcon>
-              <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }}>
-                {CONVERSION_LABELS[target]}
-              </ListItemText>
-            </MenuItem>
-          )
-        })}
+        {mediaTarget != null && (
+          <MenuItem
+            onClick={handleMediaConvert}
+            sx={denseMenuItemSx}
+            data-testid="block-convert-media"
+          >
+            <ListItemIcon sx={{ minWidth: 24 }}>{mediaTarget.icon}</ListItemIcon>
+            <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }}>
+              {mediaTarget.label}
+            </ListItemText>
+          </MenuItem>
+        )}
+        {convertible &&
+          (Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => {
+            const Icon = CONVERSION_ICONS[target]
+            return (
+              <MenuItem key={target} onClick={() => handleConvert(target)} sx={denseMenuItemSx}>
+                <ListItemIcon sx={{ minWidth: 24 }}>
+                  <Icon width={16} height={16} />
+                </ListItemIcon>
+                <ListItemText slotProps={{ primary: { sx: { fontSize: 13 } } }}>
+                  {CONVERSION_LABELS[target]}
+                </ListItemText>
+              </MenuItem>
+            )
+          })}
       </Menu>
       <Menu
         open={submenu === 'color' && Boolean(submenuAnchor)}

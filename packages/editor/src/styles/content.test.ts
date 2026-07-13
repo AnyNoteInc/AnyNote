@@ -72,3 +72,18 @@ describe('editor link styles', () => {
     expect(css).toMatch(/\.anynote-editor a\s*{[\s\S]*color:\s*var\(--editor-link/)
   })
 })
+
+describe('editor placeholder styles', () => {
+  it('gates the per-empty-line placeholder on editor focus', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+    expect(css).toMatch(
+      /\.anynote-editor \.ProseMirror\.ProseMirror-focused > p\.is-empty::before/,
+    )
+    expect(css).not.toMatch(/\.anynote-editor \.ProseMirror > p\.is-empty::before/)
+  })
+
+  it('keeps the empty-document hint visible without focus', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+    expect(css).toMatch(/\.anynote-editor \.ProseMirror p\.is-editor-empty:first-child::before/)
+  })
+})

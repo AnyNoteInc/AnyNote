@@ -29,7 +29,7 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
   const activeTab = Number(node.attrs.activeTab ?? 0)
   const count = node.childCount
   const editable = editor.isEditable
-  const buttonsRef = useRef<Array<HTMLButtonElement | null>>([])
+  const buttonsRef = useRef<Array<HTMLElement | null>>([])
 
   const labels: string[] = []
   node.forEach((child) => {
@@ -83,7 +83,7 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
   // Arrow-key navigation across the tab buttons (the WAI-ARIA tablist pattern):
   // Left/Right (and Home/End) move the active tab and the roving focus.
   const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    (event: KeyboardEvent<HTMLElement>, index: number) => {
       let next = index
       switch (event.key) {
         case 'ArrowRight':
@@ -140,10 +140,13 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
               }}
             >
               <Box
-                component="button"
-                type="button"
+                // В режиме правки ярлык — <span contentEditable>: нативный
+                // <button> перехватывает пробел как «активацию» и не даёт
+                // печатать пробелы внутри contentEditable.
+                component={editable && isActive ? 'span' : 'button'}
+                type={editable && isActive ? undefined : 'button'}
                 role="tab"
-                ref={(el: HTMLButtonElement | null) => {
+                ref={(el: HTMLElement | null) => {
                   buttonsRef.current[index] = el
                 }}
                 aria-selected={isActive}
@@ -154,10 +157,16 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
                 // in place); inactive labels are plain buttons that activate.
                 contentEditable={editable && isActive}
                 suppressContentEditableWarning
-                onKeyDown={(e: KeyboardEvent<HTMLButtonElement>) => {
-                  if (editable && isActive && e.key === 'Enter') {
-                    e.preventDefault()
-                    ;(e.currentTarget as HTMLButtonElement).blur()
+                onKeyDown={(e: KeyboardEvent<HTMLElement>) => {
+                  if (editable && isActive) {
+                    // Во время правки ярлыка клавиши принадлежат каретке:
+                    // не отдаём их roving-обработчику (стрелки переключали
+                    // бы вкладки). Enter завершает переименование.
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      e.currentTarget.blur()
+                    }
+                    e.stopPropagation()
                     return
                   }
                   onKeyDown(e, index)
@@ -167,7 +176,7 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
                   if (!(editable && isActive)) e.preventDefault()
                 }}
                 onClick={() => setActive(index)}
-                onBlur={(e: React.FocusEvent<HTMLButtonElement>) => {
+                onBlur={(e: React.FocusEvent<HTMLElement>) => {
                   if (editable && isActive) {
                     renameTab(index, e.currentTarget.textContent ?? '')
                   }

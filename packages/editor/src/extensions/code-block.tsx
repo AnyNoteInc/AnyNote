@@ -25,6 +25,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { sanitizeSvg } from '@repo/diagram-board/sanitize-svg'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 import { renderPlantuml, type PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
+
+import { pinViewportPosition } from '../lib/pin-viewport'
 import type { OpenFilePreview } from '../types'
 
 type CodeLanguage = { value: string; label: string }
@@ -212,11 +214,18 @@ function CodeBlockView({
             <Box className="anynote-code-block__error">{error}</Box>
           ) : (
             <Box
+              // Не даём клику сфокусировать contenteditable: селекция попала
+              // бы в скрытый <pre>, и focus-restore диалога просмотра скроллил
+              // бы страницу к началу (тот же приём, что у CopyButton).
+              onMouseDown={(event: React.MouseEvent) => event.preventDefault()}
               onClick={
                 svg && onOpenFilePreview
                   ? (event: React.MouseEvent) => {
                       // PlantUML [[link]] anchors keep their own navigation.
                       if ((event.target as Element).closest('a')) return
+                      // Сплит-панель сужает колонку — держим блок на месте,
+                      // иначе рефлоу уносит его за экран («скролл вверх»).
+                      pinViewportPosition(event.currentTarget as HTMLElement)
                       onOpenFilePreview({
                         kind: 'diagram',
                         svg,

@@ -17,6 +17,7 @@ import {
   finishInlineAiPreview,
   getInlineAiPreview,
   startInlineAiPreview,
+  stripMarkdownFence,
 } from './inline-ai'
 
 let editor: Editor | null = null
@@ -84,19 +85,29 @@ describe('applyInlineAiResult parses the answer as markdown', () => {
   it('replace inside a code block: a fenced answer lands as code text, no literal backticks', () => {
     // The block Ask-AI case: the captured range is the code block's INNER
     // content; models wrap code answers in ```sql fences despite the system
-    // prompt. ProseMirror must fit the parsed <pre> into the codeBlock as
-    // plain code text — the fence characters must never reach the doc.
-    const ed = makeEditor('<pre><code>SELECT 1;</code></pre>')
+    // prompt. The fence characters must never reach the doc, the container
+    // must stay ONE code block (не «новый блок рядом + пустой остаток»), and
+    // its language attr must survive.
+    const ed = makeEditor('<pre><code class="language-plantuml">@startuml\nrest\n@enduml</code></pre>')
     const inner = { from: 1, to: ed.state.doc.child(0).nodeSize - 1 }
     streamAndFinish(
       ed,
       { ...inner, action: 'custom' },
-      '```sql\nCREATE TABLE users (\n    age INTEGER\n);\n```',
+      '```plantuml\n@startuml\nrest/trpc\n@enduml\n```',
     )
 
     expect(applyInlineAiResult(ed)).toBe(true)
+    // Ровно один code-блок: замена НА МЕСТЕ, а не «новый сосед + пустой
+    // остаток». (StarterKit trailingNode добавляет пустой параграф — не блок.)
+    const codeBlocks: string[] = []
+    ed.state.doc.forEach((n) => {
+      if (n.type.name === 'codeBlock') codeBlocks.push(n.textContent)
+    })
+    expect(codeBlocks).toHaveLength(1)
     expect(ed.state.doc.child(0).type.name).toBe('codeBlock')
-    expect(ed.state.doc.textContent).toContain('age INTEGER')
+    expect(ed.state.doc.child(0).attrs.language).toBe('plantuml')
+    expect(ed.state.doc.textContent).toContain('rest/trpc')
+    expect(ed.state.doc.textContent).not.toContain('rest\n@enduml\n')
     expect(ed.state.doc.textContent).not.toContain('```')
     expect(getInlineAiPreview(ed).active).toBe(false)
   })
@@ -105,5 +116,26 @@ describe('applyInlineAiResult parses the answer as markdown', () => {
     const ed = makeEditor('<p>Hello</p>')
     expect(applyInlineAiResult(ed)).toBe(false)
     expect(ed.state.doc.textContent).toBe('Hello')
+  })
+})
+
+describe('stripMarkdownFence', () => {
+  it('unwraps a whole-answer fence with a language tag', () => {
+    expect(stripMarkdownFence('```plantuml\n@startuml\nA -> B\n@enduml\n```')).toBe(
+      '@startuml\nA -> B\n@enduml',
+    )
+  })
+
+  it('unwraps a bare fence without a language', () => {
+    expect(stripMarkdownFence('```\ncode\n```')).toBe('code')
+  })
+
+  it('leaves a mixed prose+fence answer untouched (aside from trim)', () => {
+    const mixed = 'Вот диаграмма:\n```plantuml\nA -> B\n```'
+    expect(stripMarkdownFence(mixed)).toBe(mixed)
+  })
+
+  it('leaves plain text untouched', () => {
+    expect(stripMarkdownFence('  SELECT 1;  ')).toBe('SELECT 1;')
   })
 })
