@@ -58,7 +58,11 @@ export function FileUploadPopover({
     if (busy) return
     reset()
     onClose()
-  }, [busy, onClose, reset])
+    // Возвращаем фокус через ProseMirror (focusPreventScroll), а не через
+    // MUI restore-focus: голый .focus() на огромном contenteditable может
+    // проскроллить страницу к его началу (см. disableRestoreFocus ниже).
+    editor.commands.focus(undefined, { scrollIntoView: false })
+  }, [busy, editor, onClose, reset])
 
   const handleFilesSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,6 +123,11 @@ export function FileUploadPopover({
       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       slotProps={{ paper: { sx: { width: 360 } } }}
+      // Скролл-лок и restore-focus у модального Popover — единственные
+      // векторы «улёта» скролла страницы при открытии/закрытии /file
+      // (прецедент: editor-outline.tsx).
+      disableScrollLock
+      disableRestoreFocus
     >
       <Box sx={{ p: 2 }}>
         <Stack spacing={1.5}>

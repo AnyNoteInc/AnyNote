@@ -1,3 +1,4 @@
+import { NodeSelection, Selection, TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 
 import { inferMediaKind } from './media-mime'
@@ -33,6 +34,50 @@ const targetFor = (mime: string): FileTargetNode => {
   const k = inferMediaKind(mime)
   if (k === 'video' || k === 'audio') return k
   return 'fileAttachment'
+}
+
+// Где вставлять: при выделенной ноде (NodeSelection) — сразу после неё, не
+// уничтожая её (раньше вставка поверх выделенной карточки молча удаляла её);
+// текстовое выделение заменяется, как при обычной вставке.
+const insertPosFor = (tr: Transaction, sel: Selection): number => {
+  if (sel instanceof NodeSelection) return sel.to
+  if (!sel.empty) tr.delete(sel.from, sel.to)
+  return tr.mapping.map(sel.from)
+}
+
+// Фактический конец последнего вставленного плейсхолдера. Ручной счётчик
+// `at` (insertBase + nodeSize) «сырая» позиция: фиттер при сплите параграфа
+// добавляет закрывающие/открывающие токены и сдвигает ноду — поэтому конец
+// ищем по живому документу транзакции.
+const lastPlaceholderEnd = (
+  tr: Transaction,
+  isOurs: (node: { type: { name: string }; attrs: Record<string, unknown> }) => boolean,
+): number | null => {
+  let end: number | null = null
+  tr.doc.descendants((node, pos) => {
+    if (isOurs(node)) end = Math.max(end ?? 0, pos + node.nodeSize)
+    return undefined
+  })
+  return end
+}
+
+// Ставим каретку ПОСЛЕ вставленных нод (text-only, чтобы никогда не получить
+// NodeSelection на свежей карточке): обычно это параграф, который отщепил
+// фиттер; в конце документа/контейнера — создаём пустой параграф.
+const caretAfterInserted = (tr: Transaction, end: number): void => {
+  const max = tr.doc.content.size
+  const $end = tr.doc.resolve(Math.min(end, max))
+  const after = Selection.findFrom($end, 1, true)
+  if (after) {
+    tr.setSelection(after)
+    return
+  }
+  const paragraph = tr.doc.type.schema.nodes.paragraph?.createAndFill()
+  if (paragraph) {
+    const at = Math.min(end, max)
+    tr.insert(at, paragraph)
+    tr.setSelection(TextSelection.create(tr.doc, at + 1))
+  }
 }
 
 // Find the live position of the still-pending placeholder carrying this
@@ -86,7 +131,6 @@ export const insertImageUploads = (
   // paste over selected text behaves.
   const tr = view.state.tr
   const sel = view.state.selection
-  if (!sel.empty) tr.delete(sel.from, sel.to)
   const queued = images.map((file) => ({ id: nextId('paste'), file }))
 
   // Insert one blank placeholder per image, then stamp uploadIds by document
@@ -94,7 +138,7 @@ export const insertImageUploads = (
   // land in reverse order when several are inserted at successive offsets;
   // reading the built doc back in document order and pairing it with paste
   // order keeps the visual order stable.
-  const insertBase = tr.mapping.map(sel.from)
+  const insertBase = insertPosFor(tr, sel)
   let at = insertBase
   queued.forEach(() => {
     const placeholder = imageType.create({ src: null })
@@ -106,7 +150,13 @@ export const insertImageUploads = (
     Math.max(0, insertBase - 1),
     Math.min(tr.doc.content.size, at + 1),
     (node, pos) => {
-      if (node.type.name === 'image' && node.attrs.src == null) {
+      // uploadId==null is the tell of a FRESH placeholder: we stamp ids only
+      // below, so at scan time nothing else has a null id. Without this guard,
+      // pasting over a NodeSelection of a still-uploading blank image (kept, not
+      // deleted, by insertPosFor) sweeps that pending node into the scan and
+      // steals the new paste's uploadId — dropping the old upload and leaving
+      // the new node forever blank.
+      if (node.type.name === 'image' && node.attrs.src == null && node.attrs.uploadId == null) {
         placeholderPositions.push(pos)
         return false
       }
@@ -117,6 +167,12 @@ export const insertImageUploads = (
     const pos = placeholderPositions[i]
     if (pos != null) tr.setNodeAttribute(pos, 'uploadId', id)
   })
+  const ids = new Set(queued.map(({ id }) => id))
+  caretAfterInserted(
+    tr,
+    lastPlaceholderEnd(tr, (n) => n.type.name === 'image' && ids.has(String(n.attrs.uploadId))) ??
+      at,
+  )
   view.dispatch(tr)
 
   for (const { id, file } of queued) {
@@ -170,8 +226,7 @@ export const insertFileUploads = (
   // with its own uploadId.
   const tr = view.state.tr
   const sel = view.state.selection
-  if (!sel.empty) tr.delete(sel.from, sel.to)
-  let at = tr.mapping.map(sel.from)
+  let at = insertPosFor(tr, sel)
   for (const job of jobs) {
     const placeholder = schema.nodes[job.node]!.create({
       url: '',
@@ -181,6 +236,8 @@ export const insertFileUploads = (
     tr.insert(at, placeholder)
     at += placeholder.nodeSize
   }
+  const jobIds = new Set(jobs.map((job) => job.id))
+  caretAfterInserted(tr, lastPlaceholderEnd(tr, (n) => jobIds.has(String(n.attrs.uploadId))) ?? at)
   view.dispatch(tr)
 
   for (const job of jobs) {

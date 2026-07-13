@@ -14,6 +14,7 @@ import { useCallback, useRef, useState } from 'react'
 import { AudioSchema } from './audio.schema'
 import { mediaPreviewPayload } from './file-preview-interaction'
 import { mediaToAttachmentNode, type MediaNodeAttrs } from './media-mime'
+import { replaceNodeAt } from '../lib/replace-node'
 import { normalizeLinkHref } from '../link-href'
 import type { OpenFilePreview, UploadHandler } from '../types'
 
@@ -181,12 +182,7 @@ function AudioView({
       size: (node.attrs.size as number) || 0,
       mimeType: (node.attrs.mimeType as string) || '',
     }
-    const swap = mediaToAttachmentNode(mediaAttrs)
-    editor
-      .chain()
-      .focus()
-      .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
-      .run()
+    replaceNodeAt(editor, pos, node.nodeSize, mediaToAttachmentNode(mediaAttrs))
   }
 
   return (

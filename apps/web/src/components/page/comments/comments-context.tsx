@@ -1,9 +1,19 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { PageType } from '@repo/db'
 import type { CommentThreadAnchor } from '@repo/editor'
+
+import { usePagePanelMember } from '@/components/page/panel-region-context'
 
 import { CommentMentionSearchProvider } from './comment-composer'
 import { useCommentHash } from './use-comment-hash'
@@ -152,6 +162,9 @@ export function PageCommentsProvider({
 
   const closePanel = useCallback(() => setPanelOpen(false), [])
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
+
+  // Единый регион панелей: открытые комментарии вытесняют историю/просмотр.
+  usePagePanelMember('comments', panelOpen, closePanel)
   const openThreadInSidebar = useCallback((id: string) => {
     setOpenThreadId(id)
     setPanelOpen(true)

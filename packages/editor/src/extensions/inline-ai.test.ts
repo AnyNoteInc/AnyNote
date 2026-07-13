@@ -43,6 +43,14 @@ const schema = new Schema({
       parseDOM: [{ tag: 'p' }],
       toDOM: () => ['p', 0],
     },
+    codeBlock: {
+      group: 'block',
+      content: 'text*',
+      marks: '',
+      code: true,
+      parseDOM: [{ tag: 'pre' }],
+      toDOM: () => ['pre', ['code', 0]],
+    },
   },
 })
 
@@ -263,6 +271,39 @@ describe('capture (the popover-open hold)', () => {
     state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiClearMeta()))
     expect(previewState(state).active).toBe(false)
     expect(decorationsFor(state).find() as Decoration[]).toHaveLength(0)
+  })
+
+  it('places the preview widget AFTER a code block, not inside its hidden contentDOM', () => {
+    // Блочный «Спроси AI» на plantuml/mermaid: contentDOM (<pre>) скрыт в
+    // режиме «Просмотр», поэтому виджет внутри блока был бы невидим.
+    const code = schema.nodes.codeBlock.create(null, schema.text('@startuml'))
+    let state = EditorState.create({
+      schema,
+      doc: schema.nodes.doc.create(null, [code, para('after')]),
+      plugins: [inlineAiPlugin],
+    })
+    const inner = { from: 1, to: code.nodeSize - 1 }
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ ...inner, action: 'custom' })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('x')))
+
+    const all = decorationsFor(state).find() as Decoration[]
+    const widget = all.find((d) => typeof d.spec?.key === 'string')
+    expect(widget).toBeDefined()
+    // Сразу за code-блоком (nodeSize), а не на preview.to внутри него.
+    expect(widget!.from).toBe(code.nodeSize)
+  })
+
+  it('keeps the preview widget at `to` for ordinary textblocks', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'custom' })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('x')))
+    const all = decorationsFor(state).find() as Decoration[]
+    const widget = all.find((d) => typeof d.spec?.key === 'string')
+    expect(widget!.from).toBe(6)
   })
 })
 

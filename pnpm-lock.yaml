@@ -275,6 +275,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/diagram-board':
+        specifier: workspace:*
+        version: link:../../packages/diagram-board
       '@repo/domain':
         specifier: workspace:*
         version: link:../../packages/domain

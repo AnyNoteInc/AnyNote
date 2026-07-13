@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from '@repo/ui/components'
 
-import { SIDEBAR_WIDTH } from './workspace-layout-client'
+import { SIDEBAR_WIDTH, WORKSPACE_HEADER_MIN_HEIGHT } from './workspace-layout-client'
 
 type Breadcrumb = { label: string; href?: string; icon?: ReactNode }
 
@@ -72,7 +72,7 @@ export function WorkspaceToolbar({
       sx={{
         px: 2,
         py: 0.5,
-        minHeight: 44,
+        minHeight: WORKSPACE_HEADER_MIN_HEIGHT,
         borderBottom: '1px solid',
         borderColor: 'divider',
         alignItems: 'center',

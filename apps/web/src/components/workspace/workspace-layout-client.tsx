@@ -21,6 +21,7 @@ import { PageChatSidebar } from '@/components/page/page-chat/page-chat-sidebar'
 import { FilePreviewProvider } from '@/components/page/file-preview/file-preview-context'
 import { FilePreviewSidebar } from '@/components/page/file-preview/file-preview-sidebar'
 import { FilePreviewDialog } from '@/components/page/file-preview/file-preview-dialog'
+import { PagePanelRegionProvider } from '@/components/page/panel-region-context'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 
@@ -58,6 +59,9 @@ const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
 export const SIDEBAR_MIN_WIDTH = 220
 export const SIDEBAR_MAX_WIDTH = 480
+/* Единая высота верхних панелей: хлебные крошки и шапка панели просмотра
+   выравнивают нижние разделители по этой константе. */
+export const WORKSPACE_HEADER_MIN_HEIGHT = 44
 export type WorkspaceSidebarSection = 'chats' | 'pages'
 
 const clampSidebarWidth = (value: number) =>
@@ -292,10 +296,12 @@ export function WorkspaceLayoutClient({
           {children}
         </Box>
       </Box>
+      {/* Утилитарные панели (единый регион: открыта не более одной) идут
+          ПЕРЕД чатом: визуальный порядок = DOM-порядок, чат всегда правее. */}
       {activePageId ? <CommentsSidebar /> : null}
       {activePageId ? <HistorySidebar /> : null}
-      {activePageId ? <PageChatSidebar workspaceId={workspace.id} pageId={activePageId} /> : null}
       {activePageId ? <FilePreviewSidebar /> : null}
+      {activePageId ? <PageChatSidebar workspaceId={workspace.id} pageId={activePageId} /> : null}
       {activePageId ? <FilePreviewDialog /> : null}
       {activePageId ? <PageChatFab /> : null}
     </Box>
@@ -305,25 +311,27 @@ export function WorkspaceLayoutClient({
     mode === 'full' ? <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} /> : null
 
   const pageMain = (
-    <PageCommentsProvider
-      target={{ pageId: activePageId ?? '' }}
-      pageType={activePageType}
-      canComment
-      canDeleteComments
-      workspaceId={workspace.id}
-    >
-      <PageHistoryProvider
-        pageId={activePageId ?? ''}
+    <PagePanelRegionProvider>
+      <PageCommentsProvider
+        target={{ pageId: activePageId ?? '' }}
+        pageType={activePageType}
+        canComment
+        canDeleteComments
         workspaceId={workspace.id}
-        enabled={historyEnabled}
       >
-        <PageChatProvider pageId={activePageId ?? ''} pageType={activePageType}>
-          <FilePreviewProvider pageId={activePageId ?? ''}>
-            <PageEditorProvider>{mainContent}</PageEditorProvider>
-          </FilePreviewProvider>
-        </PageChatProvider>
-      </PageHistoryProvider>
-    </PageCommentsProvider>
+        <PageHistoryProvider
+          pageId={activePageId ?? ''}
+          workspaceId={workspace.id}
+          enabled={historyEnabled}
+        >
+          <PageChatProvider pageId={activePageId ?? ''} pageType={activePageType}>
+            <FilePreviewProvider pageId={activePageId ?? ''}>
+              <PageEditorProvider>{mainContent}</PageEditorProvider>
+            </FilePreviewProvider>
+          </PageChatProvider>
+        </PageHistoryProvider>
+      </PageCommentsProvider>
+    </PagePanelRegionProvider>
   )
 
   return (

@@ -3,13 +3,14 @@
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Box, IconButton, Paper, Tooltip, Typography } from '@mui/material'
-import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 
 import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
+import { pinViewportPosition } from '../lib/pin-viewport'
+import { replaceNodeAt } from '../lib/replace-node'
 import { FileAttachmentSchema } from './file-attachment.schema'
-import { attachmentToImageNode, attachmentToMediaNode, inferMediaKind } from './media-mime'
+import { attachmentToMediaNode, inferMediaKind } from './media-mime'
 import { attachmentPreviewPayload } from './file-preview-interaction'
 import type { OpenFilePreview } from '../types'
 
@@ -34,21 +35,17 @@ function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeV
   const Icon = getFileIcon(attrs.ext)
   const mediaKind = inferMediaKind(attrs.mimeType)
   const playable = mediaKind === 'video' || mediaKind === 'audio'
-  const showableAsImage = mediaKind === 'image' && Boolean(attrs.url)
   const onOpenFilePreview = (extension.options as FileAttachmentOptions).onOpenFilePreview
 
   const swapNode = (swap: object | null) => {
     const pos = getPos()
     if (typeof pos !== 'number' || !swap) return
-    editor
-      .chain()
-      .focus()
-      .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
-      .run()
+    replaceNodeAt(editor, pos, node.nodeSize, swap)
   }
 
+  // «Показать как изображение» живёт в блочном меню («Превратить в»);
+  // здесь остаётся только запуск воспроизведения для видео/аудио.
   const playAsMedia = () => swapNode(attachmentToMediaNode(attrs))
-  const showAsImage = () => swapNode(attachmentToImageNode(attrs))
 
   return (
     <NodeViewWrapper
@@ -59,7 +56,7 @@ function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeV
       contentEditable={false}
     >
       <Box sx={{ position: 'relative' }}>
-        {(playable || showableAsImage) && selected && editor.isEditable ? (
+        {playable && selected && editor.isEditable ? (
           <Paper
             elevation={6}
             sx={{
@@ -76,13 +73,7 @@ function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeV
             }}
           >
             <Tooltip
-              title={
-                showableAsImage
-                  ? 'Показать как изображение'
-                  : mediaKind === 'video'
-                    ? 'Воспроизвести как видео'
-                    : 'Воспроизвести как аудио'
-              }
+              title={mediaKind === 'video' ? 'Воспроизвести как видео' : 'Воспроизвести как аудио'}
               arrow
             >
               <IconButton
@@ -94,24 +85,26 @@ function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeV
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  if (showableAsImage) showAsImage()
-                  else playAsMedia()
+                  playAsMedia()
                 }}
                 sx={{ color: 'text.secondary' }}
-                data-testid={showableAsImage ? 'attachment-show-as-image' : 'attachment-play-media'}
+                data-testid="attachment-play-media"
               >
-                {showableAsImage ? (
-                  <ImageOutlinedIcon fontSize="small" />
-                ) : (
-                  <PlayCircleOutlineIcon fontSize="small" />
-                )}
+                <PlayCircleOutlineIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Paper>
         ) : null}
         <Box
           onClick={
-            onOpenFilePreview ? () => onOpenFilePreview(attachmentPreviewPayload(attrs)) : undefined
+            onOpenFilePreview
+              ? (event: React.MouseEvent) => {
+                  // Открытие сплит-панели сужает колонку — держим карточку на
+                  // месте, пока идёт анимация (иначе блок уезжает за экран).
+                  pinViewportPosition(event.currentTarget as HTMLElement)
+                  onOpenFilePreview(attachmentPreviewPayload(attrs))
+                }
+              : undefined
           }
           sx={{
             display: 'flex',

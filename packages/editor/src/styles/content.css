@@ -7,7 +7,11 @@
 .anynote-editor .ProseMirror {
   outline: none;
   min-height: 200px;
-  padding: 16px 48px;
+  /* Горизонтальный паддинг — гаттер под блочные контролы (Plus + drag handle,
+     ~58px ряд + 10px зазор): 72px гарантирует, что контролы не обрезаются
+     overflow-x:hidden скролл-контейнера даже при узкой основной области и в
+     full-width режиме. Держать в синке с pageColumnSx (apps/web column-sx.ts). */
+  padding: 16px 72px;
   line-height: 1.6;
   /* Let very long words / URLs break at word boundaries so normal text
      stays wrapped, but wide blocks (code, tables, images) overflow
@@ -18,6 +22,15 @@
   max-width: 713px;
   margin: 0 auto;
   box-sizing: content-box;
+}
+
+/* На узких экранах hover-контролы не показываются — возвращаем компактный
+   паддинг, чтобы не сжимать колонку чтения. Синхронизировано с адаптивным
+   px в pageColumnSx (apps/web column-sx.ts). */
+@media (max-width: 599.95px) {
+  .anynote-editor .ProseMirror {
+    padding: 16px 24px;
+  }
 }
 
 /* Wide blocks escape the 713px reading column so long code / tables /
@@ -40,8 +53,10 @@
 /* Direct children only: show the placeholder on empty top-level lines, but
    not inside empty table cells / list items / container bodies, which would
    be noisy. The cursor-following behavior comes from Placeholder's default
-   showOnlyCurrent (only the node holding the cursor gets .is-empty). */
-.anynote-editor .ProseMirror > p.is-empty::before {
+   showOnlyCurrent (only the node holding the cursor gets .is-empty), and the
+   .ProseMirror-focused gate hides the hint when the editor has no caret —
+   the decoration survives blur because the PM selection anchor persists. */
+.anynote-editor .ProseMirror.ProseMirror-focused > p.is-empty::before {
   color: var(--editor-text-muted, rgba(0, 0, 0, 0.4));
   content: attr(data-placeholder);
   float: left;
@@ -363,30 +378,11 @@
   text-decoration: line-through;
 }
 
-/* Drag handle positioning — in-flow at left gutter, no layout shifts during drag */
-.anynote-editor .tiptap-drag-handle {
-  position: absolute;
-  left: 4px;
-  width: 20px;
-  user-select: none;
-  cursor: grab;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.anynote-editor .drag-handle,
-.anynote-editor .tiptap-drag-handle {
+/* Drag handle: позиционирование делает floating-ui инлайн-стилями
+   (класс элемента — .drag-handle из @tiptap/extension-drag-handle-react),
+   CSS задаёт только слой. */
+.anynote-editor .drag-handle {
   z-index: 6;
-}
-
-.anynote-editor .tiptap-drag-handle:hover,
-.anynote-editor .ProseMirror:hover ~ .tiptap-drag-handle,
-.anynote-editor:hover .tiptap-drag-handle {
-  opacity: 1;
-}
-
-.anynote-editor .tiptap-drag-handle:active {
-  cursor: grabbing;
 }
 
 /* Callout block: flex row with emoji on the left, content on the right. */

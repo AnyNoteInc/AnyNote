@@ -8,7 +8,6 @@ import CachedIcon from '@mui/icons-material/Cached'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DownloadIcon from '@mui/icons-material/Download'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 import SubtitlesIcon from '@mui/icons-material/Subtitles'
 import ZoomInIcon from '@mui/icons-material/ZoomIn'
 import Image from '@tiptap/extension-image'
@@ -17,7 +16,7 @@ import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useRef, useState } from 'react'
 
 import { imagePreviewPayload, shouldOpenImagePreview } from './file-preview-interaction'
-import { imageToAttachmentNode } from './media-mime'
+import { pinViewportPosition } from '../lib/pin-viewport'
 import type { OpenFilePreview, UploadHandler } from '../types'
 
 type Align = 'left' | 'center' | 'right'
@@ -41,7 +40,6 @@ function ResizableImageView({
   editor,
   selected,
   extension,
-  getPos,
 }: NodeViewProps) {
   const src = (node.attrs.src as string | null) ?? null
   const alt = (node.attrs.alt as string | null) ?? undefined
@@ -54,6 +52,9 @@ function ResizableImageView({
   const uploadHandler = options.uploadHandler
   const onOpenFilePreview = options.onOpenFilePreview
 
+  const outerRef = useRef<HTMLDivElement | null>(null)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+
   const openPreview = useCallback(() => {
     if (!onOpenFilePreview) return
     const payload = imagePreviewPayload({
@@ -62,11 +63,11 @@ function ResizableImageView({
       size: (node.attrs.size as number | null) ?? null,
       mimeType: (node.attrs.mimeType as string | null) ?? null,
     })
-    if (payload) onOpenFilePreview(payload)
+    if (!payload) return
+    // Сплит-панель сужает колонку — держим изображение на месте во вьюпорте.
+    if (outerRef.current) pinViewportPosition(outerRef.current)
+    onOpenFilePreview(payload)
   }, [onOpenFilePreview, src, node.attrs.name, node.attrs.size, node.attrs.mimeType])
-
-  const outerRef = useRef<HTMLDivElement | null>(null)
-  const imgRef = useRef<HTMLImageElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [busy, setBusy] = useState(false)
@@ -319,25 +320,10 @@ function ResizableImageView({
                   <DownloadIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
+              {/* «Сохранить как файл» переехал в блочное меню («Превратить в»). */}
               {toolbarButton('Заменить', <CachedIcon fontSize="small" />, () =>
                 updateAttributes({ src: null, width: null, caption: null, align: 'center' }),
               )}
-              {toolbarButton('Сохранить как файл', <InsertDriveFileOutlinedIcon fontSize="small" />, () => {
-                const pos = getPos()
-                if (typeof pos !== 'number') return
-                const swap = imageToAttachmentNode({
-                  src,
-                  name: node.attrs.name as string | null,
-                  size: node.attrs.size as number | null,
-                  mimeType: node.attrs.mimeType as string | null,
-                })
-                if (!swap) return
-                editor
-                  .chain()
-                  .focus()
-                  .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
-                  .run()
-              })}
               <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
               {toolbarButton('Удалить', <DeleteIcon fontSize="small" />, () => deleteNode(), true)}
             </Paper>
