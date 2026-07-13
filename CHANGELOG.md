@@ -1,3 +1,13 @@
+## [1.38.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.38.0...v1.38.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **diagram-board:** normalizeSvgForImg — валидный XML и intrinsic-размеры для <img>-показа ([f79c013](https://github.com/AnyNoteInc/AnyNote/commit/f79c013dfc07bf31d33144588cbe7c4e408edf29))
+* **editor:** пакет правок UX редактора — каретка после вставки, placeholder, табы, диаграммы, блочное меню ([046a26c](https://github.com/AnyNoteInc/AnyNote/commit/046a26c6125f71de86c445d0908f01fe7936f8e1))
+* **editor:** устранить 2 minor-регрессии из adversarial-ревью ([31436e9](https://github.com/AnyNoteInc/AnyNote/commit/31436e99311a4ad7930ea91c70289364894b4906))
+* **web:** единый регион панелей, чат правее превью, высоты шапок, ширина колонки ([59c5e68](https://github.com/AnyNoteInc/AnyNote/commit/59c5e6811b1ae3c9455448a0108e66b2c1878db3))
+
 # [1.38.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.37.0...v1.38.0) (2026-07-12)
 
 
