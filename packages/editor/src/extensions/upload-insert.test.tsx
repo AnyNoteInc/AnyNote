@@ -107,6 +107,59 @@ describe('insertImageUploads', () => {
       editor.destroy()
     }
   })
+
+  it('pasting over a still-pending placeholder does not steal its uploadId', async () => {
+    const editor = makeEditor()
+    try {
+      // First paste never resolves — the placeholder stays pending (src=null).
+      let resolveFirst: (r: { id: string; src: string }) => void = () => {}
+      const first: UploadHandler = () =>
+        new Promise((res) => {
+          resolveFirst = res
+        })
+      insertImageUploads(editor.view, first, [
+        new File([new Uint8Array([1])], 'a.png', { type: 'image/png' }),
+      ])
+      const pending = findNodePos(editor, 'image')!
+      // NodeSelect the pending blank placeholder, then paste a second image over it.
+      editor.view.dispatch(
+        editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pending.pos)),
+      )
+      const second: UploadHandler = async () => ({ id: 'b', src: '/api/files/b' })
+      insertImageUploads(editor.view, second, [
+        new File([new Uint8Array([2])], 'b.png', { type: 'image/png' }),
+      ])
+      await flushUploads()
+
+      // Both placeholders survive as distinct nodes: the pending one keeps its
+      // own id (still src=null), the new one resolved to its own src.
+      const images: Array<{ src: unknown; uploadId: unknown }> = []
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'image')
+          images.push({ src: node.attrs.src, uploadId: node.attrs.uploadId })
+        return undefined
+      })
+      expect(images).toHaveLength(2)
+      // The new upload landed on exactly one node; no node is stuck blank with a
+      // leftover uploadId pointing at the wrong slot.
+      expect(images.filter((i) => i.src === '/api/files/b')).toHaveLength(1)
+      const stillPending = images.find((i) => i.src == null)!
+      expect(stillPending.uploadId).not.toBeNull()
+
+      // The first upload can still resolve into its own (untouched) slot.
+      resolveFirst({ id: 'a', src: '/api/files/a' })
+      await flushUploads()
+      const srcs = new Set<unknown>()
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'image') srcs.add(node.attrs.src)
+        return undefined
+      })
+      expect(srcs).toContain('/api/files/a')
+      expect(srcs).toContain('/api/files/b')
+    } finally {
+      editor.destroy()
+    }
+  })
 })
 
 describe('insertFileUploads', () => {

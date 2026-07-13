@@ -150,7 +150,13 @@ export const insertImageUploads = (
     Math.max(0, insertBase - 1),
     Math.min(tr.doc.content.size, at + 1),
     (node, pos) => {
-      if (node.type.name === 'image' && node.attrs.src == null) {
+      // uploadId==null is the tell of a FRESH placeholder: we stamp ids only
+      // below, so at scan time nothing else has a null id. Without this guard,
+      // pasting over a NodeSelection of a still-uploading blank image (kept, not
+      // deleted, by insertPosFor) sweeps that pending node into the scan and
+      // steals the new paste's uploadId — dropping the old upload and leaving
+      // the new node forever blank.
+      if (node.type.name === 'image' && node.attrs.src == null && node.attrs.uploadId == null) {
         placeholderPositions.push(pos)
         return false
       }
