@@ -8,6 +8,7 @@ import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutlined'
 import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
 import { pinViewportPosition } from '../lib/pin-viewport'
+import { replaceNodeAt } from '../lib/replace-node'
 import { FileAttachmentSchema } from './file-attachment.schema'
 import { attachmentToMediaNode, inferMediaKind } from './media-mime'
 import { attachmentPreviewPayload } from './file-preview-interaction'
@@ -39,11 +40,7 @@ function FileAttachmentView({ node, editor, selected, getPos, extension }: NodeV
   const swapNode = (swap: object | null) => {
     const pos = getPos()
     if (typeof pos !== 'number' || !swap) return
-    editor
-      .chain()
-      .focus()
-      .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
-      .run()
+    replaceNodeAt(editor, pos, node.nodeSize, swap)
   }
 
   // «Показать как изображение» живёт в блочном меню («Превратить в»);

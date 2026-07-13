@@ -34,6 +34,7 @@ import {
 } from '../lib/block-conversion'
 import { blockToMarkdown } from '../lib/block-to-markdown'
 import { duplicateBlock } from '../lib/block-duplicate'
+import { replaceNodeAt } from '../lib/replace-node'
 import {
   BACKGROUND_COLOR_KEYS,
   BACKGROUND_COLOR_LABELS,
@@ -195,13 +196,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   const handleMediaConvert = () => {
     if (pos == null || !node || !mediaTarget) return
     const swap = mediaTarget.build()
-    if (swap) {
-      editor
-        .chain()
-        .focus()
-        .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
-        .run()
-    }
+    if (swap) replaceNodeAt(editor, pos, node.nodeSize, swap)
     handleClose()
   }
 

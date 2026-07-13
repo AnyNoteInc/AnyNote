@@ -1,6 +1,14 @@
 'use client'
 
-import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from 'react'
 
 // Единый регион утилитарных боковых панелей страницы (комментарии, история,
 // просмотр файла): одновременно открыта не более одной — открытие следующей
@@ -26,6 +34,19 @@ const PagePanelRegionContext = createContext<PagePanelRegionValue | null>(null)
  *  и должны деградировать к независимому поведению. */
 export function usePagePanelRegion(): PagePanelRegionValue | null {
   return useContext(PagePanelRegionContext)
+}
+
+/** Членство панели в регионе: регистрирует свой close один раз и клеймит регион
+ *  при открытии. Инкапсулирует пару эффектов, которую иначе каждый контекст
+ *  панели повторяет вручную (и легко ошибиться с deps/cleanup). */
+export function usePagePanelMember(id: PagePanelId, isOpen: boolean, close: () => void): void {
+  const region = usePagePanelRegion()
+  const closeRef = useRef(close)
+  closeRef.current = close
+  useEffect(() => region?.register(id, () => closeRef.current()), [region, id])
+  useEffect(() => {
+    if (isOpen) region?.claim(id)
+  }, [region, id, isOpen])
 }
 
 export function PagePanelRegionProvider({ children }: { children: ReactNode }) {

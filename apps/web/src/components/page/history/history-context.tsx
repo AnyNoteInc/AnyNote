@@ -4,13 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 
-import { usePagePanelRegion } from '@/components/page/panel-region-context'
+import { usePagePanelMember } from '@/components/page/panel-region-context'
 
 export type PageHistoryContextValue = {
   /** History is only available to editors (the tRPC queries are edit-gated). */
@@ -61,11 +60,7 @@ export function PageHistoryProvider({
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
 
   // Единый регион панелей: открытая история вытесняет комментарии/просмотр.
-  const region = usePagePanelRegion()
-  useEffect(() => region?.register('history', () => setPanelOpen(false)), [region])
-  useEffect(() => {
-    if (panelOpen) region?.claim('history')
-  }, [panelOpen, region])
+  usePagePanelMember('history', panelOpen, closePanel)
 
   const value = useMemo<PageHistoryContextValue>(
     () => ({ enabled, pageId, workspaceId, panelOpen, togglePanel, closePanel }),
