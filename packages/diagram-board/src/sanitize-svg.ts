@@ -17,3 +17,38 @@ export function sanitizeSvg(svg: string): string {
   }
   return new XMLSerializer().serializeToString(doc.documentElement)
 }
+
+/**
+ * Готовит innerHTML-качества разметку к показу через `<img src=BlobURL>`.
+ * Mermaid (securityLevel:'strict') прогоняет вывод через DOMPurify, чья
+ * HTML-сериализация ломает XML: `<br/>` снова становится незакрытым `<br>`,
+ * HTML-сущности (`&nbsp;`) остаются — строгий XML-парсер браузера в <img>
+ * падает, и просмотр молча пустой. Плюс mermaid отдаёт width="100%" без
+ * height, так что даже валидный SVG в <img> рендерится в дефолтные 300×150.
+ *
+ * Лечим оба: парсим ЛЕНИЕНТНЫМ HTML-парсером (чинит незакрытые теги и
+ * сущности; document отсоединён — скрипты не исполняются) и, если размеры
+ * относительные/отсутствуют, восстанавливаем их из viewBox. Возвращаем
+ * гарантированно валидный XML. Контракт «SVG только через <img>, никогда
+ * innerHTML» не меняется.
+ */
+export function normalizeSvgForImg(markup: string): string {
+  if (!markup || typeof window === 'undefined') return markup
+  const doc = new DOMParser().parseFromString(markup, 'text/html')
+  const svg = doc.querySelector('svg')
+  if (!svg) return markup
+  const width = svg.getAttribute('width')
+  const needsSize = !width || width.endsWith('%') || !svg.getAttribute('height')
+  if (needsSize) {
+    const viewBox = svg
+      .getAttribute('viewBox')
+      ?.trim()
+      .split(/[\s,]+/)
+      .map(Number)
+    if (viewBox?.length === 4 && viewBox[2]! > 0 && viewBox[3]! > 0) {
+      svg.setAttribute('width', String(viewBox[2]))
+      svg.setAttribute('height', String(viewBox[3]))
+    }
+  }
+  return new XMLSerializer().serializeToString(svg)
+}
