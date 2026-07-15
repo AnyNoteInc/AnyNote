@@ -90,6 +90,14 @@ function asSettings(raw: unknown): PropertySettings | null {
   return null
 }
 
+function normalizePersistedFileValue(raw: unknown): string[] {
+  if (typeof raw === 'string') return raw.trim() === '' ? [] : [raw]
+  if (!Array.isArray(raw)) return []
+  return raw.every((value) => typeof value === 'string' && value.trim() !== '')
+    ? (raw as string[])
+    : []
+}
+
 // Computed-on-read property types: never written as stored cells; values are
 // resolved by `resolveComputedCells`. A write to one of these is rejected.
 const READ_ONLY_TYPES = new Set<DatabasePropertyType>([
@@ -780,7 +788,11 @@ export class DatabaseService {
     }
 
     const value = this.validateCellValue(prop.type, asSettings(prop.settings), rawValue)
-    await this.repo.upsertCellValue(input.rowId, input.propertyId, value)
+    if (prop.type === DatabasePropertyType.FILE) {
+      await this.repo.upsertFileCellValue(input.rowId, input.propertyId, value as string[])
+    } else {
+      await this.repo.upsertCellValue(input.rowId, input.propertyId, value)
+    }
     return { ok: true as const }
   }
 
@@ -794,6 +806,20 @@ export class DatabaseService {
     settings: PropertySettings | null,
     raw: unknown,
   ): null | string | number | boolean | string[] {
+    if (type === DatabasePropertyType.FILE) {
+      if (
+        !Array.isArray(raw) ||
+        raw.some((fileId) => typeof fileId !== 'string' || fileId.trim() === '')
+      ) {
+        throw badRequest('Ожидался список файлов')
+      }
+      const fileIds = raw as string[]
+      if (new Set(fileIds).size !== fileIds.length) {
+        throw badRequest('Файлы не должны повторяться')
+      }
+      return fileIds
+    }
+
     if (raw === null || raw === undefined || raw === '') return null
 
     switch (type) {
@@ -859,7 +885,6 @@ export class DatabaseService {
         return s
       }
       case DatabasePropertyType.PERSON:
-      case DatabasePropertyType.FILE:
       case DatabasePropertyType.PAGE_LINK:
       case DatabasePropertyType.TEXT:
       default:
@@ -1015,15 +1040,29 @@ export class DatabaseService {
     return {}
   }
 
+  private normalizePersistedFileCells(
+    cells: Record<string, unknown>,
+    properties: PropertyRow[],
+  ): Record<string, unknown> {
+    const normalized = { ...cells }
+    for (const property of properties) {
+      if (property.type === DatabasePropertyType.FILE) {
+        normalized[property.id] = normalizePersistedFileValue(cells[property.id])
+      }
+    }
+    return normalized
+  }
+
   /** Map a repo RowWithPage to the DatabaseRowView the renderer consumes. */
-  private mapRow(r: RowWithPage): DatabaseRowView {
+  private mapRow(r: RowWithPage, properties: PropertyRow[]): DatabaseRowView {
+    const cells = Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value]))
     return {
       rowId: r.id,
       pageId: r.pageId,
       title: r.page.title,
       icon: r.page.icon,
       position: r.position,
-      cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
+      cells: this.normalizePersistedFileCells(cells, properties),
     }
   }
 
@@ -1151,7 +1190,7 @@ export class DatabaseService {
   ): Promise<DatabaseRowView[]> {
     const hasComputed = fullProperties.some((p) => COMPUTED_TYPES.has(p.type))
     if (!hasComputed || rows.length === 0) {
-      return rows.map((r) => this.mapRow(r))
+      return rows.map((r) => this.mapRow(r, fullProperties))
     }
 
     const computedMetas: ComputedPropertyMeta[] = fullProperties.map((p) => ({
@@ -1257,14 +1296,18 @@ export class DatabaseService {
       userNameById,
     })
 
-    return rows.map((r) => ({
-      rowId: r.id,
-      pageId: r.pageId,
-      title: r.page.title,
-      icon: r.page.icon,
-      position: r.position,
-      cells: computed.get(r.id) ?? Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
-    }))
+    return rows.map((r) => {
+      const cells =
+        computed.get(r.id) ?? Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value]))
+      return {
+        rowId: r.id,
+        pageId: r.pageId,
+        title: r.page.title,
+        icon: r.page.icon,
+        position: r.position,
+        cells: this.normalizePersistedFileCells(cells, fullProperties),
+      }
+    })
   }
 
   async listRows(actorUserId: string, input: ListRowsInput): Promise<ListRowsResult> {

@@ -33,6 +33,9 @@ export interface PropertyRow {
   settings: unknown
 }
 
+/** Canonical values accepted by database cell write paths. FILE uses string[]. */
+export type DatabaseCellWriteValue = string | number | boolean | string[] | null
+
 /** A persisted page-level access rule (as stored). */
 export interface AccessRuleRow {
   id: string
@@ -73,6 +76,8 @@ export interface RowWithPage {
   updatedAt: Date
   updatedById: string | null
   page: { title: string | null; icon: string | null }
+  // `unknown` is intentional on reads until every deployment has applied the
+  // FILE scalar-to-array migration; the service normalizes that legacy shape.
   cells: { propertyId: string; value: unknown }[]
 }
 
@@ -604,7 +609,7 @@ export class DatabaseRepository {
   async upsertCellValue(
     rowId: string,
     propertyId: string,
-    value: string | number | boolean | string[] | null,
+    value: DatabaseCellWriteValue,
   ): Promise<void> {
     // `null` clears the cell → store SQL NULL via Prisma.DbNull.
     const stored: Prisma.InputJsonValue | typeof Prisma.DbNull =
@@ -614,6 +619,11 @@ export class DatabaseRepository {
       create: { rowId, propertyId, value: stored },
       update: { value: stored },
     })
+  }
+
+  /** Canonical FILE write path: scalar legacy values are read-only compatibility. */
+  async upsertFileCellValue(rowId: string, propertyId: string, value: string[]): Promise<void> {
+    await this.upsertCellValue(rowId, propertyId, value)
   }
 
   // ── Relation links ─────────────────────────────────────────────────────────

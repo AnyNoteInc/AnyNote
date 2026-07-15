@@ -268,7 +268,7 @@ describe('database rich-property router (integration)', () => {
     if (!bad.valid) expect(typeof bad.error).toBe('string')
   })
 
-  it('updateCellValue on a FILE cell rejects a non-existent fileId with NOT_FOUND', async () => {
+  it('updateCellValue on a FILE cell rejects a missing file id with NOT_FOUND', async () => {
     const fx = await seed()
     const c = caller(fx.ownerId)
     const file = await c.createProperty({ pageId: fx.pageA, type: 'FILE', name: 'Вложение' })
@@ -280,40 +280,101 @@ describe('database rich-property router (integration)', () => {
         rowId: row.rowId,
         propertyId: file.id,
         // A well-formed but non-existent file id.
-        value: '00000000-0000-7000-8000-000000000000',
+        value: ['00000000-0000-7000-8000-000000000000'],
       }),
     ).rejects.toThrow(/Файл не найден/i)
   })
 
-  it('updateCellValue on a FILE cell accepts a real File in the workspace', async () => {
+  it('updateCellValue on a FILE cell accepts two workspace files in stable order', async () => {
     const fx = await seed()
     const c = caller(fx.ownerId)
     const file = await c.createProperty({ pageId: fx.pageA, type: 'FILE', name: 'Вложение' })
     const row = await c.createRow({ pageId: fx.pageA, title: 'Row' })
 
-    const realFile = await prisma.file.create({
-      data: {
-        userId: fx.ownerId,
-        workspaceId: fx.wsId,
-        name: 'doc.pdf',
-        ext: 'pdf',
-        fileSize: BigInt(10),
-        mimeType: 'application/pdf',
-        hash: 'h',
-        path: 'p',
-      },
-      select: { id: true },
-    })
+    const [firstFile, secondFile] = await Promise.all([
+      prisma.file.create({
+        data: {
+          userId: fx.ownerId, workspaceId: fx.wsId, name: 'first.pdf', ext: 'pdf',
+          fileSize: BigInt(10), mimeType: 'application/pdf', hash: 'h1', path: 'p1',
+        },
+        select: { id: true },
+      }),
+      prisma.file.create({
+        data: {
+          userId: fx.ownerId, workspaceId: fx.wsId, name: 'second.pdf', ext: 'pdf',
+          fileSize: BigInt(20), mimeType: 'application/pdf', hash: 'h2', path: 'p2',
+        },
+        select: { id: true },
+      }),
+    ])
 
     await c.updateCellValue({
       pageId: fx.pageA,
       rowId: row.rowId,
       propertyId: file.id,
-      value: realFile.id,
+      value: [secondFile.id, firstFile.id],
     })
 
     const rows = (await c.listRows({ pageId: fx.pageA })).rows
-    expect(rows.find((r) => r.rowId === row.rowId)?.cells[file.id]).toBe(realFile.id)
+    expect(rows.find((r) => r.rowId === row.rowId)?.cells[file.id]).toEqual([
+      secondFile.id,
+      firstFile.id,
+    ])
+  })
+
+  it('updateCellValue on a FILE cell rejects duplicates, scalars, and non-string items', async () => {
+    const fx = await seed()
+    const c = caller(fx.ownerId)
+    const file = await c.createProperty({ pageId: fx.pageA, type: 'FILE', name: 'Вложение' })
+    const row = await c.createRow({ pageId: fx.pageA, title: 'Row' })
+    const realFile = await prisma.file.create({
+      data: {
+        userId: fx.ownerId, workspaceId: fx.wsId, name: 'doc.pdf', ext: 'pdf',
+        fileSize: BigInt(10), mimeType: 'application/pdf', hash: 'h', path: 'p',
+      },
+      select: { id: true },
+    })
+
+    await expect(
+      c.updateCellValue({
+        pageId: fx.pageA, rowId: row.rowId, propertyId: file.id,
+        value: [realFile.id, realFile.id],
+      }),
+    ).rejects.toThrow(/не должны повторяться/i)
+    await expect(
+      c.updateCellValue({
+        pageId: fx.pageA, rowId: row.rowId, propertyId: file.id, value: realFile.id,
+      }),
+    ).rejects.toThrow(/список файлов/i)
+    await expect(
+      c.updateCellValue({
+        pageId: fx.pageA, rowId: row.rowId, propertyId: file.id, value: [realFile.id, 42],
+      }),
+    ).rejects.toThrow(/список файлов/i)
+  })
+
+  it('updateCellValue on a FILE cell rejects a file from another workspace', async () => {
+    const fx = await seed()
+    const c = caller(fx.ownerId)
+    const file = await c.createProperty({ pageId: fx.pageA, type: 'FILE', name: 'Вложение' })
+    const row = await c.createRow({ pageId: fx.pageA, title: 'Row' })
+    const otherWorkspace = await prisma.workspace.create({
+      data: { name: 'Other workspace', createdById: fx.ownerId },
+      select: { id: true },
+    })
+    const foreignFile = await prisma.file.create({
+      data: {
+        userId: fx.ownerId, workspaceId: otherWorkspace.id, name: 'foreign.pdf', ext: 'pdf',
+        fileSize: BigInt(10), mimeType: 'application/pdf', hash: 'foreign', path: 'foreign',
+      },
+      select: { id: true },
+    })
+
+    await expect(
+      c.updateCellValue({
+        pageId: fx.pageA, rowId: row.rowId, propertyId: file.id, value: [foreignFile.id],
+      }),
+    ).rejects.toThrow(/Файл не найден/i)
   })
 
   it('updateCellValue on a PERSON cell rejects a non-member userId (BAD_REQUEST from domain)', async () => {

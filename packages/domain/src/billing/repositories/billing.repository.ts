@@ -5,6 +5,7 @@ import { activeSubscriptionWithPlanArgs } from '../active-subscription.ts'
 import type { PlanFeatures } from '../dto/billing.dto.ts'
 import {
   getPlanDisplayName,
+  hasPlanFeature,
   parseMeetingsEnabled,
   parsePageHistoryDays,
 } from '../dto/billing.dto.ts'
@@ -26,9 +27,11 @@ function planToFeatures(plan: Plan): PlanFeatures {
     customAiProvidersEnabled: plan.customAiProvidersEnabled,
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
-    publicSitesEnabled:
-      Array.isArray(plan.features) && (plan.features as string[]).includes('publicSites'),
+    publicSitesEnabled: hasPlanFeature(plan.features, 'publicSites'),
     meetingsEnabled: parseMeetingsEnabled(plan.features),
+    formConditionalLogicEnabled: hasPlanFeature(plan.features, 'forms:conditional'),
+    formCustomSlugEnabled: hasPlanFeature(plan.features, 'forms:customSlug'),
+    formBrandingRemovalEnabled: hasPlanFeature(plan.features, 'forms:hideBranding'),
     pageHistoryDays: parsePageHistoryDays(plan.features, isPaid),
   }
 }

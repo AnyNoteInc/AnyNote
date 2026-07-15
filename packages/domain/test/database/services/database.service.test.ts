@@ -60,6 +60,7 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     softDeleteItemPage: vi.fn(async () => undefined),
     restoreItemPage: vi.fn(async () => undefined),
     upsertCellValue: vi.fn(async () => undefined),
+    upsertFileCellValue: vi.fn(async () => undefined),
     // Rich-property (Phase 4B) repo surface.
     replaceRelationLinks: vi.fn(async () => undefined),
     findRelationLinks: vi.fn(async () => new Map()),
@@ -296,6 +297,62 @@ describe('DatabaseService.updateCellValue type validation', () => {
       pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: null,
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', null)
+  })
+
+  it('stores a FILE value as an ordered array of file ids', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+    })
+    await makeService(repo).updateCellValue('u1', {
+      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: ['file-a', 'file-b'],
+    })
+    expect(repo.upsertFileCellValue).toHaveBeenCalledWith('row1', 'prop1', ['file-a', 'file-b'])
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+  })
+
+  it('accepts an empty FILE array as the canonical empty value', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+    })
+    await makeService(repo).updateCellValue('u1', {
+      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: [],
+    })
+    expect(repo.upsertFileCellValue).toHaveBeenCalledWith('row1', 'prop1', [])
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'legacy-file-id',
+    '',
+    42,
+    null,
+    ['file-a', 42],
+    ['file-a', ''],
+    ['file-a', '   '],
+  ])('rejects a non-array or invalid FILE value %#', async (value) => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+    })
+    await expect(
+      makeService(repo).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Ожидался список файлов' })
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+    expect(repo.upsertFileCellValue).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate FILE ids instead of silently deduplicating', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+    })
+    await expect(
+      makeService(repo).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: ['file-a', 'file-a'],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Файлы не должны повторяться' })
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+    expect(repo.upsertFileCellValue).not.toHaveBeenCalled()
   })
 
   it('throws NOT_FOUND when the row belongs to another source', async () => {
@@ -1276,6 +1333,28 @@ describe('DatabaseService.listRows — computed cells', () => {
     expect(result.rows[0]!.cells['p-text']).toBe('x')
     expect(repo.findRelationLinksForProperties).not.toHaveBeenCalled()
     expect(repo.findUserNames).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['legacy-file-id', ['legacy-file-id']],
+    [['file-b', 'file-a'], ['file-b', 'file-a']],
+    [null, []],
+    [{ bad: true }, []],
+  ])('normalizes a persisted FILE value at the read boundary', async (stored, expected) => {
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        { id: 'p-file', type: 'FILE', name: 'Файлы', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        {
+          id: 'row1', pageId: 'item-page', position: 0,
+          createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1',
+          page: { title: 'A', icon: null }, cells: [{ propertyId: 'p-file', value: stored }],
+        },
+      ]),
+    })
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 100 })
+    expect(result.rows[0]!.cells['p-file']).toEqual(expected)
   })
 })
 

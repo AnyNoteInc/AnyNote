@@ -14,6 +14,11 @@ describe('stringifyCellValue', () => {
     expect(stringifyCellValue({ label: 'Готово' })).toBe('Готово')
     expect(stringifyCellValue({ name: 'Иван' })).toBe('Иван')
   })
+
+  it('exports current FILE arrays in stable order and keeps legacy scalar compatibility', () => {
+    expect(stringifyCellValue(['file-second', 'file-first'])).toBe('file-second, file-first')
+    expect(stringifyCellValue('legacy-file')).toBe('legacy-file')
+  })
 })
 
 describe('buildDatabaseTableMarkdown', () => {

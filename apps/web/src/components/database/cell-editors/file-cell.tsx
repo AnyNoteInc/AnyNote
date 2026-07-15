@@ -24,26 +24,90 @@ interface FileCellProps {
   readonly editable?: boolean
 }
 
-/**
- * File cell. The stored value is a `File` id. When empty, an upload button posts
- * to `/api/files/upload?kind=attachment` (the same path as task attachments) and
- * commits the returned file id. When set, the file name links to `/api/files/[id]`
- * (metadata via `file.getById`), with an image thumbnail when the mime is an image
- * and a remove affordance (commits null). Existence of the id is re-checked
- * server-side by `updateCellValue` (tRPC layer) on write.
- */
+function normalizeFileIds(value: unknown): string[] {
+  const raw =
+    typeof value === 'string'
+      ? [value]
+      : Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : []
+  return [...new Set(raw.filter((fileId) => fileId.trim() !== ''))]
+}
+
+function FileItem({
+  fileId,
+  editable,
+  onRemove,
+}: {
+  fileId: string
+  editable: boolean
+  onRemove: () => void
+}) {
+  const { data: file } = trpc.file.getById.useQuery({ id: fileId }, { enabled: true, retry: false })
+  const isImage = file?.mimeType?.startsWith('image/') ?? false
+  const displayName = file?.name ?? 'Файл'
+
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ minWidth: 0, alignItems: 'center' }}>
+      {isImage ? (
+        <Box
+          component="a"
+          href={`/api/files/${fileId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{ display: 'inline-flex', flex: '0 0 auto' }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Box
+            component="img"
+            src={`/api/files/${fileId}`}
+            alt={displayName}
+            sx={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 0.5, display: 'block' }}
+          />
+        </Box>
+      ) : (
+        <AttachFileIcon fontSize="small" sx={{ color: 'text.secondary', flex: '0 0 auto' }} />
+      )}
+      <Box
+        component="a"
+        href={`/api/files/${fileId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        sx={{
+          fontSize: 13,
+          color: 'primary.main',
+          textDecoration: 'underline',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+        }}
+        title={file?.name ?? fileId}
+      >
+        {displayName}
+      </Box>
+      {editable ? (
+        <IconButton
+          size="small"
+          aria-label={`Удалить файл ${file?.name ?? fileId}`}
+          onClick={onRemove}
+          sx={{ flex: '0 0 auto' }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      ) : null}
+    </Stack>
+  )
+}
+
+/** Multi-file cell with legacy scalar compatibility at the render boundary. */
 export function FileCell({ pageId, rowId, propertyId, value, editable = true }: FileCellProps) {
   const { commit } = useCellUpdate(pageId)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const fileId = typeof value === 'string' && value !== '' ? value : null
-
-  const { data: file } = trpc.file.getById.useQuery(
-    { id: fileId ?? '' },
-    { enabled: Boolean(fileId), retry: false },
-  )
+  const fileIds = normalizeFileIds(value)
 
   async function upload(picked: File) {
     setBusy(true)
@@ -61,96 +125,68 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
         return
       }
       const json = (await res.json()) as { file: { id: string } }
-      commit(rowId, propertyId, json.file.id)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (!fileIds.includes(json.file.id)) {
+        commit(rowId, propertyId, [...fileIds, json.file.id])
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setBusy(false)
     }
   }
 
-  const isImage = file?.mimeType?.startsWith('image/') ?? false
-
-  if (!fileId) {
-    if (!editable) return <span style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>—</span>
-    return (
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        <Chip
-          size="small"
-          variant="outlined"
-          icon={busy ? <CircularProgress size={12} /> : <AttachFileIcon />}
-          label={busy ? 'Загрузка…' : 'Загрузить'}
-          onClick={() => !busy && inputRef.current?.click()}
-          sx={{ cursor: busy ? 'wait' : 'pointer' }}
-        />
-        <input
-          ref={inputRef}
-          type="file"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) void upload(f)
-            e.target.value = ''
-          }}
-        />
-        {error ? (
-          <Typography variant="caption" color="error">
-            {error}
-          </Typography>
-        ) : null}
-      </Stack>
-    )
+  if (fileIds.length === 0 && !editable) {
+    return <span style={{ color: 'rgba(0,0,0,0.4)', fontSize: 13 }}>—</span>
   }
 
   return (
-    <Stack direction="row" spacing={0.75} sx={{ minWidth: 0, alignItems: 'center' }}>
-      {isImage ? (
-        <Box
-          component="a"
-          href={`/api/files/${fileId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{ display: 'inline-flex', flex: '0 0 auto' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Box
-            component="img"
-            src={`/api/files/${fileId}`}
-            alt={file?.name ?? ''}
-            sx={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 0.5, display: 'block' }}
-          />
-        </Box>
-      ) : (
-        <AttachFileIcon fontSize="small" sx={{ color: 'text.secondary', flex: '0 0 auto' }} />
-      )}
-      <Box
-        component="a"
-        href={`/api/files/${fileId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        sx={{
-          fontSize: 13,
-          color: 'primary.main',
-          textDecoration: 'underline',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minWidth: 0,
-        }}
-        title={file?.name ?? fileId}
-      >
-        {file?.name ?? 'Файл'}
-      </Box>
+    <Stack
+      direction="row"
+      spacing={0.75}
+      useFlexGap
+      sx={{ minWidth: 0, alignItems: 'center', flexWrap: 'wrap' }}
+    >
+      {fileIds.map((fileId) => (
+        <FileItem
+          key={fileId}
+          fileId={fileId}
+          editable={editable}
+          onRemove={() =>
+            commit(
+              rowId,
+              propertyId,
+              fileIds.filter((candidate) => candidate !== fileId),
+            )
+          }
+        />
+      ))}
       {editable ? (
-        <IconButton
-          size="small"
-          aria-label="Удалить файл"
-          onClick={() => commit(rowId, propertyId, null)}
-          sx={{ flex: '0 0 auto' }}
-        >
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <>
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={busy ? <CircularProgress size={12} /> : <AttachFileIcon />}
+            label={busy ? 'Загрузка…' : fileIds.length > 0 ? 'Добавить' : 'Загрузить'}
+            onClick={() => !busy && inputRef.current?.click()}
+            sx={{ cursor: busy ? 'wait' : 'pointer' }}
+          />
+          <input
+            ref={inputRef}
+            type="file"
+            hidden
+            aria-label="Добавить файл"
+            onChange={(event) => {
+              const picked = event.target.files?.[0]
+              if (picked) void upload(picked)
+              event.target.value = ''
+            }}
+          />
+        </>
+      ) : null}
+      {error ? (
+        <Typography variant="caption" color="error">
+          {error}
+        </Typography>
       ) : null}
     </Stack>
   )

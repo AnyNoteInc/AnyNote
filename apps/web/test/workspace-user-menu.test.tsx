@@ -67,6 +67,9 @@ const features = {
   developerSpaceEnabled: false,
   publicSitesEnabled: false,
   meetingsEnabled: false,
+  formConditionalLogicEnabled: false,
+  formCustomSlugEnabled: false,
+  formBrandingRemovalEnabled: false,
   pageHistoryDays: 7,
 } as const
 

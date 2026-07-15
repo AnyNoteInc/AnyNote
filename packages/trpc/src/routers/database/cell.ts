@@ -34,12 +34,25 @@ export const cellRouter = router({
 
       const value = input.value
       if (value !== null && value !== undefined && value !== '') {
-        if (prop?.type === DatabasePropertyType.FILE && typeof value === 'string') {
-          const file = await ctx.prisma.file.findFirst({
-            where: { id: value, workspaceId: page.workspaceId },
+        if (prop?.type === DatabasePropertyType.FILE) {
+          if (
+            !Array.isArray(value) ||
+            value.some((fileId) => typeof fileId !== 'string' || fileId.trim() === '')
+          ) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ожидался список файлов' })
+          }
+          const uniqueIds = [...new Set(value)]
+          if (uniqueIds.length !== value.length) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Файлы не должны повторяться',
+            })
+          }
+          const files = await ctx.prisma.file.findMany({
+            where: { id: { in: uniqueIds }, workspaceId: page.workspaceId },
             select: { id: true },
           })
-          if (!file) {
+          if (files.length !== uniqueIds.length) {
             throw new TRPCError({ code: 'NOT_FOUND', message: 'Файл не найден' })
           }
         }

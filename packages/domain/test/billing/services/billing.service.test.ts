@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import { isDomainError } from '../../../src/shared/errors.ts'
-import type { PlanFeatures } from '../../../src/billing/dto/billing.dto.ts'
-import type { BillingRepository } from '../../../src/billing/repositories/billing.repository.ts'
+import { hasPlanFeature, type PlanFeatures } from '../../../src/billing/dto/billing.dto.ts'
+import { BillingRepository } from '../../../src/billing/repositories/billing.repository.ts'
 import { BillingService } from '../../../src/billing/services/billing.service.ts'
+import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 
 function features(overrides: Partial<PlanFeatures> = {}): PlanFeatures {
   return {
@@ -23,10 +24,86 @@ function features(overrides: Partial<PlanFeatures> = {}): PlanFeatures {
     developerSpaceEnabled: true,
     publicSitesEnabled: false,
     meetingsEnabled: false,
+    formConditionalLogicEnabled: false,
+    formCustomSlugEnabled: false,
+    formBrandingRemovalEnabled: false,
     pageHistoryDays: null,
     ...overrides,
   }
 }
+
+const planBase = {
+  id: 'plan-id',
+  name: 'Plan',
+  description: null,
+  priceMonthlyKopecks: 0,
+  priceYearlyKopecks: 0,
+  pricePerExtraSeatMonthlyKopecks: 0,
+  pricePerExtraSeatYearlyKopecks: 0,
+  currency: 'RUB',
+  maxWorkspaces: 1,
+  maxMembersPerWorkspace: 1,
+  maxFileBytes: BigInt(1),
+  chatsEnabled: false,
+  pageIndexingEnabled: false,
+  membersSettingsEnabled: false,
+  aiSettingsEnabled: false,
+  customMcpEnabled: false,
+  customAiProvidersEnabled: false,
+  prioritySupport: false,
+  developerSpaceEnabled: false,
+  sortOrder: 1,
+  isActive: true,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+  updatedAt: new Date('2026-01-01T00:00:00Z'),
+}
+
+async function mapRawPlan(slug: 'personal' | 'pro' | 'max', rawFeatures: unknown) {
+  const plan = { ...planBase, slug, features: rawFeatures }
+  const client = {
+    workspace: { findUnique: vi.fn(async () => ({ createdById: 'owner-id' })) },
+    subscription: { findFirst: vi.fn(async () => ({ plan })) },
+    plan: { findUniqueOrThrow: vi.fn(async () => plan) },
+  }
+  const uow = {
+    client: () => client,
+    transaction: vi.fn(),
+  } as unknown as UnitOfWork
+  return new BillingRepository(uow).getWorkspaceFeatures('workspace-id')
+}
+
+describe('form plan features', () => {
+  it('recognizes only an exact string token in a raw feature array', () => {
+    expect(hasPlanFeature(['forms:conditional'], 'forms:conditional')).toBe(true)
+    expect(hasPlanFeature(['forms:conditional '], 'forms:conditional')).toBe(false)
+    expect(hasPlanFeature('forms:conditional', 'forms:conditional')).toBe(false)
+    expect(hasPlanFeature(null, 'forms:conditional')).toBe(false)
+    expect(hasPlanFeature([{ token: 'forms:conditional' }], 'forms:conditional')).toBe(false)
+  })
+
+  it.each([
+    ['personal', [], false],
+    ['pro', ['forms:conditional', 'forms:customSlug', 'forms:hideBranding'], true],
+    ['max', ['forms:conditional', 'forms:customSlug', 'forms:hideBranding'], true],
+  ] as const)('maps %s form flags from raw tokens', async (slug, rawFeatures, expected) => {
+    const result = await mapRawPlan(slug, rawFeatures)
+    expect(result).toMatchObject({
+      formConditionalLogicEnabled: expected,
+      formCustomSlugEnabled: expected,
+      formBrandingRemovalEnabled: expected,
+    })
+  })
+
+  it('does not infer form flags from the plan slug', async () => {
+    const personalWithToken = await mapRawPlan('personal', ['forms:conditional'])
+    const maxWithoutTokens = await mapRawPlan('max', [])
+
+    expect(personalWithToken.formConditionalLogicEnabled).toBe(true)
+    expect(maxWithoutTokens.formConditionalLogicEnabled).toBe(false)
+    expect(maxWithoutTokens.formCustomSlugEnabled).toBe(false)
+    expect(maxWithoutTokens.formBrandingRemovalEnabled).toBe(false)
+  })
+})
 
 function makeRepo(
   overrides: Partial<Record<keyof BillingRepository, ReturnType<typeof vi.fn>>> = {},

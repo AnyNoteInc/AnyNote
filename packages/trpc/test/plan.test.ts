@@ -98,6 +98,9 @@ describe('getWorkspaceFeatures', () => {
     expect(features.slug).toBe('personal')
     expect(features.chatsEnabled).toBe(false)
     expect(features.isPaid).toBe(false)
+    expect(features.formConditionalLogicEnabled).toBe(false)
+    expect(features.formCustomSlugEnabled).toBe(false)
+    expect(features.formBrandingRemovalEnabled).toBe(false)
   })
 
   it('returns pro features when owner has ACTIVE pro subscription', async () => {
@@ -117,6 +120,9 @@ describe('getWorkspaceFeatures', () => {
     expect(features.chatsEnabled).toBe(true)
     expect(features.isPaid).toBe(true)
     expect(features.maxMembersPerWorkspace).toBe(5)
+    expect(features.formConditionalLogicEnabled).toBe(true)
+    expect(features.formCustomSlugEnabled).toBe(true)
+    expect(features.formBrandingRemovalEnabled).toBe(true)
   })
 })
 

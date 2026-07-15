@@ -16,6 +16,9 @@ export type PlanFeatures = {
   prioritySupport: boolean
   developerSpaceEnabled: boolean
   publicSitesEnabled: boolean
+  formConditionalLogicEnabled: boolean
+  formCustomSlugEnabled: boolean
+  formBrandingRemovalEnabled: boolean
   /**
    * Meeting notes / transcription. Derived from a `"meetings"` token in the
    * `Plan.features` JSON array (the `publicSites` precedent) — enabled on the
@@ -34,6 +37,11 @@ export type PlanFeatures = {
 
 /** Default retention window (days) for the free/personal plan when `Plan.features` has no `pageHistory:` entry. */
 export const DEFAULT_FREE_PAGE_HISTORY_DAYS = 7
+
+/** Return true only for an exact string token in a raw Plan.features array. */
+export function hasPlanFeature(features: unknown, token: string): boolean {
+  return Array.isArray(features) && features.some((entry) => entry === token)
+}
 
 /**
  * Derive `pageHistoryDays` from a plan's `features` JSON array.
@@ -61,7 +69,7 @@ export function parsePageHistoryDays(features: unknown, isPaid: boolean): number
  * non-array / non-string-entry value reads as disabled.
  */
 export function parseMeetingsEnabled(features: unknown): boolean {
-  return Array.isArray(features) && features.includes('meetings')
+  return hasPlanFeature(features, 'meetings')
 }
 
 export function getPlanDisplayName(plan: Pick<Plan, 'slug' | 'name'>): string {
