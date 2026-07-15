@@ -22,6 +22,7 @@ import type {
 import { customSlugSchema } from './database-form.dto.ts'
 import type {
   FormRepositoryContract,
+  FormVersionRecord,
   ManagedFormRecord,
   UpdateFormSettingsRecord,
 } from './database-form.repository.ts'
@@ -293,15 +294,7 @@ export class DatabaseFormService {
       }
       const respondentAccess =
         input.audience === 'ANYONE_WITH_LINK' ? 'NONE' : input.respondentAccess
-      if (form.publishedVersion !== null) {
-        let publishedDocument: FormVersionDocument
-        try {
-          publishedDocument = parseFormVersionDocument(form.publishedVersion.schema)
-        } catch {
-          throw badRequest('FORM_SCHEMA_INVALID')
-        }
-        this.assertAudienceCompatibility(input.audience, publishedDocument)
-      }
+      await this.assertAcceptedAudienceCompatibility(form, input.audience)
       const changedSettings = this.changedSettings(form, { ...input, respondentAccess })
       if (changedSettings.length === 0) return form
       const updated = await this.repo.updateSettings({
@@ -642,6 +635,34 @@ export class DatabaseFormService {
       )
     ) {
       throw badRequest('FORM_AUDIENCE_INCOMPATIBLE')
+    }
+  }
+
+  private async assertAcceptedAudienceCompatibility(
+    form: ManagedFormRecord,
+    audience: DatabaseFormAudience,
+  ): Promise<void> {
+    const acceptedVersions = new Map<string, FormVersionRecord>()
+    if (form.publishedVersion !== null) {
+      acceptedVersions.set(form.publishedVersion.id, form.publishedVersion)
+    }
+
+    const publicForm = await this.repo.findByLocator(form.routeKey)
+    if (publicForm?.id === form.id) {
+      if (publicForm.publishedVersion !== null) {
+        acceptedVersions.set(publicForm.publishedVersion.id, publicForm.publishedVersion)
+      }
+      for (const version of publicForm.versions) acceptedVersions.set(version.id, version)
+    }
+
+    for (const version of acceptedVersions.values()) {
+      let document: FormVersionDocument
+      try {
+        document = parseFormVersionDocument(version.schema)
+      } catch {
+        throw badRequest('FORM_SCHEMA_INVALID')
+      }
+      this.assertAudienceCompatibility(audience, document)
     }
   }
 

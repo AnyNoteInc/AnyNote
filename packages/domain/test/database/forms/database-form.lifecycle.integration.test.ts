@@ -301,6 +301,67 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     ).resolves.toMatchObject({ audience: 'WORKSPACE_MEMBERS_WITH_LINK' })
   })
 
+  it('revalidates an active grace schema before changing away from workspace audience', async () => {
+    const internalProperty = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'PERSON', name: 'Previous owner', position: 1024 },
+    })
+    const publicProperty = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'TEXT', name: 'Current name', position: 2048 },
+    })
+    const view = await prisma.databaseView.create({
+      data: { sourceId, type: 'FORM', title: 'Grace picker form', position: 3072 },
+    })
+    const internalDocument: FormVersionDocument = {
+      ...documentFor(internalProperty.id),
+      questions: [
+        {
+          ...documentFor(internalProperty.id).questions[0]!,
+          property: {
+            kind: 'PROPERTY',
+            propertyId: internalProperty.id,
+            propertyType: 'PERSON',
+          },
+          input: { kind: 'PERSON', maxSelections: 1 },
+        },
+      ],
+    }
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        viewId: view.id,
+        routeKey: `anf_lifecycle_${RUN}_grace-audience`,
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        draftSchema: internalDocument,
+        createdById: userId,
+      },
+    })
+    const service = makeFormService(new PrismaUnitOfWork(prisma))
+    await service.publish(userId, { pageId, formId: form.id })
+    await service.updateDraft(userId, {
+      pageId,
+      formId: form.id,
+      expectedRevision: 1,
+      schema: documentFor(publicProperty.id),
+    })
+    await service.publish(userId, { pageId, formId: form.id })
+
+    await expect(
+      service.updateSettings(userId, {
+        pageId,
+        formId: form.id,
+        audience: 'ANYONE_WITH_LINK',
+        respondentAccess: 'NONE',
+        opensAt: null,
+        closesAt: null,
+        responseLimit: null,
+        notifyOwners: true,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ audience: 'WORKSPACE_MEMBERS_WITH_LINK' })
+  })
+
   it('publication first commits an immutable version, then blocks the queued destructive property mutation', async () => {
     const fixture = await createFixture('publish-first')
     const publishUow = new PrismaUnitOfWork(prisma)

@@ -11,6 +11,7 @@ import {
 import type {
   FormRepositoryContract,
   ManagedFormRecord,
+  PublicFormRecord,
 } from '../../../src/database/forms/database-form.repository.ts'
 import type { FormVersionDocument } from '../../../src/database/forms/public.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
@@ -96,6 +97,39 @@ const managedForm = (overrides: Partial<ManagedFormRecord> = {}): ManagedFormRec
     publishedVersion: null,
     ...overrides,
   }) as ManagedFormRecord
+
+function publicFormRecord(
+  form: ManagedFormRecord,
+  versions: PublicFormRecord['versions'],
+): PublicFormRecord {
+  return {
+    id: form.id,
+    sourceId: form.sourceId,
+    routeKey: form.routeKey,
+    customSlug: form.customSlug,
+    linkRevision: form.linkRevision,
+    state: form.state,
+    audience: form.audience,
+    respondentAccess: form.respondentAccess,
+    publishedVersionId: form.publishedVersionId,
+    opensAt: form.opensAt,
+    closesAt: form.closesAt,
+    responseLimit: form.responseLimit,
+    acceptedResponses: form.acceptedResponses,
+    createdById: form.createdById,
+    source: {
+      workspaceId: form.source.workspaceId,
+      pageId: form.source.pageId,
+      page: {
+        archivedAt: form.source.page.archivedAt,
+        deletedAt: form.source.page.deletedAt,
+      },
+      workspace: form.source.workspace,
+    },
+    publishedVersion: form.publishedVersion,
+    versions,
+  }
+}
 
 const planFeatures = (overrides: Partial<PlanFeatures> = {}): PlanFeatures => ({
   slug: 'pro',
@@ -657,6 +691,156 @@ describe('DatabaseFormService lifecycle', () => {
       ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
     }
     expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(formRepo.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('checks an internal-picker grace version even when the current version is public-safe', async () => {
+    const safeCurrent = {
+      id: '00000000-0000-7000-8000-000000000062',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 2,
+      schemaVersion: 1,
+      schema: linearDocument(),
+      schemaHash: 'b'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const internalGraceDocument = linearDocument({
+      questions: [
+        {
+          id: 'question-1',
+          sectionId: 'section-1',
+          property: { kind: 'PROPERTY', propertyId: 'property-2', propertyType: 'PERSON' },
+          label: 'Owner',
+          required: false,
+          syncWithPropertyName: false,
+          input: { kind: 'PERSON', maxSelections: 1 },
+        },
+      ],
+    })
+    const internalGrace = {
+      ...safeCurrent,
+      id: '00000000-0000-7000-8000-000000000061',
+      versionNumber: 1,
+      schema: internalGraceDocument,
+      schemaHash: 'a'.repeat(64),
+      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
+    }
+    const form = managedForm({
+      state: 'OPEN',
+      audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      publishedVersionId: safeCurrent.id,
+      publishedVersion: safeCurrent,
+    })
+    const { service, formRepo } = makeHarness({
+      form,
+      formRepo: { findByLocator: vi.fn(async () => publicFormRecord(form, [internalGrace])) },
+    })
+
+    for (const audience of ['ANYONE_WITH_LINK', 'SIGNED_IN_WITH_LINK'] as const) {
+      await expect(
+        service.updateSettings('00000000-0000-7000-8000-000000000001', {
+          pageId: form.source.pageId,
+          formId: form.id,
+          audience,
+          respondentAccess: 'NONE',
+          opensAt: null,
+          closesAt: null,
+          responseLimit: null,
+          notifyOwners: true,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
+    }
+    expect(formRepo.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('allows a public audience when current and grace schemas are both public-safe', async () => {
+    const current = {
+      id: '00000000-0000-7000-8000-000000000062',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 2,
+      schemaVersion: 1,
+      schema: linearDocument(),
+      schemaHash: 'b'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const grace = {
+      ...current,
+      id: '00000000-0000-7000-8000-000000000061',
+      versionNumber: 1,
+      schemaHash: 'a'.repeat(64),
+      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
+    }
+    const form = managedForm({
+      state: 'OPEN',
+      audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      publishedVersionId: current.id,
+      publishedVersion: current,
+    })
+    const { service, formRepo } = makeHarness({
+      form,
+      formRepo: { findByLocator: vi.fn(async () => publicFormRecord(form, [grace])) },
+    })
+
+    await service.updateSettings('00000000-0000-7000-8000-000000000001', {
+      pageId: form.source.pageId,
+      formId: form.id,
+      audience: 'ANYONE_WITH_LINK',
+      respondentAccess: 'NONE',
+      opensAt: null,
+      closesAt: null,
+      responseLimit: null,
+      notifyOwners: true,
+    })
+    expect(formRepo.updateSettings).toHaveBeenCalled()
+  })
+
+  it('fails closed when an active grace version schema is malformed', async () => {
+    const current = {
+      id: '00000000-0000-7000-8000-000000000062',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 2,
+      schemaVersion: 1,
+      schema: linearDocument(),
+      schemaHash: 'b'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const malformedGrace = {
+      ...current,
+      id: '00000000-0000-7000-8000-000000000061',
+      versionNumber: 1,
+      schema: { malformed: true },
+      schemaHash: 'a'.repeat(64),
+      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
+    }
+    const form = managedForm({
+      state: 'OPEN',
+      audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      publishedVersionId: current.id,
+      publishedVersion: current,
+    })
+    const { service, formRepo } = makeHarness({
+      form,
+      formRepo: { findByLocator: vi.fn(async () => publicFormRecord(form, [malformedGrace])) },
+    })
+
+    await expect(
+      service.updateSettings('00000000-0000-7000-8000-000000000001', {
+        pageId: form.source.pageId,
+        formId: form.id,
+        audience: 'ANYONE_WITH_LINK',
+        respondentAccess: 'NONE',
+        opensAt: null,
+        closesAt: null,
+        responseLimit: null,
+        notifyOwners: true,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SCHEMA_INVALID' })
     expect(formRepo.updateSettings).not.toHaveBeenCalled()
   })
 
