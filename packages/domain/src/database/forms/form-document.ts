@@ -482,19 +482,67 @@ export const formVersionDocumentSchema = z
   .strict()
 export type FormVersionDocument = z.infer<typeof formVersionDocumentSchema>
 
-export const parseFormVersionDocument = (input: unknown): FormVersionDocument => {
-  const document = formVersionDocumentSchema.parse(input)
-  const serializedSize = new TextEncoder().encode(JSON.stringify(document)).byteLength
+const exceedsUtf8ByteLimit = (serialized: string, limit: number): boolean => {
+  let bytes = 0
 
-  if (serializedSize > MAX_FORM_DOCUMENT_BYTES) {
-    throw new z.ZodError([
-      {
-        code: 'custom',
-        path: [],
-        message: 'FORM_DOCUMENT_TOO_LARGE',
-        input,
-      },
-    ])
+  for (let index = 0; index < serialized.length; index += 1) {
+    const codeUnit = serialized.charCodeAt(index)
+
+    if (codeUnit <= 0x7f) {
+      bytes += 1
+    } else if (codeUnit <= 0x7ff) {
+      bytes += 2
+    } else if (
+      codeUnit >= 0xd800 &&
+      codeUnit <= 0xdbff &&
+      index + 1 < serialized.length &&
+      serialized.charCodeAt(index + 1) >= 0xdc00 &&
+      serialized.charCodeAt(index + 1) <= 0xdfff
+    ) {
+      bytes += 4
+      index += 1
+    } else {
+      bytes += 3
+    }
+
+    if (bytes > limit) return true
+  }
+
+  return false
+}
+
+const trySerializeFormDocument = (input: unknown): string | undefined => {
+  try {
+    return JSON.stringify(input)
+  } catch {
+    return undefined
+  }
+}
+
+const createFormDocumentTooLargeError = (): z.ZodError =>
+  new z.ZodError([
+    {
+      code: 'custom',
+      path: [],
+      message: 'FORM_DOCUMENT_TOO_LARGE',
+      input: undefined,
+    },
+  ])
+
+export const parseFormVersionDocument = (input: unknown): FormVersionDocument => {
+  const serializedInput = trySerializeFormDocument(input)
+  if (
+    serializedInput !== undefined &&
+    exceedsUtf8ByteLimit(serializedInput, MAX_FORM_DOCUMENT_BYTES)
+  ) {
+    throw createFormDocumentTooLargeError()
+  }
+
+  const document = formVersionDocumentSchema.parse(input)
+  const serializedDocument = JSON.stringify(document)
+
+  if (exceedsUtf8ByteLimit(serializedDocument, MAX_FORM_DOCUMENT_BYTES)) {
+    throw createFormDocumentTooLargeError()
   }
 
   return document

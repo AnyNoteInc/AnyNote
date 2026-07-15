@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
 import {
   FORM_PROPERTY_TYPES,
@@ -170,9 +171,17 @@ describe('database form document', () => {
     expect(
       formInputConfigSchema.safeParse({
         kind: 'NUMBER',
+        min: 0,
+        max: 10,
+        step: Number.POSITIVE_INFINITY,
+      }).success,
+    ).toBe(false)
+    expect(
+      formInputConfigSchema.safeParse({
+        kind: 'NUMBER',
         min: 10,
         max: 1,
-        step: Number.POSITIVE_INFINITY,
+        step: 1,
       }).success,
     ).toBe(false)
     expect(
@@ -190,6 +199,15 @@ describe('database form document', () => {
         options: [{ id: 'one', label: 'One' }],
         minSelections: 2,
         maxSelections: 1,
+      }).success,
+    ).toBe(false)
+    expect(
+      formInputConfigSchema.safeParse({
+        kind: 'MULTI_CHOICE',
+        appearance: 'MULTI_PICKER',
+        options: [{ id: 'one', label: 'One' }],
+        minSelections: 0,
+        maxSelections: 2,
       }).success,
     ).toBe(false)
   })
@@ -278,18 +296,88 @@ describe('database form document', () => {
     expect(formVersionDocumentSchema.safeParse(document).success).toBe(accepted)
   })
 
-  it('rejects serialized JSON over the document byte limit', () => {
+  it('rejects oversized raw JSON without retaining its contents in the error', () => {
+    const secretMarker = 'FORM_SECRET_MARKER_8f1b7f'
     const document = makeDocument()
     document.endings = Array.from({ length: 60 }, (_, index) => ({
       id: `ending-${index}`,
       title: 'Complete',
-      body: 'x'.repeat(10_000),
+      body: `${index === 0 ? secretMarker : ''}${'x'.repeat(9_950)}`,
     }))
 
     expect(new TextEncoder().encode(JSON.stringify(document)).byteLength).toBeGreaterThan(
       MAX_FORM_DOCUMENT_BYTES,
     )
     expect(formVersionDocumentSchema.safeParse(document).success).toBe(true)
+
+    let error: unknown
+    try {
+      parseFormVersionDocument(document)
+    } catch (caught) {
+      error = caught
+    }
+
+    expect(error).toBeInstanceOf(z.ZodError)
+    if (!(error instanceof z.ZodError)) throw new Error('expected ZodError')
+    expect(error.issues).toEqual([
+      expect.objectContaining({
+        code: 'custom',
+        message: 'FORM_DOCUMENT_TOO_LARGE',
+        path: [],
+        input: undefined,
+      }),
+    ])
+    expect(String(error).length).toBeLessThan(2_048)
+    expect(String(error)).not.toContain(secretMarker)
+  })
+
+  it('rejects a huge question array before Zod traverses its elements', () => {
+    const traversalTrap: Record<string, unknown> = { padding: '1234567890' }
+    Object.defineProperty(traversalTrap, 'id', {
+      enumerable: false,
+      get: () => {
+        throw new Error('ZOD_DEEP_TRAVERSAL_REACHED')
+      },
+    })
+    const rawDocument = {
+      ...makeDocument(),
+      questions: Array.from({ length: 100_000 }, () => traversalTrap),
+    }
+
+    expect(() => parseFormVersionDocument(rawDocument)).toThrowError(
+      expect.objectContaining({
+        issues: [expect.objectContaining({ message: 'FORM_DOCUMENT_TOO_LARGE', path: [] })],
+      }),
+    )
+  })
+
+  it('returns Zod validation errors when preflight serialization is unavailable', () => {
+    const circularInput: Record<string, unknown> = {}
+    circularInput.self = circularInput
+
+    expect(() => parseFormVersionDocument(undefined)).toThrow(z.ZodError)
+    expect(() => parseFormVersionDocument(1n)).toThrow(z.ZodError)
+    expect(() => parseFormVersionDocument(circularInput)).toThrow(z.ZodError)
+  })
+
+  it('keeps the canonical size check after schema parsing', () => {
+    const document = makeDocument()
+    document.endings = Array.from({ length: 60 }, (_, index) => {
+      const ending = { id: `ending-${index}`, title: 'Complete' }
+      Object.defineProperty(ending, 'body', {
+        enumerable: false,
+        value: 'x'.repeat(10_000),
+      })
+      return ending
+    })
+
+    expect(new TextEncoder().encode(JSON.stringify(document)).byteLength).toBeLessThan(
+      MAX_FORM_DOCUMENT_BYTES,
+    )
+    const parsedDocument = formVersionDocumentSchema.parse(document)
+    expect(new TextEncoder().encode(JSON.stringify(parsedDocument)).byteLength).toBeGreaterThan(
+      MAX_FORM_DOCUMENT_BYTES,
+    )
     expect(() => parseFormVersionDocument(document)).toThrowError(
       expect.objectContaining({
         issues: [expect.objectContaining({ message: 'FORM_DOCUMENT_TOO_LARGE', path: [] })],
