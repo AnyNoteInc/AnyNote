@@ -433,8 +433,12 @@ export const formTransitionSchema = z
 export type FormTransition = z.infer<typeof formTransitionSchema>
 
 const isSafeRedirect = (href: string): boolean => {
+  if (/\p{Cc}/u.test(href) || /%(?![0-9a-f]{2})/iu.test(href) || href.trim() !== href) {
+    return false
+  }
+
   if (href.startsWith('/')) {
-    return !href.startsWith('//') && !href.startsWith('/\\') && !/[\u0000-\u001f\u007f]/u.test(href)
+    return !href.startsWith('//') && !href.startsWith('/\\')
   }
 
   if (!href.startsWith('https://')) return false
