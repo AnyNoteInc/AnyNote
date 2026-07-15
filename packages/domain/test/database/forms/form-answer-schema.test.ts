@@ -118,10 +118,23 @@ describe('buildQuestionValueSchema', () => {
     expectValid(largeStep, 1_000_000_000_000_000)
     expectInvalid(largeStep, 1_000_000_000_000_000.5)
 
+    const largeDecimalStep = publicQuestion('large-decimal-number', 'NUMBER', {
+      kind: 'NUMBER',
+      step: 0.7,
+    })
+    expectValid(largeDecimalStep, 700_000_000_000)
+
+    // MAX_VALUE is dyadic, so the factor of three makes this subnormal step a genuine
+    // non-divisor while the subtraction still overflows the runtime quotient.
+    const nonMultipleSubnormalStep = 3 * Number.MIN_VALUE
+    expect(nonMultipleSubnormalStep).toBeGreaterThan(0)
+    expect(Number.isFinite((Number.MAX_VALUE - -Number.MAX_VALUE) / nonMultipleSubnormalStep)).toBe(
+      false,
+    )
     const overflowingQuotient = publicQuestion('overflowing-number', 'NUMBER', {
       kind: 'NUMBER',
       min: -Number.MAX_VALUE,
-      step: Number.MIN_VALUE,
+      step: nonMultipleSubnormalStep,
     })
     expectInvalid(overflowingQuotient, Number.MAX_VALUE)
   })

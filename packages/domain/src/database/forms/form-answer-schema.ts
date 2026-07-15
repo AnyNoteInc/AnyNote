@@ -18,6 +18,8 @@ const EMAIL_MAX_LENGTH = 320
 const PHONE_MAX_LENGTH = 32
 const LEASE_TOKEN_MAX_LENGTH = 4_096
 const OPAQUE_ID_MAX_LENGTH = 512
+const STEP_QUOTIENT_ULP_SAFETY_FACTOR = 4
+const STEP_QUOTIENT_MAX_TOLERANCE = 0.25
 
 export const toPublicFormVersion = (stored: FormVersionDocument): PublicFormVersion => {
   const { schemaVersion, firstSectionId, presentation, sections, questions, transitions, endings } =
@@ -128,8 +130,11 @@ const validateNonEmptyAnswer = (
         if (!Number.isFinite(quotient)) {
           addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
         } else {
-          const scaledTolerance = Number.EPSILON * 32 * Math.max(1, Math.abs(quotient))
-          const tolerance = Math.min(1e-8, scaledTolerance)
+          // Division compounds a few rounding operations. Four quotient ULPs absorb those
+          // artifacts, while the hard cap remains safely below a half-step mismatch.
+          const scaledTolerance =
+            Number.EPSILON * Math.max(1, Math.abs(quotient)) * STEP_QUOTIENT_ULP_SAFETY_FACTOR
+          const tolerance = Math.min(STEP_QUOTIENT_MAX_TOLERANCE, scaledTolerance)
           if (Math.abs(quotient - Math.round(quotient)) > tolerance) {
             addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
           }
