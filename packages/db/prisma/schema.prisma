@@ -72,6 +72,9 @@ model User {
   ssoProviders               SsoProvider[]                @relation("SsoProviderRegisteredBy")
   externalIdentityLinks      ExternalIdentityLink[]
   meetingArtifacts           MeetingArtifact[]            @relation("MeetingCreator")
+  databaseFormsCreated       DatabaseForm[]               @relation("DatabaseFormCreator")
+  databaseFormVersions       DatabaseFormVersion[]        @relation("DatabaseFormPublisher")
+  databaseFormSubmissions    DatabaseFormSubmission[]     @relation("DatabaseFormRespondent")
 
   @@map("users")
 }
@@ -287,13 +290,33 @@ enum SprintStatus {
   COMPLETED
 }
 
-// Generic databases. TABLE (Phase 3); BOARD/CALENDAR/LIST (Phase 4A).
-// TIMELINE/GALLERY/CHART/FEED/MAP/FORM remain roadmap-only (not added until built).
+// Generic databases. TABLE (Phase 3); BOARD/CALENDAR/LIST (Phase 4A); FORM.
+// TIMELINE/GALLERY/CHART/FEED/MAP remain roadmap-only (not added until built).
 enum DatabaseViewType {
   TABLE
   BOARD
   CALENDAR
   LIST
+  FORM
+}
+
+enum DatabaseFormState {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum DatabaseFormAudience {
+  ANYONE_WITH_LINK
+  SIGNED_IN_WITH_LINK
+  WORKSPACE_MEMBERS_WITH_LINK
+}
+
+enum DatabaseFormRespondentAccess {
+  NONE
+  VIEW
+  EDIT
 }
 
 enum DatabasePropertyType {
@@ -1112,13 +1135,14 @@ model File {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace         Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace         Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   pages             PageFile[]
   tasks             TaskAttachment[]
-  exportArtifacts   ExportArtifact[]  @relation("ExportArtifactFile")
-  importArtifacts   ImportArtifact[]  @relation("ImportArtifactFile")
-  meetingRecordings MeetingArtifact[] @relation("MeetingRecording")
+  exportArtifacts   ExportArtifact[]    @relation("ExportArtifactFile")
+  importArtifacts   ImportArtifact[]    @relation("ImportArtifactFile")
+  meetingRecordings MeetingArtifact[]   @relation("MeetingRecording")
+  formUpload        DatabaseFormUpload?
 
   @@index([userId])
   @@index([createdAt])
@@ -1194,6 +1218,7 @@ enum NotificationEventType {
   PAGE_REVISION_RESTORED
   // Phase 8C: guest-invite request workflow (security policy).
   GUEST_INVITE_REQUESTED
+  FORM_SUBMITTED
 }
 
 enum NotificationChannel {
@@ -1614,6 +1639,7 @@ model DatabaseSource {
   rows             DatabaseRow[]
   accessRules      DatabasePageAccessRule[]
   dashboardWidgets DashboardWidget[]        @relation("WidgetSource")
+  forms            DatabaseForm[]
 
   @@index([workspaceId])
   @@map("database_sources")
@@ -1657,9 +1683,109 @@ model DatabaseView {
 
   source           DatabaseSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   dashboardWidgets DashboardWidget[] @relation("WidgetView")
+  form             DatabaseForm?
 
   @@index([sourceId])
   @@map("database_views")
+}
+
+model DatabaseForm {
+  id                 String                       @id @default(uuid(7)) @db.Uuid
+  sourceId           String                       @map("source_id") @db.Uuid
+  viewId             String?                      @unique @map("view_id") @db.Uuid
+  routeKey           String                       @unique @map("route_key") @db.VarChar(64)
+  customSlug         String?                      @unique @map("custom_slug") @db.VarChar(64)
+  linkRevision       Int                          @default(1) @map("link_revision")
+  state              DatabaseFormState            @default(DRAFT)
+  audience           DatabaseFormAudience         @default(ANYONE_WITH_LINK)
+  respondentAccess   DatabaseFormRespondentAccess @default(NONE) @map("respondent_access")
+  draftSchema        Json                         @map("draft_schema")
+  draftRevision      Int                          @default(1) @map("draft_revision")
+  publishedVersionId String?                      @unique @map("published_version_id") @db.Uuid
+  opensAt            DateTime?                    @map("opens_at") @db.Timestamptz(6)
+  closesAt           DateTime?                    @map("closes_at") @db.Timestamptz(6)
+  responseLimit      Int?                         @map("response_limit")
+  acceptedResponses  Int                          @default(0) @map("accepted_responses")
+  notifyOwners       Boolean                      @default(true) @map("notify_owners")
+  createdById        String                       @map("created_by_id") @db.Uuid
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source           DatabaseSource           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  view             DatabaseView?            @relation(fields: [viewId], references: [id], onDelete: SetNull)
+  publishedVersion DatabaseFormVersion?     @relation("CurrentDatabaseFormVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  versions         DatabaseFormVersion[]    @relation("DatabaseFormVersions")
+  submissions      DatabaseFormSubmission[]
+  uploads          DatabaseFormUpload[]
+  createdBy        User                     @relation("DatabaseFormCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([sourceId])
+  @@index([state, opensAt, closesAt])
+  @@map("database_forms")
+}
+
+model DatabaseFormVersion {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  formId        String    @map("form_id") @db.Uuid
+  versionNumber Int       @map("version_number")
+  schemaVersion Int       @default(1) @map("schema_version")
+  schema        Json
+  schemaHash    String    @map("schema_hash") @db.VarChar(64)
+  publishedById String    @map("published_by_id") @db.Uuid
+  publishedAt   DateTime  @default(now()) @map("published_at") @db.Timestamptz(6)
+  acceptUntil   DateTime? @map("accept_until") @db.Timestamptz(6)
+
+  form           DatabaseForm             @relation("DatabaseFormVersions", fields: [formId], references: [id], onDelete: Cascade)
+  currentForForm DatabaseForm?            @relation("CurrentDatabaseFormVersion")
+  publishedBy    User                     @relation("DatabaseFormPublisher", fields: [publishedById], references: [id], onDelete: Restrict)
+  submissions    DatabaseFormSubmission[]
+  uploads        DatabaseFormUpload[]
+
+  @@unique([formId, versionNumber])
+  @@index([formId, publishedAt(sort: Desc)])
+  @@map("database_form_versions")
+}
+
+model DatabaseFormSubmission {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  formId           String   @map("form_id") @db.Uuid
+  versionId        String   @map("version_id") @db.Uuid
+  rowId            String   @unique @map("row_id") @db.Uuid
+  respondentUserId String?  @map("respondent_user_id") @db.Uuid
+  endingId         String   @map("ending_id") @db.VarChar(64)
+  idempotencyKey   String   @map("idempotency_key") @db.Uuid
+  submittedAt      DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  form           DatabaseForm        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  version        DatabaseFormVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  row            DatabaseRow         @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  respondentUser User?               @relation("DatabaseFormRespondent", fields: [respondentUserId], references: [id], onDelete: SetNull)
+
+  @@unique([formId, idempotencyKey])
+  @@index([formId, submittedAt(sort: Desc)])
+  @@index([respondentUserId, submittedAt(sort: Desc)])
+  @@map("database_form_submissions")
+}
+
+model DatabaseFormUpload {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  formId          String    @map("form_id") @db.Uuid
+  versionId       String    @map("version_id") @db.Uuid
+  questionId      String    @map("question_id") @db.VarChar(64)
+  fileId          String    @unique @map("file_id") @db.Uuid
+  uploadTokenHash String    @map("upload_token_hash") @db.VarChar(64)
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt      DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  form    DatabaseForm        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  version DatabaseFormVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  file    File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([formId, versionId, questionId])
+  @@index([formId, expiresAt])
+  @@index([expiresAt, consumedAt])
+  @@map("database_form_uploads")
 }
 
 model DatabaseProperty {
@@ -1691,12 +1817,13 @@ model DatabaseRow {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  source          DatabaseSource         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  page            Page                   @relation("DatabaseRowPage", fields: [pageId], references: [id], onDelete: Cascade)
+  source          DatabaseSource          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  page            Page                    @relation("DatabaseRowPage", fields: [pageId], references: [id], onDelete: Cascade)
   cells           DatabaseCellValue[]
-  relationLinks   DatabaseRelationLink[] @relation("RelationLinkSource")
-  relationLinksTo DatabaseRelationLink[] @relation("RelationLinkTarget")
+  relationLinks   DatabaseRelationLink[]  @relation("RelationLinkSource")
+  relationLinksTo DatabaseRelationLink[]  @relation("RelationLinkTarget")
   dateReminders   DatabaseDateReminder[]
+  formSubmission  DatabaseFormSubmission?
 
   @@index([sourceId, position])
   @@index([pageId])
