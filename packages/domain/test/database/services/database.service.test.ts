@@ -1271,6 +1271,69 @@ describe('DatabaseService.listRows — computed cells', () => {
     expect(result.rows[0]!.cells['p-f']).toBe('мир!')
   })
 
+  it('normalizes only persisted FILE cells before formulas read them', async () => {
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        { id: 'p-file', type: 'FILE', name: 'Файл', position: 0, settings: null },
+        { id: 'p-text', type: 'TEXT', name: 'Текст', position: 1024, settings: null },
+        {
+          id: 'p-file-length',
+          type: 'FORMULA',
+          name: 'Длина файла',
+          position: 2048,
+          settings: { formula: 'length(prop("Файл"))' },
+        },
+        {
+          id: 'p-text-length',
+          type: 'FORMULA',
+          name: 'Длина текста',
+          position: 3072,
+          settings: { formula: 'length(prop("Текст"))' },
+        },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        {
+          id: 'legacy-row',
+          pageId: 'legacy-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'Legacy', icon: null },
+          cells: [
+            { propertyId: 'p-file', value: 'legacy-file-id' },
+            { propertyId: 'p-text', value: 'four' },
+          ],
+        },
+        {
+          id: 'canonical-row',
+          pageId: 'canonical-page',
+          position: 1024,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'Canonical', icon: null },
+          cells: [
+            { propertyId: 'p-file', value: ['legacy-file-id'] },
+            { propertyId: 'p-text', value: 'four' },
+          ],
+        },
+      ]),
+    })
+
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 100 })
+
+    expect(result.rows.map((row) => row.cells['p-file-length'])).toEqual([1, 1])
+    expect(result.rows.map((row) => row.cells['p-file'])).toEqual([
+      ['legacy-file-id'],
+      ['legacy-file-id'],
+    ])
+    expect(result.rows.map((row) => row.cells['p-text'])).toEqual(['four', 'four'])
+    expect(result.rows.map((row) => row.cells['p-text-length'])).toEqual([4, 4])
+  })
+
   it('augments rows with a ROLLUP count over relation links', async () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
@@ -1295,6 +1358,101 @@ describe('DatabaseService.listRows — computed cells', () => {
     expect(result.rows[0]!.cells['p-roll']).toBe(2)
     // RELATION cell becomes chips.
     expect(result.rows[0]!.cells['p-rel']).toHaveLength(2)
+  })
+
+  it('uses target property types to normalize only FILE values before rollup aggregation', async () => {
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        {
+          id: 'p-rel',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'other-source' } },
+        },
+        {
+          id: 'p-roll-file',
+          type: 'ROLLUP',
+          name: 'Файлы',
+          position: 1024,
+          settings: {
+            rollup: {
+              relationPropertyId: 'p-rel',
+              targetPropertyId: 'target-file',
+              aggregation: 'show_original',
+            },
+          },
+        },
+        {
+          id: 'p-roll-text',
+          type: 'ROLLUP',
+          name: 'Тексты',
+          position: 2048,
+          settings: {
+            rollup: {
+              relationPropertyId: 'p-rel',
+              targetPropertyId: 'target-text',
+              aggregation: 'show_original',
+            },
+          },
+        },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        {
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'A', icon: null },
+          cells: [],
+        },
+      ]),
+      findRelationLinksForProperties: vi.fn(
+        async () => new Map([['p-rel', new Map([['row1', ['target-1', 'target-2']]])]]),
+      ),
+      findRowsByIds: vi.fn(async () => [
+        { id: 'target-1', pageId: 'target-page-1', title: 'T1', icon: null },
+        { id: 'target-2', pageId: 'target-page-2', title: 'T2', icon: null },
+      ]),
+      findCellsForRows: vi.fn(async () => [
+        {
+          rowId: 'target-1',
+          propertyId: 'target-file',
+          propertyType: 'FILE',
+          value: 'legacy-file-id',
+        },
+        {
+          rowId: 'target-2',
+          propertyId: 'target-file',
+          propertyType: 'FILE',
+          value: ['legacy-file-id'],
+        },
+        {
+          rowId: 'target-1',
+          propertyId: 'target-text',
+          propertyType: 'TEXT',
+          value: 'first',
+        },
+        {
+          rowId: 'target-2',
+          propertyId: 'target-text',
+          propertyType: 'TEXT',
+          value: 'second',
+        },
+      ]),
+    })
+
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 100 })
+
+    expect(repo.findCellsForRows).toHaveBeenCalledWith(['target-1', 'target-2'])
+    expect(result.rows[0]!.cells['p-roll-file']).toEqual([
+      ['legacy-file-id'],
+      ['legacy-file-id'],
+    ])
+    expect(result.rows[0]!.cells['p-roll-text']).toEqual(['first', 'second'])
   })
 
   it('resolves CREATED_BY metadata to the user name', async () => {

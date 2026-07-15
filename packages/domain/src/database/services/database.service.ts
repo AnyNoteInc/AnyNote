@@ -1262,7 +1262,12 @@ export class DatabaseService {
         byProp = new Map<string, unknown>()
         targetCellsByRow.set(c.rowId, byProp)
       }
-      byProp.set(c.propertyId, c.value)
+      byProp.set(
+        c.propertyId,
+        c.propertyType === DatabasePropertyType.FILE
+          ? normalizePersistedFileValue(c.value)
+          : c.value,
+      )
     }
 
     // Page/row metadata + the user names it references.
@@ -1283,10 +1288,17 @@ export class DatabaseService {
         ? await this.repo.findUserNames([...userIds])
         : new Map<string, string>()
 
+    const propertyTypeById = new Map(fullProperties.map((property) => [property.id, property.type]))
     const rowsWithCells: RowWithCells[] = rows.map((r) => ({
       id: r.id,
       pageId: r.pageId,
-      cells: r.cells.map((c) => ({ propertyId: c.propertyId, value: c.value })),
+      cells: r.cells.map((c) => ({
+        propertyId: c.propertyId,
+        value:
+          propertyTypeById.get(c.propertyId) === DatabasePropertyType.FILE
+            ? normalizePersistedFileValue(c.value)
+            : c.value,
+      })),
     }))
 
     const computed = resolveComputedCells({

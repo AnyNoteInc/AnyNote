@@ -732,18 +732,37 @@ export class DatabaseRepository {
 
   /**
    * Fetch the stored cell values for a set of (target) rows → used by rollups to
-   * read the aggregated target property. Soft-deleted rows are excluded so a
-   * rollup never counts a trashed related row.
+   * read the aggregated target property. The joined property type lets the
+   * service normalize legacy FILE scalars without guessing from the current
+   * source's properties (targets may belong to any source). Soft-deleted rows
+   * are excluded so a rollup never counts a trashed related row.
    */
   async findCellsForRows(
     rowIds: string[],
-  ): Promise<{ rowId: string; propertyId: string; value: unknown }[]> {
+  ): Promise<
+    {
+      rowId: string
+      propertyId: string
+      propertyType: import('@repo/db').DatabasePropertyType
+      value: unknown
+    }[]
+  > {
     if (rowIds.length === 0) return []
     const cells = await this.uow.client().databaseCellValue.findMany({
       where: { rowId: { in: rowIds }, row: { deletedAt: null } },
-      select: { rowId: true, propertyId: true, value: true },
+      select: {
+        rowId: true,
+        propertyId: true,
+        value: true,
+        property: { select: { type: true } },
+      },
     })
-    return cells.map((c) => ({ rowId: c.rowId, propertyId: c.propertyId, value: c.value }))
+    return cells.map((c) => ({
+      rowId: c.rowId,
+      propertyId: c.propertyId,
+      propertyType: c.property.type,
+      value: c.value,
+    }))
   }
 
   /**
