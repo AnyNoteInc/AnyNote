@@ -267,7 +267,7 @@ export interface FormRepositoryContract {
   updateSettings(input: UpdateFormSettingsRecord): Promise<ManagedFormRecord>
   duplicateForm(input: DuplicateFormRecord): Promise<ManagedFormRecord>
   archiveForm(input: ArchiveFormRecord): Promise<void>
-  listVersions(formId: string): Promise<FormVersionRecord[]>
+  listVersions(formId: string, acceptedAt?: Date): Promise<FormVersionRecord[]>
   listResponses(input: ListFormResponsesRecord): Promise<FormResponsePage>
   findByLocator(locator: string): Promise<PublicFormRecord | null>
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
@@ -461,9 +461,16 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     }
   }
 
-  listVersions(formId: string): Promise<FormVersionRecord[]> {
+  listVersions(formId: string, acceptedAt?: Date): Promise<FormVersionRecord[]> {
     return this.uow.client().databaseFormVersion.findMany({
-      where: { formId },
+      where: {
+        formId,
+        ...(acceptedAt
+          ? {
+              OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: acceptedAt } }],
+            }
+          : {}),
+      },
       orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
       select: versionSelect,
     })

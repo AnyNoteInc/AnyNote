@@ -784,6 +784,24 @@ describe('DatabaseFormRepository focused reads', () => {
     )
   })
 
+  it('loads every currently accepted version without expired history or a result cap', async () => {
+    const { client, repository } = makeRepository()
+    const acceptedAt = new Date('2026-07-16T00:00:00.000Z')
+
+    await repository.listVersions('form-1', acceptedAt)
+
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          formId: 'form-1',
+          OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: acceptedAt } }],
+        },
+        orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
+      }),
+    )
+    expect(client.databaseFormVersion.findMany.mock.calls[0]?.[0]).not.toHaveProperty('take')
+  })
+
   it('uses focused unique lookups for version and submission provenance', async () => {
     const { client, repository } = makeRepository()
 

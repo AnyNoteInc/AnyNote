@@ -301,7 +301,7 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     ).resolves.toMatchObject({ audience: 'WORKSPACE_MEMBERS_WITH_LINK' })
   })
 
-  it('revalidates an active grace schema before changing away from workspace audience', async () => {
+  it('revalidates every active grace schema before changing away from workspace audience', async () => {
     const internalProperty = await prisma.databaseProperty.create({
       data: { sourceId, type: 'PERSON', name: 'Previous owner', position: 1024 },
     })
@@ -344,6 +344,27 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
       schema: documentFor(publicProperty.id),
     })
     await service.publish(userId, { pageId, formId: form.id })
+    const newestDocument = documentFor(publicProperty.id)
+    newestDocument.questions[0] = {
+      ...newestDocument.questions[0]!,
+      label: 'Current name v3',
+    }
+    await service.updateDraft(userId, {
+      pageId,
+      formId: form.id,
+      expectedRevision: 2,
+      schema: newestDocument,
+    })
+    await service.publish(userId, { pageId, formId: form.id })
+
+    const versions = await prisma.databaseFormVersion.findMany({
+      where: { formId: form.id },
+      orderBy: { versionNumber: 'asc' },
+    })
+    expect(versions).toHaveLength(3)
+    expect(versions[0]!.acceptUntil).toEqual(new Date('2026-07-17T00:00:00.000Z'))
+    expect(versions[1]!.acceptUntil).toEqual(new Date('2026-07-17T00:00:00.000Z'))
+    expect(versions[2]!.acceptUntil).toBeNull()
 
     await expect(
       service.updateSettings(userId, {

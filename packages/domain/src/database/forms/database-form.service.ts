@@ -647,13 +647,9 @@ export class DatabaseFormService {
       acceptedVersions.set(form.publishedVersion.id, form.publishedVersion)
     }
 
-    const publicForm = await this.repo.findByLocator(form.routeKey)
-    if (publicForm?.id === form.id) {
-      if (publicForm.publishedVersion !== null) {
-        acceptedVersions.set(publicForm.publishedVersion.id, publicForm.publishedVersion)
-      }
-      for (const version of publicForm.versions) acceptedVersions.set(version.id, version)
-    }
+    const acceptedAt = this.now()
+    const repositoryVersions = await this.repo.listVersions(form.id, acceptedAt)
+    for (const version of repositoryVersions) acceptedVersions.set(version.id, version)
 
     for (const version of acceptedVersions.values()) {
       let document: FormVersionDocument
