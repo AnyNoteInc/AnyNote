@@ -195,15 +195,20 @@ export interface PublishFormVersionRecord {
   schemaHash: string
   publishedById: string
   publishedAt: Date
-  expectedState: DatabaseFormState
+  expectedState: Exclude<DatabaseFormState, 'ARCHIVED'>
   expectedDraftRevision: number
   expectedUpdatedAt: Date
   expectedLinkRevision: number
-  state: DatabaseFormState
+  state: Extract<DatabaseFormState, 'OPEN' | 'CLOSED'>
 }
 
 export interface UpdateFormSettingsRecord {
   formId: string
+  expectedState: DatabaseFormState
+  expectedUpdatedAt: Date
+  expectedLinkRevision: number
+  expectedDraftRevision: number
+  expectedPublishedVersionId: string | null
   state?: DatabaseFormState
   audience?: DatabaseFormAudience
   respondentAccess?: DatabaseFormRespondentAccess
@@ -372,13 +377,36 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     })
   }
 
-  updateSettings(input: UpdateFormSettingsRecord): Promise<ManagedFormRecord> {
-    const { formId, ...data } = input
-    return this.uow.client().databaseForm.update({
-      where: { id: formId },
+  async updateSettings(input: UpdateFormSettingsRecord): Promise<ManagedFormRecord> {
+    const client = this.uow.client()
+    const {
+      formId,
+      expectedState,
+      expectedUpdatedAt,
+      expectedLinkRevision,
+      expectedDraftRevision,
+      expectedPublishedVersionId,
+      ...data
+    } = input
+    const updated = await client.databaseForm.updateMany({
+      where: {
+        id: formId,
+        state: expectedState,
+        updatedAt: expectedUpdatedAt,
+        linkRevision: expectedLinkRevision,
+        draftRevision: expectedDraftRevision,
+        publishedVersionId: expectedPublishedVersionId,
+      },
       data,
+    })
+    if (updated.count !== 1) throw conflict('FORM_SETTINGS_CONFLICT')
+
+    const form = await client.databaseForm.findUnique({
+      where: { id: formId },
       select: managedFormSelect,
     })
+    if (form === null) throw conflict('FORM_SETTINGS_CONFLICT')
+    return form
   }
 
   async duplicateForm(input: DuplicateFormRecord): Promise<ManagedFormRecord> {

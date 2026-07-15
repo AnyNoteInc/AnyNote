@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { Container } from 'inversify'
 
 import {
@@ -413,22 +413,94 @@ describe('DatabaseFormRepository writes', () => {
 
     await repository.updateSettings({
       formId: 'form-1',
+      expectedState: 'DRAFT',
+      expectedUpdatedAt: now,
+      expectedLinkRevision: 1,
+      expectedDraftRevision: 1,
+      expectedPublishedVersionId: null,
       audience: 'SIGNED_IN_WITH_LINK',
       responseLimit: 25,
       notifyOwners: false,
     })
 
     expect(uow.client).toHaveBeenCalled()
-    expect(client.databaseForm.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'form-1' },
-        data: {
-          audience: 'SIGNED_IN_WITH_LINK',
-          responseLimit: 25,
-          notifyOwners: false,
-        },
-      }),
+    expect(client.databaseForm.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'form-1',
+        state: 'DRAFT',
+        updatedAt: now,
+        linkRevision: 1,
+        draftRevision: 1,
+        publishedVersionId: null,
+      },
+      data: {
+        audience: 'SIGNED_IN_WITH_LINK',
+        responseLimit: 25,
+        notifyOwners: false,
+      },
+    })
+    expect(client.databaseForm.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'form-1' } }),
     )
+    expect(client.databaseForm.update).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['reopen after archive', { state: 'ARCHIVED' }],
+    ['settings update', { updatedAt: new Date('2026-07-16T00:00:01.000Z') }],
+    ['link rotation', { linkRevision: 4 }],
+    ['draft save', { draftRevision: 5 }],
+    ['publication', { publishedVersionId: 'version-3' }],
+  ])('rejects a stale %s before overwriting concurrent state', async (_kind, mutation) => {
+    const storedSnapshot: Record<string, unknown> = {
+      id: 'form-1',
+      state: 'CLOSED',
+      updatedAt: now,
+      linkRevision: 3,
+      draftRevision: 4,
+      publishedVersionId: 'version-2',
+      ...mutation,
+    }
+    const updateMany = vi.fn(async ({ where }: { where: Record<string, unknown> }) => ({
+      count: Object.entries(storedSnapshot).every(([key, stored]) => {
+        const expected = where[key]
+        return stored instanceof Date && expected instanceof Date
+          ? stored.getTime() === expected.getTime()
+          : stored === expected
+      })
+        ? 1
+        : 0,
+    }))
+    const client = makeClient({
+      databaseForm: { ...makeClient().databaseForm, updateMany },
+    })
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.updateSettings({
+        formId: 'form-1',
+        expectedState: 'CLOSED',
+        expectedUpdatedAt: now,
+        expectedLinkRevision: 3,
+        expectedDraftRevision: 4,
+        expectedPublishedVersionId: 'version-2',
+        state: 'OPEN',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_SETTINGS_CONFLICT' })
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'form-1',
+        state: 'CLOSED',
+        updatedAt: now,
+        linkRevision: 3,
+        draftRevision: 4,
+        publishedVersionId: 'version-2',
+      },
+      data: { state: 'OPEN' },
+    })
+    expect(client.databaseForm.findUnique).not.toHaveBeenCalled()
+    expect(client.databaseForm.update).not.toHaveBeenCalled()
   })
 
   it('duplicates into a fresh DRAFT form without copying slug, versions or counters', async () => {
@@ -510,7 +582,15 @@ describe('DatabaseFormRepository writes', () => {
       expectedLinkRevision: 1,
       state: 'OPEN',
     })
-    await repository.updateSettings({ formId: 'form-1', notifyOwners: false })
+    await repository.updateSettings({
+      formId: 'form-1',
+      expectedState: 'DRAFT',
+      expectedUpdatedAt: now,
+      expectedLinkRevision: 1,
+      expectedDraftRevision: 1,
+      expectedPublishedVersionId: null,
+      notifyOwners: false,
+    })
     await repository.duplicateForm({
       sourceId: 'source-1',
       title: 'Copy',
@@ -534,11 +614,11 @@ describe('DatabaseFormRepository writes', () => {
     expect(transactionClient.databaseView.create).toHaveBeenCalledTimes(2)
     expect(transactionClient.databaseView.delete).toHaveBeenCalledTimes(1)
     expect(transactionClient.databaseForm.create).toHaveBeenCalledTimes(2)
-    expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(2)
-    expect(transactionClient.databaseForm.update).toHaveBeenCalledTimes(3)
+    expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(3)
+    expect(transactionClient.databaseForm.update).toHaveBeenCalledTimes(2)
     expect(transactionClient.databaseFormVersion.update).toHaveBeenCalledTimes(1)
     expect(transactionClient.databaseFormVersion.create).toHaveBeenCalledTimes(1)
-    expect(transactionClient.databaseForm.findUnique).toHaveBeenCalledTimes(2)
+    expect(transactionClient.databaseForm.findUnique).toHaveBeenCalledTimes(3)
     expect(transactionClient.databaseForm.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { source: { pageId: 'page-1' } },
@@ -558,6 +638,15 @@ describe('database forms dependency injection', () => {
     await container.load(databaseFormsModule)
 
     expect(container.get(DATABASE_FORMS.Repository)).toBeInstanceOf(DatabaseFormRepository)
+  })
+})
+
+describe('database form repository input types', () => {
+  it('excludes archived publication snapshots and non-public target states', () => {
+    expectTypeOf<PublishFormVersionRecord['expectedState']>().toEqualTypeOf<
+      'DRAFT' | 'OPEN' | 'CLOSED'
+    >()
+    expectTypeOf<PublishFormVersionRecord['state']>().toEqualTypeOf<'OPEN' | 'CLOSED'>()
   })
 })
 
