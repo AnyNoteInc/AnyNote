@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
 import {
   FORM_SCHEMA_VERSION,
+  MAX_FORM_DOCUMENT_BYTES,
   buildFormAnswerSchema,
   buildQuestionValueSchema,
   evaluateFormPath,
+  formVersionDocumentSchema,
+  parseFormVersionDocument,
   projectReachableAnswers,
   toPublicFormVersion,
   type FormInputConfig,
@@ -755,5 +759,43 @@ describe('toPublicFormVersion', () => {
     expect(stored.sections[0]!.title).toBe('Questions')
     expect(stored.sections[0]!.questionIds).not.toContain('mutated-question')
     expect(stored.questions[0]!.input).toMatchObject({ maxLength: 100 })
+  })
+
+  it('enforces the canonical document byte limit before sanitizing', () => {
+    const secretMarker = 'SANITIZER_OVERSIZE_SECRET_4e28a7'
+    const stored = makeStoredVersion()
+    stored.transitions[0]!.target = { kind: 'ENDING', endingId: 'ending-0' }
+    stored.endings = Array.from({ length: 60 }, (_, index) => ({
+      id: `ending-${index}`,
+      title: 'Complete',
+      body: `${index === 0 ? secretMarker : ''}${'x'.repeat(9_950)}`,
+    }))
+
+    expect(formVersionDocumentSchema.safeParse(stored).success).toBe(true)
+    expect(new TextEncoder().encode(JSON.stringify(stored)).byteLength).toBeGreaterThan(
+      MAX_FORM_DOCUMENT_BYTES,
+    )
+
+    for (const parse of [parseFormVersionDocument, toPublicFormVersion]) {
+      let error: unknown
+      try {
+        parse(stored)
+      } catch (caught) {
+        error = caught
+      }
+
+      expect(error).toBeInstanceOf(z.ZodError)
+      if (!(error instanceof z.ZodError)) throw new Error('expected ZodError')
+      expect(error.issues).toEqual([
+        expect.objectContaining({
+          code: 'custom',
+          message: 'FORM_DOCUMENT_TOO_LARGE',
+          path: [],
+          input: undefined,
+        }),
+      ])
+      expect(String(error).length).toBeLessThan(2_048)
+      expect(String(error)).not.toContain(secretMarker)
+    }
   })
 })

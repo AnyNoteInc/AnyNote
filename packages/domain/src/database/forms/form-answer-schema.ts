@@ -12,6 +12,7 @@ import {
   formPropertyTypeSchema,
   formQuestionSchema,
   formVersionDocumentSchema,
+  parseFormVersionDocument,
   type FormVersionDocument,
 } from './form-document.ts'
 
@@ -36,7 +37,7 @@ export const publicFormVersionSchema: z.ZodType<PublicFormVersion> = formVersion
   .strict()
 
 export const toPublicFormVersion = (stored: FormVersionDocument): PublicFormVersion => {
-  const parsed = formVersionDocumentSchema.parse(stored)
+  const parsed = parseFormVersionDocument(stored)
   const { schemaVersion, firstSectionId, presentation, sections, questions, transitions, endings } =
     parsed
 
