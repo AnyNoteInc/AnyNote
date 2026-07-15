@@ -16,10 +16,12 @@ const mocks = vi.hoisted(() => ({
             mimeType: 'application/pdf',
           })),
   })),
+  useQueries: vi.fn(),
 }))
 
 vi.mock('@/trpc/client', () => ({
   trpc: {
+    useQueries: (queries: (proxy: unknown) => unknown[]) => mocks.useQueries(queries),
     file: {
       getWorkspaceMetadata: {
         useQuery: mocks.getWorkspaceMetadata,
@@ -71,6 +73,9 @@ describe('FileCell', () => {
   beforeEach(() => {
     mocks.commit.mockReset()
     mocks.getWorkspaceMetadata.mockClear()
+    mocks.useQueries.mockImplementation((queries: (proxy: unknown) => unknown[]) =>
+      queries({ file: { getWorkspaceMetadata: mocks.getWorkspaceMetadata } }),
+    )
     mocks.cellState.isPending = false
     mocks.cellState.error = null
   })
@@ -90,6 +95,53 @@ describe('FileCell', () => {
       { workspaceId: WORKSPACE_ID, ids: [FILE_A, FILE_B] },
       expect.objectContaining({ enabled: true }),
     )
+  })
+
+  it('does not issue a metadata query for an empty canonical value', () => {
+    renderCell([])
+
+    expect(mocks.getWorkspaceMetadata).not.toHaveBeenCalled()
+  })
+
+  it('loads exactly one metadata batch for 100 file ids', () => {
+    const fileIds = Array.from(
+      { length: 100 },
+      (_, index) => `aaaaaaaa-aaaa-4aaa-8aaa-${index.toString().padStart(12, '0')}`,
+    )
+
+    renderCell(fileIds)
+
+    expect(mocks.getWorkspaceMetadata).toHaveBeenCalledOnce()
+    expect(mocks.getWorkspaceMetadata).toHaveBeenCalledWith(
+      { workspaceId: WORKSPACE_ID, ids: fileIds },
+      expect.objectContaining({ enabled: true }),
+    )
+    expect(screen.getByText(fileName(fileIds[0]!))).toBeInTheDocument()
+    expect(screen.getByText(fileName(fileIds[99]!))).toBeInTheDocument()
+  })
+
+  it('chunks 101 file ids into two bounded metadata queries and renders every item', () => {
+    const fileIds = Array.from(
+      { length: 101 },
+      (_, index) => `aaaaaaaa-aaaa-4aaa-8aaa-${index.toString().padStart(12, '0')}`,
+    )
+
+    renderCell(fileIds)
+
+    expect(mocks.getWorkspaceMetadata).toHaveBeenCalledTimes(2)
+    expect(mocks.getWorkspaceMetadata).toHaveBeenNthCalledWith(
+      1,
+      { workspaceId: WORKSPACE_ID, ids: fileIds.slice(0, 100) },
+      expect.objectContaining({ enabled: true }),
+    )
+    expect(mocks.getWorkspaceMetadata).toHaveBeenNthCalledWith(
+      2,
+      { workspaceId: WORKSPACE_ID, ids: fileIds.slice(100) },
+      expect.objectContaining({ enabled: true }),
+    )
+    expect(screen.getAllByRole('link')).toHaveLength(101)
+    expect(screen.getByText(fileName(fileIds[0]!))).toBeInTheDocument()
+    expect(screen.getByText(fileName(fileIds[100]!))).toBeInTheDocument()
   })
 
   it('removes only the selected file in stable order and writes [] for the last removal', async () => {

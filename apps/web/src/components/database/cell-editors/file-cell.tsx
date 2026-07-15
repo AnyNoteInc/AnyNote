@@ -24,6 +24,8 @@ interface FileCellProps {
   readonly editable?: boolean
 }
 
+const METADATA_BATCH_SIZE = 100
+
 function normalizeFileIds(value: unknown): string[] {
   const raw =
     typeof value === 'string'
@@ -32,6 +34,14 @@ function normalizeFileIds(value: unknown): string[] {
         ? value.filter((item): item is string => typeof item === 'string')
         : []
   return [...new Set(raw.filter((fileId) => fileId.trim() !== ''))]
+}
+
+function chunkFileIds(fileIds: string[]): string[][] {
+  const chunks: string[][] = []
+  for (let start = 0; start < fileIds.length; start += METADATA_BATCH_SIZE) {
+    chunks.push(fileIds.slice(start, start + METADATA_BATCH_SIZE))
+  }
+  return chunks
 }
 
 function FileItem({
@@ -115,11 +125,16 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileIds = normalizeFileIds(value)
-  const metadataQuery = trpc.file.getWorkspaceMetadata.useQuery(
-    { workspaceId, ids: fileIds },
-    { enabled: workspaceId !== '' && fileIds.length > 0 },
+  const metadataQueries = trpc.useQueries((query) =>
+    chunkFileIds(fileIds).map((ids) =>
+      query.file.getWorkspaceMetadata({ workspaceId, ids }, { enabled: workspaceId !== '' }),
+    ),
   )
-  const metadataById = new Map((metadataQuery.data ?? []).map((file) => [file.id, file]))
+  const metadataById = new Map(
+    metadataQueries
+      .flatMap((metadataQuery) => metadataQuery.data ?? [])
+      .map((file) => [file.id, file]),
+  )
   const locked = workspaceId === '' || busy || isPending
 
   async function upload(picked: File) {

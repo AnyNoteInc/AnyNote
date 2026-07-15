@@ -121,7 +121,7 @@ export function useOptimisticRows(pageId: string, viewId: string | undefined) {
 
   /** Roll back to server truth for THIS view (used on a mutation error). */
   function invalidateActive() {
-    utils.database.listRows.invalidate({ pageId, viewId })
+    return utils.database.listRows.invalidate({ pageId, viewId })
   }
 
   return { patchCell, patchTitle, invalidateActive }

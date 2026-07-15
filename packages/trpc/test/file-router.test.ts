@@ -41,6 +41,43 @@ function memberOk() {
 }
 
 describe('fileRouter.getWorkspaceMetadata', () => {
+  it('accepts an empty metadata batch without widening the request bound', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(
+      caller.getWorkspaceMetadata({ workspaceId: WORKSPACE_ID, ids: [] }),
+    ).resolves.toEqual([])
+    expect(findMany).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE', id: { in: [] } },
+      select: { id: true, name: true, mimeType: true },
+    })
+  })
+
+  it('accepts exactly 100 metadata ids', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+      file: { findMany },
+    } as unknown as PrismaClient
+    const ids = Array.from(
+      { length: 100 },
+      (_, index) => `aaaaaaaa-aaaa-4aaa-8aaa-${index.toString().padStart(12, '0')}`,
+    )
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(caller.getWorkspaceMetadata({ workspaceId: WORKSPACE_ID, ids })).resolves.toEqual(
+      [],
+    )
+    expect(findMany).toHaveBeenCalledOnce()
+  })
+
   it('returns safe ACTIVE metadata for coworker files with one workspace-scoped query', async () => {
     const findMany = vi.fn(async () => [
       { id: FILE_ID, name: 'owner.pdf', mimeType: 'application/pdf' },
