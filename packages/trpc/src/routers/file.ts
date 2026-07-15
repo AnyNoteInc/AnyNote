@@ -8,6 +8,7 @@ import { protectedProcedure, router } from '../trpc'
 import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 const uuid = z.string().uuid()
+const MAX_WORKSPACE_METADATA_IDS = 100
 
 const FileStatusSchema = z.nativeEnum(FileStatus)
 
@@ -21,6 +22,26 @@ const serializeFile = (file: File): FileDTO => ({
 })
 
 export const fileRouter = router({
+  getWorkspaceMetadata: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: uuid,
+        ids: z.array(uuid).max(MAX_WORKSPACE_METADATA_IDS),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
+
+      return ctx.prisma.file.findMany({
+        where: {
+          workspaceId: input.workspaceId,
+          status: FileStatus.ACTIVE,
+          id: { in: input.ids },
+        },
+        select: { id: true, name: true, mimeType: true },
+      })
+    }),
+
   list: protectedProcedure
     .input(
       z.object({

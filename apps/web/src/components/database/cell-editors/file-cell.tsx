@@ -14,7 +14,7 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-import { useCellUpdate } from './use-optimistic-cell'
+import { useCellUpdate, useDatabaseWorkspaceId } from './use-optimistic-cell'
 
 interface FileCellProps {
   readonly pageId: string
@@ -36,14 +36,17 @@ function normalizeFileIds(value: unknown): string[] {
 
 function FileItem({
   fileId,
+  file,
   editable,
+  locked,
   onRemove,
 }: {
   fileId: string
+  file: { id: string; name: string; mimeType: string } | undefined
   editable: boolean
+  locked: boolean
   onRemove: () => void
 }) {
-  const { data: file } = trpc.file.getById.useQuery({ id: fileId }, { enabled: true, retry: false })
   const isImage = file?.mimeType?.startsWith('image/') ?? false
   const displayName = file?.name ?? 'Файл'
 
@@ -91,7 +94,10 @@ function FileItem({
         <IconButton
           size="small"
           aria-label={`Удалить файл ${file?.name ?? fileId}`}
-          onClick={onRemove}
+          disabled={locked}
+          onClick={() => {
+            if (!locked) onRemove()
+          }}
           sx={{ flex: '0 0 auto' }}
         >
           <CloseIcon fontSize="small" />
@@ -103,23 +109,34 @@ function FileItem({
 
 /** Multi-file cell with legacy scalar compatibility at the render boundary. */
 export function FileCell({ pageId, rowId, propertyId, value, editable = true }: FileCellProps) {
-  const { commit } = useCellUpdate(pageId)
+  const workspaceId = useDatabaseWorkspaceId()
+  const { commit, isPending, error: commitError } = useCellUpdate(pageId)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileIds = normalizeFileIds(value)
+  const metadataQuery = trpc.file.getWorkspaceMetadata.useQuery(
+    { workspaceId, ids: fileIds },
+    { enabled: workspaceId !== '' && fileIds.length > 0 },
+  )
+  const metadataById = new Map((metadataQuery.data ?? []).map((file) => [file.id, file]))
+  const locked = workspaceId === '' || busy || isPending
 
   async function upload(picked: File) {
+    if (locked) return
     setBusy(true)
     setError(null)
     try {
       const fd = new FormData()
       fd.append('file', picked)
-      const res = await fetch('/api/files/upload?kind=attachment', {
-        method: 'POST',
-        body: fd,
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `/api/files/upload?kind=attachment&workspaceId=${encodeURIComponent(workspaceId)}`,
+        {
+          method: 'POST',
+          body: fd,
+          credentials: 'include',
+        },
+      )
       if (!res.ok) {
         setError(`Не удалось загрузить файл (${res.status})`)
         return
@@ -150,8 +167,11 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
         <FileItem
           key={fileId}
           fileId={fileId}
+          file={metadataById.get(fileId)}
           editable={editable}
+          locked={locked}
           onRemove={() =>
+            !locked &&
             commit(
               rowId,
               propertyId,
@@ -163,19 +183,26 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
       {editable ? (
         <>
           <Chip
+            component="button"
             size="small"
             variant="outlined"
             icon={busy ? <CircularProgress size={12} /> : <AttachFileIcon />}
             label={busy ? 'Загрузка…' : fileIds.length > 0 ? 'Добавить' : 'Загрузить'}
-            onClick={() => !busy && inputRef.current?.click()}
-            sx={{ cursor: busy ? 'wait' : 'pointer' }}
+            disabled={locked}
+            onClick={() => !locked && inputRef.current?.click()}
+            sx={{ cursor: locked ? 'not-allowed' : 'pointer' }}
           />
           <input
             ref={inputRef}
             type="file"
             hidden
+            disabled={locked}
             aria-label="Добавить файл"
             onChange={(event) => {
+              if (locked) {
+                event.target.value = ''
+                return
+              }
               const picked = event.target.files?.[0]
               if (picked) void upload(picked)
               event.target.value = ''
@@ -186,6 +213,11 @@ export function FileCell({ pageId, rowId, propertyId, value, editable = true }: 
       {error ? (
         <Typography variant="caption" color="error">
           {error}
+        </Typography>
+      ) : null}
+      {commitError ? (
+        <Typography variant="caption" color="error">
+          {commitError.message}
         </Typography>
       ) : null}
     </Stack>

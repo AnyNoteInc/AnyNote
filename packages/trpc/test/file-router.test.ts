@@ -23,6 +23,9 @@ const WORKSPACE_ID = '11111111-1111-4111-9111-111111111111'
 const USER_ID = '22222222-2222-4222-9222-222222222222'
 const OTHER_USER_ID = '33333333-3333-4333-9333-333333333333'
 const FILE_ID = '44444444-4444-4444-9444-444444444444'
+const OTHER_FILE_ID = '55555555-5555-4555-9555-555555555555'
+const FOREIGN_FILE_ID = '66666666-6666-4666-9666-666666666666'
+const DELETED_FILE_ID = '77777777-7777-4777-9777-777777777777'
 
 function baseContext(prisma: PrismaClient) {
   return {
@@ -36,6 +39,70 @@ function baseContext(prisma: PrismaClient) {
 function memberOk() {
   return { workspaceId: WORKSPACE_ID, userId: USER_ID, role: 'EDITOR' }
 }
+
+describe('fileRouter.getWorkspaceMetadata', () => {
+  it('returns safe ACTIVE metadata for coworker files with one workspace-scoped query', async () => {
+    const findMany = vi.fn(async () => [
+      { id: FILE_ID, name: 'owner.pdf', mimeType: 'application/pdf' },
+      { id: OTHER_FILE_ID, name: 'coworker.png', mimeType: 'image/png' },
+    ])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    const result = await caller.getWorkspaceMetadata({
+      workspaceId: WORKSPACE_ID,
+      ids: [FILE_ID, OTHER_FILE_ID, FOREIGN_FILE_ID, DELETED_FILE_ID],
+    })
+
+    expect(result).toEqual([
+      { id: FILE_ID, name: 'owner.pdf', mimeType: 'application/pdf' },
+      { id: OTHER_FILE_ID, name: 'coworker.png', mimeType: 'image/png' },
+    ])
+    expect(findMany).toHaveBeenCalledOnce()
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        workspaceId: WORKSPACE_ID,
+        status: 'ACTIVE',
+        id: { in: [FILE_ID, OTHER_FILE_ID, FOREIGN_FILE_ID, DELETED_FILE_ID] },
+      },
+      select: { id: true, name: true, mimeType: true },
+    })
+  })
+
+  it('rejects non-members without querying file metadata', async () => {
+    const findMany = vi.fn()
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(
+      caller.getWorkspaceMetadata({ workspaceId: WORKSPACE_ID, ids: [FILE_ID] }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(findMany).not.toHaveBeenCalled()
+  })
+
+  it('bounds the batch size', async () => {
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+      file: { findMany: vi.fn() },
+    } as unknown as PrismaClient
+    const ids = Array.from(
+      { length: 101 },
+      (_, index) => `aaaaaaaa-aaaa-4aaa-8aaa-${index.toString().padStart(12, '0')}`,
+    )
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(caller.getWorkspaceMetadata({ workspaceId: WORKSPACE_ID, ids })).rejects.toThrow()
+  })
+})
 
 describe('fileRouter.listWorkspace', () => {
   it('returns paginated items with total and user relation', async () => {

@@ -64,5 +64,5 @@ export function useCellUpdate(pageId: string) {
     mutation.mutate({ pageId, rowId, propertyId, value })
   }
 
-  return { commit, isPending: mutation.isPending }
+  return { commit, isPending: mutation.isPending, error: mutation.error }
 }

@@ -787,13 +787,31 @@ export class DatabaseService {
       if (!ok) throw badRequest('Пользователь не является участником рабочего пространства')
     }
 
-    const value = this.validateCellValue(prop.type, asSettings(prop.settings), rawValue)
     if (prop.type === DatabasePropertyType.FILE) {
-      await this.repo.upsertFileCellValue(input.rowId, input.propertyId, value as string[])
-    } else {
-      await this.repo.upsertCellValue(input.rowId, input.propertyId, value)
+      const fileIds = this.validateFileCellValue(rawValue)
+      await this.repo.upsertFileCellValue(input.rowId, input.propertyId, fileIds)
+      return { ok: true as const }
     }
+
+    const value = this.validateCellValue(prop.type, asSettings(prop.settings), rawValue)
+    await this.repo.upsertCellValue(input.rowId, input.propertyId, value)
     return { ok: true as const }
+  }
+
+  private validateFileCellValue(raw: unknown): string[] {
+    if (
+      !Array.isArray(raw) ||
+      !raw.every(
+        (fileId): fileId is string => typeof fileId === 'string' && fileId.trim() !== '',
+      )
+    ) {
+      throw badRequest('Ожидался список файлов')
+    }
+    const fileIds = raw
+    if (new Set(fileIds).size !== fileIds.length) {
+      throw badRequest('Файлы не должны повторяться')
+    }
+    return fileIds
   }
 
   /**
@@ -806,20 +824,6 @@ export class DatabaseService {
     settings: PropertySettings | null,
     raw: unknown,
   ): null | string | number | boolean | string[] {
-    if (type === DatabasePropertyType.FILE) {
-      if (
-        !Array.isArray(raw) ||
-        raw.some((fileId) => typeof fileId !== 'string' || fileId.trim() === '')
-      ) {
-        throw badRequest('Ожидался список файлов')
-      }
-      const fileIds = raw as string[]
-      if (new Set(fileIds).size !== fileIds.length) {
-        throw badRequest('Файлы не должны повторяться')
-      }
-      return fileIds
-    }
-
     if (raw === null || raw === undefined || raw === '') return null
 
     switch (type) {
