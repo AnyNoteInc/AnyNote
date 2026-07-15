@@ -5,6 +5,7 @@ import type {
   Prisma,
 } from '@repo/db'
 
+import { conflict } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import { parseFormVersionDocument } from './form-document.ts'
 
@@ -166,7 +167,6 @@ export interface PublicFormRecord {
     }
   }
   publishedVersion: FormVersionRecord | null
-  versions: FormVersionRecord[]
 }
 
 export interface CreateFormRecord {
@@ -195,6 +195,10 @@ export interface PublishFormVersionRecord {
   schemaHash: string
   publishedById: string
   publishedAt: Date
+  expectedState: DatabaseFormState
+  expectedDraftRevision: number
+  expectedUpdatedAt: Date
+  expectedLinkRevision: number
   state: DatabaseFormState
 }
 
@@ -327,6 +331,21 @@ export class DatabaseFormRepository implements FormRepositoryContract {
 
   async publishVersion(input: PublishFormVersionRecord): Promise<ManagedFormRecord> {
     const client = this.uow.client()
+    // Task 6 must call this method inside UnitOfWork.transaction(). This
+    // same-timestamp CAS acquires the form row lock for the remainder of that tx.
+    const reserved = await client.databaseForm.updateMany({
+      where: {
+        id: input.formId,
+        state: input.expectedState,
+        draftRevision: input.expectedDraftRevision,
+        updatedAt: input.expectedUpdatedAt,
+        linkRevision: input.expectedLinkRevision,
+        publishedVersionId: input.previousPublishedVersionId,
+      },
+      data: { updatedAt: input.expectedUpdatedAt },
+    })
+    if (reserved.count !== 1) throw conflict('FORM_PUBLISH_CONFLICT')
+
     if (input.previousPublishedVersionId !== null) {
       await client.databaseFormVersion.update({
         where: { id: input.previousPublishedVersionId, formId: input.formId },
@@ -444,7 +463,6 @@ export class DatabaseFormRepository implements FormRepositoryContract {
   }
 
   async findByLocator(locator: string): Promise<PublicFormRecord | null> {
-    const now = new Date()
     return this.uow.client().databaseForm.findFirst({
       where: { OR: [{ routeKey: locator }, { customSlug: locator.toLowerCase() }] },
       select: {
@@ -463,11 +481,6 @@ export class DatabaseFormRepository implements FormRepositoryContract {
           },
         },
         publishedVersion: { select: versionSelect },
-        versions: {
-          where: { acceptUntil: { gt: now } },
-          orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
-          select: versionSelect,
-        },
       },
     })
   }
@@ -496,7 +509,10 @@ export class DatabaseFormRepository implements FormRepositoryContract {
   async hasProtectedPropertyDependency(propertyId: string, now: Date): Promise<boolean> {
     const versions = await this.uow.client().databaseFormVersion.findMany({
       where: {
-        form: { source: { properties: { some: { id: propertyId } } } },
+        form: {
+          state: { not: 'ARCHIVED' },
+          source: { properties: { some: { id: propertyId } } },
+        },
         OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
       },
       select: { schema: true },

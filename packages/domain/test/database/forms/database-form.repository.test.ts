@@ -165,6 +165,7 @@ interface StoredVersionFixture {
   sourceId: string
   current: boolean
   acceptUntil: Date | null
+  archived?: boolean
   schema: unknown
 }
 
@@ -180,10 +181,12 @@ function mockActiveVersionQuery(
     )
     const graceAfter = graceClause?.acceptUntil?.gt
     if (sourceId === null || graceAfter === undefined) return []
+    const excludesArchived = args.where?.form?.state?.not === 'ARCHIVED'
     return fixtures
       .filter(
         (fixture) =>
           fixture.sourceId === sourceId &&
+          (!excludesArchived || fixture.archived !== true) &&
           (fixture.current ||
             (fixture.acceptUntil !== null && fixture.acceptUntil.getTime() > graceAfter.getTime())),
       )
@@ -276,11 +279,26 @@ describe('DatabaseFormRepository writes', () => {
       schemaHash: 'a'.repeat(64),
       publishedById: 'user-1',
       publishedAt: now,
+      expectedState: 'DRAFT',
+      expectedDraftRevision: 3,
+      expectedUpdatedAt: now,
+      expectedLinkRevision: 1,
       state: 'OPEN',
     }
 
     await expect(repository.publishVersion(input)).resolves.toBe(managed)
 
+    expect(client.databaseForm.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'form-1',
+        state: 'DRAFT',
+        draftRevision: 3,
+        updatedAt: now,
+        linkRevision: 1,
+        publishedVersionId: 'version-1',
+      },
+      data: { updatedAt: now },
+    })
     expect(client.databaseFormVersion.update).toHaveBeenCalledWith({
       where: { id: 'version-1', formId: 'form-1' },
       data: { acceptUntil: input.previousAcceptUntil },
@@ -305,6 +323,72 @@ describe('DatabaseFormRepository writes', () => {
       }),
     )
     expect(client.databaseFormVersion.update.mock.calls[0]?.[0]).not.toHaveProperty('data.schema')
+  })
+
+  it.each([
+    ['lifecycle', { state: 'ARCHIVED' }],
+    ['draft', { draftRevision: 2 }],
+    ['settings timestamp', { updatedAt: new Date('2026-07-16T00:00:01.000Z') }],
+    ['link revision', { linkRevision: 2 }],
+    ['published version', { publishedVersionId: 'version-newer' }],
+  ])('rejects a concurrent %s mutation before writing any version', async (_kind, mutation) => {
+    const storedSnapshot: Record<string, unknown> = {
+      id: 'form-1',
+      state: 'DRAFT',
+      draftRevision: 1,
+      updatedAt: now,
+      linkRevision: 1,
+      publishedVersionId: null,
+      ...mutation,
+    }
+    const updateMany = vi.fn(async ({ where }: { where: Record<string, unknown> }) => ({
+      count: Object.entries(storedSnapshot).every(([key, stored]) => {
+        const expected = where[key]
+        return stored instanceof Date && expected instanceof Date
+          ? stored.getTime() === expected.getTime()
+          : stored === expected
+      })
+        ? 1
+        : 0,
+    }))
+    const client = makeClient({
+      databaseForm: { ...makeClient().databaseForm, updateMany },
+    })
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.publishVersion({
+        formId: 'form-1',
+        previousPublishedVersionId: null,
+        previousAcceptUntil: null,
+        versionNumber: 1,
+        schemaVersion: 1,
+        schema: documentFor('property-1'),
+        schemaHash: 'c'.repeat(64),
+        publishedById: 'user-1',
+        publishedAt: now,
+        expectedState: 'DRAFT',
+        expectedDraftRevision: 1,
+        expectedUpdatedAt: now,
+        expectedLinkRevision: 1,
+        state: 'OPEN',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_PUBLISH_CONFLICT' })
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'form-1',
+        state: 'DRAFT',
+        draftRevision: 1,
+        updatedAt: now,
+        linkRevision: 1,
+        publishedVersionId: null,
+      },
+      data: { updatedAt: now },
+    })
+    expect(client.databaseFormVersion.update).not.toHaveBeenCalled()
+    expect(client.databaseFormVersion.create).not.toHaveBeenCalled()
+    expect(client.databaseForm.update).not.toHaveBeenCalled()
   })
 
   it('archives a form, clears its view link, then deletes the old view on the active client', async () => {
@@ -420,6 +504,10 @@ describe('DatabaseFormRepository writes', () => {
       schemaHash: 'b'.repeat(64),
       publishedById: 'user-1',
       publishedAt: now,
+      expectedState: 'DRAFT',
+      expectedDraftRevision: 1,
+      expectedUpdatedAt: now,
+      expectedLinkRevision: 1,
       state: 'OPEN',
     })
     await repository.updateSettings({ formId: 'form-1', notifyOwners: false })
@@ -446,7 +534,7 @@ describe('DatabaseFormRepository writes', () => {
     expect(transactionClient.databaseView.create).toHaveBeenCalledTimes(2)
     expect(transactionClient.databaseView.delete).toHaveBeenCalledTimes(1)
     expect(transactionClient.databaseForm.create).toHaveBeenCalledTimes(2)
-    expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(2)
     expect(transactionClient.databaseForm.update).toHaveBeenCalledTimes(3)
     expect(transactionClient.databaseFormVersion.update).toHaveBeenCalledTimes(1)
     expect(transactionClient.databaseFormVersion.create).toHaveBeenCalledTimes(1)
@@ -511,7 +599,6 @@ describe('DatabaseFormRepository focused reads', () => {
       expect.objectContaining({
         select: expect.objectContaining({
           publishedVersion: expect.any(Object),
-          versions: expect.objectContaining({ where: { acceptUntil: { gt: now } } }),
           source: expect.objectContaining({
             select: expect.objectContaining({
               workspace: {
@@ -525,6 +612,7 @@ describe('DatabaseFormRepository focused reads', () => {
         }),
       }),
     )
+    expect(args?.select).not.toHaveProperty('versions')
   })
 
   it('paginates responses by submittedAt and id without selecting page bodies', async () => {
@@ -596,6 +684,7 @@ describe('DatabaseFormRepository focused reads', () => {
     expect(client.databaseFormVersion.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { formId_versionNumber: { formId: 'form-1', versionNumber: 3 } },
+        select: expect.objectContaining({ schema: true, acceptUntil: true }),
       }),
     )
     expect(client.databaseFormSubmission.findUnique).toHaveBeenNthCalledWith(
@@ -637,7 +726,10 @@ describe('DatabaseFormRepository protected property dependencies', () => {
     ).resolves.toBe(true)
     expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith({
       where: {
-        form: { source: { properties: { some: { id: 'property-protected' } } } },
+        form: {
+          state: { not: 'ARCHIVED' },
+          source: { properties: { some: { id: 'property-protected' } } },
+        },
         OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
       },
       select: { schema: true },
@@ -733,9 +825,36 @@ describe('DatabaseFormRepository protected property dependencies', () => {
     expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          form: { source: { properties: { some: { id: 'property-protected' } } } },
+          form: {
+            state: { not: 'ARCHIVED' },
+            source: { properties: { some: { id: 'property-protected' } } },
+          },
         }),
       }),
     )
   })
+
+  it.each([
+    ['current', true, null],
+    ['grace', false, new Date('2026-07-16T00:00:01.000Z')],
+  ] as const)(
+    'ignores %s dependencies after the form is archived',
+    async (_kind, current, acceptUntil) => {
+      const client = makeClient()
+      mockActiveVersionQuery(client, [
+        {
+          sourceId: 'source-protected',
+          current,
+          acceptUntil,
+          archived: true,
+          schema: documentFor('property-protected'),
+        },
+      ])
+      const { repository } = makeRepository(client)
+
+      await expect(
+        repository.hasProtectedPropertyDependency('property-protected', now),
+      ).resolves.toBe(false)
+    },
+  )
 })

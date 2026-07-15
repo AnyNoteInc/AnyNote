@@ -19,6 +19,13 @@ import type {
 const migrationPath = fileURLToPath(
   new URL('../prisma/migrations/20260715170000_database_forms/migration.sql', import.meta.url),
 )
+const cursorMigrationPath = fileURLToPath(
+  new URL(
+    '../prisma/migrations/20260716020000_database_form_submission_cursor_index/migration.sql',
+    import.meta.url,
+  ),
+)
+const schemaPath = fileURLToPath(new URL('../prisma/schema.prisma', import.meta.url))
 
 const migrationSql = readFileSync(migrationPath, 'utf8')
 const normalizedMigrationSql = migrationSql.replace(/\s+/g, ' ').trim()
@@ -41,6 +48,25 @@ describe('database forms generated contract', () => {
 })
 
 describe('database forms migration contract', () => {
+  it('adds a forward-only composite index aligned to response keyset pagination', () => {
+    expect(existsSync(cursorMigrationPath)).toBe(true)
+    if (!existsSync(cursorMigrationPath)) return
+
+    const cursorMigrationSql = readFileSync(cursorMigrationPath, 'utf8').replace(/\s+/g, ' ').trim()
+    expect(cursorMigrationSql).toContain(
+      'CREATE INDEX "database_form_submissions_form_id_submitted_at_id_idx" ON "database_form_submissions"("form_id", "submitted_at" DESC, "id" DESC);',
+    )
+
+    const schema = readFileSync(schemaPath, 'utf8').replace(/\s+/g, ' ').trim()
+    expect(schema).toContain(
+      '@@index([formId, submittedAt(sort: Desc), id(sort: Desc)], map: "database_form_submissions_form_id_submitted_at_id_idx")',
+    )
+    expect(schema).toContain('@@index([formId, submittedAt(sort: Desc)])')
+    expect(normalizedMigrationSql).toContain(
+      'CREATE INDEX "database_form_submissions_form_id_submitted_at_idx" ON "database_form_submissions"("form_id", "submitted_at" DESC);',
+    )
+  })
+
   it('creates the complete forms graph with its required indexes and foreign keys', () => {
     expect(existsSync(migrationPath)).toBe(true)
     if (!existsSync(migrationPath)) return
