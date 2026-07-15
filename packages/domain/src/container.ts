@@ -24,6 +24,8 @@ import type { KanbanService } from './kanban/services/kanban.service.ts'
 import { DATABASE } from './database/database.tokens.ts'
 import { databaseFormsModule, databaseModule } from './database/database.module.ts'
 import type { DatabaseService } from './database/services/database.service.ts'
+import { DATABASE_FORMS } from './database/forms/database-forms.tokens.ts'
+import type { DatabaseFormService } from './database/forms/database-form.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
@@ -70,6 +72,7 @@ export interface Domain {
   reminders: ReminderService
   kanban: KanbanService
   database: DatabaseService
+  databaseForms: DatabaseFormService
   pages: PageService
   people: PeopleService
   identity: IdentityService
@@ -126,6 +129,7 @@ export function createDomain(deps: DomainDeps): Domain {
     reminders: c.get<ReminderService>(REMINDERS.Service),
     kanban: c.get<KanbanService>(KANBAN.Service),
     database: c.get<DatabaseService>(DATABASE.Service),
+    databaseForms: c.get<DatabaseFormService>(DATABASE_FORMS.Service),
     pages: c.get<PageService>(PAGES.Service),
     people: c.get<PeopleService>(PEOPLE.Service),
     identity: c.get<IdentityService>(IDENTITY.Service),

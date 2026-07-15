@@ -1,4 +1,4 @@
-import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
+import { badRequest, conflict, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
 // Enum values are re-exported through the dto barrel so the service never
@@ -75,6 +75,8 @@ import type {
 import { buildRowQuery } from './query-planner.ts'
 import type { MultiSelectPostFilter, PropertyMeta, RelationPostFilter } from './query-planner.ts'
 import { assertCanEditDatabaseStructure } from './database-structure-access.ts'
+import type { FormRepositoryContract } from '../forms/database-form.repository.ts'
+import type { DatabaseFormService } from '../forms/database-form.service.ts'
 
 // Position gap used for end-insertion / reorder spacing (matches kanban's 1024).
 const POSITION_GAP = 1024
@@ -127,10 +129,20 @@ export class DatabaseService {
   private readonly repo: DatabaseRepository
   private readonly pageRepo: ItemPageCreator
   private readonly uow: UnitOfWork
-  constructor(repo: DatabaseRepository, pageRepo: ItemPageCreator, uow: UnitOfWork) {
+  private readonly formRepo: FormRepositoryContract
+  private readonly formService: DatabaseFormService
+  constructor(
+    repo: DatabaseRepository,
+    pageRepo: ItemPageCreator,
+    uow: UnitOfWork,
+    formRepo: FormRepositoryContract,
+    formService: DatabaseFormService,
+  ) {
     this.repo = repo
     this.pageRepo = pageRepo
     this.uow = uow
+    this.formRepo = formRepo
+    this.formService = formService
   }
 
   // ── Access helpers (mirror KanbanService) ────────────────────────────────────
@@ -503,6 +515,7 @@ export class DatabaseService {
     await this.assertCanEdit(actorUserId, input.pageId)
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const type = input.type ?? DatabaseViewType.TABLE
+    if (type === DatabaseViewType.FORM) throw badRequest('FORM_REQUIRES_CREATE_FORM')
     const [existing, properties] = await Promise.all([
       this.repo.listViews(source.id),
       this.repo.listProperties(source.id),
@@ -559,6 +572,10 @@ export class DatabaseService {
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const view = await this.repo.findViewById(input.id)
     if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
+    if (view.type === DatabaseViewType.FORM) {
+      if (view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
+      return this.formService.archive(actorUserId, { pageId: input.pageId, formId: view.formId })
+    }
     const all = await this.repo.listViews(source.id)
     if (all.length <= 1) throw badRequest('Нельзя удалить единственное представление')
     await this.repo.deleteView(input.id)
@@ -572,6 +589,9 @@ export class DatabaseService {
     const views = await this.repo.listViews(source.id)
     const view = views.find((v) => v.id === input.viewId)
     if (!view) throw notFound('Представление не найдено')
+    if (view.type === DatabaseViewType.FORM) {
+      return this.formService.duplicateByView(actorUserId, input)
+    }
     const position = (views.at(-1)?.position ?? 0) + POSITION_GAP
     return this.repo.createView({
       sourceId: source.id,
@@ -611,22 +631,66 @@ export class DatabaseService {
   async updateProperty(actorUserId: string, input: UpdatePropertyInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
-    const prop = await this.repo.findPropertyById(input.id)
-    if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
-    if (input.settings !== undefined) {
-      const effectiveType = input.type ?? prop.type
-      await this.validatePropertySettings(
-        source.id,
-        source.workspaceId,
-        effectiveType,
-        input.settings,
-      )
+    const initialProperty = await this.repo.findPropertyById(input.id)
+    if (!initialProperty || initialProperty.sourceId !== source.id) {
+      throw notFound('Свойство не найдено')
     }
-    return this.repo.updateProperty(input.id, {
-      name: input.name,
-      type: input.type,
-      ...(input.settings === undefined ? {} : { settings: input.settings as never }),
+    if (input.type === undefined && input.settings === undefined) {
+      return this.repo.updateProperty(input.id, { name: input.name })
+    }
+
+    return this.uow.transaction(async () => {
+      if (!(await this.repo.lockSourceForStructureMutation(source.id, new Date()))) {
+        throw conflict('FORM_SOURCE_CONFLICT')
+      }
+      const lockedSource = await this.requireStructureEdit(actorUserId, input.pageId)
+      const property = await this.repo.findPropertyById(input.id)
+      if (!property || property.sourceId !== lockedSource.id) throw notFound('Свойство не найдено')
+      if (input.settings !== undefined) {
+        await this.validatePropertySettings(
+          lockedSource.id,
+          lockedSource.workspaceId,
+          input.type ?? property.type,
+          input.settings,
+        )
+      }
+      if (
+        this.isDestructivePropertyUpdate(property, input) &&
+        (await this.formRepo.hasProtectedPropertyDependency(input.id, new Date()))
+      ) {
+        throw conflict('FORM_PROPERTY_IN_USE')
+      }
+      return this.repo.updateProperty(input.id, {
+        name: input.name,
+        type: input.type,
+        ...(input.settings === undefined ? {} : { settings: input.settings as never }),
+      })
     })
+  }
+
+  private isDestructivePropertyUpdate(
+    property: { type: DatabasePropertyType; settings: unknown },
+    input: Pick<UpdatePropertyInput, 'type' | 'settings'>,
+  ): boolean {
+    if (input.type !== undefined && input.type !== property.type) return true
+    if (input.settings === undefined) return false
+
+    if (property.type === DatabasePropertyType.RELATION) {
+      const current = asSettings(property.settings)?.relation?.targetSourceId
+      const next = input.settings.relation?.targetSourceId
+      if (current !== next) return true
+    }
+
+    if (
+      property.type === DatabasePropertyType.STATUS ||
+      property.type === DatabasePropertyType.SELECT ||
+      property.type === DatabasePropertyType.MULTI_SELECT
+    ) {
+      const currentIds = new Set((asSettings(property.settings)?.options ?? []).map(({ id }) => id))
+      const nextIds = new Set((input.settings.options ?? []).map(({ id }) => id))
+      return [...currentIds].some((id) => !nextIds.has(id))
+    }
+    return false
   }
 
   /**
@@ -706,9 +770,22 @@ export class DatabaseService {
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const prop = await this.repo.findPropertyById(input.id)
     if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
-    // Cells cascade via the DatabaseCellValue → DatabaseProperty FK.
-    await this.repo.deleteProperty(input.id)
-    return { ok: true as const }
+    return this.uow.transaction(async () => {
+      if (!(await this.repo.lockSourceForStructureMutation(source.id, new Date()))) {
+        throw conflict('FORM_SOURCE_CONFLICT')
+      }
+      const lockedSource = await this.requireStructureEdit(actorUserId, input.pageId)
+      const lockedProperty = await this.repo.findPropertyById(input.id)
+      if (!lockedProperty || lockedProperty.sourceId !== lockedSource.id) {
+        throw notFound('Свойство не найдено')
+      }
+      if (await this.formRepo.hasProtectedPropertyDependency(input.id, new Date())) {
+        throw conflict('FORM_PROPERTY_IN_USE')
+      }
+      // Cells cascade via the DatabaseCellValue → DatabaseProperty FK.
+      await this.repo.deleteProperty(input.id)
+      return { ok: true as const }
+    })
   }
 
   async reorderProperties(actorUserId: string, input: ReorderPropertiesInput) {

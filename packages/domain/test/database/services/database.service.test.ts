@@ -5,6 +5,8 @@ import { MAX_BOARD_ROWS } from '../../../src/database/dto/database.dto.ts'
 import type { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
 import type { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
+import type { FormRepositoryContract } from '../../../src/database/forms/database-form.repository.ts'
+import type { DatabaseFormService } from '../../../src/database/forms/database-form.service.ts'
 
 // ── Fake UoW — transaction(fn) = fn(), client() unused by service ─────────────
 function makeUow(): UnitOfWork {
@@ -35,11 +37,12 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     findRowsPaged: vi.fn(async () => []),
     findRowsForGrouping: vi.fn(async () => []),
     findSourceMetaByPageId: vi.fn(async () => ({ id: 'src1', workspaceId: 'w1', pageId: 'db-page' })),
+    lockSourceForStructureMutation: vi.fn(async () => true),
     listViews: vi.fn(async () => []),
     createView: vi.fn(async (d) => ({ id: 'view1', type: d.type, title: d.title, position: d.position, settings: null })),
     updateView: vi.fn(async (id, d) => ({ id, type: 'TABLE', title: d.title ?? 'V', position: 0, settings: d.settings ?? null })),
     deleteView: vi.fn(async () => undefined),
-    findViewById: vi.fn(async () => ({ id: 'view1', sourceId: 'src1' })),
+    findViewById: vi.fn(async () => ({ id: 'view1', sourceId: 'src1', type: 'TABLE', formId: null })),
     listProperties: vi.fn(async () => []),
     createProperty: vi.fn(async (d) => ({ id: 'prop1', type: d.type, name: d.name, position: d.position, settings: d.settings ?? null })),
     updateProperty: vi.fn(async (id, d) => ({ id, type: d.type ?? 'TEXT', name: d.name ?? 'P', position: 0, settings: d.settings ?? null })),
@@ -105,8 +108,25 @@ function makeService(
   repo: DatabaseRepository = makeRepo(),
   pageRepo: PageRepository = makePageRepo(),
   uow = makeUow(),
+  formRepo = makeFormRepo(),
+  formService = makeFormService(),
 ) {
-  return new DatabaseService(repo, pageRepo, uow)
+  return new DatabaseService(repo, pageRepo, uow, formRepo, formService)
+}
+
+function makeFormRepo(overrides: Partial<FormRepositoryContract> = {}): FormRepositoryContract {
+  return {
+    hasProtectedPropertyDependency: vi.fn(async () => false),
+    ...overrides,
+  } as unknown as FormRepositoryContract
+}
+
+function makeFormService(overrides: Partial<DatabaseFormService> = {}): DatabaseFormService {
+  return {
+    archive: vi.fn(async () => ({ ok: true as const })),
+    duplicateByView: vi.fn(async () => ({ id: 'form-copy' })),
+    ...overrides,
+  } as unknown as DatabaseFormService
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,6 +218,65 @@ describe('DatabaseService.updateProperty', () => {
       makeService(repo).updateProperty('u1', { pageId: 'db-page', id: 'prop1', name: 'X' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
+
+  it('serializes and blocks a destructive type change used by an active form version', async () => {
+    const repo = makeRepo()
+    const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    await expect(
+      makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
+        pageId: 'db-page', id: 'prop1', type: 'NUMBER',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_PROPERTY_IN_USE' })
+    expect(repo.lockSourceForStructureMutation).toHaveBeenCalledWith('src1', expect.any(Date))
+    expect(formRepo.hasProtectedPropertyDependency).toHaveBeenCalledWith('prop1', expect.any(Date))
+    expect(repo.updateProperty).not.toHaveBeenCalled()
+  })
+
+  it('allows option additions and label-only renames', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1', sourceId: 'src1', type: 'SELECT',
+        settings: { options: [{ id: 'one', label: 'Old' }] },
+      })),
+    })
+    const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    await makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
+      pageId: 'db-page', id: 'prop1',
+      settings: { options: [{ id: 'one', label: 'Renamed' }, { id: 'two', label: 'Added' }] },
+    })
+    expect(formRepo.hasProtectedPropertyDependency).not.toHaveBeenCalled()
+    expect(repo.updateProperty).toHaveBeenCalled()
+  })
+
+  it('blocks option removal and relation-target changes used by an active form version', async () => {
+    const optionRepo = makeRepo({
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1', sourceId: 'src1', type: 'SELECT',
+        settings: { options: [{ id: 'one', label: 'One' }, { id: 'two', label: 'Two' }] },
+      })),
+    })
+    const optionFormRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    await expect(
+      makeService(optionRepo, makePageRepo(), makeUow(), optionFormRepo).updateProperty('u1', {
+        pageId: 'db-page', id: 'prop1', settings: { options: [{ id: 'one', label: 'One' }] },
+      }),
+    ).rejects.toMatchObject({ message: 'FORM_PROPERTY_IN_USE' })
+
+    const relationRepo = makeRepo({
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1', sourceId: 'src1', type: 'RELATION',
+        settings: { relation: { targetSourceId: '00000000-0000-7000-8000-000000000001' } },
+      })),
+      findSourceWorkspaceId: vi.fn(async () => 'w1'),
+    })
+    const relationFormRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    await expect(
+      makeService(relationRepo, makePageRepo(), makeUow(), relationFormRepo).updateProperty('u1', {
+        pageId: 'db-page', id: 'prop1',
+        settings: { relation: { targetSourceId: '00000000-0000-7000-8000-000000000002' } },
+      }),
+    ).rejects.toMatchObject({ message: 'FORM_PROPERTY_IN_USE' })
+  })
 })
 
 describe('DatabaseService.deleteProperty', () => {
@@ -217,6 +296,18 @@ describe('DatabaseService.deleteProperty', () => {
     await expect(
       makeService(repo).deleteProperty('u1', { pageId: 'db-page', id: 'prop1' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('locks the source and blocks deletion while an active form version depends on it', async () => {
+    const repo = makeRepo()
+    const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    await expect(
+      makeService(repo, makePageRepo(), makeUow(), formRepo).deleteProperty('u1', {
+        pageId: 'db-page', id: 'prop1',
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_PROPERTY_IN_USE' })
+    expect(repo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(repo.deleteProperty).not.toHaveBeenCalled()
   })
 })
 
@@ -881,6 +972,14 @@ describe('DatabaseService.createView default settings', () => {
     const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
     expect(arg.settings).toEqual({})
   })
+
+  it('rejects generic FORM creation in favor of atomic form creation', async () => {
+    const repo = makeRepo()
+    await expect(
+      makeService(repo).createView('u1', { pageId: 'db-page', type: 'FORM', title: 'Form' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_REQUIRES_CREATE_FORM' })
+    expect(repo.createView).not.toHaveBeenCalled()
+  })
 })
 
 describe('DatabaseService.duplicateView', () => {
@@ -921,6 +1020,42 @@ describe('DatabaseService.duplicateView', () => {
     await expect(
       makeService(repo).duplicateView('u1', { pageId: 'db-page', viewId: 'view1' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('delegates FORM duplication to DatabaseFormService', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        { id: 'view1', type: 'FORM', title: 'Form', position: 1024, settings: null },
+      ]),
+    })
+    const formService = makeFormService()
+    await makeService(repo, makePageRepo(), makeUow(), makeFormRepo(), formService).duplicateView(
+      'u1',
+      { pageId: 'db-page', viewId: 'view1' },
+    )
+    expect(formService.duplicateByView).toHaveBeenCalledWith('u1', {
+      pageId: 'db-page', viewId: 'view1',
+    })
+    expect(repo.createView).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseService.deleteView FORM delegation', () => {
+  it('delegates FORM deletion to archive without generic deletion', async () => {
+    const repo = makeRepo({
+      findViewById: vi.fn(async () => ({
+        id: 'view1', sourceId: 'src1', type: 'FORM', formId: 'form1',
+      })),
+    })
+    const formService = makeFormService()
+    await makeService(repo, makePageRepo(), makeUow(), makeFormRepo(), formService).deleteView(
+      'u1',
+      { pageId: 'db-page', id: 'view1' },
+    )
+    expect(formService.archive).toHaveBeenCalledWith('u1', {
+      pageId: 'db-page', formId: 'form1',
+    })
+    expect(repo.deleteView).not.toHaveBeenCalled()
   })
 })
 

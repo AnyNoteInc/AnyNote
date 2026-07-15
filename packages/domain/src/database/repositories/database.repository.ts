@@ -250,6 +250,19 @@ export class DatabaseRepository {
     })
   }
 
+  /**
+   * Reserve the source row for a structure-sensitive transaction. Prisma does
+   * not expose `FOR UPDATE`; an idempotent update acquires the same PostgreSQL
+   * row lock while keeping the operation on the typed active UnitOfWork client.
+   */
+  async lockSourceForStructureMutation(sourceId: string, at: Date): Promise<boolean> {
+    const result = await this.uow.client().databaseSource.updateMany({
+      where: { id: sourceId },
+      data: { updatedAt: at },
+    })
+    return result.count === 1
+  }
+
   // ── Views ───────────────────────────────────────────────────────────────────
 
   async listViews(sourceId: string): Promise<ViewRow[]> {
@@ -296,11 +309,24 @@ export class DatabaseRepository {
 
   async findViewById(
     id: string,
-  ): Promise<{ id: string; sourceId: string } | null> {
-    return this.uow.client().databaseView.findUnique({
+  ): Promise<{
+    id: string
+    sourceId: string
+    type: import('@repo/db').DatabaseViewType
+    formId: string | null
+  } | null> {
+    const view = await this.uow.client().databaseView.findUnique({
       where: { id },
-      select: { id: true, sourceId: true },
+      select: { id: true, sourceId: true, type: true, form: { select: { id: true } } },
     })
+    return view === null
+      ? null
+      : {
+          id: view.id,
+          sourceId: view.sourceId,
+          type: view.type,
+          formId: view.form?.id ?? null,
+        }
   }
 
   // ── Properties ───────────────────────────────────────────────────────────────

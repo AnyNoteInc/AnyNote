@@ -630,8 +630,8 @@ describe('DatabaseFormRepository writes', () => {
 })
 
 describe('database forms dependency injection', () => {
-  it('binds only the repository token to a UnitOfWork-backed repository', async () => {
-    expect(Object.keys(DATABASE_FORMS)).toEqual(['Repository'])
+  it('keeps the UnitOfWork-backed repository binding when the lifecycle service token is added', async () => {
+    expect(Object.keys(DATABASE_FORMS)).toEqual(['Repository', 'Service'])
     const { uow } = makeRepository()
     const container = new Container()
     container.bind(SHARED.UnitOfWork).toConstantValue(uow)
