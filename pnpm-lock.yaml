@@ -719,6 +719,9 @@ importers:
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
+      fast-check:
+        specifier: 3.23.2
+        version: 3.23.2
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
