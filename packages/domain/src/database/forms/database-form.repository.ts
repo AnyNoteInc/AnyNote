@@ -167,6 +167,7 @@ export interface PublicFormRecord {
     }
   }
   publishedVersion: FormVersionRecord | null
+  versions: FormVersionRecord[]
 }
 
 export interface CreateFormRecord {
@@ -491,6 +492,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
   }
 
   async findByLocator(locator: string): Promise<PublicFormRecord | null> {
+    const now = new Date()
     return this.uow.client().databaseForm.findFirst({
       where: { OR: [{ routeKey: locator }, { customSlug: locator.toLowerCase() }] },
       select: {
@@ -509,6 +511,12 @@ export class DatabaseFormRepository implements FormRepositoryContract {
           },
         },
         publishedVersion: { select: versionSelect },
+        versions: {
+          where: { acceptUntil: { gt: now } },
+          orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: versionSelect,
+        },
       },
     })
   }

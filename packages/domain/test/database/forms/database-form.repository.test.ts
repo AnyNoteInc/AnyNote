@@ -688,6 +688,12 @@ describe('DatabaseFormRepository focused reads', () => {
       expect.objectContaining({
         select: expect.objectContaining({
           publishedVersion: expect.any(Object),
+          versions: {
+            where: { acceptUntil: { gt: now } },
+            orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
+            take: 1,
+            select: expect.objectContaining({ schema: true, acceptUntil: true }),
+          },
           source: expect.objectContaining({
             select: expect.objectContaining({
               workspace: {
@@ -701,7 +707,7 @@ describe('DatabaseFormRepository focused reads', () => {
         }),
       }),
     )
-    expect(args?.select).not.toHaveProperty('versions')
+    expect(args?.select?.versions?.take).toBe(1)
   })
 
   it('paginates responses by submittedAt and id without selecting page bodies', async () => {
