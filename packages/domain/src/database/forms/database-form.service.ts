@@ -14,6 +14,7 @@ import type {
   ListFormResponsesInput,
   ListFormsInput,
   PublishFormInput,
+  RenameFormViewInput,
   SetFormSlugInput,
   UpdateFormDraftInput,
   UpdateFormSettingsInput,
@@ -292,6 +293,15 @@ export class DatabaseFormService {
       }
       const respondentAccess =
         input.audience === 'ANYONE_WITH_LINK' ? 'NONE' : input.respondentAccess
+      if (form.publishedVersion !== null) {
+        let publishedDocument: FormVersionDocument
+        try {
+          publishedDocument = parseFormVersionDocument(form.publishedVersion.schema)
+        } catch {
+          throw badRequest('FORM_SCHEMA_INVALID')
+        }
+        this.assertAudienceCompatibility(input.audience, publishedDocument)
+      }
       const changedSettings = this.changedSettings(form, { ...input, respondentAccess })
       if (changedSettings.length === 0) return form
       const updated = await this.repo.updateSettings({
@@ -424,7 +434,7 @@ export class DatabaseFormService {
         formId: view.formId,
       })
       const views = await this.databaseRepo.listViews(form.sourceId)
-      return this.repo.duplicateForm({
+      const duplicate = await this.repo.duplicateForm({
         sourceId: form.sourceId,
         title: `${form.view?.title ?? 'Форма'} (копия)`,
         position: (views.at(-1)?.position ?? 0) + POSITION_GAP,
@@ -438,6 +448,49 @@ export class DatabaseFormService {
         responseLimit: form.responseLimit,
         notifyOwners: form.notifyOwners,
       })
+      await writeFormAudit(this.uow, {
+        workspaceId: form.source.workspaceId,
+        actorId: actorUserId,
+        action: FORM_AUDIT.CREATED,
+        metadata: {
+          formId: duplicate.id,
+          ...(duplicate.viewId === null ? {} : { viewId: duplicate.viewId }),
+        },
+      })
+      return duplicate
+    })
+  }
+
+  async renameByView(actorUserId: string, input: RenameFormViewInput) {
+    const initialView = await this.databaseRepo.findViewById(input.viewId)
+    if (initialView?.type !== 'FORM' || initialView.formId === null) {
+      throw notFound('FORM_VIEW_NOT_FOUND')
+    }
+    const initial = await this.requireManageableForm(actorUserId, {
+      pageId: input.pageId,
+      formId: initialView.formId,
+    })
+    return this.uow.transaction(async () => {
+      await this.lockSource(initial.sourceId)
+      const view = await this.databaseRepo.findViewById(input.viewId)
+      if (view?.type !== 'FORM' || view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
+      const form = await this.requireManageableForm(actorUserId, {
+        pageId: input.pageId,
+        formId: view.formId,
+      })
+      if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
+      const updated = await this.databaseRepo.updateView(view.id, { title: input.title.trim() })
+      await writeFormAudit(this.uow, {
+        workspaceId: form.source.workspaceId,
+        actorId: actorUserId,
+        action: FORM_AUDIT.SETTINGS_CHANGED,
+        metadata: {
+          formId: form.id,
+          viewId: view.id,
+          changedSettings: ['viewTitle'],
+        },
+      })
+      return updated
     })
   }
 
@@ -613,7 +666,12 @@ export class DatabaseFormService {
   private normalizeSlug(raw: string | null): string | null {
     if (raw === null || raw.trim() === '') return null
     const normalized = raw.trim().toLowerCase()
-    if (normalized.startsWith('anf_') || RESERVED_SLUGS.has(normalized)) {
+    if (
+      normalized.startsWith('anf_') ||
+      [...RESERVED_SLUGS].some(
+        (reserved) => normalized === reserved || normalized.startsWith(`${reserved}-`),
+      )
+    ) {
       throw badRequest('FORM_SLUG_RESERVED')
     }
     const parsed = customSlugSchema.safeParse(normalized)

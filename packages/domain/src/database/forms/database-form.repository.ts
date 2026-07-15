@@ -273,7 +273,11 @@ export interface FormRepositoryContract {
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
   findSubmission(submissionId: string): Promise<FormSubmissionRecord | null>
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
-  hasProtectedPropertyDependency(propertyId: string, now: Date): Promise<boolean>
+  hasProtectedPropertyDependency(
+    propertyId: string,
+    now: Date,
+    removedOptionIds?: readonly string[],
+  ): Promise<boolean>
 }
 
 export class DatabaseFormRepository implements FormRepositoryContract {
@@ -542,7 +546,11 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     })
   }
 
-  async hasProtectedPropertyDependency(propertyId: string, now: Date): Promise<boolean> {
+  async hasProtectedPropertyDependency(
+    propertyId: string,
+    now: Date,
+    removedOptionIds?: readonly string[],
+  ): Promise<boolean> {
     const versions = await this.uow.client().databaseFormVersion.findMany({
       where: {
         form: {
@@ -556,11 +564,16 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     for (const version of versions) {
       try {
         const document = parseFormVersionDocument(version.schema)
+        const question = document.questions.find(
+          (candidate) =>
+            candidate.property.kind === 'PROPERTY' && candidate.property.propertyId === propertyId,
+        )
+        if (question === undefined) continue
+        if (removedOptionIds === undefined) return true
         if (
-          document.questions.some(
-            (question) =>
-              question.property.kind === 'PROPERTY' && question.property.propertyId === propertyId,
-          )
+          (question.input.kind === 'SINGLE_CHOICE' ||
+            question.input.kind === 'MULTI_CHOICE') &&
+          question.input.options.some(({ id }) => removedOptionIds.includes(id))
         ) {
           return true
         }

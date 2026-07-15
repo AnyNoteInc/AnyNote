@@ -559,6 +559,16 @@ export class DatabaseService {
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const view = await this.repo.findViewById(input.id)
     if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
+    if (view.type === DatabaseViewType.FORM) {
+      if (input.title === undefined || input.settings !== undefined) {
+        throw badRequest('FORM_VIEW_UPDATE_INVALID')
+      }
+      return this.formService.renameByView(actorUserId, {
+        pageId: input.pageId,
+        viewId: view.id,
+        title: input.title,
+      })
+    }
     return this.repo.updateView(input.id, {
       title: input.title,
       ...(input.settings === undefined
@@ -654,10 +664,18 @@ export class DatabaseService {
           input.settings,
         )
       }
-      if (
-        this.isDestructivePropertyUpdate(property, input) &&
-        (await this.formRepo.hasProtectedPropertyDependency(input.id, new Date()))
-      ) {
+      const dependency = this.propertyDependencyScope(property, input)
+      const protectedByForm =
+        dependency === null
+          ? false
+          : dependency.removedOptionIds === undefined
+            ? await this.formRepo.hasProtectedPropertyDependency(input.id, new Date())
+            : await this.formRepo.hasProtectedPropertyDependency(
+                input.id,
+                new Date(),
+                dependency.removedOptionIds,
+              )
+      if (protectedByForm) {
         throw conflict('FORM_PROPERTY_IN_USE')
       }
       return this.repo.updateProperty(input.id, {
@@ -668,17 +686,17 @@ export class DatabaseService {
     })
   }
 
-  private isDestructivePropertyUpdate(
+  private propertyDependencyScope(
     property: { type: DatabasePropertyType; settings: unknown },
     input: Pick<UpdatePropertyInput, 'type' | 'settings'>,
-  ): boolean {
-    if (input.type !== undefined && input.type !== property.type) return true
-    if (input.settings === undefined) return false
+  ): { removedOptionIds?: string[] } | null {
+    if (input.type !== undefined && input.type !== property.type) return {}
+    if (input.settings === undefined) return null
 
     if (property.type === DatabasePropertyType.RELATION) {
       const current = asSettings(property.settings)?.relation?.targetSourceId
       const next = input.settings.relation?.targetSourceId
-      if (current !== next) return true
+      if (current !== next) return {}
     }
 
     if (
@@ -688,9 +706,10 @@ export class DatabaseService {
     ) {
       const currentIds = new Set((asSettings(property.settings)?.options ?? []).map(({ id }) => id))
       const nextIds = new Set((input.settings.options ?? []).map(({ id }) => id))
-      return [...currentIds].some((id) => !nextIds.has(id))
+      const removedOptionIds = [...currentIds].filter((id) => !nextIds.has(id))
+      return removedOptionIds.length === 0 ? null : { removedOptionIds }
     }
-    return false
+    return null
   }
 
   /**

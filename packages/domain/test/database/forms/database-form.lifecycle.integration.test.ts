@@ -254,6 +254,53 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     ).resolves.toMatchObject({ state: 'CLOSED', publishedVersionId: versions[1]!.id })
   })
 
+  it('revalidates the current published schema before changing away from workspace audience', async () => {
+    const property = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'PERSON', name: 'Owner', position: 1024 },
+    })
+    const view = await prisma.databaseView.create({
+      data: { sourceId, type: 'FORM', title: 'Internal picker form', position: 2048 },
+    })
+    const internalDocument: FormVersionDocument = {
+      ...documentFor(property.id),
+      questions: [
+        {
+          ...documentFor(property.id).questions[0]!,
+          property: { kind: 'PROPERTY', propertyId: property.id, propertyType: 'PERSON' },
+          input: { kind: 'PERSON', maxSelections: 1 },
+        },
+      ],
+    }
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        viewId: view.id,
+        routeKey: `anf_lifecycle_${RUN}_audience-lock`,
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        draftSchema: internalDocument,
+        createdById: userId,
+      },
+    })
+    const service = makeFormService(new PrismaUnitOfWork(prisma))
+    await service.publish(userId, { pageId, formId: form.id })
+
+    await expect(
+      service.updateSettings(userId, {
+        pageId,
+        formId: form.id,
+        audience: 'SIGNED_IN_WITH_LINK',
+        respondentAccess: 'NONE',
+        opensAt: null,
+        closesAt: null,
+        responseLimit: null,
+        notifyOwners: true,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ audience: 'WORKSPACE_MEMBERS_WITH_LINK' })
+  })
+
   it('publication first commits an immutable version, then blocks the queued destructive property mutation', async () => {
     const fixture = await createFixture('publish-first')
     const publishUow = new PrismaUnitOfWork(prisma)
@@ -409,6 +456,9 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     ).resolves.toMatchObject({ state: 'ARCHIVED', viewId: null, acceptedResponses: 1 })
 
     await prisma.databaseRow.delete({ where: { id: row.id } })
+    await expect(
+      prisma.databaseFormSubmission.findUnique({ where: { id: submission.id } }),
+    ).resolves.toBeNull()
     await expect(
       prisma.databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } }),
     ).resolves.toMatchObject({ acceptedResponses: 1 })

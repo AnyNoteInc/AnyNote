@@ -125,6 +125,9 @@ function makeFormService(overrides: Partial<DatabaseFormService> = {}): Database
   return {
     archive: vi.fn(async () => ({ ok: true as const })),
     duplicateByView: vi.fn(async () => ({ id: 'form-copy' })),
+    renameByView: vi.fn(async (_actorUserId, input) => ({
+      id: input.viewId, type: 'FORM', title: input.title, position: 1024, settings: null,
+    })),
     ...overrides,
   } as unknown as DatabaseFormService
 }
@@ -248,6 +251,24 @@ describe('DatabaseService.updateProperty', () => {
     expect(repo.updateProperty).toHaveBeenCalled()
   })
 
+  it('allows removal of an option not referenced by a current or grace form document', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1', sourceId: 'src1', type: 'SELECT',
+        settings: { options: [{ id: 'used', label: 'Used' }, { id: 'unused', label: 'Unused' }] },
+      })),
+    })
+    const dependency = vi.fn(async (_propertyId, _now, removedOptionIds?: string[]) =>
+      removedOptionIds?.includes('used') ?? true,
+    )
+    const formRepo = makeFormRepo({ hasProtectedPropertyDependency: dependency })
+    await makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
+      pageId: 'db-page', id: 'prop1', settings: { options: [{ id: 'used', label: 'Used' }] },
+    })
+    expect(dependency).toHaveBeenCalledWith('prop1', expect.any(Date), ['unused'])
+    expect(repo.updateProperty).toHaveBeenCalled()
+  })
+
   it('blocks option removal and relation-target changes used by an active form version', async () => {
     const optionRepo = makeRepo({
       findPropertyById: vi.fn(async () => ({
@@ -261,6 +282,9 @@ describe('DatabaseService.updateProperty', () => {
         pageId: 'db-page', id: 'prop1', settings: { options: [{ id: 'one', label: 'One' }] },
       }),
     ).rejects.toMatchObject({ message: 'FORM_PROPERTY_IN_USE' })
+    expect(optionFormRepo.hasProtectedPropertyDependency).toHaveBeenCalledWith(
+      'prop1', expect.any(Date), ['two'],
+    )
 
     const relationRepo = makeRepo({
       findPropertyById: vi.fn(async () => ({
@@ -1056,6 +1080,25 @@ describe('DatabaseService.deleteView FORM delegation', () => {
       pageId: 'db-page', formId: 'form1',
     })
     expect(repo.deleteView).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseService.updateView FORM delegation', () => {
+  it('delegates FORM rename through DatabaseFormService and leaves generic update unused', async () => {
+    const repo = makeRepo({
+      findViewById: vi.fn(async () => ({
+        id: 'view1', sourceId: 'src1', type: 'FORM', formId: 'form1',
+      })),
+    })
+    const formService = makeFormService()
+    await makeService(repo, makePageRepo(), makeUow(), makeFormRepo(), formService).updateView(
+      'u1',
+      { pageId: 'db-page', id: 'view1', title: 'Renamed form' },
+    )
+    expect(formService.renameByView).toHaveBeenCalledWith('u1', {
+      pageId: 'db-page', viewId: 'view1', title: 'Renamed form',
+    })
+    expect(repo.updateView).not.toHaveBeenCalled()
   })
 })
 

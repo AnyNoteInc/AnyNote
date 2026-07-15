@@ -67,6 +67,11 @@ export type SetFormSlugInput = z.infer<typeof setFormSlugInput>
 export const duplicateFormViewInput = z.object({ pageId: uuidSchema, viewId: uuidSchema })
 export type DuplicateFormViewInput = z.infer<typeof duplicateFormViewInput>
 
+export const renameFormViewInput = duplicateFormViewInput.extend({
+  title: z.string().trim().min(1).max(200),
+})
+export type RenameFormViewInput = z.infer<typeof renameFormViewInput>
+
 export const listFormResponsesInput = formIdInput.extend({
   cursor: z.object({ submittedAt: z.coerce.date(), id: uuidSchema }).optional(),
   limit: z.number().int().min(1).max(100).default(50),

@@ -185,6 +185,13 @@ function makeHarness(
       type: 'FORM',
       formId: current.id,
     })),
+    updateView: vi.fn(async (_id, data) => ({
+      id: current.viewId!,
+      type: 'FORM',
+      title: data.title ?? current.view?.title ?? 'Form',
+      position: current.view?.position ?? 1024,
+      settings: data.settings ?? null,
+    })),
     lockSourceForStructureMutation: vi.fn(async () => true),
     ...options.databaseRepo,
   } as unknown as DatabaseRepository
@@ -428,6 +435,24 @@ describe('DatabaseFormService lifecycle', () => {
         slug: 'settings',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SLUG_RESERVED' })
+
+    for (const slug of ['api-v2', 'forms-public']) {
+      await expect(
+        service.setSlug('00000000-0000-7000-8000-000000000001', {
+          pageId: '00000000-0000-7000-8000-000000000050',
+          formId: '00000000-0000-7000-8000-000000000010',
+          slug,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SLUG_RESERVED' })
+    }
+
+    await expect(
+      service.setSlug('00000000-0000-7000-8000-000000000001', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+        slug: 'appetite',
+      }),
+    ).resolves.toBeDefined()
   })
 
   it('maps global slug uniqueness failures to a stable conflict', async () => {
@@ -577,8 +602,66 @@ describe('DatabaseFormService lifecycle', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SCHEDULE_INVALID' })
   })
 
-  it('duplicates by FORM view as a fresh draft without publication, slug, or accepted count', async () => {
-    const { service, formRepo } = makeHarness({
+  it('rejects changing a published internal-picker form to a non-workspace audience under the source lock', async () => {
+    const internal = linearDocument({
+      questions: [
+        {
+          id: 'question-1',
+          sectionId: 'section-1',
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'PERSON' },
+          label: 'Owner',
+          required: false,
+          syncWithPropertyName: false,
+          input: { kind: 'PERSON', maxSelections: 1 },
+        },
+      ],
+    })
+    const publishedVersion = {
+      id: '00000000-0000-7000-8000-000000000060',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 1,
+      schemaVersion: 1,
+      schema: internal,
+      schemaHash: 'a'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const { service, formRepo, databaseRepo } = makeHarness({
+      form: managedForm({
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        publishedVersionId: publishedVersion.id,
+        publishedVersion,
+        source: {
+          ...managedForm().source,
+          properties: [
+            { id: 'property-1', type: 'PERSON', name: 'Owner', position: 1, settings: null },
+          ],
+        },
+      }),
+    })
+
+    for (const audience of ['SIGNED_IN_WITH_LINK', 'ANYONE_WITH_LINK'] as const) {
+      await expect(
+        service.updateSettings('00000000-0000-7000-8000-000000000001', {
+          pageId: '00000000-0000-7000-8000-000000000050',
+          formId: '00000000-0000-7000-8000-000000000010',
+          audience,
+          respondentAccess: 'NONE',
+          opensAt: null,
+          closesAt: null,
+          responseLimit: null,
+          notifyOwners: true,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
+    }
+    expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(formRepo.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('duplicates by FORM view as a fresh audited draft without publication, slug, or accepted count', async () => {
+    const { service, formRepo, auditCreate, transaction } = makeHarness({
       form: managedForm({
         state: 'OPEN',
         customSlug: 'contact',
@@ -598,6 +681,41 @@ describe('DatabaseFormService lifecycle', () => {
     const duplicateInput = vi.mocked(formRepo.duplicateForm).mock.calls[0]![0]
     expect(duplicateInput).not.toHaveProperty('customSlug')
     expect(duplicateInput).not.toHaveProperty('acceptedResponses')
+    expect(transaction).toHaveBeenCalledOnce()
+    expect(auditCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'database_form.created',
+        metadata: expect.objectContaining({ formId: 'duplicate', viewId: expect.any(String) }),
+      }),
+    })
+  })
+
+  it('renames a FORM view through the lifecycle lock with metadata-only audit', async () => {
+    const { service, databaseRepo, auditCreate, transaction } = makeHarness()
+    await service.renameByView('00000000-0000-7000-8000-000000000001', {
+      pageId: '00000000-0000-7000-8000-000000000050',
+      viewId: '00000000-0000-7000-8000-000000000030',
+      title: 'Customer intake',
+    })
+    expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(transaction).toHaveBeenCalledOnce()
+    expect(databaseRepo.updateView).toHaveBeenCalledWith('00000000-0000-7000-8000-000000000030', {
+      title: 'Customer intake',
+    })
+    const audit = auditCreate.mock.calls.at(-1)?.[0]
+    expect(audit).toEqual({
+      data: {
+        workspaceId: '00000000-0000-7000-8000-000000000040',
+        actorId: '00000000-0000-7000-8000-000000000001',
+        action: 'database_form.settings_changed',
+        metadata: {
+          formId: '00000000-0000-7000-8000-000000000010',
+          viewId: '00000000-0000-7000-8000-000000000030',
+          changedSettings: ['viewTitle'],
+        },
+      },
+    })
+    expect(JSON.stringify(audit)).not.toContain('Customer intake')
   })
 
   it('archives through one transaction and preserves submission rows by using the focused repository operation', async () => {

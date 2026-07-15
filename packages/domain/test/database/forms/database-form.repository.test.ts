@@ -52,6 +52,21 @@ const documentFor = (propertyId: string): FormVersionDocument => ({
   endings: [{ id: 'ending-1', title: 'Done' }],
 })
 
+const choiceDocumentFor = (propertyId: string, optionIds: string[]): FormVersionDocument => ({
+  ...documentFor(propertyId),
+  questions: [
+    {
+      ...documentFor(propertyId).questions[0]!,
+      property: { kind: 'PROPERTY', propertyId, propertyType: 'SELECT' },
+      input: {
+        kind: 'SINGLE_CHOICE',
+        appearance: 'RADIO',
+        options: optionIds.map((id) => ({ id, label: id })),
+      },
+    },
+  ],
+})
+
 const managed = {
   id: 'form-1',
   sourceId: 'source-1',
@@ -829,6 +844,43 @@ describe('DatabaseFormRepository protected property dependencies', () => {
       },
       select: { schema: true },
     })
+  })
+
+  it('protects only removed option IDs referenced by a current or grace document', async () => {
+    const client = makeClient()
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: true,
+        acceptUntil: null,
+        schema: choiceDocumentFor('property-protected', ['option-used', 'option-kept']),
+      },
+    ])
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.hasProtectedPropertyDependency(
+        'property-protected',
+        now,
+        ['option-unused'],
+      ),
+    ).resolves.toBe(false)
+
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: false,
+        acceptUntil: new Date('2026-07-16T00:00:01.000Z'),
+        schema: choiceDocumentFor('property-protected', ['option-used', 'option-kept']),
+      },
+    ])
+    await expect(
+      repository.hasProtectedPropertyDependency(
+        'property-protected',
+        now,
+        ['option-used'],
+      ),
+    ).resolves.toBe(true)
   })
 
   it('detects a reference in a grace-period version', async () => {
