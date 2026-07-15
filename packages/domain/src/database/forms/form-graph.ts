@@ -44,6 +44,7 @@ export type FormGraphErrorCode =
   | 'SECTION_CANNOT_REACH_ENDING'
   | 'DUPLICATE_PROPERTY_QUESTION'
   | 'DUPLICATE_OPTION_ID'
+  | 'QUESTION_INPUT_TYPE_MISMATCH'
   | 'CONDITION_QUESTION_NOT_FOUND'
   | 'CONDITION_QUESTION_NOT_EARLIER'
   | 'CONDITION_OPERATOR_INCOMPATIBLE'
@@ -318,13 +319,53 @@ const questionInputFamily = (question: FormFlowQuestion): string => {
   }
 }
 
+const questionValueType = (question: FormFlowQuestion): FormPropertyType | 'TITLE' =>
+  'valueType' in question
+    ? question.valueType
+    : question.property.kind === 'TITLE'
+      ? 'TITLE'
+      : question.property.propertyType
+
+const expectedInputKind = (
+  valueType: FormPropertyType | 'TITLE',
+): FormQuestion['input']['kind'] => {
+  switch (valueType) {
+    case 'TITLE':
+    case 'TEXT':
+      return 'TEXT'
+    case 'NUMBER':
+      return 'NUMBER'
+    case 'STATUS':
+    case 'SELECT':
+      return 'SINGLE_CHOICE'
+    case 'MULTI_SELECT':
+      return 'MULTI_CHOICE'
+    case 'CHECKBOX':
+      return 'CHECKBOX'
+    case 'DATE':
+      return 'DATE'
+    case 'URL':
+      return 'URL'
+    case 'EMAIL':
+      return 'EMAIL'
+    case 'PHONE':
+      return 'PHONE'
+    case 'FILE':
+      return 'FILE'
+    case 'PERSON':
+      return 'PERSON'
+    case 'RELATION':
+      return 'RELATION'
+    case 'PAGE_LINK':
+      return 'PAGE_LINK'
+  }
+}
+
+export const isFormQuestionInputCompatible = (question: FormFlowQuestion): boolean =>
+  question.input.kind === expectedInputKind(questionValueType(question))
+
 const questionValueFamily = (question: FormFlowQuestion): string => {
-  const valueType =
-    'valueType' in question
-      ? question.valueType
-      : question.property.kind === 'TITLE'
-        ? 'TITLE'
-        : question.property.propertyType
+  const valueType = questionValueType(question)
 
   switch (valueType) {
     case 'TITLE':
@@ -468,6 +509,16 @@ export const validateFormGraph = (version: FormFlowVersion): FormGraphValidation
         ['questions', questionIndex, 'sectionId'],
         question.id,
         question.sectionId,
+      )
+    }
+
+    if (!isFormQuestionInputCompatible(question)) {
+      addError(
+        errors,
+        'QUESTION_INPUT_TYPE_MISMATCH',
+        ['questions', questionIndex, 'input', 'kind'],
+        question.id,
+        expectedInputKind(questionValueType(question)),
       )
     }
   })

@@ -209,6 +209,16 @@ describe('validateFormGraph', () => {
     expect(codes(duplicateOption)).toContain('DUPLICATE_OPTION_ID')
   })
 
+  it('rejects every property valueType and input-kind mismatch without needing a condition', () => {
+    const version = makeVersion()
+    version.questions[0] = question('question-1', 'section-1', 'number', {
+      property: { kind: 'PROPERTY', propertyId: 'number', propertyType: 'NUMBER' },
+      input: { kind: 'TEXT', multiline: false, maxLength: 100 },
+    })
+
+    expect(codes(version)).toContain('QUESTION_INPUT_TYPE_MISMATCH')
+  })
+
   it('validates condition question, ordering, value family and option snapshots', () => {
     const unknown = makeVersion()
     unknown.transitions.unshift({

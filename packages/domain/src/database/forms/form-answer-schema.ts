@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-import { evaluateFormPath, type PublicFormQuestion, type PublicFormVersion } from './form-graph.ts'
+import {
+  evaluateFormPath,
+  isFormQuestionInputCompatible,
+  type EvaluatedFormPath,
+  type PublicFormQuestion,
+  type PublicFormVersion,
+} from './form-graph.ts'
 import type { FormVersionDocument } from './form-document.ts'
 
 export type FormAnswerEnvelope = {
@@ -56,7 +62,14 @@ const isOffsetDateTime = (value: string): boolean =>
   z.iso.datetime({ offset: true }).safeParse(value).success
 
 const isHttpUrl = (value: string): boolean => {
-  if (value.length > ANSWER_MAX_STRING_LENGTH || value.trim() !== value) return false
+  if (
+    value.length > ANSWER_MAX_STRING_LENGTH ||
+    value.trim() !== value ||
+    /\p{Cc}/u.test(value) ||
+    /%(?![0-9a-f]{2})/iu.test(value)
+  ) {
+    return false
+  }
 
   try {
     const url = new URL(value)
@@ -112,9 +125,14 @@ const validateNonEmptyAnswer = (
       if (input.step !== undefined) {
         const base = input.min ?? 0
         const quotient = (value - base) / input.step
-        const tolerance = Number.EPSILON * 32 * Math.max(1, Math.abs(quotient))
-        if (Math.abs(quotient - Math.round(quotient)) > tolerance) {
+        if (!Number.isFinite(quotient)) {
           addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
+        } else {
+          const scaledTolerance = Number.EPSILON * 32 * Math.max(1, Math.abs(quotient))
+          const tolerance = Math.min(1e-8, scaledTolerance)
+          if (Math.abs(quotient - Math.round(quotient)) > tolerance) {
+            addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
+          }
         }
       }
       return
@@ -196,6 +214,11 @@ const validateNonEmptyAnswer = (
 
 export const buildQuestionValueSchema = (question: PublicFormQuestion): z.ZodType<unknown> =>
   z.unknown().superRefine((value, context) => {
+    if (!isFormQuestionInputCompatible(question)) {
+      addInvalidIssue(context, 'QUESTION_INPUT_TYPE_MISMATCH')
+      return
+    }
+
     if (isEmptyAnswer(value)) {
       if (question.required) addInvalidIssue(context, 'REQUIRED_ANSWER')
       return
@@ -204,14 +227,54 @@ export const buildQuestionValueSchema = (question: PublicFormQuestion): z.ZodTyp
     validateNonEmptyAnswer(question, value, context)
   })
 
+type StabilizedFormAnswers = {
+  answers: Record<string, unknown>
+  path: EvaluatedFormPath
+}
+
+const stabilizeReachableAnswers = (
+  version: PublicFormVersion,
+  answers: Record<string, unknown>,
+): StabilizedFormAnswers => {
+  let projected = { ...answers }
+  const maximumIterations = Object.keys(projected).length + 1
+
+  for (let iteration = 0; iteration < maximumIterations; iteration += 1) {
+    const path = evaluateFormPath(version, projected)
+    const visibleQuestionIds = new Set(path.visibleQuestionIds)
+    const nextProjection = Object.fromEntries(
+      Object.entries(projected).filter(([questionId]) => visibleQuestionIds.has(questionId)),
+    )
+
+    if (Object.keys(nextProjection).length === Object.keys(projected).length) {
+      return { answers: projected, path }
+    }
+
+    projected = nextProjection
+  }
+
+  throw new Error('FORM_ANSWER_REACHABILITY_DID_NOT_STABILIZE')
+}
+
 export const buildFormAnswerSchema = (version: PublicFormVersion): z.ZodType<FormAnswerEnvelope> =>
   z
     .object({ answers: z.record(z.string(), z.unknown()) })
     .strict()
     .superRefine(({ answers }, context) => {
-      const path = evaluateFormPath(version, answers)
+      const stabilized = stabilizeReachableAnswers(version, answers)
+      const { path } = stabilized
       const visibleQuestionIds = new Set(path.visibleQuestionIds)
       const questionsById = new Map(version.questions.map((question) => [question.id, question]))
+
+      for (const question of version.questions) {
+        if (!isFormQuestionInputCompatible(question)) {
+          context.addIssue({
+            code: 'custom',
+            path: ['answers', question.id],
+            message: 'QUESTION_INPUT_TYPE_MISMATCH',
+          })
+        }
+      }
 
       for (const questionId of Object.keys(answers)) {
         if (!visibleQuestionIds.has(questionId)) {
@@ -225,8 +288,8 @@ export const buildFormAnswerSchema = (version: PublicFormVersion): z.ZodType<For
 
       for (const questionId of path.visibleQuestionIds) {
         const question = questionsById.get(questionId)
-        if (question === undefined) continue
-        const result = buildQuestionValueSchema(question).safeParse(answers[questionId])
+        if (question === undefined || !isFormQuestionInputCompatible(question)) continue
+        const result = buildQuestionValueSchema(question).safeParse(stabilized.answers[questionId])
 
         if (!result.success) {
           for (const issue of result.error.issues) {
@@ -244,8 +307,5 @@ export const projectReachableAnswers = (
   version: PublicFormVersion,
   answers: Record<string, unknown>,
 ): Record<string, unknown> => {
-  const reachableIds = new Set(evaluateFormPath(version, answers).visibleQuestionIds)
-  return Object.fromEntries(
-    Object.entries(answers).filter(([questionId]) => reachableIds.has(questionId)),
-  )
+  return stabilizeReachableAnswers(version, answers).answers
 }

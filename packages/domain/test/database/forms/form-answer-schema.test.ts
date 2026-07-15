@@ -4,6 +4,7 @@ import {
   FORM_SCHEMA_VERSION,
   buildFormAnswerSchema,
   buildQuestionValueSchema,
+  evaluateFormPath,
   projectReachableAnswers,
   toPublicFormVersion,
   type FormInputConfig,
@@ -109,6 +110,20 @@ describe('buildQuestionValueSchema', () => {
     expectInvalid(question, Number.POSITIVE_INFINITY)
     expectInvalid(question, 2.1)
     expectInvalid(question, 0.35)
+
+    const largeStep = publicQuestion('large-number', 'NUMBER', {
+      kind: 'NUMBER',
+      step: 1,
+    })
+    expectValid(largeStep, 1_000_000_000_000_000)
+    expectInvalid(largeStep, 1_000_000_000_000_000.5)
+
+    const overflowingQuotient = publicQuestion('overflowing-number', 'NUMBER', {
+      kind: 'NUMBER',
+      min: -Number.MAX_VALUE,
+      step: Number.MIN_VALUE,
+    })
+    expectInvalid(overflowingQuotient, Number.MAX_VALUE)
   })
 
   it('validates single and multiple choice option IDs and selection bounds', () => {
@@ -175,8 +190,22 @@ describe('buildQuestionValueSchema', () => {
   it('validates bounded HTTP(S) URLs, emails and conservative phone numbers', () => {
     const url = publicQuestion('url', 'URL', { kind: 'URL' })
     expectValid(url, 'https://anynote.ru/forms?q=1')
+    expectValid(url, 'https://anynote.ru/forms/hello%20world')
     expectValid(url, 'http://localhost:3000/form')
-    expectInvalid(url, 'javascript:alert(1)')
+    for (const invalidUrl of [
+      'javascript:alert(1)',
+      ' https://anynote.ru/form',
+      'https://anynote.ru/form ',
+      'https://anynote.ru/form\tvalue',
+      'https://anynote.ru/form\nvalue',
+      'https://anynote.ru/form\0value',
+      'https://anynote.ru/form\u007fvalue',
+      'https://anynote.ru/form%',
+      'https://anynote.ru/form%2',
+      'https://user:password@anynote.ru/form',
+    ]) {
+      expectInvalid(url, invalidUrl)
+    }
     expectInvalid(url, `https://example.com/${'x'.repeat(2_100)}`)
 
     const email = publicQuestion('email', 'EMAIL', { kind: 'EMAIL' })
@@ -224,6 +253,48 @@ describe('buildQuestionValueSchema', () => {
     expectValid(pageLink, 'page-1')
     expectInvalid(pageLink, ['page-1'])
     expectInvalid(pageLink, ' ')
+  })
+
+  it('fails closed when a public valueType and input kind are incompatible', () => {
+    const mismatch = publicQuestion('mismatch', 'URL', {
+      kind: 'TEXT',
+      multiline: false,
+      maxLength: 100,
+    })
+
+    const direct = buildQuestionValueSchema(mismatch).safeParse('https://anynote.ru')
+    expect(direct.success).toBe(false)
+    if (!direct.success) {
+      expect(direct.error.issues.map(({ message }) => message)).toContain(
+        'QUESTION_INPUT_TYPE_MISMATCH',
+      )
+    }
+
+    expectAnswerIssue(
+      makePublicVersion([mismatch]),
+      { mismatch: 'https://anynote.ru' },
+      'mismatch',
+      'QUESTION_INPUT_TYPE_MISMATCH',
+    )
+
+    const trigger = publicQuestion('trigger', 'TEXT', {
+      kind: 'TEXT',
+      multiline: false,
+      maxLength: 20,
+    })
+    const hiddenMismatch: PublicFormQuestion = {
+      ...mismatch,
+      visibleWhen: {
+        kind: 'ALL',
+        members: [{ kind: 'TEXT_EQUALS', questionId: 'trigger', value: 'show' }],
+      },
+    }
+    expectAnswerIssue(
+      makePublicVersion([trigger, hiddenMismatch]),
+      { trigger: 'hide' },
+      'mismatch',
+      'QUESTION_INPUT_TYPE_MISMATCH',
+    )
   })
 })
 
@@ -341,6 +412,88 @@ describe('projectReachableAnswers', () => {
         unknown: 'stale',
       }),
     ).toEqual({ trigger: 'no' })
+  })
+
+  it('stabilizes cascading reachability changes and returns an idempotent projection', () => {
+    const trigger = publicQuestion('trigger', 'TEXT', {
+      kind: 'TEXT',
+      multiline: false,
+      maxLength: 20,
+    })
+    const hiddenRoute = publicQuestion(
+      'hidden-route',
+      'TEXT',
+      { kind: 'TEXT', multiline: false, maxLength: 20 },
+      {
+        visibleWhen: {
+          kind: 'ALL',
+          members: [{ kind: 'TEXT_EQUALS', questionId: 'trigger', value: 'show' }],
+        },
+      },
+    )
+    const answerA = publicQuestion('answer-a', 'TEXT', {
+      kind: 'TEXT',
+      multiline: false,
+      maxLength: 20,
+    })
+    const answerB = publicQuestion('answer-b', 'TEXT', {
+      kind: 'TEXT',
+      multiline: false,
+      maxLength: 20,
+    })
+    const version = makePublicVersion([trigger, hiddenRoute])
+    version.sections.push(
+      { id: 'section-a', title: 'A', questionIds: ['answer-a'] },
+      { id: 'section-b', title: 'B', questionIds: ['answer-b'] },
+    )
+    version.questions.push(
+      { ...answerA, sectionId: 'section-a' },
+      { ...answerB, sectionId: 'section-b' },
+    )
+    version.transitions = [
+      {
+        id: 'route-a',
+        fromSectionId: 'section-1',
+        priority: 0,
+        when: {
+          kind: 'ALL',
+          members: [{ kind: 'TEXT_EQUALS', questionId: 'hidden-route', value: 'a' }],
+        },
+        target: { kind: 'SECTION', sectionId: 'section-a' },
+      },
+      {
+        id: 'route-b',
+        fromSectionId: 'section-1',
+        priority: 1,
+        when: null,
+        target: { kind: 'SECTION', sectionId: 'section-b' },
+      },
+      {
+        id: 'finish-a',
+        fromSectionId: 'section-a',
+        priority: 0,
+        when: null,
+        target: { kind: 'ENDING', endingId: 'ending-default' },
+      },
+      {
+        id: 'finish-b',
+        fromSectionId: 'section-b',
+        priority: 0,
+        when: null,
+        target: { kind: 'ENDING', endingId: 'ending-default' },
+      },
+    ]
+    const rawAnswers = {
+      trigger: 'hide',
+      'hidden-route': 'a',
+      'answer-a': 'stale-a',
+    }
+
+    const projected = projectReachableAnswers(version, rawAnswers)
+    expect(projected).toEqual({ trigger: 'hide' })
+    expect(projectReachableAnswers(version, projected)).toEqual(projected)
+    expect(evaluateFormPath(version, projected).sectionIds).toEqual(['section-1', 'section-b'])
+    expectAnswerIssue(version, rawAnswers, 'answer-a', 'UNREACHABLE_ANSWER')
   })
 })
 
