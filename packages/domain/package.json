@@ -9,6 +9,11 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./database/forms": {
+      "types": "./src/database/forms/public.ts",
+      "import": "./src/database/forms/public.ts",
+      "default": "./src/database/forms/public.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",
