@@ -248,7 +248,7 @@ export interface FormResponsePage {
   nextCursor: FormResponseCursor | null
 }
 
-export interface DatabaseFormRepositoryContract {
+export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
   listManagedForms(pageId: string): Promise<ManagedFormRecord[]>
@@ -266,7 +266,7 @@ export interface DatabaseFormRepositoryContract {
   hasProtectedPropertyDependency(propertyId: string, now: Date): Promise<boolean>
 }
 
-export class DatabaseFormRepository implements DatabaseFormRepositoryContract {
+export class DatabaseFormRepository implements FormRepositoryContract {
   private readonly uow: UnitOfWork
 
   constructor(uow: UnitOfWork) {
@@ -496,6 +496,7 @@ export class DatabaseFormRepository implements DatabaseFormRepositoryContract {
   async hasProtectedPropertyDependency(propertyId: string, now: Date): Promise<boolean> {
     const versions = await this.uow.client().databaseFormVersion.findMany({
       where: {
+        form: { source: { properties: { some: { id: propertyId } } } },
         OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
       },
       select: { schema: true },

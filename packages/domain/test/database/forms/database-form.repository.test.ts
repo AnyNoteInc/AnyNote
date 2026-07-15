@@ -8,6 +8,7 @@ import {
 import {
   DatabaseFormRepository,
   type CreateFormRecord,
+  type FormRepositoryContract,
   type PublishFormVersionRecord,
 } from '../../../src/database/forms/database-form.repository.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
@@ -128,11 +129,66 @@ function makeRepository(client = makeClient()) {
   return { client, uow, repository: new DatabaseFormRepository(uow) }
 }
 
+function makeSwitchableRepository() {
+  const baseClient = makeClient()
+  const transactionClient = makeClient()
+  let activeClient = baseClient
+  const uow = {
+    client: vi.fn(() => activeClient),
+    transaction: vi.fn(async (callback: () => Promise<unknown>) => callback()),
+  } as unknown as UnitOfWork
+  const repository: FormRepositoryContract = new DatabaseFormRepository(uow)
+  const activateTransactionClient = () => {
+    activeClient = transactionClient
+  }
+  return { baseClient, transactionClient, uow, repository, activateTransactionClient }
+}
+
+function expectNoWriteCalls(client: ReturnType<typeof makeClient>) {
+  expect(client.databaseView.create).not.toHaveBeenCalled()
+  expect(client.databaseView.delete).not.toHaveBeenCalled()
+  expect(client.databaseForm.create).not.toHaveBeenCalled()
+  expect(client.databaseForm.updateMany).not.toHaveBeenCalled()
+  expect(client.databaseForm.update).not.toHaveBeenCalled()
+  expect(client.databaseFormVersion.create).not.toHaveBeenCalled()
+  expect(client.databaseFormVersion.update).not.toHaveBeenCalled()
+}
+
 function expectNoRowsInSelection(args: unknown) {
   const serialized = JSON.stringify(args)
   expect(serialized).not.toContain('"rows"')
   expect(serialized).not.toContain('"content"')
   expect(serialized).not.toContain('"contentYjs"')
+}
+
+interface StoredVersionFixture {
+  sourceId: string
+  current: boolean
+  acceptUntil: Date | null
+  schema: unknown
+}
+
+function mockActiveVersionQuery(
+  client: ReturnType<typeof makeClient>,
+  fixtures: StoredVersionFixture[],
+) {
+  client.databaseFormVersion.findMany.mockImplementationOnce(async (args) => {
+    const propertyId = args.where?.form?.source?.properties?.some?.id
+    const sourceId = propertyId === 'property-protected' ? 'source-protected' : null
+    const graceClause = args.where?.OR?.find(
+      (clause: { acceptUntil?: { gt?: Date } }) => clause.acceptUntil !== undefined,
+    )
+    const graceAfter = graceClause?.acceptUntil?.gt
+    if (sourceId === null || graceAfter === undefined) return []
+    return fixtures
+      .filter(
+        (fixture) =>
+          fixture.sourceId === sourceId &&
+          (fixture.current ||
+            (fixture.acceptUntil !== null && fixture.acceptUntil.getTime() > graceAfter.getTime())),
+      )
+      .map(({ schema }) => ({ schema }))
+  })
 }
 
 describe('DatabaseFormRepository writes', () => {
@@ -332,6 +388,77 @@ describe('DatabaseFormRepository writes', () => {
     expect(data).not.toHaveProperty('submissions')
     expect(data).not.toHaveProperty('uploads')
   })
+
+  it('resolves the active transaction client separately for every write operation', async () => {
+    const { baseClient, transactionClient, repository, activateTransactionClient } =
+      makeSwitchableRepository()
+
+    // Constructed while the base client is active; all work below starts only
+    // after the UoW exposes its transaction client.
+    activateTransactionClient()
+
+    await repository.createFormWithView({
+      sourceId: 'source-1',
+      title: 'Form',
+      position: 0,
+      routeKey: 'anf_create',
+      draftSchema: documentFor('property-1'),
+      createdById: 'user-1',
+    })
+    await repository.updateDraftIfRevision({
+      formId: 'form-1',
+      expectedRevision: 1,
+      draftSchema: documentFor('property-2'),
+    })
+    await repository.publishVersion({
+      formId: 'form-1',
+      previousPublishedVersionId: 'version-1',
+      previousAcceptUntil: new Date('2026-07-16T00:05:00.000Z'),
+      versionNumber: 2,
+      schemaVersion: 1,
+      schema: documentFor('property-2'),
+      schemaHash: 'b'.repeat(64),
+      publishedById: 'user-1',
+      publishedAt: now,
+      state: 'OPEN',
+    })
+    await repository.updateSettings({ formId: 'form-1', notifyOwners: false })
+    await repository.duplicateForm({
+      sourceId: 'source-1',
+      title: 'Copy',
+      position: 1024,
+      routeKey: 'anf_copy',
+      draftSchema: documentFor('property-2'),
+      createdById: 'user-1',
+      audience: 'ANYONE_WITH_LINK',
+      respondentAccess: 'NONE',
+      opensAt: null,
+      closesAt: null,
+      responseLimit: null,
+      notifyOwners: true,
+    })
+    await repository.archiveForm({ formId: 'form-1' })
+    await repository.listManagedForms('page-1')
+
+    expectNoWriteCalls(baseClient)
+    expect(baseClient.databaseForm.findUnique).not.toHaveBeenCalled()
+    expect(baseClient.databaseForm.findMany).not.toHaveBeenCalled()
+    expect(transactionClient.databaseView.create).toHaveBeenCalledTimes(2)
+    expect(transactionClient.databaseView.delete).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseForm.create).toHaveBeenCalledTimes(2)
+    expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseForm.update).toHaveBeenCalledTimes(3)
+    expect(transactionClient.databaseFormVersion.update).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseFormVersion.create).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseForm.findUnique).toHaveBeenCalledTimes(2)
+    expect(transactionClient.databaseForm.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { source: { pageId: 'page-1' } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      }),
+    )
+    expectNoRowsInSelection(transactionClient.databaseForm.findMany.mock.calls[0]?.[0])
+  })
 })
 
 describe('database forms dependency injection', () => {
@@ -495,8 +622,13 @@ describe('DatabaseFormRepository focused reads', () => {
 describe('DatabaseFormRepository protected property dependencies', () => {
   it('detects a reference in a current published version', async () => {
     const client = makeClient()
-    client.databaseFormVersion.findMany.mockResolvedValueOnce([
-      { schema: documentFor('property-protected') },
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: true,
+        acceptUntil: null,
+        schema: documentFor('property-protected'),
+      },
     ])
     const { repository } = makeRepository(client)
 
@@ -505,6 +637,7 @@ describe('DatabaseFormRepository protected property dependencies', () => {
     ).resolves.toBe(true)
     expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith({
       where: {
+        form: { source: { properties: { some: { id: 'property-protected' } } } },
         OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
       },
       select: { schema: true },
@@ -513,20 +646,67 @@ describe('DatabaseFormRepository protected property dependencies', () => {
 
   it('detects a reference in a grace-period version', async () => {
     const client = makeClient()
-    client.databaseFormVersion.findMany.mockResolvedValueOnce([
-      { schema: documentFor('property-protected') },
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: false,
+        acceptUntil: new Date('2026-07-16T00:00:01.000Z'),
+        schema: documentFor('property-protected'),
+      },
     ])
     const { repository } = makeRepository(client)
 
     await expect(
       repository.hasProtectedPropertyDependency('property-protected', now),
     ).resolves.toBe(true)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ acceptUntil: { gt: now } }]),
+        }),
+      }),
+    )
   })
 
-  it('ignores expired and unrelated versions because only active schemas are selected', async () => {
+  it('does not protect a dependency that exists only in an expired version', async () => {
     const client = makeClient()
-    client.databaseFormVersion.findMany.mockResolvedValueOnce([
-      { schema: documentFor('other-property') },
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: false,
+        acceptUntil: new Date('2026-07-15T23:59:59.000Z'),
+        schema: documentFor('property-protected'),
+      },
+    ])
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.hasProtectedPropertyDependency('property-protected', now),
+    ).resolves.toBe(false)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([{ acceptUntil: { gt: now } }]),
+        }),
+      }),
+    )
+  })
+
+  it('ignores a malformed active schema from an unrelated source', async () => {
+    const client = makeClient()
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-unrelated',
+        current: true,
+        acceptUntil: null,
+        schema: { malformed: 'unrelated-source' },
+      },
+      {
+        sourceId: 'source-protected',
+        current: true,
+        acceptUntil: null,
+        schema: documentFor('other-property'),
+      },
     ])
     const { repository } = makeRepository(client)
 
@@ -535,13 +715,27 @@ describe('DatabaseFormRepository protected property dependencies', () => {
     ).resolves.toBe(false)
   })
 
-  it('fails closed when an active stored schema is malformed', async () => {
+  it('fails closed when an active stored schema in the relevant source is malformed', async () => {
     const client = makeClient()
-    client.databaseFormVersion.findMany.mockResolvedValueOnce([{ schema: { malformed: true } }])
+    mockActiveVersionQuery(client, [
+      {
+        sourceId: 'source-protected',
+        current: true,
+        acceptUntil: null,
+        schema: { malformed: true },
+      },
+    ])
     const { repository } = makeRepository(client)
 
     await expect(
       repository.hasProtectedPropertyDependency('property-protected', now),
     ).resolves.toBe(true)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          form: { source: { properties: { some: { id: 'property-protected' } } } },
+        }),
+      }),
+    )
   })
 })
