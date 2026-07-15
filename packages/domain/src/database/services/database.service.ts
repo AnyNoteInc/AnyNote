@@ -74,6 +74,7 @@ import type {
 } from './computed-cells.ts'
 import { buildRowQuery } from './query-planner.ts'
 import type { MultiSelectPostFilter, PropertyMeta, RelationPostFilter } from './query-planner.ts'
+import { assertCanEditDatabaseStructure } from './database-structure-access.ts'
 
 // Position gap used for end-insertion / reorder spacing (matches kanban's 1024).
 const POSITION_GAP = 1024
@@ -178,37 +179,13 @@ export class DatabaseService {
     return source
   }
 
-  // ── Structure permissions (Phase 4C) ─────────────────────────────────────────
-
-  /**
-   * Assert the actor may edit the database STRUCTURE (properties, views, filters,
-   * sorts, layout, relation/rollup config, access rules). Allowed when the actor
-   * is workspace OWNER/ADMIN, OR is the source page creator AND the structure is
-   * NOT locked. When `structureLocked`, ONLY OWNER/ADMIN may edit.
-   *
-   * This is SEPARATE from `assertCanEdit` (the page-level content guard): callers
-   * keep `assertCanEdit`/`assertCanRead` for the page-access layer and ADD this.
-   */
-  private async assertCanEditStructure(
-    actorUserId: string,
-    source: SourceWithLock,
-  ): Promise<void> {
-    const role = await this.repo.findWorkspaceRole(actorUserId, source.workspaceId)
-    if (role === 'OWNER' || role === 'ADMIN') return
-    if (source.structureLocked) {
-      throw forbidden('Структура заблокирована')
-    }
-    if (source.pageCreatedById === actorUserId) return
-    throw forbidden('Недостаточно прав для изменения структуры')
-  }
-
   /** Resolve a source by page + assert the actor may edit its structure. */
   private async requireStructureEdit(
     actorUserId: string,
     pageId: string,
   ): Promise<SourceWithLock> {
     const source = await this.requireSourceWithLock(pageId)
-    await this.assertCanEditStructure(actorUserId, source)
+    await assertCanEditDatabaseStructure(this.repo, actorUserId, source)
     return source
   }
 

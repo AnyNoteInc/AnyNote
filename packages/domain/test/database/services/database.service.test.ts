@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-import { DomainError } from '../../../src/shared/errors.ts'
 import { DatabaseService } from '../../../src/database/services/database.service.ts'
 import { MAX_BOARD_ROWS } from '../../../src/database/dto/database.dto.ts'
 import type { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
@@ -165,7 +164,10 @@ describe('DatabaseService.createProperty', () => {
     })
     await expect(
       makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' }),
-    ).rejects.toBeInstanceOf(DomainError)
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'База данных не найдена для этой страницы',
+    })
   })
 
   it('is FORBIDDEN for a VIEWER member who is not the creator', async () => {

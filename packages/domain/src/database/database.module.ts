@@ -8,6 +8,8 @@ import { DatabaseRepository } from './repositories/database.repository.ts'
 import { DatabaseService } from './services/database.service.ts'
 import { DATABASE } from './database.tokens.ts'
 
+export { databaseFormsModule } from './forms/database-forms.module.ts'
+
 export const databaseModule = new ContainerModule(({ bind }) => {
   bind(DATABASE.Repository).toResolvedValue(
     (uow) => new DatabaseRepository(uow as UnitOfWork),

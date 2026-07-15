@@ -22,7 +22,7 @@ import { KANBAN } from './kanban/kanban.tokens.ts'
 import { kanbanModule } from './kanban/kanban.module.ts'
 import type { KanbanService } from './kanban/services/kanban.service.ts'
 import { DATABASE } from './database/database.tokens.ts'
-import { databaseModule } from './database/database.module.ts'
+import { databaseFormsModule, databaseModule } from './database/database.module.ts'
 import type { DatabaseService } from './database/services/database.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
@@ -101,6 +101,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     remindersModule,
     kanbanModule,
     databaseModule,
+    databaseFormsModule,
     pageHistoryModule,
     pagesModule,
     peopleModule,
