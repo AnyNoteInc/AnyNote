@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   evaluateFormPath,
   isFormQuestionInputCompatible,
+  isReservedFormAnswerKey,
   type EvaluatedFormPath,
   type PublicFormQuestion,
   type PublicFormVersion,
@@ -325,8 +326,6 @@ const stabilizeReachableAnswers = (
   throw new Error('FORM_ANSWER_REACHABILITY_DID_NOT_STABILIZE')
 }
 
-const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
-
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -342,7 +341,7 @@ const inspectRawRecord = (
   }
 
   for (const key of Object.keys(value)) {
-    if (DANGEROUS_OBJECT_KEYS.has(key)) {
+    if (isReservedFormAnswerKey(key)) {
       context.addIssue({ code: 'custom', path: [...path, key], message: 'DANGEROUS_OBJECT_KEY' })
     }
   }

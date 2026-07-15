@@ -45,6 +45,7 @@ export type FormGraphErrorCode =
   | 'DUPLICATE_PROPERTY_QUESTION'
   | 'DUPLICATE_OPTION_ID'
   | 'QUESTION_INPUT_TYPE_MISMATCH'
+  | 'RESERVED_QUESTION_ID'
   | 'CONDITION_QUESTION_NOT_FOUND'
   | 'CONDITION_QUESTION_NOT_EARLIER'
   | 'CONDITION_OPERATOR_INCOMPATIBLE'
@@ -63,6 +64,10 @@ export type FormGraphValidationResult =
 
 type FormFlowVersion = FormVersionDocument | PublicFormVersion
 type FormFlowQuestion = FormQuestion | PublicFormQuestion
+
+const RESERVED_FORM_ANSWER_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
+
+export const isReservedFormAnswerKey = (key: string): boolean => RESERVED_FORM_ANSWER_KEYS.has(key)
 
 type RuntimeAnswerState = 'EMPTY' | 'NON_EMPTY' | 'INVALID'
 
@@ -504,6 +509,10 @@ export const validateFormGraph = (version: FormFlowVersion): FormGraphValidation
   })
 
   questions.forEach((question, questionIndex) => {
+    if (isReservedFormAnswerKey(question.id)) {
+      addError(errors, 'RESERVED_QUESTION_ID', ['questions', questionIndex, 'id'], question.id)
+    }
+
     const section = sectionsById.get(question.sectionId)
     if (section === undefined) {
       addError(

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   FORM_SCHEMA_VERSION,
+  buildFormAnswerSchema,
   evaluateCondition,
   evaluateConditionGroup,
   evaluateFormPath,
@@ -220,6 +221,51 @@ describe('validateFormGraph', () => {
 
     expect(codes(version)).toContain('QUESTION_INPUT_TYPE_MISMATCH')
   })
+
+  it.each(['constructor', 'prototype', '__proto__'])(
+    'reserves unsafe question ID %s across graph publication and raw answer parsing',
+    (reservedId) => {
+      const version = makeVersion()
+      version.questions[0]!.id = reservedId
+      version.sections[0]!.questionIds = [reservedId]
+
+      const result = validateFormGraph(version)
+      expect(result.errors).toContainEqual(
+        expect.objectContaining({
+          code: 'RESERVED_QUESTION_ID',
+          path: ['questions', 0, 'id'],
+          entityId: reservedId,
+        }),
+      )
+
+      const publicVersion = toPublicFormVersion(version)
+      const rawEnvelope = JSON.parse(`{"answers":{${JSON.stringify(reservedId)}:"value"}}`)
+      const parsed = buildFormAnswerSchema(publicVersion).safeParse(rawEnvelope)
+      expect(parsed.success).toBe(false)
+      if (!parsed.success) {
+        expect(parsed.error.issues).toContainEqual(
+          expect.objectContaining({
+            path: ['answers', reservedId],
+            message: 'DANGEROUS_OBJECT_KEY',
+          }),
+        )
+      }
+    },
+  )
+
+  it.each(['constructor-id', 'prototype_value', '___proto__'])(
+    'accepts safe question ID similar to a reserved key: %s',
+    (questionId) => {
+      const version = makeVersion()
+      version.questions[0]!.id = questionId
+      version.sections[0]!.questionIds = [questionId]
+
+      expect(validateFormGraph(version)).toEqual({ ok: true, errors: [] })
+      const publicVersion = toPublicFormVersion(version)
+      const rawEnvelope = JSON.parse(`{"answers":{${JSON.stringify(questionId)}:"value"}}`)
+      expect(buildFormAnswerSchema(publicVersion).safeParse(rawEnvelope).success).toBe(true)
+    },
+  )
 
   it('validates condition question, ordering, value family and option snapshots', () => {
     const unknown = makeVersion()
