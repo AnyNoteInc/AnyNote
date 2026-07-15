@@ -99,6 +99,51 @@ describe('buildQuestionValueSchema', () => {
     expectInvalid(required, '')
   })
 
+  it('uses input-family-aware optional empty sentinels', () => {
+    const number = publicQuestion('empty-number', 'NUMBER', { kind: 'NUMBER' })
+    const checkbox = publicQuestion('empty-checkbox', 'CHECKBOX', {
+      kind: 'CHECKBOX',
+      consent: false,
+    })
+    const pageLink = publicQuestion('empty-page-link', 'PAGE_LINK', { kind: 'PAGE_LINK' })
+    const file = publicQuestion('empty-file', 'FILE', {
+      kind: 'FILE',
+      allowedMimeTypes: [],
+      maxBytesPerFile: 1_000,
+      maxFiles: 2,
+    })
+    const multiple = publicQuestion('empty-multiple', 'MULTI_SELECT', {
+      kind: 'MULTI_CHOICE',
+      appearance: 'CHECKLIST',
+      options: [{ id: 'option-a', label: 'A' }],
+      maxSelections: 1,
+    })
+    const person = publicQuestion('empty-person', 'PERSON', {
+      kind: 'PERSON',
+      maxSelections: 1,
+    })
+    const relation = publicQuestion('empty-relation', 'RELATION', {
+      kind: 'RELATION',
+      maxSelections: 1,
+    })
+
+    for (const scalar of [number, checkbox, pageLink]) expectInvalid(scalar, [])
+    for (const array of [file, multiple, person, relation]) expectInvalid(array, '')
+    expectValid(pageLink, '')
+    expectValid(file, [])
+
+    for (const [requiredQuestion, emptyValue] of [
+      [{ ...pageLink, required: true }, ''],
+      [{ ...file, required: true }, []],
+    ] as const) {
+      const result = buildQuestionValueSchema(requiredQuestion).safeParse(emptyValue)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues.map(({ message }) => message)).toContain('REQUIRED_ANSWER')
+      }
+    }
+  })
+
   it('validates finite numbers, bounds and floating-point steps', () => {
     const question = publicQuestion('number', 'NUMBER', {
       kind: 'NUMBER',
@@ -116,13 +161,38 @@ describe('buildQuestionValueSchema', () => {
       step: 1,
     })
     expectValid(largeStep, 1_000_000_000_000_000)
-    expectInvalid(largeStep, 1_000_000_000_000_000.5)
+    for (const value of [
+      1_000_000_000_000_000.125, 1_000_000_000_000_000.25, 1_000_000_000_000_000.5,
+    ]) {
+      expectInvalid(largeStep, value)
+    }
 
     const largeDecimalStep = publicQuestion('large-decimal-number', 'NUMBER', {
       kind: 'NUMBER',
       step: 0.7,
     })
     expectValid(largeDecimalStep, 700_000_000_000)
+
+    const offsetStep = publicQuestion('offset-number', 'NUMBER', {
+      kind: 'NUMBER',
+      min: 0.1,
+      step: 0.2,
+    })
+    expectValid(offsetStep, 0.3)
+    expectInvalid(offsetStep, 0.4)
+
+    const exponentStep = publicQuestion('exponent-number', 'NUMBER', {
+      kind: 'NUMBER',
+      step: 1e-7,
+    })
+    expectValid(exponentStep, 3e-7)
+    expectInvalid(exponentStep, 3.5e-7)
+
+    const subnormalStep = publicQuestion('subnormal-number', 'NUMBER', {
+      kind: 'NUMBER',
+      step: Number.MIN_VALUE,
+    })
+    expectValid(subnormalStep, 3 * Number.MIN_VALUE)
 
     // MAX_VALUE is dyadic, so the factor of three makes this subnormal step a genuine
     // non-divisor while the subtraction still overflows the runtime quotient.
@@ -396,6 +466,35 @@ describe('buildFormAnswerSchema', () => {
       buildFormAnswerSchema(version).safeParse({ answers: {}, sourceId: 'secret' }).success,
     ).toBe(false)
   })
+
+  it('rejects dangerous own keys and prototype-polluted envelopes before object parsing', () => {
+    const schema = buildFormAnswerSchema(makePublicVersion([]))
+    const cases: Array<{ input: unknown; path: (string | number)[]; message: string }> = [
+      {
+        input: JSON.parse('{"answers":{},"__proto__":{"polluted":true}}'),
+        path: ['__proto__'],
+        message: 'DANGEROUS_OBJECT_KEY',
+      },
+      {
+        input: JSON.parse('{"answers":{"__proto__":"polluted"}}'),
+        path: ['answers', '__proto__'],
+        message: 'DANGEROUS_OBJECT_KEY',
+      },
+      {
+        input: Object.assign(Object.create({ polluted: true }), { answers: {} }),
+        path: [],
+        message: 'INVALID_OBJECT_PROTOTYPE',
+      },
+    ]
+
+    for (const { input, path, message } of cases) {
+      const result = schema.safeParse(input)
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.issues).toContainEqual(expect.objectContaining({ path, message }))
+      }
+    }
+  })
 })
 
 describe('projectReachableAnswers', () => {
@@ -525,8 +624,8 @@ describe('toPublicFormVersion', () => {
     input,
   })
 
-  it('maps property refs to valueType and serializes an exact secret-free DTO', () => {
-    const stored: FormVersionDocument & Record<string, unknown> = {
+  const makeStoredVersion = (): FormVersionDocument =>
+    ({
       schemaVersion: FORM_SCHEMA_VERSION,
       firstSectionId: 'section-1',
       presentation: {
@@ -567,10 +666,10 @@ describe('toPublicFormVersion', () => {
         },
       ],
       endings: [{ id: 'ending-default', title: 'Done' }],
-      sourceId: 'secret-source-id',
-      pageId: 'secret-page-id',
-      hiddenPropertyName: 'Hidden salary property',
-    }
+    }) satisfies FormVersionDocument
+
+  it('maps property refs to valueType and serializes an exact secret-free DTO', () => {
+    const stored = makeStoredVersion()
 
     const publicVersion = toPublicFormVersion(stored)
     expect(publicVersion.questions.map(({ valueType }) => valueType)).toEqual(['TITLE', 'EMAIL'])
@@ -591,13 +690,70 @@ describe('toPublicFormVersion', () => {
       'propertyId',
       'secret-property-id',
       'sourceId',
-      'secret-source-id',
       'pageId',
-      'secret-page-id',
-      'Hidden salary property',
       '"property"',
     ]) {
       expect(serialized).not.toContain(forbidden)
     }
+  })
+
+  it('fails closed when stored nested data contains unknown internal fields', () => {
+    const mutators: Array<(stored: FormVersionDocument) => void> = [
+      (stored) => {
+        ;(stored.presentation as unknown as Record<string, unknown>).sourceId = 'secret-source'
+      },
+      (stored) => {
+        ;(stored.questions[1]!.input as unknown as Record<string, unknown>).pageId = 'secret-page'
+      },
+      (stored) => {
+        stored.questions[1]!.visibleWhen = {
+          kind: 'ALL',
+          members: [{ kind: 'IS_EMPTY', questionId: 'title-question' }],
+        }
+        ;(stored.questions[1]!.visibleWhen.members[0] as unknown as Record<string, unknown>)[
+          'propertyId'
+        ] = 'secret-property'
+      },
+      (stored) => {
+        ;(stored.transitions[0] as unknown as Record<string, unknown>).secret = 'transition-secret'
+      },
+      (stored) => {
+        ;(stored.endings[0] as unknown as Record<string, unknown>).secret = 'ending-secret'
+      },
+    ]
+
+    for (const mutate of mutators) {
+      const stored = makeStoredVersion()
+      mutate(stored)
+      expect(() => toPublicFormVersion(stored)).toThrow()
+    }
+  })
+
+  it('returns independent nested objects that cannot mutate the stored document', () => {
+    const stored = makeStoredVersion()
+    const publicVersion = toPublicFormVersion(stored)
+
+    expect(publicVersion.presentation).not.toBe(stored.presentation)
+    expect(publicVersion.sections).not.toBe(stored.sections)
+    expect(publicVersion.sections[0]).not.toBe(stored.sections[0])
+    expect(publicVersion.sections[0]!.questionIds).not.toBe(stored.sections[0]!.questionIds)
+    expect(publicVersion.questions).not.toBe(stored.questions)
+    expect(publicVersion.questions[0]!.input).not.toBe(stored.questions[0]!.input)
+    expect(publicVersion.transitions).not.toBe(stored.transitions)
+    expect(publicVersion.transitions[0]!.target).not.toBe(stored.transitions[0]!.target)
+    expect(publicVersion.endings).not.toBe(stored.endings)
+    expect(publicVersion.endings[0]).not.toBe(stored.endings[0])
+
+    publicVersion.presentation.title = 'Mutated public title'
+    publicVersion.sections[0]!.title = 'Mutated public section'
+    publicVersion.sections[0]!.questionIds.push('mutated-question')
+    if (publicVersion.questions[0]!.input.kind === 'TEXT') {
+      publicVersion.questions[0]!.input.maxLength = 1
+    }
+
+    expect(stored.presentation.title).toBe('Safe title')
+    expect(stored.sections[0]!.title).toBe('Questions')
+    expect(stored.sections[0]!.questionIds).not.toContain('mutated-question')
+    expect(stored.questions[0]!.input).toMatchObject({ maxLength: 100 })
   })
 })

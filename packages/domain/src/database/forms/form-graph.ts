@@ -64,11 +64,20 @@ export type FormGraphValidationResult =
 type FormFlowVersion = FormVersionDocument | PublicFormVersion
 type FormFlowQuestion = FormQuestion | PublicFormQuestion
 
-const isEmptyValue = (value: unknown): boolean =>
-  value === undefined ||
-  value === null ||
-  value === '' ||
-  (Array.isArray(value) && value.length === 0)
+type RuntimeAnswerState = 'EMPTY' | 'NON_EMPTY' | 'INVALID'
+
+const classifyRuntimeAnswer = (hasOwnAnswer: boolean, value: unknown): RuntimeAnswerState => {
+  if (!hasOwnAnswer || value === undefined || value === null || value === '') return 'EMPTY'
+  if (typeof value === 'string' || typeof value === 'boolean') return 'NON_EMPTY'
+  if (typeof value === 'number') return Number.isFinite(value) ? 'NON_EMPTY' : 'INVALID'
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'EMPTY'
+    return value.every((item) => typeof item === 'string' && item.length > 0)
+      ? 'NON_EMPTY'
+      : 'INVALID'
+  }
+  return 'INVALID'
+}
 
 const isCalendarDate = (value: string): boolean => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value)
@@ -98,13 +107,15 @@ export const evaluateCondition = (
   condition: FormCondition,
   answers: Record<string, unknown>,
 ): boolean => {
-  const answer = answers[condition.questionId]
+  const hasOwnAnswer = Object.prototype.hasOwnProperty.call(answers, condition.questionId)
+  const answer = hasOwnAnswer ? answers[condition.questionId] : undefined
+  const answerState = classifyRuntimeAnswer(hasOwnAnswer, answer)
 
   switch (condition.kind) {
     case 'IS_EMPTY':
-      return isEmptyValue(answer)
+      return answerState === 'EMPTY'
     case 'IS_NOT_EMPTY':
-      return !isEmptyValue(answer)
+      return answerState === 'NON_EMPTY'
     case 'TEXT_EQUALS':
       return typeof answer === 'string' && answer === condition.value
     case 'TEXT_NOT_EQUALS':

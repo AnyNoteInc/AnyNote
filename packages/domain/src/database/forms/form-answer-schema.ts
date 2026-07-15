@@ -7,7 +7,13 @@ import {
   type PublicFormQuestion,
   type PublicFormVersion,
 } from './form-graph.ts'
-import type { FormVersionDocument } from './form-document.ts'
+import {
+  MAX_FORM_QUESTIONS,
+  formPropertyTypeSchema,
+  formQuestionSchema,
+  formVersionDocumentSchema,
+  type FormVersionDocument,
+} from './form-document.ts'
 
 export type FormAnswerEnvelope = {
   answers: Record<string, unknown>
@@ -18,14 +24,23 @@ const EMAIL_MAX_LENGTH = 320
 const PHONE_MAX_LENGTH = 32
 const LEASE_TOKEN_MAX_LENGTH = 4_096
 const OPAQUE_ID_MAX_LENGTH = 512
-const STEP_QUOTIENT_ULP_SAFETY_FACTOR = 4
-const STEP_QUOTIENT_MAX_TOLERANCE = 0.25
+
+export const publicFormQuestionSchema: z.ZodType<PublicFormQuestion> = formQuestionSchema
+  .omit({ property: true })
+  .extend({ valueType: z.union([formPropertyTypeSchema, z.literal('TITLE')]) })
+  .strict()
+
+export const publicFormVersionSchema: z.ZodType<PublicFormVersion> = formVersionDocumentSchema
+  .omit({ questions: true })
+  .extend({ questions: z.array(publicFormQuestionSchema).min(1).max(MAX_FORM_QUESTIONS) })
+  .strict()
 
 export const toPublicFormVersion = (stored: FormVersionDocument): PublicFormVersion => {
+  const parsed = formVersionDocumentSchema.parse(stored)
   const { schemaVersion, firstSectionId, presentation, sections, questions, transitions, endings } =
-    stored
+    parsed
 
-  return {
+  return publicFormVersionSchema.parse({
     schemaVersion,
     firstSectionId,
     presentation,
@@ -36,14 +51,31 @@ export const toPublicFormVersion = (stored: FormVersionDocument): PublicFormVers
     })),
     transitions,
     endings,
-  }
+  })
 }
 
-const isEmptyAnswer = (value: unknown): boolean =>
-  value === undefined ||
-  value === null ||
-  value === '' ||
-  (Array.isArray(value) && value.length === 0)
+const isSupportedEmptyAnswer = (question: PublicFormQuestion, value: unknown): boolean => {
+  if (value === undefined || value === null) return true
+
+  switch (question.input.kind) {
+    case 'TEXT':
+    case 'SINGLE_CHOICE':
+    case 'DATE':
+    case 'URL':
+    case 'EMAIL':
+    case 'PHONE':
+    case 'PAGE_LINK':
+      return value === ''
+    case 'MULTI_CHOICE':
+    case 'FILE':
+    case 'PERSON':
+    case 'RELATION':
+      return Array.isArray(value) && value.length === 0
+    case 'NUMBER':
+    case 'CHECKBOX':
+      return false
+  }
+}
 
 const addInvalidIssue = (context: z.RefinementCtx, message: string): void => {
   context.addIssue({ code: 'custom', message })
@@ -102,6 +134,50 @@ const validateStringArray = (
   value.every((item) => isOpaqueString(item, maxItemLength)) &&
   hasUniqueStrings(value)
 
+type CanonicalDecimal = {
+  coefficient: bigint
+  scale: number
+}
+
+const parseCanonicalDecimal = (value: number): CanonicalDecimal | undefined => {
+  if (!Number.isFinite(value)) return undefined
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/iu.exec(value.toString())
+  if (match === null) return undefined
+
+  const fraction = match[3] ?? ''
+  const exponent = Number(match[4] ?? 0)
+  if (!Number.isSafeInteger(exponent)) return undefined
+
+  const sign = match[1] === '-' ? '-' : ''
+  return {
+    coefficient: BigInt(`${sign}${match[2]}${fraction}`),
+    scale: fraction.length - exponent,
+  }
+}
+
+const alignDecimal = (decimal: CanonicalDecimal, scale: number): bigint =>
+  decimal.coefficient * 10n ** BigInt(scale - decimal.scale)
+
+const isExactStepMultiple = (value: number, base: number, step: number): boolean => {
+  const valueDecimal = parseCanonicalDecimal(value)
+  const baseDecimal = parseCanonicalDecimal(base)
+  const stepDecimal = parseCanonicalDecimal(step)
+  if (
+    valueDecimal === undefined ||
+    baseDecimal === undefined ||
+    stepDecimal === undefined ||
+    stepDecimal.coefficient <= 0n
+  ) {
+    return false
+  }
+
+  const commonScale = Math.max(valueDecimal.scale, baseDecimal.scale, stepDecimal.scale)
+  const alignedValue = alignDecimal(valueDecimal, commonScale)
+  const alignedBase = alignDecimal(baseDecimal, commonScale)
+  const alignedStep = alignDecimal(stepDecimal, commonScale)
+  return (alignedValue - alignedBase) % alignedStep === 0n
+}
+
 const validateNonEmptyAnswer = (
   question: PublicFormQuestion,
   value: unknown,
@@ -124,21 +200,8 @@ const validateNonEmptyAnswer = (
       }
       if (input.min !== undefined && value < input.min) addInvalidIssue(context, 'NUMBER_TOO_SMALL')
       if (input.max !== undefined && value > input.max) addInvalidIssue(context, 'NUMBER_TOO_LARGE')
-      if (input.step !== undefined) {
-        const base = input.min ?? 0
-        const quotient = (value - base) / input.step
-        if (!Number.isFinite(quotient)) {
-          addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
-        } else {
-          // Division compounds a few rounding operations. Four quotient ULPs absorb those
-          // artifacts, while the hard cap remains safely below a half-step mismatch.
-          const scaledTolerance =
-            Number.EPSILON * Math.max(1, Math.abs(quotient)) * STEP_QUOTIENT_ULP_SAFETY_FACTOR
-          const tolerance = Math.min(STEP_QUOTIENT_MAX_TOLERANCE, scaledTolerance)
-          if (Math.abs(quotient - Math.round(quotient)) > tolerance) {
-            addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
-          }
-        }
+      if (input.step !== undefined && !isExactStepMultiple(value, input.min ?? 0, input.step)) {
+        addInvalidIssue(context, 'NUMBER_STEP_MISMATCH')
       }
       return
     }
@@ -224,7 +287,7 @@ export const buildQuestionValueSchema = (question: PublicFormQuestion): z.ZodTyp
       return
     }
 
-    if (isEmptyAnswer(value)) {
+    if (isSupportedEmptyAnswer(question, value)) {
       if (question.required) addInvalidIssue(context, 'REQUIRED_ANSWER')
       return
     }
@@ -261,52 +324,86 @@ const stabilizeReachableAnswers = (
   throw new Error('FORM_ANSWER_REACHABILITY_DID_NOT_STABILIZE')
 }
 
+const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const inspectRawRecord = (
+  value: unknown,
+  path: (string | number)[],
+  context: z.RefinementCtx,
+): void => {
+  if (!isObjectRecord(value)) return
+
+  if (Object.getPrototypeOf(value) !== Object.prototype) {
+    context.addIssue({ code: 'custom', path, message: 'INVALID_OBJECT_PROTOTYPE' })
+  }
+
+  for (const key of Object.keys(value)) {
+    if (DANGEROUS_OBJECT_KEYS.has(key)) {
+      context.addIssue({ code: 'custom', path: [...path, key], message: 'DANGEROUS_OBJECT_KEY' })
+    }
+  }
+}
+
+const rawFormAnswerEnvelopeSchema = z.unknown().superRefine((value, context) => {
+  inspectRawRecord(value, [], context)
+  if (isObjectRecord(value) && Object.prototype.hasOwnProperty.call(value, 'answers')) {
+    inspectRawRecord(value['answers'], ['answers'], context)
+  }
+})
+
 export const buildFormAnswerSchema = (version: PublicFormVersion): z.ZodType<FormAnswerEnvelope> =>
-  z
-    .object({ answers: z.record(z.string(), z.unknown()) })
-    .strict()
-    .superRefine(({ answers }, context) => {
-      const stabilized = stabilizeReachableAnswers(version, answers)
-      const { path } = stabilized
-      const visibleQuestionIds = new Set(path.visibleQuestionIds)
-      const questionsById = new Map(version.questions.map((question) => [question.id, question]))
+  rawFormAnswerEnvelopeSchema.pipe(
+    z
+      .object({ answers: z.record(z.string(), z.unknown()) })
+      .strict()
+      .superRefine(({ answers }, context) => {
+        const stabilized = stabilizeReachableAnswers(version, answers)
+        const { path } = stabilized
+        const visibleQuestionIds = new Set(path.visibleQuestionIds)
+        const questionsById = new Map(version.questions.map((question) => [question.id, question]))
 
-      for (const question of version.questions) {
-        if (!isFormQuestionInputCompatible(question)) {
-          context.addIssue({
-            code: 'custom',
-            path: ['answers', question.id],
-            message: 'QUESTION_INPUT_TYPE_MISMATCH',
-          })
-        }
-      }
-
-      for (const questionId of Object.keys(answers)) {
-        if (!visibleQuestionIds.has(questionId)) {
-          context.addIssue({
-            code: 'custom',
-            path: ['answers', questionId],
-            message: 'UNREACHABLE_ANSWER',
-          })
-        }
-      }
-
-      for (const questionId of path.visibleQuestionIds) {
-        const question = questionsById.get(questionId)
-        if (question === undefined || !isFormQuestionInputCompatible(question)) continue
-        const result = buildQuestionValueSchema(question).safeParse(stabilized.answers[questionId])
-
-        if (!result.success) {
-          for (const issue of result.error.issues) {
+        for (const question of version.questions) {
+          if (!isFormQuestionInputCompatible(question)) {
             context.addIssue({
               code: 'custom',
-              path: ['answers', questionId, ...issue.path],
-              message: issue.message,
+              path: ['answers', question.id],
+              message: 'QUESTION_INPUT_TYPE_MISMATCH',
             })
           }
         }
-      }
-    })
+
+        for (const questionId of Object.keys(answers)) {
+          if (!visibleQuestionIds.has(questionId)) {
+            context.addIssue({
+              code: 'custom',
+              path: ['answers', questionId],
+              message: 'UNREACHABLE_ANSWER',
+            })
+          }
+        }
+
+        for (const questionId of path.visibleQuestionIds) {
+          const question = questionsById.get(questionId)
+          if (question === undefined || !isFormQuestionInputCompatible(question)) continue
+          const result = buildQuestionValueSchema(question).safeParse(
+            stabilized.answers[questionId],
+          )
+
+          if (!result.success) {
+            for (const issue of result.error.issues) {
+              context.addIssue({
+                code: 'custom',
+                path: ['answers', questionId, ...issue.path],
+                message: issue.message,
+              })
+            }
+          }
+        }
+      }),
+  )
 
 export const projectReachableAnswers = (
   version: PublicFormVersion,

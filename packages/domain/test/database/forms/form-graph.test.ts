@@ -6,6 +6,8 @@ import {
   evaluateCondition,
   evaluateConditionGroup,
   evaluateFormPath,
+  projectReachableAnswers,
+  toPublicFormVersion,
   validateFormGraph,
   type FormConditionGroup,
   type FormQuestion,
@@ -351,6 +353,117 @@ describe('validateFormGraph', () => {
       }),
     )
   })
+
+  it('accepts generated branching DAGs with joins and evaluates them deterministically', () => {
+    const branchingDag = fc
+      .record({
+        tailCount: fc.integer({ min: 0, max: 4 }),
+        questionMask: fc.array(fc.boolean(), { minLength: 8, maxLength: 8 }),
+        conditionalPriority: fc.integer({ min: 0, max: 20 }),
+        fallbackPriority: fc.integer({ min: 0, max: 20 }),
+        triggerValue: fc.constantFrom('a', 'b'),
+      })
+      .filter(
+        ({ conditionalPriority, fallbackPriority }) => conditionalPriority !== fallbackPriority,
+      )
+
+    fc.assert(
+      fc.property(branchingDag, (generated) => {
+        const sectionIds = [
+          'section-root',
+          'section-a',
+          'section-b',
+          'section-join',
+          ...Array.from({ length: generated.tailCount }, (_, index) => `section-tail-${index}`),
+        ]
+        const sections = sectionIds.map((id, index) => ({
+          id,
+          title: id,
+          questionIds:
+            id === 'section-root' || generated.questionMask[index % generated.questionMask.length]
+              ? [`question-${id}`]
+              : [],
+        }))
+        const questions = sections.flatMap((section, index) =>
+          section.questionIds.map((id) => question(id, section.id, `property-${index}`)),
+        )
+        const tailIds = sectionIds.slice(4)
+        const transitions: FormVersionDocument['transitions'] = [
+          {
+            id: 'transition-root-a',
+            fromSectionId: 'section-root',
+            priority: generated.conditionalPriority,
+            when: textEquals('question-section-root', 'a'),
+            target: { kind: 'SECTION', sectionId: 'section-a' },
+          },
+          {
+            id: 'transition-root-b',
+            fromSectionId: 'section-root',
+            priority: generated.fallbackPriority,
+            when: null,
+            target: { kind: 'SECTION', sectionId: 'section-b' },
+          },
+          {
+            id: 'transition-a-join',
+            fromSectionId: 'section-a',
+            priority: 0,
+            when: null,
+            target: { kind: 'SECTION', sectionId: 'section-join' },
+          },
+          {
+            id: 'transition-b-join',
+            fromSectionId: 'section-b',
+            priority: 0,
+            when: null,
+            target: { kind: 'SECTION', sectionId: 'section-join' },
+          },
+          {
+            id: 'transition-join',
+            fromSectionId: 'section-join',
+            priority: 0,
+            when: null,
+            target:
+              tailIds.length === 0
+                ? { kind: 'ENDING', endingId: 'ending-default' }
+                : { kind: 'SECTION', sectionId: tailIds[0]! },
+          },
+          ...tailIds.map((sectionId, index) => ({
+            id: `transition-tail-${index}`,
+            fromSectionId: sectionId,
+            priority: 0,
+            when: null,
+            target:
+              index === tailIds.length - 1
+                ? ({ kind: 'ENDING', endingId: 'ending-default' } as const)
+                : ({ kind: 'SECTION', sectionId: tailIds[index + 1]! } as const),
+          })),
+        ]
+        const version: FormVersionDocument = {
+          ...makeVersion(),
+          firstSectionId: 'section-root',
+          sections,
+          questions,
+          transitions,
+        }
+        const answers = Object.fromEntries(
+          questions.map(({ id }) => [
+            id,
+            id === 'question-section-root' ? generated.triggerValue : 'answer',
+          ]),
+        )
+
+        expect(validateFormGraph(version)).toEqual({ ok: true, errors: [] })
+        const firstEvaluation = evaluateFormPath(version, answers)
+        expect(evaluateFormPath(version, answers)).toEqual(firstEvaluation)
+        expect(firstEvaluation.endingId).toBe('ending-default')
+
+        const publicVersion = toPublicFormVersion(version)
+        const projected = projectReachableAnswers(publicVersion, answers)
+        expect(projectReachableAnswers(publicVersion, projected)).toEqual(projected)
+      }),
+      { numRuns: 60, seed: 20_260_715 },
+    )
+  })
 })
 
 describe('evaluateFormPath', () => {
@@ -441,6 +554,34 @@ describe('condition evaluation', () => {
         { q: 'option-b' },
       ),
     ).toBe(false)
+  })
+
+  it('treats inherited and malformed empty-condition answers as missing or invalid', () => {
+    const inherited = Object.create({ toString: 'inherited' }) as Record<string, unknown>
+    expect(evaluateCondition({ kind: 'IS_EMPTY', questionId: 'toString' }, inherited)).toBe(true)
+    expect(evaluateCondition({ kind: 'IS_NOT_EMPTY', questionId: 'toString' }, inherited)).toBe(
+      false,
+    )
+
+    for (const malformed of [
+      {},
+      () => undefined,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      [''],
+      [1],
+    ]) {
+      expect(evaluateCondition({ kind: 'IS_EMPTY', questionId: 'q' }, { q: malformed })).toBe(false)
+      expect(evaluateCondition({ kind: 'IS_NOT_EMPTY', questionId: 'q' }, { q: malformed })).toBe(
+        false,
+      )
+    }
+
+    for (const supported of ['value', 0, false, ['option-a']]) {
+      expect(evaluateCondition({ kind: 'IS_NOT_EMPTY', questionId: 'q' }, { q: supported })).toBe(
+        true,
+      )
+    }
   })
 
   it('evaluates nested ALL and ANY groups recursively', () => {
