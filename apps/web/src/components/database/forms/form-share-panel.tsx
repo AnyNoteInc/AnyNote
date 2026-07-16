@@ -20,6 +20,7 @@ import {
   TextField,
   Typography,
 } from '@repo/ui/components'
+import type { FormVersionDocument } from '@repo/domain/database/forms'
 
 import { trpc } from '@/trpc/client'
 import { usePlanFeatures } from '@/components/workspace/plan-features-context'
@@ -30,6 +31,7 @@ interface FormSharePanelProps {
   readonly open: boolean
   readonly pageId: string
   readonly form: DatabaseManagedForm
+  readonly draftDocument: FormVersionDocument
   readonly hideBranding: boolean
   readonly onClose: () => void
   readonly onChanged: () => Promise<void> | void
@@ -49,10 +51,22 @@ function formUrl(form: DatabaseManagedForm): string {
   return `${origin}/f/${locator}`
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`
+  }
+  return JSON.stringify(value) ?? 'null'
+}
+
 export function FormSharePanel({
   open,
   pageId,
   form,
+  draftDocument,
   hideBranding,
   onClose,
   onChanged,
@@ -70,6 +84,12 @@ export function FormSharePanel({
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const url = useMemo(() => formUrl(form), [form])
+  const hasUnpublishedChanges = useMemo(
+    () =>
+      form.publishedVersion !== null &&
+      canonicalJson(draftDocument) !== canonicalJson(form.publishedVersion.schema),
+    [draftDocument, form.publishedVersion],
+  )
 
   useEffect(() => {
     setAudience(form.audience)
@@ -113,6 +133,14 @@ export function FormSharePanel({
                 ? 'Форма открыта для ответов.'
                 : 'Форма закрыта для новых ответов.'}
           </Alert>
+          {form.publishedVersion ? (
+            <Alert severity={hasUnpublishedChanges ? 'warning' : 'success'} variant="outlined">
+              Опубликована версия {form.publishedVersion.versionNumber}.{' '}
+              {hasUnpublishedChanges
+                ? 'Есть неопубликованные изменения.'
+                : 'Все изменения опубликованы.'}
+            </Alert>
+          ) : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
           <Stack direction="row" spacing={1}>
             <TextField
@@ -160,8 +188,9 @@ export function FormSharePanel({
             </Button>
           </Stack>
           <FormControl size="small" fullWidth>
-            <InputLabel>Кто может отвечать</InputLabel>
+            <InputLabel id="form-audience-label">Кто может отвечать</InputLabel>
             <Select
+              labelId="form-audience-label"
               label="Кто может отвечать"
               value={audience}
               onChange={(event) => setAudience(event.target.value as typeof audience)}
@@ -172,8 +201,9 @@ export function FormSharePanel({
             </Select>
           </FormControl>
           <FormControl size="small" fullWidth disabled={audience === 'ANYONE_WITH_LINK'}>
-            <InputLabel>Доступ к созданной записи</InputLabel>
+            <InputLabel id="form-respondent-access-label">Доступ к созданной записи</InputLabel>
             <Select
+              labelId="form-respondent-access-label"
               label="Доступ к созданной записи"
               value={respondentAccess}
               onChange={(event) =>

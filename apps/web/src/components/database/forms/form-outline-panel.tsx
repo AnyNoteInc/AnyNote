@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   AddIcon,
   ArrowDownwardIcon,
@@ -11,28 +12,30 @@ import {
   Stack,
   Typography,
 } from '@repo/ui/components'
-import {
-  FORM_PROPERTY_TYPES,
-  type FormPropertyRef,
-  type FormPropertyType,
-} from '@repo/domain/database/forms'
-
 import type {
   FormBuilderAction,
   FormBuilderState,
   FormBuilderSelection,
 } from './form-builder-state'
+import type { FormPublishReadinessIssue } from './form-builder-validation'
+import { FormPropertyPicker } from './form-property-picker'
 
 interface FormPropertyOption {
   readonly id: string
   readonly name: string
   readonly type: string
+  readonly settings?: unknown
 }
 
 interface FormOutlinePanelProps {
+  readonly pageId: string
+  readonly workspaceId?: string
+  readonly selfSourceId?: string
   readonly state: FormBuilderState
   readonly properties: readonly FormPropertyOption[]
+  readonly issues: readonly FormPublishReadinessIssue[]
   readonly dispatch: React.Dispatch<FormBuilderAction>
+  readonly onPropertyCreated?: () => Promise<void> | void
 }
 
 function OutlineItem({
@@ -120,52 +123,19 @@ function selected(state: FormBuilderState, selection: FormBuilderSelection): boo
   return state.selection.kind === selection.kind && state.selection.id === selection.id
 }
 
-export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePanelProps) {
-  const supportedPropertyTypes = new Set<string>(FORM_PROPERTY_TYPES)
-  const usedPropertyIds = new Set(
-    state.document.questions.flatMap(({ property }) =>
-      property.kind === 'PROPERTY' ? [property.propertyId] : [],
-    ),
-  )
-  const hasTitle = state.document.questions.some(({ property }) => property.kind === 'TITLE')
-  const availableProperty = properties.find(
-    (property) => !usedPropertyIds.has(property.id) && supportedPropertyTypes.has(property.type),
-  )
-
-  function addQuestion(sectionId: string) {
-    const property: FormPropertyRef | undefined = !hasTitle
-      ? { kind: 'TITLE' }
-      : availableProperty &&
-          [
-            'TEXT',
-            'NUMBER',
-            'STATUS',
-            'SELECT',
-            'MULTI_SELECT',
-            'CHECKBOX',
-            'DATE',
-            'PERSON',
-            'FILE',
-            'URL',
-            'EMAIL',
-            'PHONE',
-            'RELATION',
-            'PAGE_LINK',
-          ].includes(availableProperty.type)
-        ? {
-            kind: 'PROPERTY',
-            propertyId: availableProperty.id,
-            propertyType: availableProperty.type as FormPropertyType,
-          }
-        : undefined
-    if (!property) return
-    dispatch({
-      type: 'QUESTION_ADDED',
-      sectionId,
-      property,
-      label: property.kind === 'TITLE' ? 'Название' : availableProperty!.name,
-    })
-  }
+export function FormOutlinePanel({
+  pageId,
+  workspaceId,
+  selfSourceId,
+  state,
+  properties,
+  issues,
+  dispatch,
+  onPropertyCreated,
+}: FormOutlinePanelProps) {
+  const [questionSectionId, setQuestionSectionId] = useState<string | null>(null)
+  const issueCount = (entityId: string) =>
+    issues.filter((issue) => issue.entityId === entityId).length
 
   return (
     <Stack
@@ -194,7 +164,7 @@ export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePan
             <OutlineItem
               selected={selected(state, { kind: 'SECTION', id: section.id })}
               label={section.title}
-              meta={`${section.questionIds.length} вопросов`}
+              meta={`${section.questionIds.length} вопросов${issueCount(section.id) ? ` · ошибок: ${issueCount(section.id)}` : ''}`}
               onSelect={() =>
                 dispatch({ type: 'ITEM_SELECTED', selection: { kind: 'SECTION', id: section.id } })
               }
@@ -233,7 +203,7 @@ export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePan
                     key={question.id}
                     selected={selected(state, { kind: 'QUESTION', id: question.id })}
                     label={question.label}
-                    meta={question.required ? 'Обязательный' : 'Необязательный'}
+                    meta={`${question.required ? 'Обязательный' : 'Необязательный'}${issueCount(question.id) ? ` · ошибок: ${issueCount(question.id)}` : ''}`}
                     onSelect={() =>
                       dispatch({
                         type: 'ITEM_SELECTED',
@@ -274,8 +244,7 @@ export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePan
             <Button
               size="small"
               startIcon={<AddIcon />}
-              disabled={hasTitle && !availableProperty}
-              onClick={() => addQuestion(section.id)}
+              onClick={() => setQuestionSectionId(section.id)}
               sx={{ ml: 3, mt: 0.5, minHeight: 36, textTransform: 'none' }}
             >
               Вопрос
@@ -303,6 +272,7 @@ export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePan
             key={ending.id}
             selected={selected(state, { kind: 'ENDING', id: ending.id })}
             label={ending.title}
+            meta={issueCount(ending.id) ? `Ошибок: ${issueCount(ending.id)}` : undefined}
             onSelect={() =>
               dispatch({ type: 'ITEM_SELECTED', selection: { kind: 'ENDING', id: ending.id } })
             }
@@ -333,6 +303,24 @@ export function FormOutlinePanel({ state, properties, dispatch }: FormOutlinePan
           Добавить завершение
         </Button>
       </Box>
+      <FormPropertyPicker
+        open={questionSectionId !== null}
+        pageId={pageId}
+        workspaceId={workspaceId}
+        selfSourceId={selfSourceId}
+        document={state.document}
+        properties={properties}
+        onClose={() => setQuestionSectionId(null)}
+        onPropertyCreated={onPropertyCreated}
+        onAdd={(selection) => {
+          if (!questionSectionId) return
+          dispatch({
+            type: 'QUESTION_ADDED',
+            sectionId: questionSectionId,
+            ...selection,
+          })
+        }}
+      />
     </Stack>
   )
 }

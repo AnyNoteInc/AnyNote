@@ -14,7 +14,7 @@ export type FormBuilderSelection =
   | { kind: 'QUESTION'; id: string }
   | { kind: 'ENDING'; id: string }
 
-export type FormBuilderSaveState = 'idle' | 'saving' | 'conflict'
+export type FormBuilderSaveState = 'idle' | 'saving' | 'conflict' | 'error'
 
 export interface FormBuilderState {
   document: FormVersionDocument
@@ -25,6 +25,7 @@ export interface FormBuilderState {
   selection: FormBuilderSelection
   conflictLocalJson: string | null
   propertyNameIntents: Record<string, string>
+  saveError: string | null
 }
 
 type DocumentAction =
@@ -42,6 +43,7 @@ type DocumentAction =
       sectionId: string
       property: FormPropertyRef
       label: string
+      input?: FormInputConfig
     }
   | { type: 'QUESTION_MOVED'; questionId: string; sectionId: string; index: number }
   | { type: 'QUESTION_DELETED'; questionId: string }
@@ -71,6 +73,15 @@ type DocumentAction =
       patch: Partial<Pick<FormTransition, 'priority' | 'when' | 'target'>>
     }
   | {
+      type: 'TRANSITION_ADDED'
+      id?: string
+      sectionId: string
+      target?: FormTransitionTarget
+      when?: FormTransition['when']
+    }
+  | { type: 'TRANSITION_DELETED'; transitionId: string }
+  | { type: 'TRANSITION_MOVED'; transitionId: string; index: number }
+  | {
       type: 'PRESENTATION_UPDATED'
       patch: Partial<FormVersionDocument['presentation']>
     }
@@ -80,8 +91,9 @@ export type FormBuilderAction =
   | { type: 'ITEM_SELECTED'; selection: FormBuilderSelection }
   | { type: 'SAVE_STARTED'; generation: number }
   | { type: 'SAVE_CONFIRMED'; generation: number; revision: number }
-  | { type: 'SAVE_FAILED' }
+  | { type: 'SAVE_FAILED'; message?: string }
   | { type: 'SAVE_CONFLICT' }
+  | { type: 'PROPERTY_RENAME_CONFIRMED'; propertyId: string; name: string }
   | { type: 'SERVER_RELOADED'; document: FormVersionDocument; revision: number }
   | {
       type: 'QUESTION_PROPERTY_NAME_SYNC_SET'
@@ -195,7 +207,20 @@ function normalizeTransitions(document: FormVersionDocument): FormVersionDocumen
     }
   }
 
-  return { ...document, transitions }
+  const normalized: FormTransition[] = []
+  for (const section of document.sections) {
+    const sectionTransitions = transitions
+      .filter(({ fromSectionId }) => fromSectionId === section.id)
+      .sort((left, right) => {
+        const fallbackOrder = Number(left.when === null) - Number(right.when === null)
+        return fallbackOrder || left.priority - right.priority
+      })
+    normalized.push(
+      ...sectionTransitions.map((transition, priority) => ({ ...transition, priority })),
+    )
+  }
+
+  return { ...document, transitions: normalized }
 }
 
 function withDocument(state: FormBuilderState, document: FormVersionDocument): FormBuilderState {
@@ -222,6 +247,7 @@ export function initialBuilderState(
     selection: { kind: 'SECTION', id: copy.firstSectionId },
     conflictLocalJson: null,
     propertyNameIntents: {},
+    saveError: null,
   }
 }
 
@@ -232,23 +258,39 @@ export function reduceBuilder(
   if (action.type === 'ITEM_SELECTED') return { ...state, selection: action.selection }
   if (action.type === 'SAVE_STARTED') {
     if (state.saveState === 'conflict') return state
-    return { ...state, saveState: 'saving' }
+    return { ...state, saveState: 'saving', saveError: null }
   }
   if (action.type === 'SAVE_CONFIRMED') {
     return {
       ...state,
       serverRevision: action.revision,
-      dirty: state.generation !== action.generation,
+      dirty:
+        state.generation !== action.generation || Object.keys(state.propertyNameIntents).length > 0,
       saveState: 'idle',
+      saveError: null,
     }
   }
-  if (action.type === 'SAVE_FAILED') return { ...state, saveState: 'idle' }
+  if (action.type === 'SAVE_FAILED') {
+    return {
+      ...state,
+      dirty: true,
+      saveState: 'error',
+      saveError: action.message ?? 'FORM_AUTOSAVE_FAILED',
+    }
+  }
   if (action.type === 'SAVE_CONFLICT') {
     return {
       ...state,
       saveState: 'conflict',
       conflictLocalJson: JSON.stringify(state.document, null, 2),
+      saveError: null,
     }
+  }
+  if (action.type === 'PROPERTY_RENAME_CONFIRMED') {
+    if (state.propertyNameIntents[action.propertyId] !== action.name) return state
+    const propertyNameIntents = { ...state.propertyNameIntents }
+    delete propertyNameIntents[action.propertyId]
+    return { ...state, propertyNameIntents }
   }
   if (action.type === 'SERVER_RELOADED') {
     return initialBuilderState(action.document, action.revision)
@@ -333,7 +375,7 @@ export function reduceBuilder(
         label: action.label,
         required: false,
         syncWithPropertyName: action.property.kind === 'PROPERTY',
-        input: defaultInput(action.property),
+        input: action.input ?? defaultInput(action.property),
       })
       return { ...withDocument(state, document), selection: { kind: 'QUESTION', id } }
     }
@@ -411,6 +453,45 @@ export function reduceBuilder(
       const transition = document.transitions.find(({ id }) => id === action.transitionId)
       if (!transition) return state
       Object.assign(transition, action.patch)
+      return withDocument(state, document)
+    }
+    case 'TRANSITION_ADDED': {
+      const section = document.sections.find(({ id }) => id === action.sectionId)
+      const firstQuestionId = section?.questionIds[0]
+      if (!section || (!action.when && !firstQuestionId)) return state
+      document.transitions.push({
+        id: action.id ?? localId('transition'),
+        fromSectionId: section.id,
+        priority: Number.MAX_SAFE_INTEGER - 1,
+        when: action.when ?? {
+          kind: 'ALL',
+          members: [{ kind: 'IS_NOT_EMPTY', questionId: firstQuestionId! }],
+        },
+        target: action.target ?? fallbackTarget(document, section.id),
+      })
+      return withDocument(state, document)
+    }
+    case 'TRANSITION_DELETED': {
+      if (!document.transitions.some(({ id }) => id === action.transitionId)) return state
+      document.transitions = document.transitions.filter(({ id }) => id !== action.transitionId)
+      return withDocument(state, document)
+    }
+    case 'TRANSITION_MOVED': {
+      const transition = document.transitions.find(({ id }) => id === action.transitionId)
+      if (!transition || transition.when === null) return state
+      const sectionTransitions = document.transitions
+        .filter(
+          ({ fromSectionId, when }) => fromSectionId === transition.fromSectionId && when !== null,
+        )
+        .sort((left, right) => left.priority - right.priority)
+      const from = sectionTransitions.findIndex(({ id }) => id === transition.id)
+      const reordered = moveItem(sectionTransitions, from, action.index)
+      const priorityById = new Map(reordered.map(({ id }, index) => [id, index]))
+      document.transitions = document.transitions.map((candidate) =>
+        candidate.fromSectionId === transition.fromSectionId && candidate.when !== null
+          ? { ...candidate, priority: priorityById.get(candidate.id) ?? candidate.priority }
+          : candidate,
+      )
       return withDocument(state, document)
     }
     case 'PRESENTATION_UPDATED':

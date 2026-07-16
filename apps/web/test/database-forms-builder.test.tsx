@@ -9,8 +9,10 @@ const mocks = vi.hoisted(() => ({
   createForm: vi.fn(),
   createView: vi.fn(),
   updateDraft: vi.fn(),
+  updateProperty: vi.fn(),
   publish: vi.fn(),
   routerReplace: vi.fn(),
+  currentForm: null as unknown,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -103,10 +105,10 @@ vi.mock('@/trpc/client', () => ({
       listForms: { useQuery: () => ({ data: [managedForm], isLoading: false, error: null }) },
       getForm: {
         useQuery: () => ({
-          data: managedForm,
+          data: mocks.currentForm ?? managedForm,
           isLoading: false,
           error: null,
-          refetch: vi.fn(async () => ({ data: managedForm })),
+          refetch: vi.fn(async () => ({ data: mocks.currentForm ?? managedForm })),
         }),
       },
       getByPage: { useQuery: () => ({ data: undefined, isLoading: false, error: null }) },
@@ -119,7 +121,11 @@ vi.mock('@/trpc/client', () => ({
         useMutation: () => ({ mutateAsync: mocks.updateDraft, isPending: false }),
       },
       publishForm: { useMutation: () => ({ mutateAsync: mocks.publish, isPending: false }) },
-      updateProperty: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      updateProperty: {
+        useMutation: () => ({ mutateAsync: mocks.updateProperty, isPending: false }),
+      },
+      createProperty: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      listSources: { useQuery: () => ({ data: [] }) },
       updateFormSettings: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
       setFormSlug: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
       rotateFormKey: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
@@ -144,7 +150,10 @@ import { FormBuilder } from '@/components/database/forms/form-builder'
 import { DatabaseViewTabs } from '@/components/database/database-view-tabs'
 
 describe('database FORM UI', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.currentForm = managedForm
+  })
   afterEach(cleanup)
 
   it('renders FORM tab icon/title/menu and creates it through createForm only', async () => {
@@ -189,7 +198,8 @@ describe('database FORM UI', () => {
     expect(screen.getByRole('complementary', { name: 'Структура формы' })).toBeInTheDocument()
     expect(screen.getByRole('main', { name: 'Предпросмотр формы' })).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Настройки формы' })).toBeInTheDocument()
-    expect(screen.getByText('TRANSITION_TARGET_ENDING_NOT_FOUND')).toBeInTheDocument()
+    expect(screen.getByText(/ошибок: 1/u)).toBeInTheDocument()
+    expect(screen.getByText(/Публикация недоступна/u)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
   })
@@ -225,6 +235,79 @@ describe('database FORM UI', () => {
       expect(mocks.updateDraft).toHaveBeenCalledWith(
         expect.objectContaining({ expectedRevision: 3 }),
       )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renames a synced property before the draft and retries without reporting a false save', async () => {
+    vi.useFakeTimers()
+    const propertyDocument: FormVersionDocument = {
+      ...invalidDocument,
+      questions: [
+        {
+          ...invalidDocument.questions[0]!,
+          property: {
+            kind: 'PROPERTY',
+            propertyId: '77777777-7777-4777-8777-777777777777',
+            propertyType: 'TEXT',
+          },
+          syncWithPropertyName: true,
+          input: { kind: 'TEXT', multiline: false, maxLength: 2_000 },
+        },
+      ],
+    }
+    const propertyForm = {
+      ...managedForm,
+      draftSchema: propertyDocument,
+      source: {
+        ...managedForm.source,
+        properties: [
+          {
+            id: '77777777-7777-4777-8777-777777777777',
+            name: 'Ваше имя',
+            type: 'TEXT',
+            settings: {},
+          },
+        ],
+      },
+    }
+    mocks.currentForm = propertyForm
+    mocks.updateProperty
+      .mockRejectedValueOnce(new Error('Свойство временно недоступно'))
+      .mockResolvedValueOnce({})
+    mocks.updateDraft.mockResolvedValueOnce({ ...propertyForm, draftRevision: 4 })
+
+    try {
+      render(
+        <FormBuilder
+          pageId="66666666-6666-4666-8666-666666666666"
+          formViewId="33333333-3333-4333-8333-333333333333"
+        />,
+      )
+      fireEvent.click(screen.getByRole('button', { name: /Ваше имя/u }))
+      fireEvent.change(screen.getByLabelText('Текст вопроса'), {
+        target: { value: 'Как вас зовут?' },
+      })
+
+      await act(async () => vi.advanceTimersByTimeAsync(700))
+      expect(screen.getByText('Свойство временно недоступно')).toBeInTheDocument()
+      expect(mocks.updateDraft).not.toHaveBeenCalled()
+
+      await act(async () => vi.advanceTimersByTimeAsync(700))
+      expect(mocks.updateProperty).toHaveBeenCalledTimes(2)
+      expect(mocks.updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedRevision: 3,
+          schema: expect.objectContaining({
+            questions: [expect.objectContaining({ label: 'Как вас зовут?' })],
+          }),
+        }),
+      )
+      expect(mocks.updateProperty.mock.invocationCallOrder[1]).toBeLessThan(
+        mocks.updateDraft.mock.invocationCallOrder[0]!,
+      )
+      expect(screen.getByText('Сохранено')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

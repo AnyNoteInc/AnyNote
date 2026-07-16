@@ -1,9 +1,14 @@
 'use client'
 
 import {
+  AddIcon,
   Alert,
+  ArrowDownwardIcon,
+  ArrowUpwardIcon,
   Box,
+  Button,
   Checkbox,
+  DeleteOutlineIcon,
   FormControl,
   FormControlLabel,
   FormHelperText,
@@ -14,18 +19,19 @@ import {
   Switch,
   TextField,
   Typography,
+  IconButton,
 } from '@repo/ui/components'
-import type {
-  FormGraphError,
-  FormTransitionTarget,
-  FormVersionDocument,
-} from '@repo/domain/database/forms'
+import type { FormTransitionTarget, FormVersionDocument } from '@repo/domain/database/forms'
 
 import type { FormBuilderAction, FormBuilderState } from './form-builder-state'
+import type { FormPublishReadinessIssue } from './form-builder-validation'
+import { FormConditionEditor } from './form-condition-editor'
+import { FormInputConfigEditor } from './form-input-config-editor'
+import { FormPresentationEditor } from './form-presentation-editor'
 
 interface FormSettingsPanelProps {
   readonly state: FormBuilderState
-  readonly errors: readonly FormGraphError[]
+  readonly issues: readonly FormPublishReadinessIssue[]
   readonly conditionalLogicEnabled: boolean
   readonly dispatch: React.Dispatch<FormBuilderAction>
 }
@@ -46,7 +52,7 @@ function transitionTargetValue(
 
 export function FormSettingsPanel({
   state,
-  errors,
+  issues,
   conditionalLogicEnabled,
   dispatch,
 }: FormSettingsPanelProps) {
@@ -68,6 +74,24 @@ export function FormSettingsPanel({
         .filter(({ fromSectionId }) => fromSectionId === section.id)
         .sort((left, right) => left.priority - right.priority)
     : []
+  const sectionIndex = section
+    ? state.document.sections.findIndex(({ id }) => id === section.id)
+    : -1
+  const questionOrder = state.document.sections.flatMap((item) => item.questionIds)
+  const questionIndex = question ? questionOrder.indexOf(question.id) : -1
+  const availableQuestions = state.document.questions.filter((item) => {
+    const itemIndex = questionOrder.indexOf(item.id)
+    if (question) return itemIndex >= 0 && itemIndex < questionIndex
+    if (section) {
+      const itemSectionIndex = state.document.sections.findIndex(({ id }) => id === item.sectionId)
+      return itemSectionIndex >= 0 && itemSectionIndex <= sectionIndex
+    }
+    return false
+  })
+  const contextualIssues = issues.filter(
+    ({ entityId }) => entityId === undefined || entityId === selection.id,
+  )
+  const conditionalTransitions = transitions.filter(({ when }) => when !== null)
 
   return (
     <Stack
@@ -91,15 +115,18 @@ export function FormSettingsPanel({
         </Typography>
       </Box>
       <Stack spacing={2} sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-        {errors.length > 0 ? (
+        {contextualIssues.length > 0 ? (
           <Alert severity="error" variant="outlined">
             <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 700 }}>
-              Исправьте маршрут
+              Перед публикацией
             </Typography>
             <Stack component="ul" sx={{ m: 0, pl: 2 }}>
-              {errors.map((error, index) => (
-                <Typography component="li" variant="caption" key={`${error.code}-${index}`}>
-                  {error.code}
+              {contextualIssues.map((issue, index) => (
+                <Typography component="li" variant="caption" key={`${issue.code}-${index}`}>
+                  <Box component="span" sx={{ display: 'block', fontWeight: 700 }}>
+                    {issue.code}
+                  </Box>
+                  {issue.message}
                 </Typography>
               ))}
             </Stack>
@@ -157,9 +184,26 @@ export function FormSettingsPanel({
                     {transition.when === null ? 'Иначе' : 'По условию'}
                   </Typography>
                 </Stack>
+                {transition.when !== null ? (
+                  <FormConditionEditor
+                    value={transition.when}
+                    availableQuestions={availableQuestions}
+                    disabled={!conditionalLogicEnabled}
+                    onChange={(when) => {
+                      if (when) {
+                        dispatch({
+                          type: 'TRANSITION_UPDATED',
+                          transitionId: transition.id,
+                          patch: { when },
+                        })
+                      }
+                    }}
+                  />
+                ) : null}
                 <FormControl size="small" fullWidth>
-                  <InputLabel>Перейти к</InputLabel>
+                  <InputLabel id={`transition-target-${transition.id}`}>Перейти к</InputLabel>
                   <Select
+                    labelId={`transition-target-${transition.id}`}
                     label="Перейти к"
                     value={transitionTargetValue(transition.target, state.document)}
                     onChange={(event) => {
@@ -188,8 +232,57 @@ export function FormSettingsPanel({
                     ))}
                   </Select>
                 </FormControl>
+                {transition.when !== null ? (
+                  <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
+                    <IconButton
+                      size="small"
+                      aria-label="Поднять переход"
+                      disabled={index === 0}
+                      onClick={() =>
+                        dispatch({
+                          type: 'TRANSITION_MOVED',
+                          transitionId: transition.id,
+                          index: Math.max(0, index - 1),
+                        })
+                      }
+                    >
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      aria-label="Опустить переход"
+                      disabled={index >= conditionalTransitions.length - 1}
+                      onClick={() =>
+                        dispatch({
+                          type: 'TRANSITION_MOVED',
+                          transitionId: transition.id,
+                          index: Math.min(conditionalTransitions.length - 1, index + 1),
+                        })
+                      }
+                    >
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      aria-label="Удалить переход"
+                      onClick={() =>
+                        dispatch({ type: 'TRANSITION_DELETED', transitionId: transition.id })
+                      }
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                ) : null}
               </Stack>
             ))}
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              disabled={!conditionalLogicEnabled || availableQuestions.length === 0}
+              onClick={() => dispatch({ type: 'TRANSITION_ADDED', sectionId: section.id })}
+            >
+              Добавить условный переход
+            </Button>
             <FormHelperText>
               {conditionalLogicEnabled
                 ? 'Условия ветвления доступны для переходов выше fallback.'
@@ -267,6 +360,38 @@ export function FormSettingsPanel({
                 label="Синхронизировать с названием свойства"
               />
             ) : null}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Условие показа
+              </Typography>
+              <FormConditionEditor
+                value={question.visibleWhen}
+                availableQuestions={availableQuestions}
+                disabled={!conditionalLogicEnabled}
+                onChange={(visibleWhen) =>
+                  dispatch({
+                    type: 'QUESTION_UPDATED',
+                    questionId: question.id,
+                    patch: { visibleWhen },
+                  })
+                }
+              />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Формат ответа
+              </Typography>
+              <FormInputConfigEditor
+                input={question.input}
+                onChange={(input) =>
+                  dispatch({
+                    type: 'QUESTION_UPDATED',
+                    questionId: question.id,
+                    patch: { input },
+                  })
+                }
+              />
+            </Box>
           </>
         ) : null}
 
@@ -298,8 +423,65 @@ export function FormSettingsPanel({
                 })
               }
             />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={ending.button !== undefined}
+                  onChange={(_, checked) =>
+                    dispatch({
+                      type: 'ENDING_UPDATED',
+                      endingId: ending.id,
+                      patch: {
+                        button: checked
+                          ? { label: 'Продолжить', href: 'https://anynote.ru' }
+                          : undefined,
+                      },
+                    })
+                  }
+                />
+              }
+              label="Показать кнопку-ссылку"
+            />
+            {ending.button ? (
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Текст кнопки"
+                  value={ending.button.label}
+                  onChange={(event) =>
+                    dispatch({
+                      type: 'ENDING_UPDATED',
+                      endingId: ending.id,
+                      patch: { button: { ...ending.button!, label: event.target.value } },
+                    })
+                  }
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Ссылка"
+                  value={ending.button.href}
+                  onChange={(event) =>
+                    dispatch({
+                      type: 'ENDING_UPDATED',
+                      endingId: ending.id,
+                      patch: { button: { ...ending.button!, href: event.target.value } },
+                    })
+                  }
+                />
+              </Stack>
+            ) : null}
           </>
         ) : null}
+        <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+          <FormPresentationEditor
+            presentation={state.document.presentation}
+            onChange={(presentation) =>
+              dispatch({ type: 'PRESENTATION_UPDATED', patch: presentation })
+            }
+          />
+        </Box>
       </Stack>
     </Stack>
   )

@@ -25,13 +25,19 @@ export interface DatabaseManagedForm {
   draftSchema: unknown
   draftRevision: number
   publishedVersionId: string | null
+  publishedVersion: {
+    versionNumber: number
+    schema: unknown
+  } | null
   opensAt: Date | string | null
   closesAt: Date | string | null
   responseLimit: number | null
   acceptedResponses: number
   notifyOwners: boolean
   source: {
-    properties: ReadonlyArray<{ id: string; name: string; type: string }>
+    id?: string
+    workspaceId?: string
+    properties: ReadonlyArray<{ id: string; name: string; type: string; settings?: unknown }>
   }
 }
 

@@ -16,11 +16,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@repo/ui/components'
-import {
-  parseFormVersionDocument,
-  validateFormGraph,
-  type FormVersionDocument,
-} from '@repo/domain/database/forms'
+import { parseFormVersionDocument, type FormVersionDocument } from '@repo/domain/database/forms'
 
 import { trpc } from '@/trpc/client'
 import { usePlanFeatures } from '@/components/workspace/plan-features-context'
@@ -33,6 +29,7 @@ import { FormResponsesPanel } from './form-responses-panel'
 import { FormSettingsPanel } from './form-settings-panel'
 import { FormSharePanel } from './form-share-panel'
 import { initialBuilderState, reduceBuilder } from './form-builder-state'
+import { validateFormPublishReadiness } from './form-builder-validation'
 
 interface FormBuilderProps {
   readonly pageId: string
@@ -120,16 +117,27 @@ function LoadedFormBuilder({
   const [responsesOpen, setResponsesOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
-  const generationRef = useRef(state.generation)
   const mountedRef = useRef(true)
   const inFlightRef = useRef(false)
-  generationRef.current = state.generation
 
   const updateDraft = trpc.database.updateFormDraft.useMutation()
   const publish = trpc.database.publishForm.useMutation()
   const updateProperty = trpc.database.updateProperty.useMutation()
-  const graph = useMemo(() => validateFormGraph(state.document), [state.document])
-  const graphErrors = graph.ok ? [] : graph.errors
+  const readiness = useMemo(
+    () =>
+      validateFormPublishReadiness({
+        document: state.document,
+        properties: form.source.properties.map((property) => ({
+          id: property.id,
+          type: property.type,
+          settings: property.settings ?? null,
+        })),
+        audience: form.audience,
+        customSlug: form.customSlug,
+        features,
+      }),
+    [features, form.audience, form.customSlug, form.source.properties, state.document],
+  )
 
   useEffect(
     () => () => {
@@ -147,6 +155,12 @@ function LoadedFormBuilder({
       inFlightRef.current = true
       dispatch({ type: 'SAVE_STARTED', generation: saveGeneration })
       try {
+        const intents = Object.entries(state.propertyNameIntents)
+        for (const [id, name] of intents) {
+          await updateProperty.mutateAsync({ pageId, id, name })
+          if (!mountedRef.current) return
+          dispatch({ type: 'PROPERTY_RENAME_CONFIRMED', propertyId: id, name })
+        }
         const updated = await updateDraft.mutateAsync({
           pageId,
           formId: form.id,
@@ -160,15 +174,16 @@ function LoadedFormBuilder({
           generation: saveGeneration,
           revision: updated.draftRevision,
         })
-        const intents = state.propertyNameIntents
-        await Promise.all(
-          Object.entries(intents).map(([id, name]) =>
-            updateProperty.mutateAsync({ pageId, id, name }),
-          ),
-        )
       } catch (error) {
         if (!mountedRef.current) return
-        dispatch({ type: isConflict(error) ? 'SAVE_CONFLICT' : 'SAVE_FAILED' })
+        dispatch(
+          isConflict(error)
+            ? { type: 'SAVE_CONFLICT' }
+            : {
+                type: 'SAVE_FAILED',
+                message: error instanceof Error ? error.message : 'Не удалось сохранить форму',
+              },
+        )
       } finally {
         inFlightRef.current = false
       }
@@ -202,7 +217,7 @@ function LoadedFormBuilder({
   }
 
   async function publishForm() {
-    if (!graph.ok || state.dirty || state.saveState !== 'idle') return
+    if (!readiness.ok || state.dirty || state.saveState !== 'idle') return
     setPublishError(null)
     try {
       const published = await publish.mutateAsync({ pageId, formId: form.id })
@@ -245,15 +260,21 @@ function LoadedFormBuilder({
         <Box sx={{ minWidth: 120 }} aria-live="polite">
           <Typography
             variant="caption"
-            color={state.saveState === 'conflict' ? 'error.main' : 'text.secondary'}
+            color={
+              state.saveState === 'conflict' || state.saveState === 'error'
+                ? 'error.main'
+                : 'text.secondary'
+            }
           >
             {state.saveState === 'conflict'
               ? 'Конфликт версий'
-              : state.saveState === 'saving'
-                ? 'Сохранение…'
-                : state.dirty
-                  ? 'Есть изменения'
-                  : 'Сохранено'}
+              : state.saveState === 'error'
+                ? 'Ошибка сохранения · повторяем'
+                : state.saveState === 'saving'
+                  ? 'Сохранение…'
+                  : state.dirty
+                    ? 'Есть изменения'
+                    : 'Сохранено'}
           </Typography>
         </Box>
         <Box sx={{ flex: 1 }} />
@@ -265,12 +286,18 @@ function LoadedFormBuilder({
         <Button
           variant="contained"
           startIcon={<PublishIcon />}
-          disabled={!graph.ok || state.dirty || state.saveState !== 'idle' || publish.isPending}
+          disabled={!readiness.ok || state.dirty || state.saveState !== 'idle' || publish.isPending}
           onClick={() => void publishForm()}
         >
           Опубликовать
         </Button>
       </Stack>
+      {!readiness.ok ? (
+        <Alert severity="warning" variant="outlined">
+          Публикация недоступна: найдено проблем — {readiness.issues.length}. Они отмечены в
+          структуре и настройках формы.
+        </Alert>
+      ) : null}
       {state.saveState === 'conflict' ? (
         <Alert
           severity="error"
@@ -296,6 +323,9 @@ function LoadedFormBuilder({
           Черновик изменился в другой вкладке. Автосохранение остановлено.
         </Alert>
       ) : null}
+      {state.saveState === 'error' ? (
+        <Alert severity="error">{state.saveError ?? 'Не удалось сохранить форму.'}</Alert>
+      ) : null}
       {publishError ? (
         <Alert severity="error" onClose={() => setPublishError(null)}>
           {publishError}
@@ -309,11 +339,20 @@ function LoadedFormBuilder({
           gridTemplateColumns: '280px minmax(460px, 1fr) 320px',
         }}
       >
-        <FormOutlinePanel state={state} properties={form.source.properties} dispatch={dispatch} />
-        <FormPreviewCanvas state={state} />
+        <FormOutlinePanel
+          pageId={pageId}
+          workspaceId={form.source.workspaceId}
+          selfSourceId={form.source.id ?? form.sourceId}
+          state={state}
+          properties={form.source.properties}
+          issues={readiness.issues}
+          dispatch={dispatch}
+          onPropertyCreated={refresh}
+        />
+        <FormPreviewCanvas state={state} dispatch={dispatch} />
         <FormSettingsPanel
           state={state}
-          errors={graphErrors}
+          issues={readiness.issues}
           conditionalLogicEnabled={features.formConditionalLogicEnabled}
           dispatch={dispatch}
         />
@@ -328,6 +367,7 @@ function LoadedFormBuilder({
         open={shareOpen}
         pageId={pageId}
         form={form}
+        draftDocument={state.document}
         hideBranding={state.document.presentation.hideAnyNoteBranding}
         onClose={() => setShareOpen(false)}
         onChanged={refresh}

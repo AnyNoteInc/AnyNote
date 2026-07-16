@@ -237,4 +237,125 @@ describe('form builder reducer', () => {
     })
     expect(state.propertyNameIntents['property-email']).toBe('Email для ответа')
   })
+
+  it('adds, reorders and deletes conditional transitions while keeping one fallback last', () => {
+    let state = initialBuilderState(documentFixture(), 1)
+    state = reduceBuilder(state, {
+      type: 'TRANSITION_ADDED',
+      id: 'transition-conditional',
+      sectionId: 'section-contact',
+      target: { kind: 'ENDING', endingId: 'ending-later' },
+      when: { kind: 'ALL', members: [{ kind: 'IS_NOT_EMPTY', questionId: 'q-name' }] },
+    })
+
+    let contactTransitions = state.document.transitions.filter(
+      ({ fromSectionId }) => fromSectionId === 'section-contact',
+    )
+    expect(contactTransitions.map(({ id, priority, when }) => ({ id, priority, when }))).toEqual([
+      expect.objectContaining({ id: 'transition-conditional', priority: 0 }),
+      { id: 'transition-contact', priority: 1, when: null },
+    ])
+
+    state = reduceBuilder(state, {
+      type: 'TRANSITION_ADDED',
+      id: 'transition-second',
+      sectionId: 'section-contact',
+      target: { kind: 'ENDING', endingId: 'ending-success' },
+      when: { kind: 'ANY', members: [{ kind: 'IS_EMPTY', questionId: 'q-name' }] },
+    })
+    state = reduceBuilder(state, {
+      type: 'TRANSITION_MOVED',
+      transitionId: 'transition-second',
+      index: 0,
+    })
+    contactTransitions = state.document.transitions.filter(
+      ({ fromSectionId }) => fromSectionId === 'section-contact',
+    )
+    expect(contactTransitions.map(({ id }) => id)).toEqual([
+      'transition-second',
+      'transition-conditional',
+      'transition-contact',
+    ])
+    expect(contactTransitions.map(({ priority }) => priority)).toEqual([0, 1, 2])
+    expect(contactTransitions.at(-1)?.when).toBeNull()
+
+    state = reduceBuilder(state, {
+      type: 'TRANSITION_DELETED',
+      transitionId: 'transition-conditional',
+    })
+    expect(state.document.transitions.some(({ id }) => id === 'transition-conditional')).toBe(false)
+    expect(
+      state.document.transitions.filter(
+        ({ fromSectionId, when }) => fromSectionId === 'section-contact' && when === null,
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('accepts a property snapshot input instead of inventing choice option ids', () => {
+    const state = reduceBuilder(initialBuilderState(documentFixture(), 1), {
+      type: 'QUESTION_ADDED',
+      id: 'q-status',
+      sectionId: 'section-details',
+      property: { kind: 'PROPERTY', propertyId: 'property-status', propertyType: 'STATUS' },
+      label: 'Статус',
+      input: {
+        kind: 'SINGLE_CHOICE',
+        appearance: 'LIST',
+        options: [
+          { id: 'option-new', label: 'Новая', color: 'blue' },
+          { id: 'option-done', label: 'Готово', color: 'green' },
+        ],
+      },
+    })
+
+    expect(state.document.questions.find(({ id }) => id === 'q-status')?.input).toEqual({
+      kind: 'SINGLE_CHOICE',
+      appearance: 'LIST',
+      options: [
+        { id: 'option-new', label: 'Новая', color: 'blue' },
+        { id: 'option-done', label: 'Готово', color: 'green' },
+      ],
+    })
+  })
+
+  it('keeps save errors dirty and clears only the exact acknowledged rename intent', () => {
+    let state = reduceBuilder(initialBuilderState(documentFixture(), 3), {
+      type: 'QUESTION_PROPERTY_NAME_SYNC_SET',
+      questionId: 'q-email',
+      enabled: true,
+      propertyNameIntent: 'Почта',
+    })
+    const generation = state.generation
+    state = reduceBuilder(state, { type: 'SAVE_STARTED', generation })
+    state = reduceBuilder(state, { type: 'SAVE_FAILED', message: 'RENAME_FAILED' })
+    expect(state).toMatchObject({ dirty: true, saveState: 'error', saveError: 'RENAME_FAILED' })
+    expect(state.propertyNameIntents['property-email']).toBe('Почта')
+
+    state = reduceBuilder(state, {
+      type: 'QUESTION_PROPERTY_NAME_SYNC_SET',
+      questionId: 'q-email',
+      enabled: true,
+      propertyNameIntent: 'Рабочая почта',
+    })
+    state = reduceBuilder(state, {
+      type: 'PROPERTY_RENAME_CONFIRMED',
+      propertyId: 'property-email',
+      name: 'Почта',
+    })
+    expect(state.propertyNameIntents['property-email']).toBe('Рабочая почта')
+
+    state = reduceBuilder(state, {
+      type: 'PROPERTY_RENAME_CONFIRMED',
+      propertyId: 'property-email',
+      name: 'Рабочая почта',
+    })
+    expect(state.propertyNameIntents['property-email']).toBeUndefined()
+    const currentGeneration = state.generation
+    state = reduceBuilder(state, {
+      type: 'SAVE_CONFIRMED',
+      generation: currentGeneration,
+      revision: 4,
+    })
+    expect(state).toMatchObject({ dirty: false, saveState: 'idle', saveError: null })
+  })
 })
