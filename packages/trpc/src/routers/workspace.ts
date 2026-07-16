@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { FileStatus } from '@repo/db'
 import type { PrismaClient } from '@repo/db'
+import { lockWorkspaceForMutation } from '@repo/domain'
 import { notify } from '@repo/notifications'
 
 import { router, protectedProcedure } from '../trpc'
@@ -441,6 +442,9 @@ export const workspaceRouter = router({
       }
       // Removal frees the seat — record it in the billing ledger, same tx (8D).
       await ctx.prisma.$transaction(async (tx) => {
+        if (!(await lockWorkspaceForMutation(tx, input.workspaceId))) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Пространство не найдено' })
+        }
         await tx.workspaceMember.delete({
           where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } },
         })

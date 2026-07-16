@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PageType, prisma } from '@repo/db'
 
 import { PrismaUnitOfWork } from '../../../src/shared/unit-of-work.ts'
+import { lockWorkspaceForMutation } from '../../../src/shared/workspace-transaction-lock.ts'
 import {
   DatabaseFormRepository,
   type EnqueueFormSubmittedEventRecord,
@@ -11,6 +12,11 @@ import {
 import { FormSubmissionService } from '../../../src/database/forms/form-submission.service.ts'
 import { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
 import { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
+import type { BillingService } from '../../../src/billing/services/billing.service.ts'
+import type { CollectionService } from '../../../src/collections/services/collection.service.ts'
+import { DatabaseFormService } from '../../../src/database/forms/database-form.service.ts'
+import { PeopleRepository } from '../../../src/people/repositories/people.repository.ts'
+import { PeopleService } from '../../../src/people/services/people.service.ts'
 import {
   FORM_SCHEMA_VERSION,
   type FormVersionDocument,
@@ -25,6 +31,23 @@ function uuid7(): string {
   chars[14] = '7'
   chars[19] = '8'
   return chars.join('')
+}
+
+function deferred() {
+  let resolve!: () => void
+  const promise = new Promise<void>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+async function settlesWithin<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('CONCURRENT_LOCK_TIMEOUT')), 2_000),
+    ),
+  ])
 }
 
 const documentFor = (propertyId = 'property-1'): FormVersionDocument => ({
@@ -161,7 +184,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (workspaceId) await prisma.workspace.deleteMany({ where: { id: workspaceId } })
-  await prisma.user.deleteMany({ where: { email: EMAIL } })
+  await prisma.user.deleteMany({
+    where: { email: { contains: `database-form-repository-${RUN}` } },
+  })
 })
 
 describe('DatabaseFormRepository real PostgreSQL behavior', () => {
@@ -199,8 +224,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     expect(new Set(traversed).size).toBe(5)
   })
 
-  it('admits exactly one concurrent reservation for the final response slot', async () => {
-    const form = await prisma.databaseForm.create({
+  it('serializes full locked revalidation and returns one controlled final-slot rejection', async () => {
+    const createdForm = await prisma.databaseForm.create({
       data: {
         sourceId,
         routeKey: `anf_it_${RUN}_final_slot`,
@@ -210,20 +235,255 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         responseLimit: 1,
       },
     })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: createdForm.id,
+        versionNumber: 1,
+        schema: documentFor(),
+        schemaHash: 'd'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    const form = await prisma.databaseForm.update({
+      where: { id: createdForm.id },
+      data: { publishedVersionId: version.id },
+    })
     const firstUow = new PrismaUnitOfWork(prisma)
     const secondUow = new PrismaUnitOfWork(prisma)
     const firstRepo = new DatabaseFormRepository(firstUow)
     const secondRepo = new DatabaseFormRepository(secondUow)
+    const reservation = {
+      formId: form.id,
+      now: submittedAt,
+      expectedLinkRevision: form.linkRevision,
+      expectedAudience: form.audience,
+    }
+    const admit = (uow: PrismaUnitOfWork, repo: DatabaseFormRepository) =>
+      uow.transaction(async () => {
+        const locked = await repo.lockSubmissionContext({
+          formId: form.id,
+          workspaceId,
+          pageId: sourcePageId,
+          actorUserId: null,
+        })
+        if (!locked) throw new Error('FORM_NOT_ACCEPTING')
+        const reloaded = await repo.findByLocator(form.routeKey)
+        const reloadedVersion = await repo.findVersion(form.id, version.versionNumber)
+        if (
+          reloaded === null ||
+          reloaded.publishedVersionId !== version.id ||
+          reloadedVersion?.schemaHash !== version.schemaHash
+        ) {
+          throw new Error('FORM_NOT_ACCEPTING')
+        }
+        if (!(await repo.reserveResponseSlot(reservation))) {
+          throw new Error('FORM_NOT_ACCEPTING')
+        }
+        return true
+      })
 
-    const reservations = await Promise.all([
-      firstUow.transaction(() => firstRepo.reserveResponseSlot(form.id, submittedAt)),
-      secondUow.transaction(() => secondRepo.reserveResponseSlot(form.id, submittedAt)),
+    const results = await Promise.allSettled([
+      admit(firstUow, firstRepo),
+      admit(secondUow, secondRepo),
     ])
 
-    expect(reservations.sort()).toEqual([false, true])
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1)
+    const rejected = results.find(({ status }) => status === 'rejected')
+    expect(rejected).toMatchObject({
+      status: 'rejected',
+      reason: expect.objectContaining({ message: 'FORM_NOT_ACCEPTING' }),
+    })
     await expect(
       prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
     ).resolves.toMatchObject({ acceptedResponses: 1 })
+  })
+
+  it('serializes policy disablement before submission revalidation without deadlock', async () => {
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_policy_race`,
+        draftSchema: documentFor(),
+        createdById: userId,
+        state: 'OPEN',
+      },
+    })
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const submitUow = new PrismaUnitOfWork(prisma)
+    const submitRepo = new DatabaseFormRepository(submitUow)
+    const entered = deferred()
+    const release = deferred()
+    const writer = writerUow.transaction(async () => {
+      expect(await lockWorkspaceForMutation(writerUow.client(), workspaceId)).toBe(true)
+      await writerUow.client().workspaceSecurityPolicy.upsert({
+        where: { workspaceId },
+        create: { workspaceId, configuredById: userId, disablePublicLinksSitesForms: true },
+        update: { configuredById: userId, disablePublicLinksSitesForms: true },
+      })
+      entered.resolve()
+      await release.promise
+    })
+    await entered.promise
+
+    const submission = submitUow.transaction(async () => {
+      const locked = await submitRepo.lockSubmissionContext({
+        formId: form.id,
+        workspaceId,
+        pageId: sourcePageId,
+        actorUserId: null,
+      })
+      if (!locked) throw new Error('FORM_NOT_ACCEPTING')
+      const policy = await submitUow.client().workspaceSecurityPolicy.findUnique({
+        where: { workspaceId },
+      })
+      if (policy?.disablePublicLinksSitesForms === true) throw new Error('FORM_NOT_ACCEPTING')
+      return true
+    })
+    release.resolve()
+
+    await settlesWithin(writer)
+    await expect(settlesWithin(submission)).rejects.toThrow('FORM_NOT_ACCEPTING')
+  })
+
+  it('serializes member removal before submission revalidation without deadlock', async () => {
+    const target = await prisma.user.create({
+      data: {
+        name: `Member race ${RUN}`,
+        firstName: 'Member',
+        lastName: 'Race',
+        email: `database-form-repository-${RUN}-member@example.test`,
+      },
+    })
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    })
+    await prisma.workspaceMember.create({
+      data: { workspaceId, userId: target.id, role: 'EDITOR' },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_member_race`,
+        draftSchema: documentFor(),
+        createdById: userId,
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      },
+    })
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const submitUow = new PrismaUnitOfWork(prisma)
+    const submitRepo = new DatabaseFormRepository(submitUow)
+    const entered = deferred()
+    const release = deferred()
+    class PausingPeopleRepository extends PeopleRepository {
+      override async deleteMember(workspace: string, member: string): Promise<void> {
+        await super.deleteMember(workspace, member)
+        entered.resolve()
+        await release.promise
+      }
+    }
+    const writerService = new PeopleService(
+      new PausingPeopleRepository(writerUow),
+      writerUow,
+      {} as CollectionService,
+      {} as BillingService,
+    )
+    const writer = writerService.removeMember({
+      workspaceId,
+      actorId: userId,
+      actorRole: 'OWNER',
+      userId: target.id,
+    })
+    await entered.promise
+
+    const submission = submitUow.transaction(async () => {
+      const locked = await submitRepo.lockSubmissionContext({
+        formId: form.id,
+        workspaceId,
+        pageId: sourcePageId,
+        actorUserId: target.id,
+      })
+      if (!locked) throw new Error('FORM_NOT_ACCEPTING')
+      const member = await submitUow.client().workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: target.id } },
+      })
+      if (member === null) throw new Error('FORM_NOT_ACCEPTING')
+      return true
+    })
+    release.resolve()
+
+    await settlesWithin(writer)
+    await expect(settlesWithin(submission)).rejects.toThrow('FORM_NOT_ACCEPTING')
+  })
+
+  it('serializes an audited audience change before submission revalidation without deadlock', async () => {
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_audience_race`,
+        draftSchema: documentFor(),
+        createdById: userId,
+        state: 'OPEN',
+        audience: 'ANYONE_WITH_LINK',
+      },
+    })
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const submitUow = new PrismaUnitOfWork(prisma)
+    const entered = deferred()
+    const release = deferred()
+    class PausingFormRepository extends DatabaseFormRepository {
+      override async updateSettings(
+        input: Parameters<DatabaseFormRepository['updateSettings']>[0],
+      ) {
+        const updated = await super.updateSettings(input)
+        entered.resolve()
+        await release.promise
+        return updated
+      }
+    }
+    const writerService = new DatabaseFormService(
+      new PausingFormRepository(writerUow),
+      new DatabaseRepository(writerUow),
+      writerUow,
+      {} as BillingService,
+    )
+    const submitRepo = new DatabaseFormRepository(submitUow)
+    const writer = writerService.updateSettings(userId, {
+      pageId: sourcePageId,
+      formId: form.id,
+      audience: 'SIGNED_IN_WITH_LINK',
+      respondentAccess: 'NONE',
+      opensAt: null,
+      closesAt: null,
+      responseLimit: null,
+      notifyOwners: false,
+    })
+    await entered.promise
+
+    const submission = submitUow.transaction(async () => {
+      const locked = await submitRepo.lockSubmissionContext({
+        formId: form.id,
+        workspaceId,
+        pageId: sourcePageId,
+        actorUserId: null,
+      })
+      if (!locked) throw new Error('FORM_NOT_ACCEPTING')
+      const reloaded = await submitRepo.findByLocator(form.routeKey)
+      if (reloaded?.audience !== 'ANYONE_WITH_LINK') throw new Error('FORM_NOT_ACCEPTING')
+      return true
+    })
+    release.resolve()
+
+    await settlesWithin(writer)
+    await expect(settlesWithin(submission)).rejects.toThrow('FORM_NOT_ACCEPTING')
   })
 
   it('persists prepared server values once and replays without another slot, page, or outbox', async () => {
@@ -264,6 +524,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     const idempotencyKey = randomUUID()
     const input = {
       formId: form.id,
+      linkRevision: form.linkRevision,
+      audience: form.audience,
       versionId: version.id,
       versionNumber: 1,
       sourceId,
@@ -360,6 +622,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     await expect(
       service.persistPrepared({
         formId: form.id,
+        linkRevision: form.linkRevision,
+        audience: form.audience,
         versionId: version.id,
         versionNumber: 1,
         sourceId,

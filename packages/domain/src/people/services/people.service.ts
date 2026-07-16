@@ -6,6 +6,7 @@ import type { BillingService } from '../../billing/index.ts'
 import type { CollectionService } from '../../collections/index.ts'
 import { notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { lockWorkspaceForMutation } from '../../shared/workspace-transaction-lock.ts'
 import {
   INVITABLE_MEMBER_ROLES,
   INVITE_LINK_ROLES,
@@ -732,6 +733,9 @@ export class PeopleService {
     }
 
     await this.uow.transaction(async () => {
+      if (!(await lockWorkspaceForMutation(this.uow.client(), input.workspaceId))) {
+        throw notFound('WORKSPACE_NOT_FOUND')
+      }
       await this.repo.updateMemberRole(input.workspaceId, input.userId, input.role)
       await this.repo.writeAudit({
         workspaceId: input.workspaceId,
@@ -755,6 +759,9 @@ export class PeopleService {
     const user = await this.repo.findUserById(input.userId)
 
     await this.uow.transaction(async () => {
+      if (!(await lockWorkspaceForMutation(this.uow.client(), input.workspaceId))) {
+        throw notFound('WORKSPACE_NOT_FOUND')
+      }
       await this.repo.deleteMember(input.workspaceId, input.userId)
       // removal frees the seat — the only event that does (spec §7.2)
       await this.repo.recordMemberEvent({

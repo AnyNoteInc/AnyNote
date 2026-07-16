@@ -148,6 +148,7 @@ function makeHarness(
   } = {},
 ) {
   let current = options.form ?? managedForm()
+  const lockOrder: string[] = []
   const formRepo = {
     createFormWithView: vi.fn(async (input) => {
       current = { ...current, draftSchema: input.draftSchema } as ManagedFormRecord
@@ -222,7 +223,10 @@ function makeHarness(
       settings: data.settings ?? null,
     })),
     hasEmbeddedViewReference: vi.fn(async () => false),
-    lockSourceForStructureMutation: vi.fn(async () => true),
+    lockSourceForStructureMutation: vi.fn(async () => {
+      lockOrder.push('source')
+      return true
+    }),
     findSourceWorkspaceId: vi.fn(async () => null),
     findSourceWorkspaceIds: vi.fn(async () => new Map<string, string>()),
     updateProperty: vi.fn(async () => ({ id: 'property', name: 'Renamed' })),
@@ -230,15 +234,32 @@ function makeHarness(
   } as unknown as DatabaseRepository
   const transaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
   const auditCreate = vi.fn(async () => ({ id: 'audit-1' }))
+  const workspaceLock = vi.fn(async () => {
+    lockOrder.push('workspace')
+    return [{ id: current.source.workspaceId }]
+  })
   const uow = {
     transaction,
-    client: vi.fn(() => ({ workspaceAuditLog: { create: auditCreate } })),
+    client: vi.fn(() => ({
+      $queryRaw: workspaceLock,
+      workspaceAuditLog: { create: auditCreate },
+    })),
   } as unknown as UnitOfWork
   const billing = {
     getWorkspaceFeatures: vi.fn(async () => options.features ?? planFeatures()),
   } as unknown as BillingService
   const service = new DatabaseFormService(formRepo, databaseRepo, uow, billing, () => NOW)
-  return { service, formRepo, databaseRepo, uow, billing, transaction, auditCreate }
+  return {
+    service,
+    formRepo,
+    databaseRepo,
+    uow,
+    billing,
+    transaction,
+    auditCreate,
+    workspaceLock,
+    lockOrder,
+  }
 }
 
 describe('DatabaseFormService lifecycle', () => {
@@ -519,6 +540,17 @@ describe('DatabaseFormService lifecycle', () => {
         metadata: { formId: expect.any(String), viewId: expect.any(String), versionNumber: 1 },
       }),
     })
+  })
+
+  it('locks the workspace before the source for audited form mutations', async () => {
+    const { service, lockOrder } = makeHarness()
+
+    await service.publish('00000000-0000-7000-8000-000000000001', {
+      pageId: '00000000-0000-7000-8000-000000000050',
+      formId: '00000000-0000-7000-8000-000000000010',
+    })
+
+    expect(lockOrder.slice(0, 2)).toEqual(['workspace', 'source'])
   })
 
   it('republishes as version 2, preserves CLOSED and grants the prior version exactly 24h grace', async () => {

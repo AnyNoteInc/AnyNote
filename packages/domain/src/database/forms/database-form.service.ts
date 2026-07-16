@@ -11,6 +11,7 @@ import {
 import { assertCanEditDatabaseStructure } from '../services/database-structure-access.ts'
 import { badRequest, conflict, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { lockWorkspaceForMutation } from '../../shared/workspace-transaction-lock.ts'
 import type {
   CreateFormInput,
   DuplicateFormViewInput,
@@ -182,7 +183,7 @@ export class DatabaseFormService {
     const initialSource = await this.requireSource(input.pageId)
     await assertCanEditDatabaseStructure(this.databaseRepo, actorUserId, initialSource)
     return this.uow.transaction(async () => {
-      await this.lockSource(initialSource.id)
+      await this.lockMutation(initialSource.workspaceId, initialSource.id)
       const source = await this.requireSource(input.pageId)
       await assertCanEditDatabaseStructure(this.databaseRepo, actorUserId, source)
       const views = await this.databaseRepo.listViews(source.id)
@@ -218,7 +219,7 @@ export class DatabaseFormService {
     const initial = await this.requireManageableForm(actorUserId, input)
     const document = parseFormVersionDocument(input.schema)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
       const propertyNameIntents = input.propertyNameIntents ?? {}
@@ -281,7 +282,7 @@ export class DatabaseFormService {
     await this.validatePublication(initial)
 
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       const document = await this.validatePublication(form)
       const publishedAt = this.now()
@@ -327,7 +328,7 @@ export class DatabaseFormService {
   ): Promise<ManagedFormRecord> {
     const initial = await this.requireManageableForm(actorUserId, input)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
       if (input.opensAt !== null && input.closesAt !== null && input.opensAt >= input.closesAt) {
@@ -371,7 +372,7 @@ export class DatabaseFormService {
     const initial = await this.requireManageableForm(actorUserId, input)
     const slug = this.normalizeSlug(input.slug)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
       if (form.customSlug === slug) return form
@@ -406,7 +407,7 @@ export class DatabaseFormService {
   async rotateKey(actorUserId: string, input: FormIdInput): Promise<ManagedFormRecord> {
     const initial = await this.requireManageableForm(actorUserId, input)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
       const updated = await this.repo.updateSettings({
@@ -439,7 +440,7 @@ export class DatabaseFormService {
   async archive(actorUserId: string, input: FormIdInput): Promise<{ ok: true }> {
     const initial = await this.requireManageableForm(actorUserId, input)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') return { ok: true }
       if (
@@ -472,7 +473,7 @@ export class DatabaseFormService {
       formId: initialView.formId,
     })
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const view = await this.databaseRepo.findViewById(input.viewId)
       if (view?.type !== 'FORM' || view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
       const form = await this.requireManageableForm(actorUserId, {
@@ -517,7 +518,7 @@ export class DatabaseFormService {
       formId: initialView.formId,
     })
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const view = await this.databaseRepo.findViewById(input.viewId)
       if (view?.type !== 'FORM' || view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
       const form = await this.requireManageableForm(actorUserId, {
@@ -617,7 +618,7 @@ export class DatabaseFormService {
   ): Promise<ManagedFormRecord> {
     const initial = await this.requireManageableForm(actorUserId, input)
     return this.uow.transaction(async () => {
-      await this.lockSource(initial.sourceId)
+      await this.lockMutation(initial.source.workspaceId, initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state !== from || form.publishedVersionId === null)
         throw badRequest('FORM_STATE_INVALID')
@@ -663,6 +664,13 @@ export class DatabaseFormService {
     if (!(await this.databaseRepo.lockSourceForStructureMutation(sourceId, this.now()))) {
       throw conflict('FORM_SOURCE_CONFLICT')
     }
+  }
+
+  private async lockMutation(workspaceId: string, sourceId: string): Promise<void> {
+    if (!(await lockWorkspaceForMutation(this.uow.client(), workspaceId))) {
+      throw notFound('WORKSPACE_NOT_FOUND')
+    }
+    await this.lockSource(sourceId)
   }
 
   private snapshot(

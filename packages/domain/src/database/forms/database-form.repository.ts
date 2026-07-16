@@ -8,6 +8,7 @@ import {
 
 import { conflict } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { lockWorkspaceForMutation } from '../../shared/workspace-transaction-lock.ts'
 import { parseFormVersionDocument } from './form-document.ts'
 
 const versionSelect = {
@@ -289,6 +290,20 @@ export interface EnqueueFormSubmittedEventRecord {
   submittedAt: Date
 }
 
+export interface LockFormSubmissionContextRecord {
+  formId: string
+  workspaceId: string
+  pageId: string
+  actorUserId: string | null
+}
+
+export interface ReserveFormResponseSlotRecord {
+  formId: string
+  now: Date
+  expectedLinkRevision: number
+  expectedAudience: DatabaseFormAudience
+}
+
 export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
@@ -304,7 +319,8 @@ export interface FormRepositoryContract {
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
   findSubmission(submissionId: string): Promise<FormSubmissionRecord | null>
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
-  reserveResponseSlot(formId: string, now: Date): Promise<boolean>
+  lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean>
+  reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean>
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord>
   enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void>
   hasProtectedPropertyDependency(
@@ -599,15 +615,60 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     })
   }
 
-  async reserveResponseSlot(formId: string, now: Date): Promise<boolean> {
+  async lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean> {
+    const client = this.uow.client()
+    // Parent-before-child is the canonical lock order. Locking the workspace
+    // first also closes the lazy policy/membership insertion gap through FK
+    // locking and blocks destructive workspace deletion until submission ends.
+    if (!(await lockWorkspaceForMutation(client, input.workspaceId))) return false
+
+    await client.$queryRaw<{ workspaceId: string }[]>(Prisma.sql`
+      SELECT workspace_id AS "workspaceId"
+      FROM workspace_security_policies
+      WHERE workspace_id = ${input.workspaceId}::uuid
+      FOR UPDATE
+    `)
+
+    if (input.actorUserId !== null) {
+      await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id
+        FROM workspace_members
+        WHERE workspace_id = ${input.workspaceId}::uuid
+          AND user_id = ${input.actorUserId}::uuid
+        FOR UPDATE
+      `)
+    }
+
+    const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT id
+      FROM pages
+      WHERE id = ${input.pageId}::uuid
+        AND workspace_id = ${input.workspaceId}::uuid
+      FOR UPDATE
+    `)
+    if (pages.length !== 1) return false
+
+    const forms = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT id
+      FROM database_forms
+      WHERE id = ${input.formId}::uuid
+      FOR UPDATE
+    `)
+    if (forms.length !== 1) return false
+    return true
+  }
+
+  async reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean> {
     const reserved = await this.uow.client().$queryRaw<{ id: string }[]>(Prisma.sql`
       UPDATE database_forms
       SET accepted_responses = accepted_responses + 1,
           updated_at = now()
-      WHERE id = ${formId}::uuid
+      WHERE id = ${input.formId}::uuid
         AND state = ${DatabaseFormState.OPEN}::"DatabaseFormState"
-        AND (opens_at IS NULL OR opens_at <= ${now})
-        AND (closes_at IS NULL OR closes_at > ${now})
+        AND link_revision = ${input.expectedLinkRevision}
+        AND audience = ${input.expectedAudience}::"DatabaseFormAudience"
+        AND (opens_at IS NULL OR opens_at <= ${input.now})
+        AND (closes_at IS NULL OR closes_at > ${input.now})
         AND (response_limit IS NULL OR accepted_responses < response_limit)
       RETURNING id
     `)

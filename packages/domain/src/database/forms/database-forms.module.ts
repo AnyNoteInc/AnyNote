@@ -37,13 +37,20 @@ export const databaseFormsModule = new ContainerModule(({ bind }) => {
     [DATABASE_FORMS.Repository, WORKSPACE.Service],
   )
   bind(DATABASE_FORMS.SubmissionService).toResolvedValue(
-    (formRepo, databaseRepo, pageRepo, uow) =>
+    (formRepo, databaseRepo, pageRepo, uow, formAccess) =>
       new FormSubmissionService(
         formRepo as DatabaseFormRepository,
         databaseRepo as DatabaseRepository,
         pageRepo as ItemPageCreator,
         uow as UnitOfWork,
+        formAccess as FormAccessResolver,
       ),
-    [DATABASE_FORMS.Repository, DATABASE.Repository, PAGES.Repository, SHARED.UnitOfWork],
+    [
+      DATABASE_FORMS.Repository,
+      DATABASE.Repository,
+      PAGES.Repository,
+      SHARED.UnitOfWork,
+      DATABASE_FORMS.AccessResolver,
+    ],
   )
 })

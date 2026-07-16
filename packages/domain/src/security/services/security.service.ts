@@ -1,5 +1,6 @@
 import { notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { lockWorkspaceForMutation } from '../../shared/workspace-transaction-lock.ts'
 import {
   CONTENT_SEARCH_DEFAULT_PAGE_SIZE,
   CONTENT_SEARCH_MAX_PAGE_SIZE,
@@ -100,18 +101,21 @@ export class SecurityService {
    * A no-op patch changes nothing: no row is created, no audit is written.
    */
   async updatePolicy(input: UpdateSecurityPolicyInput): Promise<SecurityPolicyDto> {
-    const current = await this.getPolicy(input.workspaceId)
-    const changed: Partial<Record<string, [boolean, boolean]>> = {}
-    const patch: SecurityPolicyPatch = {}
-    for (const flag of SECURITY_POLICY_FLAGS) {
-      const next = input.patch[flag]
-      if (next === undefined || next === current[flag]) continue
-      changed[flag] = [current[flag], next]
-      patch[flag] = next
-    }
-    if (Object.keys(changed).length === 0) return current
-
     return this.uow.transaction(async () => {
+      if (!(await lockWorkspaceForMutation(this.uow.client(), input.workspaceId))) {
+        throw notFound('WORKSPACE_NOT_FOUND')
+      }
+      const current = await this.getPolicy(input.workspaceId)
+      const changed: Partial<Record<string, [boolean, boolean]>> = {}
+      const patch: SecurityPolicyPatch = {}
+      for (const flag of SECURITY_POLICY_FLAGS) {
+        const next = input.patch[flag]
+        if (next === undefined || next === current[flag]) continue
+        changed[flag] = [current[flag], next]
+        patch[flag] = next
+      }
+      if (Object.keys(changed).length === 0) return current
+
       const row = await this.repo.upsertPolicy(input.workspaceId, patch, input.actorId)
       await this.repo.writeAudit({
         workspaceId: input.workspaceId,
@@ -345,6 +349,9 @@ export class SecurityService {
   async acknowledgeContentSearch(input: AcknowledgeContentSearchInput): Promise<SecurityPolicyDto> {
     const run = () =>
       this.uow.transaction(async () => {
+        if (!(await lockWorkspaceForMutation(this.uow.client(), input.workspaceId))) {
+          throw notFound('WORKSPACE_NOT_FOUND')
+        }
         const { policy, acknowledged } = await this.repo.setSearchAcknowledged(
           input.workspaceId,
           input.actorId,
