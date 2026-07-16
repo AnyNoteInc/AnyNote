@@ -128,6 +128,7 @@ type HarnessOptions = {
   resolved?: PublishedFormResolution
   resolveError?: Error
   submitError?: Error
+  notifyError?: Error
   headers?: Headers
   userId?: string | null
   limiterDecision?: (scope: string, key: string, now: number) => boolean
@@ -164,6 +165,11 @@ function makeHarness(options: HarnessOptions = {}) {
     order.push('captcha')
     if (options.captchaError) throw options.captchaError
   })
+  const notifyFormManagers = vi.fn(async () => {
+    if (options.notifyError) throw options.notifyError
+  })
+  const observeFormEvent = vi.fn()
+  const captureFormOperationalFailure = vi.fn()
 
   const router = createFormRouter({
     domain: {
@@ -173,6 +179,9 @@ function makeHarness(options: HarnessOptions = {}) {
     } as never,
     rateLimiter: { consume },
     verifyCaptcha,
+    notifyFormManagers,
+    observeFormEvent,
+    captureFormOperationalFailure,
     now: () => NOW,
   })
   const api = createCallerFactory(router)({
@@ -208,6 +217,9 @@ function makeHarness(options: HarnessOptions = {}) {
     submit,
     consume,
     verifyCaptcha,
+    notifyFormManagers,
+    observeFormEvent,
+    captureFormOperationalFailure,
   }
 }
 
@@ -287,6 +299,29 @@ describe('public database form submission', () => {
     expect(harness.consume).toHaveBeenCalledWith('replay-ip', '203.0.113.10', NOW)
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
+    expect(harness.notifyFormManagers).not.toHaveBeenCalled()
+  })
+
+  it('notifies managers only for a genuinely new committed response', async () => {
+    const created = makeHarness()
+    await expect(created.api.submit(validInput())).resolves.toEqual(createdResult)
+    expect(created.notifyFormManagers).toHaveBeenCalledOnce()
+    expect(created.notifyFormManagers).toHaveBeenCalledWith(expect.any(Object), SUBMISSION_ID)
+
+    const replayed = makeHarness({ submitResult: domainReplayResult })
+    await expect(replayed.api.submit(validInput())).resolves.toEqual(replayResult)
+    expect(replayed.notifyFormManagers).not.toHaveBeenCalled()
+  })
+
+  it('keeps an accepted response successful when notification delivery fails', async () => {
+    const harness = makeHarness({ notifyError: new Error('mail provider unavailable') })
+
+    await expect(harness.api.submit(validInput())).resolves.toEqual(createdResult)
+
+    expect(harness.captureFormOperationalFailure).toHaveBeenCalledWith(
+      'notification_failure',
+      expect.objectContaining({ formId: FORM_ID, outcome: 'failed' }),
+    )
   })
 
   it('returns a capped-form replay before limiter and CAPTCHA without leaking row internals', async () => {

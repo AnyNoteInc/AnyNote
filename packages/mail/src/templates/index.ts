@@ -11,6 +11,7 @@ import { renderGuestInvitation } from './guest-invitation.ts'
 import { renderAccountDeletionRequested } from './account-deletion-requested.ts'
 import { renderAccountDeletionCompleted } from './account-deletion-completed.ts'
 import { renderReminderDue } from './reminder-due.ts'
+import { renderFormSubmitted } from './form-submitted.ts'
 import { renderInvoiceRequest } from './invoice-request.ts'
 
 export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K]): RenderedEmail {
@@ -39,6 +40,8 @@ export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K
       return renderAccountDeletionCompleted(data as MailPayloads['account-deletion-completed'])
     case 'reminder-due':
       return renderReminderDue(data as MailPayloads['reminder-due'])
+    case 'form-submitted':
+      return renderFormSubmitted(data as MailPayloads['form-submitted'])
     case 'invoice-request':
       return renderInvoiceRequest(data as MailPayloads['invoice-request'])
     default: {

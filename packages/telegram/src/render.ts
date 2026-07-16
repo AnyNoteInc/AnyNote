@@ -33,6 +33,7 @@ const EVENT_TEMPLATES: Record<WebhookEventType, (link: string) => string> = {
   'page.undeleted': (link) => `♻️ Страница восстановлена: ${link}`,
   'comment.created': (link) => `💬 Новый комментарий на странице ${link}`,
   'comment.resolved': (link) => `✅ Комментарий решён на странице ${link}`,
+  'database.form.submitted': (link) => `📝 Новый ответ на форму в базе ${link}`,
 }
 
 export function renderEventMessage(args: {

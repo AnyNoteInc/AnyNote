@@ -1948,7 +1948,10 @@ expect(emit).toHaveBeenCalledWith(
 )
 ```
 
-Payload contains formId/versionNumber/rowId only; no answers, labels, emails, IP, CAPTCHA or upload tokens.
+The persisted notification payload contains `formId`, `versionNumber`, `rowId` plus the
+immutable display metadata required by the specified templates: `formLabel`, `submittedAt`
+and the internal `resourceUrl`. It contains no answers, respondent labels/emails, IP,
+CAPTCHA data or upload tokens. The webhook payload remains identifiers/operational metadata only.
 
 - [ ] **Step 2: Add failing webhook catalog/payload/fan-out tests**
 

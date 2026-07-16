@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { COMING_EVENT_TYPES, WEBHOOK_EVENT_TYPES, isWebhookEventType } from '../src/catalog.ts'
 
 describe('WEBHOOK_EVENT_TYPES', () => {
-  it('contains exactly the 8 documented event types', () => {
+  it('contains exactly the 9 documented event types', () => {
     expect([...WEBHOOK_EVENT_TYPES]).toEqual([
       'page.created',
       'page.content_updated',
@@ -13,6 +13,7 @@ describe('WEBHOOK_EVENT_TYPES', () => {
       'page.undeleted',
       'comment.created',
       'comment.resolved',
+      'database.form.submitted',
     ])
   })
 

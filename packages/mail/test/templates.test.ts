@@ -125,6 +125,27 @@ describe('mail templates', () => {
     expect(out.text).toContain('Иван')
   })
 
+  it('form-submitted — includes only safe metadata and one response link', () => {
+    const out = renderTemplate('form-submitted', {
+      formLabel: '<script>Заявка</script>',
+      submittedAtIso: FIXTURE_ISO,
+      resourceUrl: '/workspaces/ws/pages/page?viewId=view',
+      baseUrl: 'https://anynote.ru',
+      answers: { email: 'secret@example.test' },
+    } as MailPayloads['form-submitted'] & { answers: unknown })
+
+    expect(out.subject).toBe('Новый ответ на форму «<script>Заявка</script>»')
+    expect(out.text).toContain('<script>Заявка</script>')
+    expect(out.text).toMatch(RU_DATETIME_RX)
+    expect(out.text).toContain('https://anynote.ru/workspaces/ws/pages/page?viewId=view')
+    expect(out.html).not.toContain('<script>')
+    expect(out.html).toContain('&lt;script&gt;Заявка&lt;/script&gt;')
+    expect(out.html).toContain('href="https://anynote.ru/workspaces/ws/pages/page?viewId=view"')
+    expect(out.html.match(/<a\b/g)).toHaveLength(1)
+    expect(out.html).toContain('>Открыть ответы</a>')
+    expect(JSON.stringify(out)).not.toContain('secret@example.test')
+  })
+
   it('invoice-request (operator-facing)', () => {
     const out = renderTemplate('invoice-request', {
       legalName: 'ООО «Ромашка»',

@@ -127,6 +127,8 @@ async function enqueueWebhookOutboxRow(args: {
       // Backdated: Prisma fills @default(now()) from the NODE clock while the
       // claim compares against the POSTGRES clock — skew would flake the claim.
       nextAttemptAt: new Date(Date.now() - 60_000),
+      // Keep fixture rows ahead of unrelated PENDING rows in a shared dev DB.
+      createdAt: new Date('2000-01-01T00:00:00.000Z'),
     },
   })
 }
@@ -203,6 +205,95 @@ describe('runFanOutTick (integration)', () => {
     expect(outbox[0]!.status).toBe('DONE')
   })
 
+  it('fans out database.form.submitted from the TEAM source database with exact metadata hints', async () => {
+    const fx = await seed()
+    const sourceDatabase = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        collectionId: fx.teamCollectionId,
+        type: 'DATABASE',
+        title: 'Form responses',
+        createdById: fx.ownerId,
+      },
+      select: { id: true },
+    })
+    await prisma.webhookSubscription.update({
+      where: { id: fx.subscriptionId },
+      data: { events: ['database.form.submitted'] },
+    })
+    const hints = {
+      formId: '0197a3a0-0000-7000-8000-000000000005',
+      versionNumber: 4,
+      rowId: '0197a3a0-0000-7000-8000-000000000006',
+      itemPageId: '0197a3a0-0000-7000-8000-000000000007',
+      submittedAt: '2026-06-10T12:00:00.000Z',
+      respondentKind: 'authenticated',
+    }
+    await enqueueWebhookOutboxRow({
+      event: 'database.form.submitted',
+      pageId: sourceDatabase.id,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints,
+    })
+
+    await runFanOutUntilDrained(fx.wsId)
+
+    const deliveries = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    expect(deliveries).toHaveLength(1)
+    expect(deliveries[0]!.eventType).toBe('database.form.submitted')
+    expect(deliveries[0]!.payload).toEqual({
+      version: 1,
+      id: deliveries[0]!.eventId,
+      event: 'database.form.submitted',
+      timestamp: expect.any(String),
+      workspaceId: fx.wsId,
+      actor: { id: fx.ownerId },
+      resource: { type: 'page', id: sourceDatabase.id },
+      hints,
+    })
+  })
+
+  it('drops database.form.submitted when its source database is PERSONAL', async () => {
+    const fx = await seed()
+    const sourceDatabase = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        collectionId: fx.personalCollectionId,
+        type: 'DATABASE',
+        title: 'Private form responses',
+        createdById: fx.ownerId,
+      },
+      select: { id: true },
+    })
+    await prisma.webhookSubscription.update({
+      where: { id: fx.subscriptionId },
+      data: { events: ['database.form.submitted'] },
+    })
+    await enqueueWebhookOutboxRow({
+      event: 'database.form.submitted',
+      pageId: sourceDatabase.id,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints: {
+        formId: '0197a3a0-0000-7000-8000-000000000005',
+        versionNumber: 4,
+        rowId: '0197a3a0-0000-7000-8000-000000000006',
+        itemPageId: '0197a3a0-0000-7000-8000-000000000007',
+        submittedAt: '2026-06-10T12:00:00.000Z',
+        respondentKind: 'anonymous',
+      },
+    })
+
+    await runFanOutUntilDrained(fx.wsId)
+
+    expect(
+      await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
+    ).toBe(0)
+  })
+
   it('drops PERSONAL-collection page events with zero deliveries (no-leak invariant)', async () => {
     const fx = await seed()
     await enqueueWebhookOutboxRow({
@@ -230,6 +321,27 @@ describe('runFanOutTick (integration)', () => {
       workspaceId: fx.wsId,
       actorId: fx.ownerId,
       hints: { changed: ['icon'] },
+    })
+
+    await runFanOutUntilDrained(fx.wsId)
+
+    expect(
+      await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
+    ).toBe(0)
+    expect((await webhookOutboxRows(fx.wsId))[0]!.status).toBe('DONE')
+  })
+
+  it('drops an outbox event that is not in the active event catalog', async () => {
+    const fx = await seed()
+    await prisma.webhookSubscription.update({
+      where: { id: fx.subscriptionId },
+      data: { events: ['database.form.unknown'] },
+    })
+    await enqueueWebhookOutboxRow({
+      event: 'database.form.unknown',
+      pageId: fx.teamPageId,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
     })
 
     await runFanOutUntilDrained(fx.wsId)

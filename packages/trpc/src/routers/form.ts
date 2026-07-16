@@ -17,6 +17,8 @@ import {
 
 import { domain as domainSvc } from '../domain'
 import { verifyFormCaptcha } from '../helpers/form-captcha'
+import { notifyFormManagers } from '../helpers/form-notify'
+import { captureFormOperationalFailure, observeFormEvent } from '../helpers/form-observability'
 import { formClientIp, formRateLimiter, type FormRateLimiter } from '../helpers/form-rate-limit'
 import {
   assertFormVersionContext,
@@ -106,6 +108,9 @@ type FormRouterDependencies = {
   domain: FormRouterDomain
   rateLimiter: FormRateLimiter
   verifyCaptcha: typeof verifyFormCaptcha
+  notifyFormManagers: typeof notifyFormManagers
+  observeFormEvent: typeof observeFormEvent
+  captureFormOperationalFailure: typeof captureFormOperationalFailure
   now: () => number
 }
 
@@ -113,6 +118,9 @@ const defaultDependencies: FormRouterDependencies = {
   domain: domainSvc,
   rateLimiter: formRateLimiter,
   verifyCaptcha: verifyFormCaptcha,
+  notifyFormManagers,
+  observeFormEvent,
+  captureFormOperationalFailure,
   now: Date.now,
 }
 
@@ -463,20 +471,35 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
       .input(z.object({ locator: z.string() }))
       .query(async ({ ctx, input }) => {
         ctx.resHeaders.set('Cache-Control', 'private, no-store')
-        const resolved = await domain.formAccess.resolvePublished(
-          input.locator,
-          ctx.user?.id ?? null,
-        )
-        if (resolved.status !== 'OPEN') return resolved
+        try {
+          const resolved = await domain.formAccess.resolvePublished(
+            input.locator,
+            ctx.user?.id ?? null,
+          )
+          if (resolved.status !== 'OPEN') {
+            dependencies.observeFormEvent('schema_load', { outcome: 'unavailable' })
+            return resolved
+          }
 
-        return {
-          status: 'OPEN' as const,
-          version: toPublicFormVersion(parseFormVersionDocument(resolved.version.schema)),
-          versionFingerprint: resolved.version.schemaHash,
-          versionToken: signResolvedVersion(resolved),
-          respondentKind: resolved.respondentUserId
-            ? ('authenticated' as const)
-            : ('anonymous' as const),
+          const response = {
+            status: 'OPEN' as const,
+            version: toPublicFormVersion(parseFormVersionDocument(resolved.version.schema)),
+            versionFingerprint: resolved.version.schemaHash,
+            versionToken: signResolvedVersion(resolved),
+            respondentKind: resolved.respondentUserId
+              ? ('authenticated' as const)
+              : ('anonymous' as const),
+          }
+          dependencies.observeFormEvent('schema_load', {
+            formId: resolved.form.id,
+            versionId: resolved.version.id,
+            versionNumber: resolved.version.versionNumber,
+            outcome: 'open',
+          })
+          return response
+        } catch (error) {
+          dependencies.observeFormEvent('schema_load', { outcome: 'failed', reason: 'internal' })
+          throw error
         }
       }),
 
@@ -612,8 +635,22 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
       withSanitizedFormSubmissionFailures(async () => {
         ctx.resHeaders.set('Cache-Control', 'private, no-store')
 
-        assertSerializedAnswersSize(input.answers)
-        if (input.honeypot.length > 0) throw formProtected()
+        try {
+          assertSerializedAnswersSize(input.answers)
+        } catch (error) {
+          dependencies.observeFormEvent('validation_failure', {
+            outcome: 'rejected',
+            reason: 'validation',
+          })
+          throw error
+        }
+        if (input.honeypot.length > 0) {
+          dependencies.observeFormEvent('submit', {
+            outcome: 'rejected',
+            reason: 'honeypot',
+          })
+          throw formProtected()
+        }
 
         const actorUserId = ctx.user?.id ?? null
         const submissionInput = toDomainSubmissionInput(input)
@@ -644,7 +681,14 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
               submissionInput,
               token,
             )
-            if (replay !== null) return toSubmitFormResult(replay)
+            if (replay !== null) {
+              dependencies.observeFormEvent('submit', {
+                formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+                versionNumber: token.versionNumber,
+                outcome: 'replayed',
+              })
+              return toSubmitFormResult(replay)
+            }
           } catch (error) {
             // Context can change between the public lookup and the replay lookup. Do not
             // turn that race into a pre-CAPTCHA oracle; the authoritative submit below
@@ -663,9 +707,19 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
         }
 
         if (!dependencies.rateLimiter.consume('submit-ip', `${rateFormKey}:${clientIp}`, now)) {
+          dependencies.observeFormEvent('submit', {
+            formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+            outcome: 'rejected',
+            reason: 'rate_limit',
+          })
           throw formProtected()
         }
         if (!dependencies.rateLimiter.consume('submit-form', rateFormKey, now)) {
+          dependencies.observeFormEvent('submit', {
+            formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+            outcome: 'rejected',
+            reason: 'rate_limit',
+          })
           throw formProtected()
         }
 
@@ -676,16 +730,85 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
             headers: ctx.headers,
           })
         } catch {
+          dependencies.observeFormEvent('captcha_failure', {
+            formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+            outcome: 'rejected',
+            reason: 'captcha',
+          })
           throw formProtected()
         }
 
         if (token === null || replayVersionStale) {
+          dependencies.observeFormEvent('submit', {
+            formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+            versionNumber: token?.versionNumber,
+            outcome: 'rejected',
+            reason: 'stale_version',
+          })
           throw formRefreshRequired()
         }
 
-        const result = await mapDomain(() =>
-          domain.formSubmissions.submit(actorUserId, submissionInput, token),
-        )
+        const transactionStartedAt = dependencies.now()
+        let result: Awaited<ReturnType<FormRouterDomain['formSubmissions']['submit']>>
+        try {
+          result = await mapDomain(() =>
+            domain.formSubmissions.submit(actorUserId, submissionInput, token),
+          )
+        } catch (error) {
+          const validationFailure =
+            error instanceof TRPCError &&
+            error.code === 'BAD_REQUEST' &&
+            error.message === 'FORM_ANSWERS_INVALID'
+          dependencies.observeFormEvent(validationFailure ? 'validation_failure' : 'submit', {
+            formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+            versionNumber: token.versionNumber,
+            outcome: validationFailure ? 'rejected' : 'failed',
+            reason: validationFailure ? 'validation' : 'domain',
+            durationMs: Math.max(0, dependencies.now() - transactionStartedAt),
+          })
+          throw error
+        }
+        const durationMs = Math.max(0, dependencies.now() - transactionStartedAt)
+        let acceptedResponseCount: number | undefined
+        if (result.created && resolved.status === 'OPEN') {
+          try {
+            acceptedResponseCount =
+              (
+                await ctx.prisma.databaseForm.findUnique({
+                  where: { id: resolved.form.id },
+                  select: { acceptedResponses: true },
+                })
+              )?.acceptedResponses ?? undefined
+          } catch {
+            // Metrics are non-authoritative and never change a committed response.
+          }
+        }
+        dependencies.observeFormEvent('transaction', {
+          formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+          versionNumber: token.versionNumber,
+          outcome: result.created ? 'accepted' : 'replayed',
+          durationMs,
+          acceptedResponseCount,
+        })
+        if (result.created) {
+          try {
+            await dependencies.notifyFormManagers(ctx.prisma, result.submissionId)
+          } catch {
+            dependencies.captureFormOperationalFailure('notification_failure', {
+              formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+              versionNumber: token.versionNumber,
+              outcome: 'failed',
+              reason: 'internal',
+            })
+          }
+        }
+        dependencies.observeFormEvent('submit', {
+          formId: resolved.status === 'OPEN' ? resolved.form.id : undefined,
+          versionNumber: token.versionNumber,
+          outcome: result.created ? 'accepted' : 'replayed',
+          durationMs,
+          acceptedResponseCount,
+        })
         return toSubmitFormResult(result)
       }),
     ),

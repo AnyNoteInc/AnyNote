@@ -129,6 +129,16 @@ export function renderEmailForEvent(
         },
       }
     }
+    case 'FORM_SUBMITTED':
+      return {
+        kind: 'form-submitted',
+        data: {
+          formLabel: p.formLabel ?? 'Без названия',
+          submittedAtIso: p.submittedAt ?? '',
+          resourceUrl: p.resourceUrl ?? '/',
+          baseUrl: resolveEmailBaseUrl(),
+        },
+      }
     default:
       return null
   }

@@ -96,6 +96,12 @@ export function formatNotification(
       return formatReminderDue((event.payload ?? {}) as Record<string, unknown>)
     case 'REMINDER_DUE':
       return formatReminderDue((event.payload ?? {}) as Record<string, unknown>)
+    case 'FORM_SUBMITTED':
+      return {
+        title: `Новый ответ на форму «${p.formLabel || 'Без названия'}»`,
+        body: '',
+        icon: 'system',
+      }
     case 'WEEKLY_DIGEST':
       return { title: p.title ?? 'Дайджест за неделю', body: p.summary ?? '', icon: 'marketing' }
     case 'PRODUCT_UPDATE':

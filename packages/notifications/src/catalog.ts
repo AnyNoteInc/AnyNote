@@ -113,6 +113,12 @@ export const EVENT_CATALOG: Record<NotificationEventType, EventDescriptor> = {
     lockedChannels: ['IN_APP'],
     requiresConsent: null,
   },
+  FORM_SUBMITTED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   PAGE_REVISION_RESTORED: {
     category: 'COLLABORATION',
     defaultChannels: ['IN_APP'],

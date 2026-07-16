@@ -236,6 +236,7 @@ function makeHarness(
     }),
   }
   const verifyCaptcha = vi.fn(async () => {})
+  const observeFormEvent = vi.fn()
   const limiterResults = [...(options.limiterResults ?? [])]
   const consume = vi.fn(() => limiterResults.shift() ?? options.limiterAllowed ?? true)
   const current = version()
@@ -268,6 +269,7 @@ function makeHarness(
     getActorUserId: vi.fn(async () => options.actorUserId ?? null),
     now: () => NOW,
     tokenSecret: () => SECRET,
+    observeFormEvent,
   })
   const call = (request = uploadRequest(), locator = LOCATOR) =>
     handler(request, { params: Promise.resolve({ locator }) })
@@ -291,6 +293,7 @@ function makeHarness(
     formAccess,
     fileCreate,
     uploadCreate,
+    observeFormEvent,
   }
 }
 
@@ -597,6 +600,12 @@ describe('public database form upload route', () => {
     expect(failed.status).toBe(500)
     await expect(failed.json()).resolves.toEqual({ error: 'FORM_UPLOAD_FAILED' })
     expect(unshared.storage.delete).toHaveBeenCalledOnce()
+    expect(unshared.observeFormEvent).toHaveBeenCalledWith('upload_cleanup', {
+      formId: FORM_ID,
+      versionId: VERSION_ID,
+      outcome: 'cleaned',
+      uploadCleanupCount: 1,
+    })
     expect(unshared.tx.$queryRaw).toHaveBeenCalledTimes(2)
     expect(unshared.tx.$queryRaw.mock.invocationCallOrder[1]).toBeLessThan(
       unshared.storage.delete.mock.invocationCallOrder[0]!,
@@ -605,6 +614,10 @@ describe('public database form upload route', () => {
     const shared = makeHarness({ transactionError: failure, sharedPathCount: 1 })
     expect((await shared.call()).status).toBe(500)
     expect(shared.storage.delete).not.toHaveBeenCalled()
+    expect(shared.observeFormEvent).toHaveBeenCalledWith(
+      'upload_cleanup',
+      expect.objectContaining({ outcome: 'failed', uploadCleanupCount: 0 }),
+    )
 
     const cleanupFailure = makeHarness({
       transactionError: failure,

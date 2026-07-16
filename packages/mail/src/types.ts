@@ -11,6 +11,7 @@ export type MailKind =
   | 'account-deletion-requested'
   | 'account-deletion-completed'
   | 'reminder-due'
+  | 'form-submitted'
   | 'invoice-request'
 
 export type RenderedEmail = { subject: string; html: string; text: string }
@@ -56,6 +57,12 @@ export type MailPayloads = {
     label: string | null
     dueAtIso: string
     offsetMinutes: number
+    baseUrl: string
+  }
+  'form-submitted': {
+    formLabel: string
+    submittedAtIso: string
+    resourceUrl: string
     baseUrl: string
   }
   // Legal-entity invoice request (per-seat billing, Phase 8D). Sent to the

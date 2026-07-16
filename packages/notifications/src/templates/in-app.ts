@@ -87,6 +87,12 @@ export function renderInApp(
         body: p.workspaceName ? `Пространство: ${p.workspaceName}` : '',
         icon: 'invite',
       }
+    case 'FORM_SUBMITTED':
+      return {
+        title: `Новый ответ на форму «${p.formLabel || 'Без названия'}»`,
+        body: '',
+        icon: 'system',
+      }
     default:
       return { title: 'Уведомление', body: '', icon: 'system' }
   }

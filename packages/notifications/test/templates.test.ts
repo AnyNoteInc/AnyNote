@@ -3,6 +3,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderInApp } from '../src/templates/in-app.ts'
 import { renderPushPayload } from '../src/templates/push.ts'
 import { renderEmailForEvent } from '../src/templates/registry.ts'
+import type { FormSubmittedNotificationPayload } from '../src/types.ts'
+
+const FORM_SUBMITTED_PAYLOAD = {
+  formId: '019f6a52-2b61-7d32-916e-dc750ee70ec5',
+  versionNumber: 3,
+  rowId: '019f6a52-3bed-70d8-b8d4-010f7bcce486',
+  formLabel: 'Заявка на участие',
+  submittedAt: '2026-07-16T12:30:00.000Z',
+  resourceUrl: '/workspaces/ws/pages/page?viewId=view',
+} satisfies FormSubmittedNotificationPayload
+
+const FORBIDDEN_SUBMISSION_DATA = {
+  answers: { email: 'answer-secret@example.test' },
+  email: 'respondent-secret@example.test',
+  ipAddress: '192.0.2.42',
+  uploadToken: 'secret-upload-token',
+}
 
 describe('renderInApp', () => {
   it('produces title + body for WORKSPACE_INVITE', () => {
@@ -56,6 +73,24 @@ describe('renderInApp', () => {
     expect(result.body).toContain('Маркетинг')
     expect(result.icon).toBe('invite')
   })
+
+  it('formats FORM_SUBMITTED without exposing answer values', () => {
+    const result = renderInApp('FORM_SUBMITTED', {
+      ...FORM_SUBMITTED_PAYLOAD,
+      ...FORBIDDEN_SUBMISSION_DATA,
+    })
+
+    expect(result).toEqual({
+      title: 'Новый ответ на форму «Заявка на участие»',
+      body: '',
+      icon: 'system',
+    })
+    for (const forbidden of Object.values(FORBIDDEN_SUBMISSION_DATA).flatMap((value) =>
+      typeof value === 'string' ? [value] : Object.values(value),
+    )) {
+      expect(JSON.stringify(result)).not.toContain(forbidden)
+    }
+  })
 })
 
 describe('renderPushPayload', () => {
@@ -106,6 +141,31 @@ describe('renderEmailForEvent', () => {
   it('returns null for events without an email template (e.g. ROLE_CHANGED)', () => {
     const result = renderEmailForEvent('ROLE_CHANGED', {})
     expect(result).toBeNull()
+  })
+
+  it('maps FORM_SUBMITTED to a metadata-only form response email', () => {
+    vi.stubEnv('BETTER_AUTH_URL', '')
+    vi.stubEnv('NEXT_PUBLIC_BASE_URL', '')
+    const result = renderEmailForEvent('FORM_SUBMITTED', {
+      ...FORM_SUBMITTED_PAYLOAD,
+      ...FORBIDDEN_SUBMISSION_DATA,
+    })
+
+    expect(result).toEqual({
+      kind: 'form-submitted',
+      data: {
+        formLabel: 'Заявка на участие',
+        submittedAtIso: '2026-07-16T12:30:00.000Z',
+        resourceUrl: '/workspaces/ws/pages/page?viewId=view',
+        baseUrl: '',
+      },
+    })
+    for (const forbidden of Object.values(FORBIDDEN_SUBMISSION_DATA).flatMap((value) =>
+      typeof value === 'string' ? [value] : Object.values(value),
+    )) {
+      expect(JSON.stringify(result)).not.toContain(forbidden)
+    }
+    vi.unstubAllEnvs()
   })
 
   describe('REMINDER_DUE baseUrl resolution', () => {

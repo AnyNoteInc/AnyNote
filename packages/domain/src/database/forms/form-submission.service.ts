@@ -1782,12 +1782,10 @@ export class FormSubmissionService {
         await this.formRepo.enqueueFormSubmittedEvent({
           formId: effective.formId,
           versionNumber: effective.versionNumber,
-          sourceId: effective.sourceId,
           sourcePageId: effective.sourcePageId,
           workspaceId: effective.workspaceId,
           rowId: row.id,
           itemPageId: itemPage.id,
-          submissionId: submission.id,
           respondentUserId: effective.respondentUserId,
           submittedAt: effective.submittedAt,
         })

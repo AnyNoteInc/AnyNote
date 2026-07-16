@@ -921,6 +921,12 @@ can manage the form when `notifyOwners` is enabled. Existing webhook subscriptio
 subscribe to the event. Rich answer payloads require a future explicit, permissioned
 webhook mapping design.
 
+Notification events persist only the three response identifiers plus immutable display
+metadata (`formLabel`, `submittedAt`, internal `resourceUrl`) needed to render the
+specified in-app/email copy asynchronously. This display metadata contains no answer,
+respondent identity, IP, CAPTCHA data or upload token. Webhook hints use the stricter
+identifier/operational-metadata allowlist above.
+
 ## Error and unavailable states
 
 Public resolver states:

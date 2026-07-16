@@ -52,3 +52,14 @@ describe('GUEST_INVITE_REQUESTED descriptor (Phase 8C)', () => {
     })
   })
 })
+
+describe('FORM_SUBMITTED descriptor', () => {
+  it('is a collaboration event delivered by in-app and email with in-app locked', () => {
+    expect(EVENT_CATALOG.FORM_SUBMITTED).toEqual({
+      category: 'COLLABORATION',
+      defaultChannels: ['IN_APP', 'EMAIL'],
+      lockedChannels: ['IN_APP'],
+      requiresConsent: null,
+    })
+  })
+})

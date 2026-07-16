@@ -16,6 +16,7 @@ import {
   formRateLimiter,
   type FormRateLimiter,
 } from '@repo/trpc/helpers/form-rate-limit'
+import { observeFormEvent } from '@repo/trpc/helpers/form-observability'
 import {
   assertFormVersionContext,
   hashFormLocator,
@@ -51,6 +52,7 @@ type UploadDependencies = {
   getActorUserId: () => Promise<string | null>
   now: () => Date
   tokenSecret: () => string
+  observeFormEvent: typeof observeFormEvent
 }
 
 const defaults: UploadDependencies = {
@@ -62,6 +64,7 @@ const defaults: UploadDependencies = {
   getActorUserId: async () => (await getSession())?.user.id ?? null,
   now: () => new Date(),
   tokenSecret: () => process.env.FORM_TOKEN_SECRET ?? '',
+  observeFormEvent,
 }
 
 const fail = (status: number, error: string) => Response.json({ error }, { status })
@@ -345,6 +348,8 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
   ): Promise<Response> {
     let objectPath: string | null = null
     let cleanupWorkspaceId: string | null = null
+    let observedFormId: string | null = null
+    let observedVersionId: string | null = null
     let stored = false
     try {
       const { locator: rawLocator, submissionId } = await params
@@ -385,6 +390,11 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
           headers: request.headers,
         })
       } catch {
+        dependencies.observeFormEvent('captcha_failure', {
+          formId: access?.form.id,
+          outcome: 'rejected',
+          reason: 'captcha',
+        })
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }
 
@@ -449,6 +459,8 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
           throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
         }
       }
+      observedFormId = access.form.id
+      observedVersionId = selectedVersion.id
 
       let question: FormQuestion | null
       try {
@@ -640,6 +652,7 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         { status: 201 },
       )
     } catch (error) {
+      let uploadCleanupCount = 0
       if (stored && objectPath !== null && cleanupWorkspaceId !== null) {
         try {
           await dependencies.prisma.$transaction(async (tx) => {
@@ -653,12 +666,19 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
               (await tx.file.count({ where: { path: objectPath! } })) === 0
             ) {
               await dependencies.storage.delete(objectPath!)
+              uploadCleanupCount = 1
             }
           }, STORAGE_TRANSACTION_OPTIONS)
         } catch {
           // Never replace the safe primary response with cleanup internals.
         }
       }
+      dependencies.observeFormEvent('upload_cleanup', {
+        formId: observedFormId,
+        versionId: observedVersionId,
+        outcome: uploadCleanupCount === 1 ? 'cleaned' : 'failed',
+        uploadCleanupCount,
+      })
       if (error instanceof UploadHttpError) return fail(error.status, error.message)
       return fail(500, 'FORM_UPLOAD_FAILED')
     }

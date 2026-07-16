@@ -1824,7 +1824,7 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     const created = submission()
     const client = {
       databaseFormSubmission: { create: vi.fn(async () => created) },
-      outboxEvent: { create: vi.fn(async () => ({ id: 1n })) },
+      outboxEvent: { createMany: vi.fn(async () => ({ count: 2 })) },
     }
     const uow = { client: vi.fn(() => client) } as unknown as UnitOfWork
     const repository = new DatabaseFormRepository(uow)
@@ -1841,12 +1841,10 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     await repository.enqueueFormSubmittedEvent({
       formId: FORM_ID,
       versionNumber: 3,
-      sourceId: SOURCE_ID,
       sourcePageId: SOURCE_PAGE_ID,
       workspaceId: WORKSPACE_ID,
       rowId: ROW_ID,
       itemPageId: ITEM_PAGE_ID,
-      submissionId: SUBMISSION_ID,
       respondentUserId: null,
       submittedAt: NOW,
     })
@@ -1856,10 +1854,10 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
         data: expect.objectContaining({ endingId: 'server-ending', respondentUserId: null }),
       }),
     )
-    expect(client.outboxEvent.create).toHaveBeenCalledWith({
-      data: {
+    expect(client.outboxEvent.createMany).toHaveBeenCalledWith({
+      data: ['webhook_event', 'telegram_event'].map((aggregateType) => ({
         eventType: 'database.form.submitted',
-        aggregateType: 'webhook_event',
+        aggregateType,
         aggregateId: SOURCE_PAGE_ID,
         workspaceId: WORKSPACE_ID,
         payload: {
@@ -1868,20 +1866,18 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
           hints: {
             formId: FORM_ID,
             versionNumber: 3,
-            sourceId: SOURCE_ID,
             rowId: ROW_ID,
             itemPageId: ITEM_PAGE_ID,
-            submissionId: SUBMISSION_ID,
             submittedAt: NOW.toISOString(),
             respondentKind: 'anonymous',
           },
         },
-      },
+      })),
     })
-    expect(JSON.stringify(client.outboxEvent.create.mock.calls[0]![0])).not.toContain(
+    expect(JSON.stringify(client.outboxEvent.createMany.mock.calls[0]![0])).not.toContain(
       'Server title',
     )
-    expect(JSON.stringify(client.outboxEvent.create.mock.calls[0]![0])).not.toContain(
+    expect(JSON.stringify(client.outboxEvent.createMany.mock.calls[0]![0])).not.toContain(
       'prepared value',
     )
   })

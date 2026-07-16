@@ -3,7 +3,7 @@ import {
   DatabaseFormRespondentAccess,
   DatabaseFormState,
   Prisma,
-  enqueueWebhookEvent,
+  enqueueIntegrationEvents,
 } from '@repo/db'
 
 import { conflict } from '../../shared/errors.ts'
@@ -334,12 +334,10 @@ export interface CreateFormSubmissionRecord {
 export interface EnqueueFormSubmittedEventRecord {
   formId: string
   versionNumber: number
-  sourceId: string
   sourcePageId: string
   workspaceId: string
   rowId: string
   itemPageId: string
-  submissionId: string
   respondentUserId: string | null
   submittedAt: Date
 }
@@ -1199,7 +1197,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
   }
 
   async enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void> {
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'database.form.submitted',
       resourceType: 'page',
       resourceId: input.sourcePageId,
@@ -1208,10 +1206,8 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       hints: {
         formId: input.formId,
         versionNumber: input.versionNumber,
-        sourceId: input.sourceId,
         rowId: input.rowId,
         itemPageId: input.itemPageId,
-        submissionId: input.submissionId,
         submittedAt: input.submittedAt.toISOString(),
         respondentKind: input.respondentUserId === null ? 'anonymous' : 'authenticated',
       },

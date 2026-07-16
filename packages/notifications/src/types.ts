@@ -32,3 +32,12 @@ export type ResolvedTargets = {
   email: string | null
   pushSubscriptions: PushSubscription[]
 }
+
+export type FormSubmittedNotificationPayload = Readonly<{
+  formId: string
+  versionNumber: number
+  rowId: string
+  formLabel: string
+  submittedAt: string
+  resourceUrl: string
+}>

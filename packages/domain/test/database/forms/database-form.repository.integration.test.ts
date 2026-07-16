@@ -660,7 +660,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     await expect(prisma.databaseFormSubmission.count({ where: { formId: form.id } })).resolves.toBe(
       1,
     )
-    expect(outboxAfterFirst).toBe(outboxBefore + 2)
+    // One indexer row for the item page plus isolated webhook and Telegram rows.
+    expect(outboxAfterFirst).toBe(outboxBefore + 3)
     await expect(prisma.outboxEvent.count({ where: { workspaceId } })).resolves.toBe(
       outboxAfterFirst,
     )
@@ -736,7 +737,7 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
       1,
     )
     await expect(prisma.outboxEvent.count({ where: { workspaceId } })).resolves.toBe(
-      outboxBefore + 2,
+      outboxBefore + 3,
     )
   })
 

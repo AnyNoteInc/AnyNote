@@ -7,6 +7,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'page.undeleted',
   'comment.created',
   'comment.resolved',
+  'database.form.submitted',
 ] as const
 
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number]

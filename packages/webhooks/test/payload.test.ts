@@ -40,6 +40,41 @@ describe('buildWebhookPayload', () => {
     expect(payload.hints).toEqual({ parentId: 'abc', resolved: true })
   })
 
+  it('builds a metadata-only database form submission payload', () => {
+    const payload = buildWebhookPayload({
+      ...baseInput,
+      event: 'database.form.submitted',
+      actorId: null,
+      hints: {
+        formId: '0197a3a0-0000-7000-8000-000000000005',
+        versionNumber: 3,
+        rowId: '0197a3a0-0000-7000-8000-000000000006',
+        itemPageId: '0197a3a0-0000-7000-8000-000000000007',
+        submittedAt: '2026-06-10T12:00:00.000Z',
+        respondentKind: 'anonymous',
+      },
+    })
+
+    expect(payload).toEqual({
+      version: 1,
+      id: baseInput.eventId,
+      event: 'database.form.submitted',
+      timestamp: '2026-06-10T12:00:00.000Z',
+      workspaceId: baseInput.workspaceId,
+      actor: { id: null },
+      resource: { type: 'page', id: baseInput.resourceId },
+      hints: {
+        formId: '0197a3a0-0000-7000-8000-000000000005',
+        versionNumber: 3,
+        rowId: '0197a3a0-0000-7000-8000-000000000006',
+        itemPageId: '0197a3a0-0000-7000-8000-000000000007',
+        submittedAt: '2026-06-10T12:00:00.000Z',
+        respondentKind: 'anonymous',
+      },
+    })
+    expect(JSON.stringify(payload)).not.toMatch(/"(title|content|body|text|name)"/)
+  })
+
   it('throws when hints smuggle a forbidden top-level key', () => {
     expect(() => buildWebhookPayload({ ...baseInput, hints: { title: 'x' } })).toThrow()
   })
@@ -49,6 +84,33 @@ describe('buildWebhookPayload', () => {
       buildWebhookPayload({ ...baseInput, hints: { meta: { deep: [{ content: 'secret' }] } } }),
     ).toThrow()
   })
+
+  it.each([
+    ['answers', { email: 'secret@example.test' }],
+    ['email', 'secret@example.test'],
+    ['captcha', 'captcha-secret'],
+    ['uploadToken', 'upload-secret'],
+    ['rawIp', '203.0.113.10'],
+  ])(
+    'rejects database.form.submitted extra key %s even when it is not a generic content key',
+    (key, value) => {
+      expect(() =>
+        buildWebhookPayload({
+          ...baseInput,
+          event: 'database.form.submitted',
+          hints: {
+            formId: '0197a3a0-0000-7000-8000-000000000005',
+            versionNumber: 3,
+            rowId: '0197a3a0-0000-7000-8000-000000000006',
+            itemPageId: '0197a3a0-0000-7000-8000-000000000007',
+            submittedAt: '2026-06-10T12:00:00.000Z',
+            respondentKind: 'anonymous',
+            [key]: value,
+          },
+        }),
+      ).toThrow(/metadata-only contract/)
+    },
+  )
 })
 
 describe('assertNoForbiddenKeys', () => {

@@ -28,7 +28,7 @@ describe('renderEventMessage', () => {
     const messages = WEBHOOK_EVENT_TYPES.map((eventType) =>
       renderEventMessage({ eventType, pageTitle: 'Док', pageUrl: PAGE_URL, actorName: null }),
     )
-    expect(messages).toHaveLength(8)
+    expect(messages).toHaveLength(9)
     for (const message of messages) {
       expect(message.length).toBeGreaterThan(0)
       expect(message).toContain(`<a href="${PAGE_URL}">Док</a>`)

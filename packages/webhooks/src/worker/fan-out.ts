@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { Prisma, type PrismaClient } from '@repo/db'
 
+import { isWebhookEventType } from '../catalog.ts'
 import { buildWebhookPayload } from '../payload.ts'
 
 export type FanOutOpts = { workerId: string; batchSize: number }
@@ -171,6 +172,13 @@ async function processRow(prisma: PrismaClient, row: OutboxRow): Promise<void> {
   // webhook_event rows are always workspace-scoped; an orphan row cannot
   // resolve subscriptions — drop it.
   if (row.workspace_id === null) {
+    await markDone(prisma, row.id)
+    return
+  }
+
+  // The outbox is intentionally untyped storage. Ignore stale, malformed or
+  // future event names until they are explicitly activated in the catalog.
+  if (!isWebhookEventType(row.event_type)) {
     await markDone(prisma, row.id)
     return
   }

@@ -10,6 +10,7 @@ export const WEBHOOK_EVENT_TYPES = [
   'page.undeleted',
   'comment.created',
   'comment.resolved',
+  'database.form.submitted',
 ] as const
 
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number]
@@ -46,6 +47,10 @@ export const WEBHOOK_EVENT_LABELS: Record<WebhookEventType, { label: string; des
   'comment.resolved': {
     label: 'Комментарий решён',
     desc: 'Обсуждение отмечено как решённое',
+  },
+  'database.form.submitted': {
+    label: 'Форма заполнена',
+    desc: 'Новый ответ добавлен в базу данных',
   },
 }
 

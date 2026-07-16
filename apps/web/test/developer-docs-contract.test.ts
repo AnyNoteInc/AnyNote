@@ -16,6 +16,11 @@ import {
 } from '@repo/webhooks'
 import { describe, expect, it } from 'vitest'
 
+import {
+  WEBHOOK_EVENT_LABELS as CLIENT_WEBHOOK_EVENT_LABELS,
+  WEBHOOK_EVENT_TYPES as CLIENT_WEBHOOK_EVENT_TYPES,
+} from '../src/components/workspace/settings/webhook-events'
+
 // Drift guards: the public developer docs must keep quoting the values the
 // runtime actually uses. Constants are imported from @repo/webhooks and
 // @repo/telegram; values that are not exported as runtime constants (TTL zod
@@ -31,6 +36,11 @@ const telegramDoc = readFileSync(path.join(DOCS_DIR, 'telegram.md'), 'utf8')
 const apiDoc = readFileSync(path.join(DOCS_DIR, 'api.md'), 'utf8')
 
 describe('webhooks.md — event catalog', () => {
+  it('keeps the client event catalog and labels in sync with the server catalog', () => {
+    expect([...CLIENT_WEBHOOK_EVENT_TYPES]).toEqual([...WEBHOOK_EVENT_TYPES])
+    expect(Object.keys(CLIENT_WEBHOOK_EVENT_LABELS)).toEqual([...WEBHOOK_EVENT_TYPES])
+  })
+
   it.each([...WEBHOOK_EVENT_TYPES])('documents emitted event %s', (event) => {
     expect(webhooksDoc).toContain(event)
   })
