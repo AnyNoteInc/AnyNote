@@ -3,6 +3,10 @@ import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import {
+  lockPagesForMutation,
+  lockWorkspaceForMutation,
+} from '../../shared/workspace-transaction-lock.ts'
 import { buildPageVisibilityWhere, excludeDatabaseRowPages } from '../page-visibility.ts'
 import type {
   CountResultDto,
@@ -713,6 +717,38 @@ export class PageRepository {
     page: PageRowDto,
     input: MovePageInput,
   ): Promise<CreateResultDto> {
+    const client = this.uow.client()
+    if (!(await lockWorkspaceForMutation(client, page.workspaceId))) {
+      throw notFound('Воркспейс не найден')
+    }
+    const staticPageIds = [page.id, page.parentId, page.prevPageId, input.newParentId].filter(
+      (id): id is string => id !== null,
+    )
+    const affectedPages = await client.page.findMany({
+      where: {
+        workspaceId: page.workspaceId,
+        OR: [
+          { id: { in: staticPageIds } },
+          { prevPageId: page.id, deletedAt: null },
+          {
+            parentId: input.newParentId,
+            prevPageId: null,
+            id: { not: page.id },
+            deletedAt: null,
+          },
+        ],
+      },
+      select: { id: true },
+    })
+    if (
+      !(await lockPagesForMutation(
+        client,
+        affectedPages.map(({ id }) => id),
+      ))
+    ) {
+      throw notFound('Страница не найдена')
+    }
+
     // 1. Remove from old linked-list (detach first to avoid unique constraint)
     const nextSibling = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id, deletedAt: null },

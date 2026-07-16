@@ -54,6 +54,7 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     createRow: vi.fn(async (d) => ({ id: 'row1', pageId: d.pageId, position: d.position })),
     findRowsBySource: vi.fn(async () => []),
     findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'src1', pageId: 'item-page', deletedAt: null })),
+    lockRowMutationGraph: vi.fn(async () => true),
     softDeleteRow: vi.fn(async () => undefined),
     restoreRow: vi.fn(async () => undefined),
     reorderRows: vi.fn(async () => undefined),
@@ -622,6 +623,11 @@ describe('DatabaseService.deleteRow / restoreRow', () => {
   it('soft-deletes both the DatabaseRow and the item Page', async () => {
     const repo = makeRepo()
     const result = await makeService(repo).deleteRow('u1', { pageId: 'db-page', rowId: 'row1' })
+    expect(repo.lockRowMutationGraph).toHaveBeenCalledWith({
+      workspaceId: 'w1',
+      pageId: 'item-page',
+      rowId: 'row1',
+    })
     expect(repo.softDeleteRow).toHaveBeenCalledWith('row1', 'u1')
     expect(repo.softDeleteItemPage).toHaveBeenCalledWith('item-page', 'u1', 'w1')
     expect(result).toEqual({ ok: true })
@@ -630,6 +636,11 @@ describe('DatabaseService.deleteRow / restoreRow', () => {
   it('restores both the DatabaseRow and the item Page', async () => {
     const repo = makeRepo()
     const result = await makeService(repo).restoreRow('u1', { pageId: 'db-page', rowId: 'row1' })
+    expect(repo.lockRowMutationGraph).toHaveBeenCalledWith({
+      workspaceId: 'w1',
+      pageId: 'item-page',
+      rowId: 'row1',
+    })
     expect(repo.restoreRow).toHaveBeenCalledWith('row1', 'u1')
     expect(repo.restoreItemPage).toHaveBeenCalledWith('item-page', 'u1', 'w1')
     expect(result).toEqual({ ok: true })

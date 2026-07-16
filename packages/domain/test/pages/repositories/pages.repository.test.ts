@@ -409,6 +409,11 @@ describe('PageRepository.duplicatePageTx — sibling re-link + (копия)', ()
 describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  const moveQueryRaw = vi.fn(async (query: { strings: readonly string[] }) =>
+    query.strings.join(' ').includes('FROM workspaces') ? [{ id: 'w1' }] : [{ id: 'p1' }],
+  )
+  const moveFindMany = vi.fn(async () => [{ id: 'p1' }])
+
   const page = {
     id: 'p1',
     workspaceId: 'w1',
@@ -430,9 +435,10 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const repo = new PageRepository(
       makeUow({
-        page: { findFirst: txFindFirst, update: pageUpdate },
+        $queryRaw: moveQueryRaw,
+        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
-      }),
+      } as never),
     )
     const result = await repo.movePageTx('u1', page as never, { pageId: 'p1', newParentId: 'par2' })
     expect(result).toEqual({ id: 'p1' })
@@ -473,9 +479,10 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const pageUpdate = vi.fn(async () => ({}))
     const repo = new PageRepository(
       makeUow({
-        page: { findFirst: txFindFirst, update: pageUpdate },
+        $queryRaw: moveQueryRaw,
+        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: vi.fn(), createMany: vi.fn() },
-      }),
+      } as never),
     )
     await expect(
       repo.movePageTx('u1', { ...page, prevPageId: null } as never, {
@@ -500,12 +507,51 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const pageUpdate = vi.fn(async () => ({}))
     const repo = new PageRepository(
       makeUow({
-        page: { findFirst: txFindFirst, update: pageUpdate },
+        $queryRaw: moveQueryRaw,
+        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: vi.fn(), createMany: vi.fn() },
-      }),
+      } as never),
     )
     await repo.movePageTx('u1', page as never, { pageId: 'p1', newParentId: 'par2' })
     expect(pageUpdate).toHaveBeenCalledWith({ where: { id: 'head-1' }, data: { prevPageId: 'p1' } })
+  })
+
+  it('locks the workspace and every affected page in sorted order before updates', async () => {
+    const events: string[] = []
+    const queryRaw = vi.fn(async (query: { strings: readonly string[] }) => {
+      const sql = query.strings.join(' ')
+      events.push(sql.includes('FROM workspaces') ? 'workspace-lock' : 'page-lock')
+      return sql.includes('FROM workspaces')
+        ? [{ id: 'w1' }]
+        : [{ id: 'head-z' }, { id: 'next-a' }, { id: 'p1' }, { id: 'par2' }]
+    })
+    const findMany = vi.fn(async () => {
+      events.push('discover-pages')
+      return [{ id: 'head-z' }, { id: 'next-a' }, { id: 'p1' }, { id: 'par2' }]
+    })
+    const findFirst = vi.fn(async () => null)
+    const update = vi.fn(async () => {
+      events.push('update')
+      return {}
+    })
+    const repo = new PageRepository(
+      makeUow({
+        $queryRaw: queryRaw,
+        page: { findMany, findFirst, update },
+        outboxEvent: { create: vi.fn(async () => ({})), createMany: vi.fn(async () => ({})) },
+      } as never),
+    )
+
+    await repo.movePageTx('u1', page as never, { pageId: 'p1', newParentId: 'par2' })
+
+    expect(events.slice(0, 4)).toEqual([
+      'workspace-lock',
+      'discover-pages',
+      'page-lock',
+      'update',
+    ])
+    const pageLock = queryRaw.mock.calls[1]?.[0] as { strings: readonly string[] }
+    expect(pageLock.strings.join(' ')).toMatch(/ORDER BY id\s+FOR UPDATE/)
   })
 })
 

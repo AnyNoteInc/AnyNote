@@ -13,6 +13,7 @@ import {
 import { FormSubmissionService } from '../../../src/database/forms/form-submission.service.ts'
 import { FormAccessResolver } from '../../../src/database/forms/form-access-resolver.ts'
 import { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
+import { DatabaseService } from '../../../src/database/services/database.service.ts'
 import { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import type { BillingService } from '../../../src/billing/services/billing.service.ts'
 import type { CollectionService } from '../../../src/collections/services/collection.service.ts'
@@ -978,6 +979,156 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     await expect(
       prisma.databaseFormSubmission.count({ where: { formId: form.id } }),
     ).resolves.toBeLessThanOrEqual(1)
+  })
+
+  it('does not deadlock when a row soft-delete overlaps a relation submission', async () => {
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    })
+    const targetPage = await prisma.page.create({
+      data: { workspaceId, parentId: sourcePageId, title: `Soft-delete target ${RUN}`, createdById: userId },
+    })
+    const targetRow = await prisma.databaseRow.create({
+      data: { sourceId, pageId: targetPage.id, createdById: userId, updatedById: userId },
+    })
+    const relationProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId,
+        type: 'RELATION',
+        name: `Soft-delete relation ${RUN}`,
+        position: 9_992,
+        settings: { relation: { targetSourceId: sourceId } },
+      },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_soft_delete_race`,
+        draftSchema: relationDocumentFor(relationProperty.id),
+        createdById: userId,
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      },
+    })
+
+    const rowHeld = deferred()
+    const releaseDelete = deferred()
+    class PausingDeleteRepository extends DatabaseRepository {
+      override async softDeleteRow(rowId: string, updatedById: string): Promise<void> {
+        await super.softDeleteRow(rowId, updatedById)
+        rowHeld.resolve()
+        await releaseDelete.promise
+      }
+    }
+    const deleteUow = new PrismaUnitOfWork(prisma)
+    const deletion = new DatabaseService(
+      new PausingDeleteRepository(deleteUow),
+      {} as never,
+      deleteUow,
+      {} as never,
+      {} as never,
+    ).deleteRow(userId, { pageId: sourcePageId, rowId: targetRow.id })
+    await rowHeld.promise
+
+    const workspaceAttempted = deferred()
+    const allowWorkspaceQuery = deferred()
+    const rowAttempted = deferred()
+    class PausingSubmissionUnitOfWork implements UnitOfWork {
+      private readonly inner = new PrismaUnitOfWork(prisma)
+
+      transaction<T>(fn: () => Promise<T>): Promise<T> {
+        return this.inner.transaction(fn)
+      }
+
+      client(): Db {
+        const client = this.inner.client()
+        return new Proxy(client, {
+          get: (target, property, receiver) => {
+            const value = Reflect.get(target, property, receiver)
+            if (property !== '$queryRaw' || typeof value !== 'function') return value
+            return async (...args: unknown[]) => {
+              const query = args[0]
+              const sql =
+                query !== null && typeof query === 'object' && 'strings' in query
+                  ? (query as { strings: readonly string[] }).strings.join('')
+                  : ''
+              if (sql.includes('FROM workspaces')) {
+                workspaceAttempted.resolve()
+                await allowWorkspaceQuery.promise
+              }
+              if (sql.includes('FROM database_rows') && sql.includes('FOR UPDATE')) {
+                rowAttempted.resolve()
+              }
+              return Reflect.apply(value, target, args)
+            }
+          },
+        }) as Db
+      }
+    }
+
+    const submitUow = new PausingSubmissionUnitOfWork()
+    const submitRepo = new DatabaseFormRepository(submitUow)
+    const submission = submitUow.transaction(async () => {
+      expect(
+        await submitRepo.lockSubmissionContext({
+          formId: form.id,
+          workspaceId,
+          pageId: sourcePageId,
+          sourceId,
+          collectionIds: [],
+          parentPageIds: [],
+          actorUserId: userId,
+        }),
+      ).toBe(true)
+      expect(
+        await submitRepo.lockFormSubmissionAuthorities({
+          formId: form.id,
+          workspaceId,
+          formSourceId: sourceId,
+          actorUserId: userId,
+          personUserIds: [],
+          sourceIds: [sourceId],
+          propertyIds: [relationProperty.id],
+          rowIds: [targetRow.id],
+          collectionIds: [],
+          parentPageIds: [],
+          pageIds: [targetPage.id],
+          uploadIds: [],
+          fileIds: [],
+        }),
+      ).toBe(true)
+    })
+    await workspaceAttempted.promise
+
+    // The submission is paused before taking workspace. NOWAIT distinguishes
+    // the fixed writer (workspace already held) from the old row-first writer
+    // without timing assumptions, so the RED path still reaches the real cycle.
+    let deleteOwnsWorkspace = false
+    try {
+      await prisma.$transaction((tx) => tx.$queryRaw`
+        SELECT id FROM workspaces WHERE id = ${workspaceId}::uuid FOR UPDATE NOWAIT
+      `)
+    } catch (reason) {
+      expect(errorDetails(reason)).toContain('55P03')
+      deleteOwnsWorkspace = true
+    }
+    if (deleteOwnsWorkspace) releaseDelete.resolve()
+    allowWorkspaceQuery.resolve()
+    if (!deleteOwnsWorkspace) {
+      await rowAttempted.promise
+      releaseDelete.resolve()
+    }
+
+    const outcomes = await settlesWithin(Promise.allSettled([submission, deletion]))
+    for (const outcome of outcomes) {
+      if (outcome.status === 'rejected') expect(errorDetails(outcome.reason)).not.toContain('40P01')
+    }
+    expect(outcomes[1]?.status).toBe('fulfilled')
+    await expect(prisma.databaseRow.findUniqueOrThrow({ where: { id: targetRow.id } })).resolves.toMatchObject({
+      deletedAt: expect.any(Date),
+    })
   })
 
   it('does not deadlock when a hard file delete owns the FK parent first', async () => {

@@ -1,6 +1,7 @@
 import { Prisma, enqueueOutboxEvent } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { lockWorkspacePagesAndRowsForMutation } from '../../shared/workspace-transaction-lock.ts'
 
 // ── Internal I/O types ────────────────────────────────────────────────────────
 
@@ -585,6 +586,18 @@ export class DatabaseRepository {
     return this.uow.client().databaseRow.findUnique({
       where: { id: rowId },
       select: { id: true, sourceId: true, pageId: true, deletedAt: true },
+    })
+  }
+
+  lockRowMutationGraph(input: {
+    workspaceId: string
+    pageId: string
+    rowId: string
+  }): Promise<boolean> {
+    return lockWorkspacePagesAndRowsForMutation(this.uow.client(), {
+      workspaceId: input.workspaceId,
+      pageIds: [input.pageId],
+      rowIds: [input.rowId],
     })
   }
 

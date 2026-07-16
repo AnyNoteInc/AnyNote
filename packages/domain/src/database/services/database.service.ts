@@ -1655,6 +1655,15 @@ export class DatabaseService {
     // Phase 4C: per-row content-edit gate (deletion requires ≥CAN_EDIT_CONTENT).
     await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.uow.transaction(async () => {
+      if (
+        !(await this.repo.lockRowMutationGraph({
+          workspaceId: page.workspaceId,
+          pageId: row.pageId,
+          rowId: input.rowId,
+        }))
+      ) {
+        throw notFound('Строка не найдена')
+      }
       await this.repo.softDeleteRow(input.rowId, actorUserId)
       await this.repo.softDeleteItemPage(row.pageId, actorUserId, page.workspaceId)
     })
@@ -1669,6 +1678,15 @@ export class DatabaseService {
     // Restore is symmetric to delete — a content edit gated per-row.
     await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.uow.transaction(async () => {
+      if (
+        !(await this.repo.lockRowMutationGraph({
+          workspaceId: page.workspaceId,
+          pageId: row.pageId,
+          rowId: input.rowId,
+        }))
+      ) {
+        throw notFound('Строка не найдена')
+      }
       await this.repo.restoreRow(input.rowId, actorUserId)
       await this.repo.restoreItemPage(row.pageId, actorUserId, page.workspaceId)
     })
