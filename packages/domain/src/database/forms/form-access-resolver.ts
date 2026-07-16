@@ -20,6 +20,16 @@ export type PublishedFormResolution =
       status: 'CLOSED' | 'CAPPED' | 'AUTH_REQUIRED' | 'POLICY_DISABLED' | 'UNAVAILABLE'
     }
 
+export type ReplayFormResolution =
+  | {
+      status: 'ACCESSIBLE'
+      locator: string
+      form: PublicFormRecord
+      version: FormVersionRecord
+      respondentUserId: string | null
+    }
+  | { status: 'AUTH_REQUIRED' | 'POLICY_DISABLED' | 'UNAVAILABLE' }
+
 type PublicFormLookup = Pick<FormRepositoryContract, 'findByLocator' | 'findVersion'>
 type ActiveMembershipAuthority = Pick<WorkspaceService, 'assertMembership'>
 
@@ -42,7 +52,6 @@ function isUnavailable(form: PublicFormRecord): boolean {
     form.source.page.deletedAt !== null
   )
 }
-
 export class FormAccessResolver {
   private readonly repo: PublicFormLookup
   private readonly workspace: ActiveMembershipAuthority
@@ -103,6 +112,40 @@ export class FormAccessResolver {
       version,
       respondentUserId: actorUserId,
     }
+  }
+
+  /**
+   * Resolve the durable identity/access context for an already committed
+   * response. Unlike new-submission access, schedules, state and capacity are
+   * deliberately ignored: those gates cannot invalidate an idempotent replay.
+   */
+  async resolveReplay(
+    rawLocator: string,
+    actorUserId: string | null,
+  ): Promise<ReplayFormResolution> {
+    const locator = normalizeFormLocator(rawLocator)
+    if (locator === null) return { status: 'UNAVAILABLE' }
+
+    const form = await this.repo.findByLocator(locator)
+    if (form === null || isUnavailable(form)) return { status: 'UNAVAILABLE' }
+    const version = form.publishedVersion
+    if (version === null) return { status: 'UNAVAILABLE' }
+    if (form.source.workspace.securityPolicy?.disablePublicLinksSitesForms === true) {
+      return { status: 'POLICY_DISABLED' }
+    }
+    if (form.audience === 'ANYONE_WITH_LINK') {
+      return { status: 'ACCESSIBLE', locator, form, version, respondentUserId: null }
+    }
+    if (actorUserId === null) return { status: 'AUTH_REQUIRED' }
+    if (form.audience === 'WORKSPACE_MEMBERS_WITH_LINK') {
+      try {
+        await this.workspace.assertMembership(actorUserId, form.source.workspaceId)
+      } catch (error) {
+        if (isDomainError(error)) return { status: 'AUTH_REQUIRED' }
+        throw error
+      }
+    }
+    return { status: 'ACCESSIBLE', locator, form, version, respondentUserId: actorUserId }
   }
 
   async resolveVersion(

@@ -552,9 +552,7 @@ export class DatabaseFormService {
   ): Promise<ListFormResponsesResult> {
     await this.requireReadablePage(actorUserId, input.pageId)
     const form = await this.requireForm(input.pageId, input.formId)
-    const rules = toResolverRules(
-      await this.databaseRepo.findEnabledAccessRules(form.sourceId),
-    )
+    const rules = toResolverRules(await this.databaseRepo.findEnabledAccessRules(form.sourceId))
     const accessContext = await buildRowAccessContext(
       this.databaseRepo,
       actorUserId,
@@ -574,9 +572,11 @@ export class DatabaseFormService {
         ...(rowWhere === null ? {} : { rowWhere }),
       })
       const visibleRowIds = new Set(
-        filterViewableRows(accessContext, rules, page.items.map(({ row }) => row)).map(
-          ({ id }) => id,
-        ),
+        filterViewableRows(
+          accessContext,
+          rules,
+          page.items.map(({ row }) => row),
+        ).map(({ id }) => id),
       )
       collected.push(...page.items.filter(({ row }) => visibleRowIds.has(row.id)))
       if (collected.length > input.limit || page.nextCursor === null) break
@@ -603,9 +603,7 @@ export class DatabaseFormService {
         },
       })),
       nextCursor:
-        hasMore && last !== undefined
-          ? { submittedAt: last.submittedAt, id: last.id }
-          : null,
+        hasMore && last !== undefined ? { submittedAt: last.submittedAt, id: last.id } : null,
     }
   }
 
@@ -704,6 +702,7 @@ export class DatabaseFormService {
     }
     const graph = validateFormGraph(document)
     if (!graph.ok) throw badRequest('FORM_GRAPH_INVALID')
+    this.assertPersonSelectionCompatibility(document)
     await this.assertPropertyDependencies(form, document)
     this.assertAudienceCompatibility(form.audience, document)
     await this.assertPlanFeatures(form, document)
@@ -765,6 +764,19 @@ export class DatabaseFormService {
     }
   }
 
+  private assertPersonSelectionCompatibility(document: FormVersionDocument): void {
+    if (
+      document.questions.some(
+        (question) =>
+          question.property.kind === 'PROPERTY' &&
+          question.property.propertyType === 'PERSON' &&
+          (question.input.kind !== 'PERSON' || question.input.maxSelections !== 1),
+      )
+    ) {
+      throw badRequest('FORM_PROPERTY_INVALID')
+    }
+  }
+
   private async assertAcceptedAudienceCompatibility(
     form: ManagedFormRecord,
     audience: DatabaseFormAudience,
@@ -776,6 +788,7 @@ export class DatabaseFormService {
       } catch {
         throw badRequest('FORM_SCHEMA_INVALID')
       }
+      this.assertPersonSelectionCompatibility(document)
       this.assertAudienceCompatibility(audience, document)
     }
 

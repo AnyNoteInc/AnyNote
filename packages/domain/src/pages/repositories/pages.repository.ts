@@ -3,7 +3,7 @@ import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import { buildPageVisibilityWhere } from '../page-visibility.ts'
+import { buildPageVisibilityWhere, excludeDatabaseRowPages } from '../page-visibility.ts'
 import type {
   CountResultDto,
   CreatePageExtra,
@@ -97,6 +97,32 @@ export class PageRepository {
           blockedUsers: { none: { userId } },
         },
         AND: [buildPageVisibilityWhere(userId)],
+      },
+      select: { id: true },
+    })
+    return new Set(rows.map(({ id }) => id))
+  }
+
+  /** Canonical PAGE_LINK picker boundary: normal visible pages, never templates or DB rows. */
+  async findAccessiblePageLinkIds(
+    userId: string,
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Set<string>> {
+    const unique = [...new Set(pageIds)]
+    if (unique.length === 0) return new Set()
+    const rows = await this.uow.client().page.findMany({
+      where: {
+        id: { in: unique },
+        workspaceId,
+        isTemplate: null,
+        archivedAt: null,
+        deletedAt: null,
+        workspace: {
+          members: { some: { userId } },
+          blockedUsers: { none: { userId } },
+        },
+        AND: [buildPageVisibilityWhere(userId), excludeDatabaseRowPages()],
       },
       select: { id: true },
     })

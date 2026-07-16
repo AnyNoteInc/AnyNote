@@ -20,7 +20,6 @@ import {
   FormSubmissionService,
   type FormSubmissionInput,
   type FormSubmissionTokenContext,
-  type PreparedFormSubmission,
 } from '../../../src/database/forms/form-submission.service.ts'
 import { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import type { ItemPageCreator } from '../../../src/shared/item-page-creator.ts'
@@ -49,26 +48,6 @@ const TARGET_PAGE_ID = '00000000-0000-7000-8000-000000000024'
 const UPLOAD_ID = '00000000-0000-7000-8000-000000000025'
 const FILE_ID = '00000000-0000-7000-8000-000000000026'
 const LOCATOR_HASH = createHash('sha256').update('anf_public').digest('hex')
-
-const prepared = (overrides: Partial<PreparedFormSubmission> = {}): PreparedFormSubmission => ({
-  formId: FORM_ID,
-  linkRevision: 4,
-  audience: 'SIGNED_IN_WITH_LINK',
-  versionId: VERSION_ID,
-  versionNumber: 3,
-  sourceId: SOURCE_ID,
-  sourcePageId: SOURCE_PAGE_ID,
-  workspaceId: WORKSPACE_ID,
-  respondentUserId: ACTOR_ID,
-  idempotencyKey: IDEMPOTENCY_KEY,
-  endingId: 'server-ending',
-  title: 'Server title',
-  scalarValues: [{ propertyId: PROPERTY_ID, value: 'prepared value' }],
-  relationValues: [],
-  fileValues: [],
-  submittedAt: NOW,
-  ...overrides,
-})
 
 const submission = (overrides: Partial<FormSubmissionRecord> = {}): FormSubmissionRecord => ({
   id: SUBMISSION_ID,
@@ -100,76 +79,6 @@ const uploadLease = (overrides: Record<string, unknown> = {}) => ({
   },
   ...overrides,
 })
-
-function makeHarness(
-  options: {
-    formRepo?: Partial<FormRepositoryContract>
-    databaseRepo?: Partial<DatabaseRepository>
-    pageRepo?: Partial<ItemPageCreator>
-    uow?: UnitOfWork
-  } = {},
-) {
-  let transactionDepth = 0
-  const uow =
-    options.uow ??
-    ({
-      transaction: vi.fn(async (run: () => Promise<unknown>) => {
-        transactionDepth += 1
-        try {
-          return await run()
-        } finally {
-          transactionDepth -= 1
-        }
-      }),
-      client: vi.fn() as unknown as UnitOfWork['client'],
-    } satisfies UnitOfWork)
-  const assertInTransaction = () => expect(transactionDepth).toBeGreaterThan(0)
-  const formRepo = {
-    findSubmissionByIdempotency: vi.fn(async () => null),
-    reserveResponseSlot: vi.fn(async () => {
-      assertInTransaction()
-      return true
-    }),
-    createSubmission: vi.fn(async () => {
-      assertInTransaction()
-      return submission()
-    }),
-    resolveUploadLeases: vi.fn(async () => []),
-    consumeUploadLeases: vi.fn(async () => assertInTransaction()),
-    enqueueFormSubmittedEvent: vi.fn(async () => assertInTransaction()),
-    ...options.formRepo,
-  } as unknown as FormRepositoryContract
-  const databaseRepo = {
-    maxRowPosition: vi.fn(async () => 0),
-    createRow: vi.fn(async () => {
-      assertInTransaction()
-      return { id: ROW_ID, pageId: ITEM_PAGE_ID, position: 1_024 }
-    }),
-    updatePageTitle: vi.fn(async () => assertInTransaction()),
-    upsertCellValue: vi.fn(async () => assertInTransaction()),
-    upsertFileCellValue: vi.fn(async () => assertInTransaction()),
-    replaceRelationLinks: vi.fn(async () => assertInTransaction()),
-    ...options.databaseRepo,
-  } as unknown as DatabaseRepository
-  const pageRepo = {
-    createItemPageTx: vi.fn(async () => {
-      assertInTransaction()
-      return { id: ITEM_PAGE_ID }
-    }),
-    findAccessiblePageIds: vi.fn(
-      async (_userId: string, _workspaceId: string, ids: string[]) => new Set(ids),
-    ),
-    ...options.pageRepo,
-  } as ItemPageCreator
-  const service = new FormSubmissionService(
-    formRepo,
-    databaseRepo,
-    pageRepo,
-    uow,
-    {} as FormAccessResolver,
-  )
-  return { service, formRepo, databaseRepo, pageRepo, uow }
-}
 
 const titleQuestion = (overrides: Partial<FormQuestion> = {}): FormQuestion =>
   ({
@@ -425,6 +334,7 @@ function makeValidationHarness(
     findWorkspaceRole: vi.fn(async () => 'VIEWER'),
     isSourcePageCreatedBy: vi.fn(async () => false),
     findItemPageShareLevel: vi.fn(async () => null),
+    findItemPageShareLevels: vi.fn(async () => new Map()),
     ...options.databaseRepo,
   } as unknown as DatabaseRepository
   const pageRepo = {
@@ -435,6 +345,9 @@ function makeValidationHarness(
     findAccessiblePageIds: vi.fn(
       async (_userId: string, _workspaceId: string, ids: string[]) => new Set(ids),
     ),
+    findAccessiblePageLinkIds: vi.fn(
+      async (_userId: string, _workspaceId: string, ids: string[]) => new Set(ids),
+    ),
     ...options.pageRepo,
   } as ItemPageCreator
   const service = new FormSubmissionService(formRepo, databaseRepo, pageRepo, uow, formAccess, now)
@@ -443,17 +356,15 @@ function makeValidationHarness(
 
 describe('FormSubmissionService server-authoritative scalar preparation', () => {
   it('exposes an early replay only after revalidating stored access and version context', async () => {
-    const replay = submission()
+    const replay = submission({ respondentUserId: null })
     const { service, formRepo } = makeValidationHarness({
       formRepo: { findSubmissionByIdempotency: vi.fn(async () => replay) },
     })
 
     await expect(service.findReplay(null, submissionInput({}), tokenContext())).resolves.toEqual({
       submissionId: SUBMISSION_ID,
-      rowId: ROW_ID,
-      pageId: ITEM_PAGE_ID,
       endingId: 'server-ending',
-      submittedAt: NOW,
+      ownResponseUrl: null,
       created: false,
     })
     expect(formRepo.findSubmissionByIdempotency).toHaveBeenCalledWith(FORM_ID, IDEMPOTENCY_KEY)
@@ -471,6 +382,63 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expect(findSubmissionByIdempotency).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['closed', { state: 'CLOSED' as const }],
+    ['capped', { responseLimit: 1, acceptedResponses: 1 }],
+    ['scheduled', { opensAt: new Date('2026-07-17T08:00:00.000Z') }],
+  ])('replays a committed key after the form becomes %s', async (_label, formOverride) => {
+    const replay = submission({ respondentUserId: null })
+    const { service } = makeValidationHarness({
+      storedForm: publicForm(formDocument(), formOverride),
+      formRepo: { findSubmissionByIdempotency: vi.fn(async () => replay) },
+    })
+
+    await expect(service.findReplay(null, submissionInput({}), tokenContext())).resolves.toEqual({
+      submissionId: SUBMISSION_ID,
+      endingId: 'server-ending',
+      ownResponseUrl: null,
+      created: false,
+    })
+  })
+
+  it.each([
+    ['version', submission({ respondentUserId: null, versionId: OWNER_ID })],
+    ['respondent', submission({ respondentUserId: ACTOR_ID })],
+  ])('rejects a replay bound to another %s', async (_label, replay) => {
+    const { service } = makeValidationHarness({
+      formRepo: { findSubmissionByIdempotency: vi.fn(async () => replay) },
+    })
+    await expect(
+      service.findReplay(null, submissionInput({}), tokenContext()),
+    ).rejects.toMatchObject({ message: 'FORM_IDEMPOTENCY_CONFLICT' })
+  })
+
+  it('returns the same own-response URL for an authenticated creation and replay', async () => {
+    let stored: FormSubmissionRecord | null = null
+    const storedForm = publicForm(formDocument(), {
+      audience: 'SIGNED_IN_WITH_LINK',
+      respondentAccess: 'VIEW',
+    })
+    const { service } = makeValidationHarness({
+      storedForm,
+      formRepo: {
+        findSubmissionByIdempotency: vi.fn(async () => stored),
+        createSubmission: vi.fn(async (value) => {
+          stored = submission({
+            respondentUserId: value.respondentUserId,
+            endingId: value.endingId,
+          })
+          return stored
+        }),
+      },
+    })
+    const created = await service.submit(ACTOR_ID, submissionInput({}), tokenContext())
+    const replay = await service.submit(ACTOR_ID, submissionInput({}), tokenContext())
+
+    expect(created.ownResponseUrl).toBe(`/f/anf_public/responses/${SUBMISSION_ID}`)
+    expect(replay).toEqual({ ...created, created: false })
+  })
+
   it('keeps public input free of server-owned source, property, title, actor, and ending fields', () => {
     expectTypeOf<FormSubmissionInput>().toHaveProperty('locator')
     expectTypeOf<FormSubmissionInput>().toHaveProperty('idempotencyKey')
@@ -480,6 +448,38 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expectTypeOf<FormSubmissionInput>().not.toHaveProperty('title')
     expectTypeOf<FormSubmissionInput>().not.toHaveProperty('actorUserId')
     expectTypeOf<FormSubmissionInput>().not.toHaveProperty('endingId')
+  })
+
+  it('preserves every safe Zod issue under its question id', async () => {
+    const schema = formDocument([
+      propertyQuestion('choice', PROPERTY_ID, 'MULTI_SELECT', {
+        kind: 'MULTI_CHOICE',
+        appearance: 'CHECKLIST',
+        options: [{ id: 'valid', label: 'Valid' }],
+        maxSelections: 1,
+      }),
+    ])
+    const { service } = makeValidationHarness({
+      storedForm: publicForm(schema),
+      properties: [
+        {
+          id: PROPERTY_ID,
+          type: 'MULTI_SELECT',
+          name: 'Choice',
+          position: 1,
+          settings: { options: [{ id: 'valid', label: 'Valid' }] },
+        },
+      ],
+    })
+
+    await expect(
+      service.submit(null, submissionInput({ choice: ['invalid', 'invalid'] }), tokenContext()),
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: {
+        choice: ['DUPLICATE_OPTION_ANSWER', 'INVALID_OPTION_ID', 'TOO_MANY_SELECTIONS'],
+      },
+    })
   })
 
   it('validates and writes every supported scalar value from stored question mappings', async () => {
@@ -806,6 +806,113 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
   })
 
+  it('rejects property drift discovered by the post-lock authoritative reload', async () => {
+    let reads = 0
+    const { service, formRepo, databaseRepo } = makeValidationHarness({
+      databaseRepo: {
+        listProperties: vi.fn(async () => {
+          reads += 1
+          return reads === 1
+            ? [{ id: PROPERTY_ID, type: 'TEXT', name: 'Text', position: 1, settings: null }]
+            : []
+        }),
+      },
+    })
+
+    await expect(
+      service.submit(null, submissionInput({ text: 'value' }), tokenContext()),
+    ).rejects.toMatchObject({ message: 'FORM_PROPERTY_INVALID' })
+    expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
+    expect(databaseRepo.createRow).not.toHaveBeenCalled()
+  })
+
+  it('rejects a PERSON target revoked after the lock but before writes', async () => {
+    let checks = 0
+    const schema = formDocument([
+      propertyQuestion('person', PROPERTY_ID, 'PERSON', { kind: 'PERSON', maxSelections: 1 }),
+    ])
+    const { service, formRepo } = makeValidationHarness({
+      storedForm: publicForm(schema, { audience: 'WORKSPACE_MEMBERS_WITH_LINK' }),
+      properties: [
+        { id: PROPERTY_ID, type: 'PERSON', name: 'Person', position: 1, settings: null },
+      ],
+      databaseRepo: {
+        isWorkspaceMember: vi.fn(async () => {
+          checks += 1
+          return checks === 1
+        }),
+      },
+    })
+
+    await expect(
+      service.submit(ACTOR_ID, submissionInput({ person: [OWNER_ID] }), tokenContext()),
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { person: ['FORM_TARGET_INACCESSIBLE'] },
+    })
+    expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
+  })
+
+  it('rejects a PAGE_LINK soft-deleted after preflight and before the locked reload', async () => {
+    let visibilityReads = 0
+    const schema = formDocument([
+      propertyQuestion('page', PROPERTY_ID, 'PAGE_LINK', { kind: 'PAGE_LINK' }),
+    ])
+    const { service, formRepo, databaseRepo } = makeValidationHarness({
+      storedForm: publicForm(schema, { audience: 'WORKSPACE_MEMBERS_WITH_LINK' }),
+      properties: [
+        { id: PROPERTY_ID, type: 'PAGE_LINK', name: 'Page', position: 1, settings: null },
+      ],
+      pageRepo: {
+        findAccessiblePageLinkIds: vi.fn(async () => {
+          visibilityReads += 1
+          return visibilityReads === 1 ? new Set([TARGET_PAGE_ID]) : new Set()
+        }),
+      },
+    })
+
+    await expect(
+      service.submit(ACTOR_ID, submissionInput({ page: TARGET_PAGE_ID }), tokenContext()),
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { page: ['FORM_TARGET_INACCESSIBLE'] },
+    })
+    expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
+    expect(databaseRepo.createRow).not.toHaveBeenCalled()
+    expect(formRepo.enqueueFormSubmittedEvent).not.toHaveBeenCalled()
+  })
+
+  it('rejects an upload lease consumed after the lock but before writes', async () => {
+    let reads = 0
+    const schema = formDocument([
+      propertyQuestion('files', PROPERTY_ID, 'FILE', {
+        kind: 'FILE',
+        allowedMimeTypes: ['text/plain'],
+        maxBytesPerFile: 1_000,
+        maxFiles: 1,
+      }),
+    ])
+    const { service, formRepo } = makeValidationHarness({
+      storedForm: publicForm(schema),
+      properties: [{ id: PROPERTY_ID, type: 'FILE', name: 'Files', position: 1, settings: null }],
+      formRepo: {
+        resolveUploadLeases: vi.fn(async () => {
+          reads += 1
+          return [uploadLease(reads === 1 ? {} : { consumedAt: NOW })]
+        }),
+      },
+    })
+
+    await expect(
+      service.submit(null, submissionInput({ files: ['lease-token-secret'] }), tokenContext()),
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { files: ['FORM_UPLOAD_INVALID'] },
+    })
+    expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
+    expect(formRepo.consumeUploadLeases).not.toHaveBeenCalled()
+  })
+
   it('uses a fresh transaction timestamp for closing, submission provenance, and automatic title', async () => {
     const transactionNow = new Date('2026-07-16T08:01:00.000Z')
     let clock = NOW
@@ -974,7 +1081,10 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
           submissionInput({ title: 'Ответ', person: [OWNER_ID] }),
           tokenContext(),
         ),
-      ).rejects.toMatchObject({ message: 'FORM_TARGET_INACCESSIBLE' })
+      ).rejects.toMatchObject({
+        message: 'FORM_ANSWERS_INVALID',
+        fieldErrors: { person: ['FORM_TARGET_INACCESSIBLE'] },
+      })
       expect(uow.transaction).not.toHaveBeenCalled()
     },
   )
@@ -1015,6 +1125,55 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       rowId: ROW_ID,
       targetRowIds: [TARGET_ROW_ID],
     })
+  })
+
+  it('validates 500 RELATION targets with one role, creator, and share batch per authority pass', async () => {
+    const targetIds = Array.from({ length: 500 }, (_, index) => `target-${index}`)
+    const schema = formDocument([
+      propertyQuestion('relation', PROPERTY_ID, 'RELATION', {
+        kind: 'RELATION',
+        maxSelections: 500,
+      }),
+    ])
+    const findWorkspaceRole = vi.fn(async () => 'VIEWER' as const)
+    const isSourcePageCreatedBy = vi.fn(async () => false)
+    const findItemPageShareLevels = vi.fn(async () => new Map())
+    const findItemPageShareLevel = vi.fn(async () => null)
+    const { service } = makeValidationHarness({
+      storedForm: publicForm(schema, { audience: 'WORKSPACE_MEMBERS_WITH_LINK' }),
+      properties: [
+        {
+          id: PROPERTY_ID,
+          type: 'RELATION',
+          name: 'Relation',
+          position: 1,
+          settings: { relation: { targetSourceId: TARGET_SOURCE_ID } },
+        },
+      ],
+      databaseRepo: {
+        findRowsAccessMetaByIds: vi.fn(async (ids: string[]) =>
+          ids.map((id, index) => ({
+            id,
+            sourceId: TARGET_SOURCE_ID,
+            workspaceId: WORKSPACE_ID,
+            pageId: `page-${index}`,
+            createdById: OWNER_ID,
+            cellsByProperty: new Map<string, unknown>(),
+          })),
+        ),
+        findWorkspaceRole,
+        isSourcePageCreatedBy,
+        findItemPageShareLevels,
+        findItemPageShareLevel,
+      },
+    })
+
+    await service.submit(ACTOR_ID, submissionInput({ relation: targetIds }), tokenContext())
+
+    expect(findWorkspaceRole).toHaveBeenCalledTimes(2)
+    expect(isSourcePageCreatedBy).toHaveBeenCalledTimes(2)
+    expect(findItemPageShareLevels).toHaveBeenCalledTimes(2)
+    expect(findItemPageShareLevel).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -1099,7 +1258,10 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
         submissionInput({ title: 'Ответ', relation: [TARGET_ROW_ID] }),
         tokenContext(),
       ),
-    ).rejects.toMatchObject({ message: 'FORM_TARGET_INACCESSIBLE' })
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { relation: ['FORM_TARGET_INACCESSIBLE'] },
+    })
     expect(uow.transaction).not.toHaveBeenCalled()
   })
 
@@ -1121,7 +1283,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       tokenContext(),
     )
 
-    expect(pageRepo.findAccessiblePageIds).toHaveBeenCalledWith(ACTOR_ID, WORKSPACE_ID, [
+    expect(pageRepo.findAccessiblePageLinkIds).toHaveBeenCalledWith(ACTOR_ID, WORKSPACE_ID, [
       TARGET_PAGE_ID,
     ])
     expect(databaseRepo.upsertCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, TARGET_PAGE_ID)
@@ -1137,7 +1299,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       properties: [
         { id: PROPERTY_ID, type: 'PAGE_LINK', name: 'Страница', position: 1, settings: null },
       ],
-      pageRepo: { findAccessiblePageIds: vi.fn(async () => new Set()) },
+      pageRepo: { findAccessiblePageLinkIds: vi.fn(async () => new Set()) },
     })
 
     await expect(
@@ -1146,7 +1308,10 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
         submissionInput({ title: 'Ответ', page: TARGET_PAGE_ID }),
         tokenContext(),
       ),
-    ).rejects.toMatchObject({ message: 'FORM_TARGET_INACCESSIBLE' })
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { page: ['FORM_TARGET_INACCESSIBLE'] },
+    })
     expect(uow.transaction).not.toHaveBeenCalled()
   })
 
@@ -1222,7 +1387,10 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
         submissionInput({ title: 'Ответ', files: ['lease-token'] }),
         tokenContext(),
       ),
-    ).rejects.toMatchObject({ message: 'FORM_UPLOAD_INVALID' })
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { files: ['FORM_UPLOAD_INVALID'] },
+    })
     expect(formRepo.consumeUploadLeases).not.toHaveBeenCalled()
     expect(uow.transaction).not.toHaveBeenCalled()
   })
@@ -1250,211 +1418,6 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       ),
     ).rejects.toMatchObject({ message: 'FORM_ANSWERS_INVALID' })
     expect(formRepo.resolveUploadLeases).not.toHaveBeenCalled()
-  })
-})
-
-describe('FormSubmissionService prepared transaction core', () => {
-  it('persists the server-provided title, scalar values, ending, and authenticated actor atomically', async () => {
-    const { service, formRepo, databaseRepo, pageRepo, uow } = makeHarness()
-
-    await expect(service.persistPrepared(prepared())).resolves.toEqual({
-      submissionId: SUBMISSION_ID,
-      rowId: ROW_ID,
-      pageId: ITEM_PAGE_ID,
-      endingId: 'server-ending',
-      submittedAt: NOW,
-      created: true,
-    })
-
-    expect(uow.transaction).toHaveBeenCalledTimes(1)
-    expect(pageRepo.createItemPageTx).toHaveBeenCalledWith(SOURCE_PAGE_ID, WORKSPACE_ID, ACTOR_ID)
-    expect(databaseRepo.createRow).toHaveBeenCalledWith({
-      sourceId: SOURCE_ID,
-      pageId: ITEM_PAGE_ID,
-      position: 1_024,
-      createdById: ACTOR_ID,
-    })
-    expect(databaseRepo.updatePageTitle).toHaveBeenCalledWith(
-      ITEM_PAGE_ID,
-      'Server title',
-      ACTOR_ID,
-    )
-    expect(databaseRepo.upsertCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, 'prepared value')
-    expect(formRepo.createSubmission).toHaveBeenCalledWith(
-      expect.objectContaining({ endingId: 'server-ending', respondentUserId: ACTOR_ID }),
-    )
-    expect(formRepo.enqueueFormSubmittedEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        submissionId: SUBMISSION_ID,
-        rowId: ROW_ID,
-        itemPageId: ITEM_PAGE_ID,
-      }),
-    )
-  })
-
-  it('persists relation links and consumes file leases with PageFile, FILE cell, and submission in one transaction', async () => {
-    const lease = uploadLease()
-    const { service, formRepo, databaseRepo } = makeHarness()
-
-    await service.persistPrepared(
-      prepared({
-        relationValues: [{ propertyId: SECOND_PROPERTY_ID, targetRowIds: [TARGET_ROW_ID] }],
-        fileValues: [{ propertyId: THIRD_PROPERTY_ID, questionId: 'files', uploads: [lease] }],
-      }),
-    )
-
-    expect(databaseRepo.replaceRelationLinks).toHaveBeenCalledWith({
-      propertyId: SECOND_PROPERTY_ID,
-      rowId: ROW_ID,
-      targetRowIds: [TARGET_ROW_ID],
-    })
-    expect(formRepo.consumeUploadLeases).toHaveBeenCalledWith({
-      formId: FORM_ID,
-      versionId: VERSION_ID,
-      questionId: 'files',
-      workspaceId: WORKSPACE_ID,
-      uploads: [lease],
-      pageId: ITEM_PAGE_ID,
-      consumedAt: NOW,
-    })
-    expect(databaseRepo.upsertFileCellValue).toHaveBeenCalledWith(ROW_ID, THIRD_PROPERTY_ID, [
-      FILE_ID,
-    ])
-    expect(formRepo.createSubmission).toHaveBeenCalledTimes(1)
-  })
-
-  it('propagates a null actor only through the focused response page, row, title, and submission paths', async () => {
-    const { service, formRepo, databaseRepo, pageRepo } = makeHarness()
-
-    await service.persistPrepared(prepared({ respondentUserId: null }))
-
-    expect(pageRepo.createItemPageTx).toHaveBeenCalledWith(SOURCE_PAGE_ID, WORKSPACE_ID, null)
-    expect(databaseRepo.createRow).toHaveBeenCalledWith(
-      expect.objectContaining({ createdById: null }),
-    )
-    expect(databaseRepo.updatePageTitle).toHaveBeenCalledWith(ITEM_PAGE_ID, 'Server title', null)
-    expect(formRepo.createSubmission).toHaveBeenCalledWith(
-      expect.objectContaining({ respondentUserId: null }),
-    )
-  })
-
-  it('returns an exact replay without reserving capacity or creating a second page, submission, or outbox', async () => {
-    const replay = submission()
-    const { service, formRepo, databaseRepo, pageRepo } = makeHarness({
-      formRepo: { findSubmissionByIdempotency: vi.fn(async () => replay) },
-    })
-
-    await expect(service.persistPrepared(prepared())).resolves.toEqual({
-      submissionId: SUBMISSION_ID,
-      rowId: ROW_ID,
-      pageId: ITEM_PAGE_ID,
-      endingId: 'server-ending',
-      submittedAt: NOW,
-      created: false,
-    })
-
-    expect(formRepo.reserveResponseSlot).not.toHaveBeenCalled()
-    expect(pageRepo.createItemPageTx).not.toHaveBeenCalled()
-    expect(databaseRepo.createRow).not.toHaveBeenCalled()
-    expect(formRepo.createSubmission).not.toHaveBeenCalled()
-    expect(formRepo.enqueueFormSubmittedEvent).not.toHaveBeenCalled()
-  })
-
-  it('converges a simultaneous same-idempotency unique race to the committed winner', async () => {
-    let winner: FormSubmissionRecord | null = null
-    let creates = 0
-    const createSubmission = vi.fn(async () => {
-      creates += 1
-      if (creates === 1) {
-        winner = submission()
-        return winner
-      }
-      throw Object.assign(new Error('unique idempotency race'), { code: 'P2002' })
-    })
-    const findSubmissionByIdempotency = vi.fn(async () => winner)
-    const { service, formRepo } = makeHarness({
-      formRepo: { createSubmission, findSubmissionByIdempotency },
-    })
-
-    const [first, second] = await Promise.all([
-      service.persistPrepared(prepared()),
-      service.persistPrepared(prepared()),
-    ])
-
-    expect([first.created, second.created].sort()).toEqual([false, true])
-    expect(first.submissionId).toBe(SUBMISSION_ID)
-    expect(second.submissionId).toBe(SUBMISSION_ID)
-    expect(formRepo.enqueueFormSubmittedEvent).toHaveBeenCalledTimes(1)
-  })
-
-  it('admits only one concurrent response for the final slot', async () => {
-    let remaining = 1
-    const reserveResponseSlot = vi.fn(async () => {
-      if (remaining === 0) return false
-      remaining -= 1
-      return true
-    })
-    const { service } = makeHarness({ formRepo: { reserveResponseSlot } })
-
-    const [first, second] = await Promise.allSettled([
-      service.persistPrepared(prepared()),
-      service.persistPrepared(prepared({ idempotencyKey: '00000000-0000-7000-8000-000000000099' })),
-    ])
-
-    expect([first, second].filter(({ status }) => status === 'fulfilled')).toHaveLength(1)
-    expect([first, second].filter(({ status }) => status === 'rejected')).toHaveLength(1)
-    expect(remaining).toBe(0)
-  })
-
-  it('leaves the counter, page, row, values, submission, and outbox rolled back after a write failure', async () => {
-    const state = { slots: 0, pages: 0, rows: 0, values: 0, submissions: 0, outbox: 0 }
-    const uow = {
-      transaction: vi.fn(async (run: () => Promise<unknown>) => {
-        const before = { ...state }
-        try {
-          return await run()
-        } catch (error) {
-          Object.assign(state, before)
-          throw error
-        }
-      }),
-      client: vi.fn() as unknown as UnitOfWork['client'],
-    } satisfies UnitOfWork
-    const { service } = makeHarness({
-      uow,
-      formRepo: {
-        reserveResponseSlot: vi.fn(async () => {
-          state.slots += 1
-          return true
-        }),
-        createSubmission: vi.fn(async () => {
-          state.submissions += 1
-          throw new Error('submission failed')
-        }),
-        enqueueFormSubmittedEvent: vi.fn(async () => {
-          state.outbox += 1
-        }),
-      },
-      pageRepo: {
-        createItemPageTx: vi.fn(async () => {
-          state.pages += 1
-          return { id: ITEM_PAGE_ID }
-        }),
-      },
-      databaseRepo: {
-        createRow: vi.fn(async () => {
-          state.rows += 1
-          return { id: ROW_ID, pageId: ITEM_PAGE_ID, position: 1_024 }
-        }),
-        updatePageTitle: vi.fn(async () => undefined),
-        upsertCellValue: vi.fn(async () => {
-          state.values += 1
-        }),
-      },
-    })
-
-    await expect(service.persistPrepared(prepared())).rejects.toThrow('submission failed')
-    expect(state).toEqual({ slots: 0, pages: 0, rows: 0, values: 0, submissions: 0, outbox: 0 })
   })
 })
 
@@ -1705,7 +1668,7 @@ describe('submission target repository boundaries', () => {
     })
   })
 
-  it('uses canonical page visibility plus active workspace membership for PAGE_LINK targets', async () => {
+  it('keeps database row pages eligible for canonical RELATION target checks', async () => {
     const client = {
       page: { findMany: vi.fn(async () => [{ id: TARGET_PAGE_ID }]) },
     }
@@ -1728,6 +1691,30 @@ describe('submission target repository boundaries', () => {
             blockedUsers: { none: { userId: ACTOR_ID } },
           },
           AND: [expect.objectContaining({ OR: expect.any(Array) })],
+        }),
+      }),
+    )
+  })
+
+  it('excludes templates and database row pages from canonical PAGE_LINK targets', async () => {
+    const client = {
+      page: { findMany: vi.fn(async () => [{ id: TARGET_PAGE_ID }]) },
+    }
+    const repository = new PageRepository({
+      client: vi.fn(() => client),
+    } as unknown as UnitOfWork)
+
+    await expect(
+      repository.findAccessiblePageLinkIds(ACTOR_ID, WORKSPACE_ID, [TARGET_PAGE_ID]),
+    ).resolves.toEqual(new Set([TARGET_PAGE_ID]))
+    expect(client.page.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          isTemplate: null,
+          AND: [
+            expect.objectContaining({ OR: expect.any(Array) }),
+            expect.objectContaining({ OR: expect.any(Array) }),
+          ],
         }),
       }),
     )

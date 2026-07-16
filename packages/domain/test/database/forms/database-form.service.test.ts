@@ -668,6 +668,42 @@ describe('DatabaseFormService lifecycle', () => {
     expect(planHarness.formRepo.publishVersion).not.toHaveBeenCalled()
   })
 
+  it('rejects publishing a PERSON question with maxSelections other than one', async () => {
+    const document = linearDocument({
+      questions: [
+        {
+          id: 'question-1',
+          sectionId: 'section-1',
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'PERSON' },
+          label: 'Owner',
+          required: false,
+          syncWithPropertyName: false,
+          input: { kind: 'PERSON', maxSelections: 2 },
+        },
+      ],
+    })
+    const { service, formRepo } = makeHarness({
+      form: managedForm({
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        draftSchema: document,
+        source: {
+          ...managedForm().source,
+          properties: [
+            { id: 'property-1', type: 'PERSON', name: 'Owner', position: 1, settings: null },
+          ],
+        },
+      }),
+    })
+
+    await expect(
+      service.publish('00000000-0000-7000-8000-000000000001', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+      }),
+    ).rejects.toMatchObject({ message: 'FORM_PROPERTY_INVALID' })
+    expect(formRepo.publishVersion).not.toHaveBeenCalled()
+  })
+
   it('batch-validates unique relation targets once in each publication validation pass', async () => {
     const questions: FormVersionDocument['questions'] = [
       ['question-1', 'relation-1'],
@@ -1030,6 +1066,55 @@ describe('DatabaseFormService lifecycle', () => {
       ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
     }
     expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(formRepo.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('rejects an accepted PERSON version whose maxSelections is not one', async () => {
+    const invalid = linearDocument({
+      questions: [
+        {
+          id: 'question-1',
+          sectionId: 'section-1',
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'PERSON' },
+          label: 'Owner',
+          required: false,
+          syncWithPropertyName: false,
+          input: { kind: 'PERSON', maxSelections: 2 },
+        },
+      ],
+    })
+    const version = {
+      id: '00000000-0000-7000-8000-000000000060',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 1,
+      schemaVersion: 1,
+      schema: invalid,
+      schemaHash: 'a'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const { service, formRepo } = makeHarness({
+      form: managedForm({
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        publishedVersionId: version.id,
+        publishedVersion: version,
+      }),
+    })
+
+    await expect(
+      service.updateSettings('00000000-0000-7000-8000-000000000001', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+        audience: 'SIGNED_IN_WITH_LINK',
+        respondentAccess: 'NONE',
+        opensAt: null,
+        closesAt: null,
+        responseLimit: null,
+        notifyOwners: true,
+      }),
+    ).rejects.toMatchObject({ message: 'FORM_PROPERTY_INVALID' })
     expect(formRepo.updateSettings).not.toHaveBeenCalled()
   })
 

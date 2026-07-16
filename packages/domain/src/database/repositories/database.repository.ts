@@ -1,4 +1,4 @@
-import { PageType, Prisma, enqueueOutboxEvent } from '@repo/db'
+import { Prisma, enqueueOutboxEvent } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 
@@ -102,9 +102,7 @@ export interface RowWithPage {
  * `null` for `Prisma.DbNull` so Postgres compares against SQL NULL. Recursively
  * rewrites the where tree; safe to call on any planner output.
  */
-function translateNullSentinels(
-  node: Prisma.DatabaseRowWhereInput,
-): Prisma.DatabaseRowWhereInput {
+function translateNullSentinels(node: Prisma.DatabaseRowWhereInput): Prisma.DatabaseRowWhereInput {
   return deepTranslate(node) as Prisma.DatabaseRowWhereInput
 }
 
@@ -343,9 +341,7 @@ export class DatabaseRepository {
     })
   }
 
-  async findViewById(
-    id: string,
-  ): Promise<{
+  async findViewById(id: string): Promise<{
     id: string
     sourceId: string
     type: import('@repo/db').DatabaseViewType
@@ -416,7 +412,12 @@ export class DatabaseRepository {
 
   async findPropertyById(
     id: string,
-  ): Promise<{ id: string; sourceId: string; type: import('@repo/db').DatabasePropertyType; settings: unknown } | null> {
+  ): Promise<{
+    id: string
+    sourceId: string
+    type: import('@repo/db').DatabasePropertyType
+    settings: unknown
+  } | null> {
     return this.uow.client().databaseProperty.findUnique({
       where: { id },
       select: { id: true, sourceId: true, type: true, settings: true },
@@ -508,16 +509,10 @@ export class DatabaseRepository {
     cursor?: string
   }): Promise<RowWithPage[]> {
     const where: Prisma.DatabaseRowWhereInput = {
-      AND: [
-        { sourceId: args.sourceId, deletedAt: null },
-        translateNullSentinels(args.where),
-      ],
+      AND: [{ sourceId: args.sourceId, deletedAt: null }, translateNullSentinels(args.where)],
     }
     // Guarantee a total order for stable keyset pagination.
-    const orderBy: Prisma.DatabaseRowOrderByWithRelationInput[] = [
-      ...args.orderBy,
-      { id: 'asc' },
-    ]
+    const orderBy: Prisma.DatabaseRowOrderByWithRelationInput[] = [...args.orderBy, { id: 'asc' }]
     return this.uow.client().databaseRow.findMany({
       where,
       orderBy,
@@ -551,10 +546,7 @@ export class DatabaseRepository {
     take?: number
   }): Promise<RowWithPage[]> {
     const where: Prisma.DatabaseRowWhereInput = {
-      AND: [
-        { sourceId: args.sourceId, deletedAt: null },
-        translateNullSentinels(args.where),
-      ],
+      AND: [{ sourceId: args.sourceId, deletedAt: null }, translateNullSentinels(args.where)],
     }
     return this.uow.client().databaseRow.findMany({
       where,
@@ -653,11 +645,7 @@ export class DatabaseRepository {
     })
   }
 
-  async restoreItemPage(
-    pageId: string,
-    updatedById: string,
-    workspaceId: string,
-  ): Promise<void> {
+  async restoreItemPage(pageId: string, updatedById: string, workspaceId: string): Promise<void> {
     await this.uow.client().page.update({
       where: { id: pageId },
       data: { deletedAt: null, updatedById },
@@ -728,10 +716,7 @@ export class DatabaseRepository {
    * source rows → `Map<rowId, targetRowId[]>`. Rows with no links are absent from
    * the map (callers treat a missing entry as an empty list).
    */
-  async findRelationLinks(
-    propertyId: string,
-    rowIds: string[],
-  ): Promise<Map<string, string[]>> {
+  async findRelationLinks(propertyId: string, rowIds: string[]): Promise<Map<string, string[]>> {
     const out = new Map<string, string[]>()
     if (rowIds.length === 0) return out
     const links = await this.uow.client().databaseRelationLink.findMany({
@@ -803,9 +788,7 @@ export class DatabaseRepository {
    * source's properties (targets may belong to any source). Soft-deleted rows
    * are excluded so a rollup never counts a trashed related row.
    */
-  async findCellsForRows(
-    rowIds: string[],
-  ): Promise<
+  async findCellsForRows(rowIds: string[]): Promise<
     {
       rowId: string
       propertyId: string
@@ -995,9 +978,7 @@ export class DatabaseRepository {
   }
 
   /** Find a rule by id, scoped to a source (ownership check before update/delete). */
-  async findAccessRuleById(
-    id: string,
-  ): Promise<{ id: string; sourceId: string } | null> {
+  async findAccessRuleById(id: string): Promise<{ id: string; sourceId: string } | null> {
     return this.uow.client().databasePageAccessRule.findUnique({
       where: { id },
       select: { id: true, sourceId: true },
@@ -1050,6 +1031,25 @@ export class DatabaseRepository {
     })
     if (!grant) return null
     return PAGE_SHARE_ROLE_TO_LEVEL[grant.role] ?? null
+  }
+
+  /** Batch variant used by relation answer validation to avoid one ACL query per row. */
+  async findItemPageShareLevels(
+    itemPageIds: readonly string[],
+    userId: string,
+  ): Promise<Map<string, import('@repo/db').DatabaseAccessLevel>> {
+    const unique = [...new Set(itemPageIds)]
+    if (unique.length === 0) return new Map()
+    const grants = await this.uow.client().pageShareUser.findMany({
+      where: { userId, pageShare: { pageId: { in: unique } } },
+      select: { role: true, pageShare: { select: { pageId: true } } },
+    })
+    return new Map(
+      grants.flatMap((grant) => {
+        const level = PAGE_SHARE_ROLE_TO_LEVEL[grant.role]
+        return level === undefined ? [] : [[grant.pageShare.pageId, level] as const]
+      }),
+    )
   }
   // (PAGE_SHARE_ROLE_TO_LEVEL defined below the class.)
 
@@ -1196,7 +1196,7 @@ export class DatabaseRepository {
 
   // ── Item page creation (focused, no provisioning callback) ───────────────────
   // Delegated to PageRepository.createItemPageTx; this constant documents the type.
-  static readonly ITEM_PAGE_TYPE = PageType.TEXT
+  static readonly ITEM_PAGE_TYPE = 'TEXT' as const
 }
 
 /**

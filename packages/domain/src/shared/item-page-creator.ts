@@ -11,6 +11,11 @@ export interface ItemPageCreator {
     workspaceId: string,
     pageIds: readonly string[],
   ): Promise<Set<string>>
+  findAccessiblePageLinkIds(
+    actorUserId: string,
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Set<string>>
   createItemPageTx(
     parentPageId: string,
     workspaceId: string,

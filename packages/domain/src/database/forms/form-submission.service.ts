@@ -6,7 +6,7 @@ import type {
   PropertyRow,
 } from '../repositories/database.repository.ts'
 import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
-import { badRequest, conflict } from '../../shared/errors.ts'
+import { DomainError, badRequest, conflict } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
   FormRepositoryContract,
@@ -15,12 +15,20 @@ import type {
   FormVersionRecord,
   PublicFormRecord,
 } from './database-form.repository.ts'
-import type { FormAccessResolver, PublishedFormResolution } from './form-access-resolver.ts'
+import type {
+  FormAccessResolver,
+  PublishedFormResolution,
+  ReplayFormResolution,
+} from './form-access-resolver.ts'
 import { buildFormAnswerSchema, toPublicFormVersion } from './form-answer-schema.ts'
 import { parseFormVersionDocument, type FormQuestion } from './form-document.ts'
 import { evaluateFormPath } from './form-graph.ts'
-import { buildRowAccessContext, toResolverRules } from '../services/row-post-filters.ts'
-import { canViewRow, resolveRowAccess } from '../services/row-access-resolver.ts'
+import { toResolverRules } from '../services/row-post-filters.ts'
+import {
+  canViewRow,
+  resolveRowAccess,
+  type RowAccessContext,
+} from '../services/row-access-resolver.ts'
 
 export interface FormSubmissionInput {
   locator: string
@@ -36,17 +44,17 @@ export interface FormSubmissionTokenContext {
   linkRevision: number
 }
 
-export interface PreparedFormSubmissionScalarValue {
+interface PreparedFormSubmissionScalarValue {
   propertyId: string
   value: DatabaseCellWriteValue
 }
 
-export interface PreparedFormSubmissionRelationValue {
+interface PreparedFormSubmissionRelationValue {
   propertyId: string
   targetRowIds: readonly string[]
 }
 
-export interface PreparedFormSubmissionFileValue {
+interface PreparedFormSubmissionFileValue {
   propertyId: string
   questionId: string
   uploads: readonly FormUploadLeaseRecord[]
@@ -57,7 +65,8 @@ export interface PreparedFormSubmissionFileValue {
  * property, target, and upload validation. Public input must never be cast to
  * this shape directly; the preparation slice owns constructing it.
  */
-export interface PreparedFormSubmission {
+interface PreparedFormSubmission {
+  locator: string
   formId: string
   linkRevision: number
   audience: PublicFormRecord['audience']
@@ -78,11 +87,22 @@ export interface PreparedFormSubmission {
 
 export interface FormSubmissionResult {
   submissionId: string
-  rowId: string
-  pageId: string
   endingId: string
-  submittedAt: Date
+  ownResponseUrl: string | null
   created: boolean
+}
+
+export type FormFieldErrors = Readonly<Record<string, readonly string[]>>
+
+/** Safe, question-keyed validation details suitable for a public form UI. */
+export class FormValidationError extends DomainError {
+  readonly fieldErrors: FormFieldErrors
+
+  constructor(fieldErrors: FormFieldErrors) {
+    super('BAD_REQUEST', 'FORM_ANSWERS_INVALID', 400, { fieldErrors })
+    this.name = 'DomainError'
+    this.fieldErrors = fieldErrors
+  }
 }
 
 type OpenFormResolution = Extract<PublishedFormResolution, { status: 'OPEN' }>
@@ -93,11 +113,12 @@ interface SubmissionContext {
   acceptedAt: Date
 }
 
-interface TransactionalRevalidation {
-  actorUserId: string | null
-  input: FormSubmissionInput
-  token: FormSubmissionTokenContext
-  automaticTitle: boolean
+type AccessibleReplayResolution = Extract<ReplayFormResolution, { status: 'ACCESSIBLE' }>
+
+interface ReplayContext {
+  resolved: AccessibleReplayResolution
+  version: FormVersionRecord
+  checkedAt: Date
 }
 
 const ROW_POSITION_STEP = 1_024
@@ -165,17 +186,32 @@ export function automaticResponseTitle(now: Date): string {
 
 function toSubmissionResult(
   submission: FormSubmissionRecord,
+  resolved: AccessibleReplayResolution | OpenFormResolution,
   created: boolean,
 ): FormSubmissionResult {
   return {
     submissionId: submission.id,
-    rowId: submission.rowId,
-    pageId: submission.row.pageId,
     endingId: submission.endingId,
-    submittedAt: submission.submittedAt,
+    ownResponseUrl:
+      submission.respondentUserId !== null && resolved.form.respondentAccess !== 'NONE'
+        ? `/f/${resolved.locator}/responses/${submission.id}`
+        : null,
     created,
   }
 }
+
+const addFieldError = (
+  errors: Record<string, string[]>,
+  questionId: string,
+  message: string,
+): void => {
+  const messages = errors[questionId]
+  if (messages === undefined) errors[questionId] = [message]
+  else if (!messages.includes(message)) messages.push(message)
+}
+
+const semanticError = (questionId: string, message: string): FormValidationError =>
+  new FormValidationError({ [questionId]: [message] })
 
 /** Atomic persistence half of form submission; validation is intentionally external. */
 export class FormSubmissionService {
@@ -207,11 +243,18 @@ export class FormSubmissionService {
     input: FormSubmissionInput,
     token: FormSubmissionTokenContext,
   ): Promise<FormSubmissionResult> {
-    const { resolved, version, acceptedAt } = await this.resolveSubmissionContext(
-      actorUserId,
-      input,
-      token,
-    )
+    const replay = await this.findReplay(actorUserId, input, token)
+    if (replay !== null) return replay
+    const context = await this.resolveSubmissionContext(actorUserId, input, token)
+    const prepared = await this.prepareSubmission(context, input)
+    return this.persist(prepared, actorUserId, input, token)
+  }
+
+  private async prepareSubmission(
+    context: SubmissionContext,
+    input: FormSubmissionInput,
+  ): Promise<PreparedFormSubmission> {
+    const { resolved, version, acceptedAt } = context
 
     let document
     try {
@@ -223,7 +266,14 @@ export class FormSubmissionService {
 
     const publicVersion = toPublicFormVersion(document)
     const answersResult = buildFormAnswerSchema(publicVersion).safeParse({ answers: input.answers })
-    if (!answersResult.success) throw badRequest('FORM_ANSWERS_INVALID')
+    if (!answersResult.success) {
+      const fieldErrors: Record<string, string[]> = {}
+      for (const issue of answersResult.error.issues) {
+        const questionId = issue.path[0] === 'answers' ? issue.path[1] : undefined
+        if (typeof questionId === 'string') addFieldError(fieldErrors, questionId, issue.message)
+      }
+      throw new FormValidationError(fieldErrors)
+    }
 
     const path = evaluateFormPath(publicVersion, answersResult.data.answers)
     const visibleQuestionIds = new Set(path.visibleQuestionIds)
@@ -280,7 +330,7 @@ export class FormSubmissionService {
           typeof value[0] !== 'string' ||
           !(await this.databaseRepo.isWorkspaceMember(value[0], resolved.form.source.workspaceId))
         ) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
         scalarValues.push({ propertyId, value: value[0] })
         continue
@@ -292,14 +342,14 @@ export class FormSubmissionService {
           typeof value !== 'string' ||
           resolved.respondentUserId === null
         ) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
-        const accessible = await this.pageRepo.findAccessiblePageIds(
+        const accessible = await this.pageRepo.findAccessiblePageLinkIds(
           resolved.respondentUserId,
           resolved.form.source.workspaceId,
           [value],
         )
-        if (!accessible.has(value)) throw badRequest('FORM_TARGET_INACCESSIBLE')
+        if (!accessible.has(value)) throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         scalarValues.push({ propertyId, value })
         continue
       }
@@ -311,16 +361,18 @@ export class FormSubmissionService {
           !value.every((target): target is string => typeof target === 'string') ||
           resolved.respondentUserId === null
         ) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
         const targetSourceId = relationTargetSourceId(property)
-        if (targetSourceId === null) throw badRequest('FORM_TARGET_INACCESSIBLE')
+        if (targetSourceId === null) {
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
+        }
         const targetSource = await this.databaseRepo.findSourceMetaById(targetSourceId)
         if (
           targetSource === null ||
           targetSource.workspaceId !== resolved.form.source.workspaceId
         ) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
         const rows = await this.databaseRepo.findRowsAccessMetaByIds(value)
         const rowsById = new Map(rows.map((row) => [row.id, row]))
@@ -335,7 +387,7 @@ export class FormSubmissionService {
             )
           })
         ) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
         const targetPageIds = [
           targetSource.pageId,
@@ -347,20 +399,31 @@ export class FormSubmissionService {
           targetPageIds,
         )
         if (targetPageIds.some((pageId) => !accessiblePages.has(pageId))) {
-          throw badRequest('FORM_TARGET_INACCESSIBLE')
+          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
         }
         const rulesBySource = await this.databaseRepo.findEnabledAccessRulesForSources([
           targetSourceId,
         ])
         const rules = toResolverRules(rulesBySource.get(targetSourceId) ?? [])
+        const [workspaceRole, isSourcePageCreator, shareLevels] = await Promise.all([
+          this.databaseRepo.findWorkspaceRole(
+            resolved.respondentUserId,
+            resolved.form.source.workspaceId,
+          ),
+          this.databaseRepo.isSourcePageCreatedBy(targetSource.pageId, resolved.respondentUserId),
+          this.databaseRepo.findItemPageShareLevels(
+            value.map((targetRowId) => rowsById.get(targetRowId)!.pageId),
+            resolved.respondentUserId,
+          ),
+        ])
         for (const targetRowId of value) {
           const row = rowsById.get(targetRowId)!
-          const context = await buildRowAccessContext(
-            this.databaseRepo,
-            resolved.respondentUserId,
-            targetSource,
-            row.pageId,
-          )
+          const context: RowAccessContext = {
+            viewerId: resolved.respondentUserId,
+            workspaceRole,
+            isSourcePageCreator,
+            pageShareLevel: shareLevels.get(row.pageId) ?? null,
+          }
           if (
             !canViewRow(
               resolveRowAccess(context, rules, {
@@ -369,7 +432,7 @@ export class FormSubmissionService {
               }),
             )
           ) {
-            throw badRequest('FORM_TARGET_INACCESSIBLE')
+            throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
           }
         }
         relationValues.push({ propertyId, targetRowIds: value })
@@ -383,7 +446,7 @@ export class FormSubmissionService {
           !Array.isArray(value) ||
           !value.every((token): token is string => typeof token === 'string')
         ) {
-          throw badRequest('FORM_UPLOAD_INVALID')
+          throw semanticError(question.id, 'FORM_UPLOAD_INVALID')
         }
         const tokenHashes = value.map((token) => createHash('sha256').update(token).digest('hex'))
         const uploads = await this.formRepo.resolveUploadLeases({
@@ -411,7 +474,7 @@ export class FormSubmissionService {
               upload!.file.fileSize > BigInt(fileInput.maxBytesPerFile),
           )
         ) {
-          throw badRequest('FORM_UPLOAD_INVALID')
+          throw semanticError(question.id, 'FORM_UPLOAD_INVALID')
         }
         fileValues.push({
           propertyId,
@@ -424,31 +487,25 @@ export class FormSubmissionService {
       throw badRequest('FORM_SEMANTIC_PREPARATION_UNSUPPORTED')
     }
 
-    return this.persist(
-      {
-        formId: resolved.form.id,
-        linkRevision: resolved.form.linkRevision,
-        audience: resolved.form.audience,
-        versionId: version.id,
-        versionNumber: version.versionNumber,
-        sourceId: resolved.form.sourceId,
-        sourcePageId: resolved.form.source.pageId,
-        workspaceId: resolved.form.source.workspaceId,
-        respondentUserId: resolved.respondentUserId,
-        idempotencyKey: input.idempotencyKey,
-        endingId: path.endingId,
-        title: title ?? automaticResponseTitle(acceptedAt),
-        scalarValues,
-        relationValues,
-        fileValues,
-        submittedAt: acceptedAt,
-      },
-      { actorUserId, input, token, automaticTitle: title === undefined },
-    )
-  }
-
-  persistPrepared(prepared: PreparedFormSubmission): Promise<FormSubmissionResult> {
-    return this.persist(prepared)
+    return {
+      locator: resolved.locator,
+      formId: resolved.form.id,
+      linkRevision: resolved.form.linkRevision,
+      audience: resolved.form.audience,
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      sourceId: resolved.form.sourceId,
+      sourcePageId: resolved.form.source.pageId,
+      workspaceId: resolved.form.source.workspaceId,
+      respondentUserId: resolved.respondentUserId,
+      idempotencyKey: input.idempotencyKey,
+      endingId: path.endingId,
+      title: title ?? automaticResponseTitle(acceptedAt),
+      scalarValues,
+      relationValues,
+      fileValues,
+      submittedAt: acceptedAt,
+    }
   }
 
   async findReplay(
@@ -456,61 +513,56 @@ export class FormSubmissionService {
     input: FormSubmissionInput,
     token: FormSubmissionTokenContext,
   ): Promise<FormSubmissionResult | null> {
-    const { resolved } = await this.resolveSubmissionContext(actorUserId, input, token)
+    const { resolved, version } = await this.resolveReplayContext(actorUserId, input, token)
     const replay = await this.formRepo.findSubmissionByIdempotency(
       resolved.form.id,
       input.idempotencyKey,
     )
-    return replay === null ? null : toSubmissionResult(replay, false)
+    if (replay === null) return null
+    this.assertReplayIdentity(replay, version.id, resolved.respondentUserId)
+    return toSubmissionResult(replay, resolved, false)
   }
 
   private async persist(
     prepared: PreparedFormSubmission,
-    revalidation?: TransactionalRevalidation,
+    actorUserId: string | null,
+    input: FormSubmissionInput,
+    token: FormSubmissionTokenContext,
   ): Promise<FormSubmissionResult> {
     try {
       return await this.uow.transaction(async () => {
-        let effective = prepared
-        if (revalidation !== undefined) {
-          const locked = await this.formRepo.lockSubmissionContext({
-            formId: prepared.formId,
-            workspaceId: prepared.workspaceId,
-            pageId: prepared.sourcePageId,
-            actorUserId: revalidation.actorUserId,
-          })
-          if (!locked) throw conflict('FORM_NOT_ACCEPTING')
+        const locked = await this.formRepo.lockSubmissionContext({
+          formId: prepared.formId,
+          workspaceId: prepared.workspaceId,
+          pageId: prepared.sourcePageId,
+          actorUserId,
+        })
+        if (!locked) throw conflict('FORM_NOT_ACCEPTING')
 
-          const context = await this.resolveSubmissionContext(
-            revalidation.actorUserId,
-            revalidation.input,
-            revalidation.token,
-          )
-          if (
-            context.resolved.form.id !== prepared.formId ||
-            context.resolved.form.sourceId !== prepared.sourceId ||
-            context.resolved.form.source.pageId !== prepared.sourcePageId ||
-            context.resolved.form.source.workspaceId !== prepared.workspaceId ||
-            context.resolved.form.audience !== prepared.audience ||
-            context.resolved.respondentUserId !== prepared.respondentUserId
-          ) {
-            throw conflict('FORM_NOT_ACCEPTING')
-          }
-          if (context.version.id !== prepared.versionId) throw conflict('FORM_VERSION_STALE')
-
-          effective = {
-            ...prepared,
-            submittedAt: context.acceptedAt,
-            title: revalidation.automaticTitle
-              ? automaticResponseTitle(context.acceptedAt)
-              : prepared.title,
-          }
-        }
+        // A committed key wins even if the form became CLOSED/CAPPED/scheduled
+        // after the original response. The signed locator/version context and
+        // current respondent authority are still revalidated before lookup.
+        const replayContext = await this.resolveReplayContext(actorUserId, input, token)
+        this.assertSameFormIdentity(prepared, replayContext.resolved, replayContext.version)
 
         const replay = await this.formRepo.findSubmissionByIdempotency(
-          effective.formId,
-          effective.idempotencyKey,
+          prepared.formId,
+          prepared.idempotencyKey,
         )
-        if (replay !== null) return toSubmissionResult(replay, false)
+        if (replay !== null) {
+          this.assertReplayIdentity(
+            replay,
+            replayContext.version.id,
+            replayContext.resolved.respondentUserId,
+          )
+          return toSubmissionResult(replay, replayContext.resolved, false)
+        }
+
+        // Everything consumed by writes is authoritatively rebuilt after the
+        // workspace-first lock, using the transaction-bound repositories.
+        const context = await this.resolveSubmissionContext(actorUserId, input, token)
+        this.assertSameFormIdentity(prepared, context.resolved, context.version)
+        const effective = await this.prepareSubmission(context, input)
 
         const reserved = await this.formRepo.reserveResponseSlot({
           formId: effective.formId,
@@ -585,19 +637,55 @@ export class FormSubmissionService {
           respondentUserId: effective.respondentUserId,
           submittedAt: effective.submittedAt,
         })
-        return toSubmissionResult(submission, true)
+        return toSubmissionResult(submission, context.resolved, true)
       })
     } catch (error) {
       if (!isUniqueConflict(error)) throw error
       for (let attempt = 0; attempt < 3; attempt += 1) {
+        const replayContext = await this.resolveReplayContext(actorUserId, input, token)
         const replay = await this.formRepo.findSubmissionByIdempotency(
           prepared.formId,
           prepared.idempotencyKey,
         )
-        if (replay !== null) return toSubmissionResult(replay, false)
+        if (replay !== null) {
+          this.assertReplayIdentity(
+            replay,
+            replayContext.version.id,
+            replayContext.resolved.respondentUserId,
+          )
+          return toSubmissionResult(replay, replayContext.resolved, false)
+        }
         await Promise.resolve()
       }
       throw error
+    }
+  }
+
+  private assertSameFormIdentity(
+    prepared: PreparedFormSubmission,
+    resolved: AccessibleReplayResolution | OpenFormResolution,
+    version: FormVersionRecord,
+  ): void {
+    if (
+      resolved.form.id !== prepared.formId ||
+      resolved.form.sourceId !== prepared.sourceId ||
+      resolved.form.source.pageId !== prepared.sourcePageId ||
+      resolved.form.source.workspaceId !== prepared.workspaceId ||
+      resolved.form.audience !== prepared.audience ||
+      resolved.respondentUserId !== prepared.respondentUserId
+    ) {
+      throw conflict('FORM_NOT_ACCEPTING')
+    }
+    if (version.id !== prepared.versionId) throw conflict('FORM_VERSION_STALE')
+  }
+
+  private assertReplayIdentity(
+    replay: FormSubmissionRecord,
+    versionId: string,
+    respondentUserId: string | null,
+  ): void {
+    if (replay.versionId !== versionId || replay.respondentUserId !== respondentUserId) {
+      throw conflict('FORM_IDEMPOTENCY_CONFLICT')
     }
   }
 
@@ -632,5 +720,35 @@ export class FormSubmissionService {
     if (!isCurrent && !isLiveGrace) throw conflict('FORM_VERSION_STALE')
 
     return { resolved, version, acceptedAt }
+  }
+
+  private async resolveReplayContext(
+    actorUserId: string | null,
+    input: FormSubmissionInput,
+    token: FormSubmissionTokenContext,
+  ): Promise<ReplayContext> {
+    const resolved = await this.formAccess.resolveReplay(input.locator, actorUserId)
+    if (resolved.status !== 'ACCESSIBLE') throw conflict('FORM_NOT_ACCEPTING')
+
+    const locatorHash = createHash('sha256').update(resolved.locator).digest('hex')
+    if (token.locatorHash !== locatorHash || resolved.form.linkRevision !== token.linkRevision) {
+      throw conflict('FORM_VERSION_STALE')
+    }
+    const version = await this.formAccess.resolveVersion(resolved.form, token.versionNumber)
+    if (
+      version === null ||
+      version.versionNumber !== token.versionNumber ||
+      version.schemaHash !== token.schemaHash
+    ) {
+      throw conflict('FORM_VERSION_STALE')
+    }
+    const checkedAt = this.now()
+    const isCurrent = resolved.form.publishedVersionId === version.id
+    const isLiveGrace =
+      !isCurrent &&
+      version.acceptUntil !== null &&
+      version.acceptUntil.getTime() > checkedAt.getTime()
+    if (!isCurrent && !isLiveGrace) throw conflict('FORM_VERSION_STALE')
+    return { resolved, version, checkedAt }
   }
 }
