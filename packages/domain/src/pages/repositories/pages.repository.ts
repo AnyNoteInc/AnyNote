@@ -129,6 +129,44 @@ export class PageRepository {
     return new Set(rows.map(({ id }) => id))
   }
 
+  async findSubmissionAuthorityPageMetadata(
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        id: string
+        collectionId: string | null
+        parentId: string | null
+        parentCollectionId: string | null
+      }
+    >
+  > {
+    const unique = [...new Set(pageIds)]
+    if (unique.length === 0) return new Map()
+    const pages = await this.uow.client().page.findMany({
+      where: { id: { in: unique }, workspaceId },
+      select: {
+        id: true,
+        collectionId: true,
+        parentId: true,
+        parent: { select: { collectionId: true } },
+      },
+    })
+    return new Map(
+      pages.map((page) => [
+        page.id,
+        {
+          id: page.id,
+          collectionId: page.collectionId,
+          parentId: page.parentId,
+          parentCollectionId: page.parent?.collectionId ?? null,
+        },
+      ]),
+    )
+  }
+
   // Lookup by id only (not workspace-filtered) — matches reorderPage's original semantics.
   async findActivePageById(pageId: string): Promise<PageRowDto | null> {
     const row = await this.uow.client().page.findFirst({

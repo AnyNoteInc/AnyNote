@@ -62,6 +62,8 @@ interface PreparedFormSubmissionFileValue {
 
 interface SubmissionAuthoritySnapshot {
   personUserIds: readonly string[]
+  collectionIds: readonly string[]
+  parentPageIds: readonly string[]
   sourceIds: readonly string[]
   propertyIds: readonly string[]
   rowIds: readonly string[]
@@ -412,59 +414,73 @@ export class FormSubmissionService {
     const targetSourceIds = sortedUnique(relationPlans.map(({ targetSourceId }) => targetSourceId))
     const targetRowIds = sortedUnique(relationPlans.flatMap(({ targetRowIds }) => targetRowIds))
     const actorUserId = resolved.respondentUserId
-    const [activeMemberIds, targetSources, rows, accessiblePageLinkIds, uploads] =
-      await Promise.all([
-        this.databaseRepo.findActiveWorkspaceMemberIds(
-          personPlans.map(({ userId }) => userId),
-          resolved.form.source.workspaceId,
-        ),
-        this.databaseRepo.findSourceMetasByIds(targetSourceIds),
-        this.databaseRepo.findRowsAccessMetaByIds(targetRowIds),
-        actorUserId === null
-          ? Promise.resolve(new Set<string>())
-          : this.pageRepo.findAccessiblePageLinkIds(
-              actorUserId,
-              resolved.form.source.workspaceId,
-              pageLinkPlans.map(({ pageId }) => pageId),
-            ),
-        this.formRepo.resolveUploadLeasesBatch({
-          formId: resolved.form.id,
-          versionId: version.id,
-          bindings: filePlans.map(({ questionId, tokenHashes }) => ({ questionId, tokenHashes })),
-          now: acceptedAt,
-        }),
-      ])
+    // A Prisma transaction owns one PostgreSQL connection. Keep each batch O(1)
+    // while issuing service-level queries serially rather than explicitly
+    // scheduling concurrent client.query() calls on the same tx handle.
+    const activeMemberIds = await this.databaseRepo.findActiveWorkspaceMemberIds(
+      personPlans.map(({ userId }) => userId),
+      resolved.form.source.workspaceId,
+    )
+    const targetSources = await this.databaseRepo.findSourceMetasByIds(targetSourceIds)
+    const rows = await this.databaseRepo.findRowsAccessMetaByIds(targetRowIds)
+    const accessiblePageLinkIds =
+      actorUserId === null
+        ? new Set<string>()
+        : await this.pageRepo.findAccessiblePageLinkIds(
+            actorUserId,
+            resolved.form.source.workspaceId,
+            pageLinkPlans.map(({ pageId }) => pageId),
+          )
+    const uploads = await this.formRepo.resolveUploadLeasesBatch({
+      formId: resolved.form.id,
+      versionId: version.id,
+      bindings: filePlans.map(({ questionId, tokenHashes }) => ({ questionId, tokenHashes })),
+      now: acceptedAt,
+    })
     const rowsById = new Map(rows.map((row) => [row.id, row]))
     const relationPageIds = sortedUnique([
       ...[...targetSources.values()].map(({ pageId }) => pageId),
       ...rows.map(({ pageId }) => pageId),
     ])
-    const [accessibleRelationPageIds, rulesBySource, workspaceRole, creatorPageIds, shareLevels] =
-      await Promise.all([
-        actorUserId === null
-          ? Promise.resolve(new Set<string>())
-          : this.pageRepo.findAccessiblePageIds(
-              actorUserId,
-              resolved.form.source.workspaceId,
-              relationPageIds,
-            ),
-        this.databaseRepo.findEnabledAccessRulesForSources(targetSourceIds),
-        actorUserId === null || relationPlans.length === 0
-          ? Promise.resolve(null)
-          : this.databaseRepo.findWorkspaceRole(actorUserId, resolved.form.source.workspaceId),
-        actorUserId === null
-          ? Promise.resolve(new Set<string>())
-          : this.databaseRepo.findSourcePageIdsCreatedBy(
-              [...targetSources.values()].map(({ pageId }) => pageId),
-              actorUserId,
-            ),
-        actorUserId === null
-          ? Promise.resolve(new Map())
-          : this.databaseRepo.findItemPageShareLevels(
-              rows.map(({ pageId }) => pageId),
-              actorUserId,
-            ),
-      ])
+    const accessibleRelationPageIds =
+      actorUserId === null
+        ? new Set<string>()
+        : await this.pageRepo.findAccessiblePageIds(
+            actorUserId,
+            resolved.form.source.workspaceId,
+            relationPageIds,
+          )
+    const rulesBySource = await this.databaseRepo.findEnabledAccessRulesForSources(targetSourceIds)
+    const workspaceRole =
+      actorUserId === null || relationPlans.length === 0
+        ? null
+        : await this.databaseRepo.findWorkspaceRole(actorUserId, resolved.form.source.workspaceId)
+    const creatorPageIds =
+      actorUserId === null
+        ? new Set<string>()
+        : await this.databaseRepo.findSourcePageIdsCreatedBy(
+            [...targetSources.values()].map(({ pageId }) => pageId),
+            actorUserId,
+          )
+    const shareLevels =
+      actorUserId === null
+        ? new Map()
+        : await this.databaseRepo.findItemPageShareLevels(
+            rows.map(({ pageId }) => pageId),
+            actorUserId,
+          )
+    const selectedPageIds = sortedUnique([
+      resolved.form.source.pageId,
+      ...pageLinkPlans.map(({ pageId }) => pageId),
+      ...relationPageIds,
+    ])
+    const pageAuthorityMetadata = await this.pageRepo.findSubmissionAuthorityPageMetadata(
+      resolved.form.source.workspaceId,
+      selectedPageIds,
+    )
+    if (selectedPageIds.some((pageId) => !pageAuthorityMetadata.has(pageId))) {
+      throw conflict('FORM_NOT_ACCEPTING')
+    }
 
     for (const plan of personPlans) {
       if (!activeMemberIds.has(plan.userId)) {
@@ -560,6 +576,17 @@ export class FormSubmissionService {
 
     const authorities: SubmissionAuthoritySnapshot = {
       personUserIds: sortedUnique(personPlans.map(({ userId }) => userId)),
+      collectionIds: sortedUnique(
+        [...pageAuthorityMetadata.values()].flatMap(({ collectionId, parentCollectionId }) => [
+          ...(collectionId === null ? [] : [collectionId]),
+          ...(parentCollectionId === null ? [] : [parentCollectionId]),
+        ]),
+      ),
+      parentPageIds: sortedUnique(
+        [...pageAuthorityMetadata.values()].flatMap(({ parentId }) =>
+          parentId === null ? [] : [parentId],
+        ),
+      ),
       sourceIds: sortedUnique([resolved.form.sourceId, ...targetSourceIds]),
       propertyIds: sortedUnique([
         ...currentProperties.keys(),
@@ -568,11 +595,7 @@ export class FormSubmissionService {
         ),
       ]),
       rowIds: targetRowIds,
-      pageIds: sortedUnique([
-        resolved.form.source.pageId,
-        ...pageLinkPlans.map(({ pageId }) => pageId),
-        ...relationPageIds,
-      ]),
+      pageIds: selectedPageIds,
       uploadIds: sortedUnique(uploads.map(({ id }) => id)),
       fileIds: sortedUnique(uploads.map(({ fileId }) => fileId)),
     }
@@ -626,6 +649,9 @@ export class FormSubmissionService {
           formId: prepared.formId,
           workspaceId: prepared.workspaceId,
           pageId: prepared.sourcePageId,
+          sourceId: prepared.sourceId,
+          collectionIds: prepared.authorities.collectionIds,
+          parentPageIds: prepared.authorities.parentPageIds,
           actorUserId,
         })
         if (!locked) throw conflict('FORM_NOT_ACCEPTING')

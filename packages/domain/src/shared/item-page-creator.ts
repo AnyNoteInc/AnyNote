@@ -5,6 +5,13 @@
  * Keeping the dependency on this shared port (not `pages/repositories/...`)
  * preserves domain-module isolation (see `.dependency-cruiser.cjs`).
  */
+export interface SubmissionPageAuthorityMetadata {
+  id: string
+  collectionId: string | null
+  parentId: string | null
+  parentCollectionId: string | null
+}
+
 export interface ItemPageCreator {
   findAccessiblePageIds(
     actorUserId: string,
@@ -16,6 +23,10 @@ export interface ItemPageCreator {
     workspaceId: string,
     pageIds: readonly string[],
   ): Promise<Set<string>>
+  findSubmissionAuthorityPageMetadata(
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Map<string, SubmissionPageAuthorityMetadata>>
   createItemPageTx(
     parentPageId: string,
     workspaceId: string,

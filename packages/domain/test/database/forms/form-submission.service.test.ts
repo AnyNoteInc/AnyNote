@@ -47,6 +47,8 @@ const TARGET_ROW_ID = '00000000-0000-7000-8000-000000000023'
 const TARGET_PAGE_ID = '00000000-0000-7000-8000-000000000024'
 const UPLOAD_ID = '00000000-0000-7000-8000-000000000025'
 const FILE_ID = '00000000-0000-7000-8000-000000000026'
+const COLLECTION_ID = '00000000-0000-7000-8000-000000000027'
+const PARENT_PAGE_ID = '00000000-0000-7000-8000-000000000028'
 const LOCATOR_HASH = createHash('sha256').update('anf_public').digest('hex')
 
 const submission = (overrides: Partial<FormSubmissionRecord> = {}): FormSubmissionRecord => ({
@@ -388,6 +390,15 @@ function makeValidationHarness(
     ),
     findAccessiblePageLinkIds: vi.fn(
       async (_userId: string, _workspaceId: string, ids: string[]) => new Set(ids),
+    ),
+    findSubmissionAuthorityPageMetadata: vi.fn(
+      async (_workspaceId: string, ids: string[]) =>
+        new Map(
+          ids.map((id) => [
+            id,
+            { id, collectionId: null, parentId: null, parentCollectionId: null },
+          ]),
+        ),
     ),
     ...options.pageRepo,
   } as ItemPageCreator
@@ -1275,6 +1286,15 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     const findAccessiblePageIds = vi.fn(
       async (_user: string, _workspace: string, ids: string[]) => new Set(ids),
     )
+    const findSubmissionAuthorityPageMetadata = vi.fn(
+      async (_workspace: string, ids: string[]) =>
+        new Map(
+          ids.map((id) => [
+            id,
+            { id, collectionId: null, parentId: null, parentCollectionId: null },
+          ]),
+        ),
+    )
     const { service } = makeValidationHarness({
       storedForm: publicForm(formDocument(questions), {
         audience: 'WORKSPACE_MEMBERS_WITH_LINK',
@@ -1296,7 +1316,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
         isSourcePageCreatedBy,
         findItemPageShareLevels,
       },
-      pageRepo: { findAccessiblePageIds },
+      pageRepo: { findAccessiblePageIds, findSubmissionAuthorityPageMetadata },
     })
 
     await service.submit(ACTOR_ID, submissionInput(answers), tokenContext())
@@ -1309,6 +1329,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       isSourcePageCreatedBy,
       findItemPageShareLevels,
       findAccessiblePageIds,
+      findSubmissionAuthorityPageMetadata,
     ]) {
       expect(query).toHaveBeenCalledTimes(2)
     }
@@ -1408,11 +1429,36 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       titleQuestion(),
       propertyQuestion('page', PROPERTY_ID, 'PAGE_LINK', { kind: 'PAGE_LINK' }),
     ])
-    const { service, databaseRepo, pageRepo } = makeValidationHarness({
+    const { service, databaseRepo, pageRepo, formRepo } = makeValidationHarness({
       storedForm: publicForm(schema, { audience: 'WORKSPACE_MEMBERS_WITH_LINK' }),
       properties: [
         { id: PROPERTY_ID, type: 'PAGE_LINK', name: 'Страница', position: 1, settings: null },
       ],
+      pageRepo: {
+        findSubmissionAuthorityPageMetadata: vi.fn(
+          async () =>
+            new Map([
+              [
+                SOURCE_PAGE_ID,
+                {
+                  id: SOURCE_PAGE_ID,
+                  collectionId: null,
+                  parentId: null,
+                  parentCollectionId: null,
+                },
+              ],
+              [
+                TARGET_PAGE_ID,
+                {
+                  id: TARGET_PAGE_ID,
+                  collectionId: COLLECTION_ID,
+                  parentId: PARENT_PAGE_ID,
+                  parentCollectionId: null,
+                },
+              ],
+            ]),
+        ),
+      },
     })
 
     await service.submit(
@@ -1424,6 +1470,12 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expect(pageRepo.findAccessiblePageLinkIds).toHaveBeenCalledWith(ACTOR_ID, WORKSPACE_ID, [
       TARGET_PAGE_ID,
     ])
+    expect(formRepo.lockSubmissionContext).toHaveBeenCalledWith(
+      expect.objectContaining({ collectionIds: [COLLECTION_ID], parentPageIds: [PARENT_PAGE_ID] }),
+    )
+    expect(formRepo.lockFormSubmissionAuthorities).toHaveBeenCalledWith(
+      expect.objectContaining({ collectionIds: [COLLECTION_ID], parentPageIds: [PARENT_PAGE_ID] }),
+    )
     expect(databaseRepo.upsertCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, TARGET_PAGE_ID)
   })
 
@@ -1560,7 +1612,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
 })
 
 describe('DatabaseFormRepository submission transaction primitives', () => {
-  it('locks form, page, policy, and relevant membership rows before transactional revalidation', async () => {
+  it('locks FK parents from workspace through source page and source before the form', async () => {
     const client = {
       $executeRaw: vi.fn(async () => 0),
       $queryRaw: vi.fn(async () => [{ id: FORM_ID }]),
@@ -1573,6 +1625,9 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
         formId: FORM_ID,
         workspaceId: WORKSPACE_ID,
         pageId: SOURCE_PAGE_ID,
+        sourceId: SOURCE_ID,
+        collectionIds: [COLLECTION_ID],
+        parentPageIds: [PARENT_PAGE_ID],
         actorUserId: ACTOR_ID,
       }),
     ).resolves.toBe(true)
@@ -1586,8 +1641,11 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     expect(locks[0]).not.toContain('NO KEY')
     expect(locks[1]).toContain('workspace_security_policies')
     expect(locks[2]).toContain('workspace_members')
-    expect(locks[3]).toContain('pages')
-    expect(locks[4]).toContain('database_forms')
+    expect(locks[3]).toContain('collections')
+    expect(locks[4]).toContain('pages')
+    expect(locks[5]).toContain('pages')
+    expect(locks[6]).toContain('database_sources')
+    expect(locks[7]).toContain('database_forms')
     expect(locks.slice(1).every((sql) => sql.includes('FOR UPDATE'))).toBe(true)
   })
 
@@ -1625,7 +1683,9 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
         sourceIds: [TARGET_SOURCE_ID, SOURCE_ID],
         propertyIds: [THIRD_PROPERTY_ID, PROPERTY_ID],
         rowIds: [TARGET_ROW_ID, ROW_ID],
-        pageIds: [TARGET_PAGE_ID, SOURCE_PAGE_ID],
+        collectionIds: [COLLECTION_ID],
+        parentPageIds: [PARENT_PAGE_ID, TARGET_SOURCE_PAGE_ID],
+        pageIds: [TARGET_PAGE_ID, SOURCE_PAGE_ID, TARGET_SOURCE_PAGE_ID],
         uploadIds: [UPLOAD_ID],
         fileIds: [FILE_ID],
       }),
@@ -1642,26 +1702,27 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     expect(sql.map((query) => /FROM\s+(\w+)/u.exec(query)?.[1])).toEqual([
       'workspace_members',
       'workspace_blocked_users',
-      'database_sources',
+      'collections',
+      'pages',
+      'pages',
       'database_sources',
       'database_properties',
       'database_page_access_rules',
       'database_rows',
       'database_cell_values',
-      'pages',
-      'collections',
       'page_shares',
       'page_share_users',
-      'database_form_uploads',
       'files',
+      'database_form_uploads',
     ])
     expect(sql.every((query) => query.includes('ORDER BY') && query.includes('FOR UPDATE'))).toBe(
       true,
     )
     expect(queries[0]!.values.slice(1)).toEqual([ACTOR_ID, OWNER_ID].sort())
-    expect(queries[3]!.values).toEqual([TARGET_SOURCE_ID])
-    expect(queries[6]!.values).toEqual([ROW_ID, TARGET_ROW_ID].sort())
-    expect(queries[8]!.values).toEqual([SOURCE_PAGE_ID, TARGET_PAGE_ID].sort())
+    expect(queries[2]!.values).toEqual([COLLECTION_ID])
+    expect(queries[3]!.values).toEqual([PARENT_PAGE_ID, TARGET_SOURCE_PAGE_ID].sort())
+    expect(queries[5]!.values).toEqual([TARGET_SOURCE_ID])
+    expect(queries[8]!.values).toEqual([ROW_ID, TARGET_ROW_ID].sort())
   })
 
   it('reserves a slot with one conditional update covering state, schedule, and the live limit', async () => {
@@ -1929,6 +1990,41 @@ describe('submission target repository boundaries', () => {
         }),
       }),
     )
+  })
+
+  it('loads selected page, collection, and immediate parent authority metadata in one batch', async () => {
+    const client = {
+      page: {
+        findMany: vi.fn(async () => [
+          {
+            id: TARGET_PAGE_ID,
+            collectionId: COLLECTION_ID,
+            parentId: PARENT_PAGE_ID,
+            parent: { collectionId: null },
+          },
+        ]),
+      },
+    }
+    const repository = new PageRepository({
+      client: vi.fn(() => client),
+    } as unknown as UnitOfWork)
+
+    await expect(
+      repository.findSubmissionAuthorityPageMetadata(WORKSPACE_ID, [TARGET_PAGE_ID]),
+    ).resolves.toEqual(
+      new Map([
+        [
+          TARGET_PAGE_ID,
+          {
+            id: TARGET_PAGE_ID,
+            collectionId: COLLECTION_ID,
+            parentId: PARENT_PAGE_ID,
+            parentCollectionId: null,
+          },
+        ],
+      ]),
+    )
+    expect(client.page.findMany).toHaveBeenCalledOnce()
   })
 })
 

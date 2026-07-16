@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { PageType, prisma } from '@repo/db'
 
-import { PrismaUnitOfWork } from '../../../src/shared/unit-of-work.ts'
+import { PrismaUnitOfWork, type Db, type UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import { lockWorkspaceForMutation } from '../../../src/shared/workspace-transaction-lock.ts'
 import {
   DatabaseFormRepository,
@@ -50,6 +50,46 @@ async function settlesWithin<T>(promise: Promise<T>): Promise<T> {
       setTimeout(() => reject(new Error('CONCURRENT_LOCK_TIMEOUT')), 2_000),
     ),
   ])
+}
+
+class QueryObservingUnitOfWork implements UnitOfWork {
+  private readonly inner = new PrismaUnitOfWork(prisma)
+  private readonly observe: (sql: string) => void
+
+  constructor(observe: (sql: string) => void) {
+    this.observe = observe
+  }
+
+  transaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.inner.transaction(fn)
+  }
+
+  client(): Db {
+    const client = this.inner.client()
+    return new Proxy(client, {
+      get: (target, property, receiver) => {
+        const value = Reflect.get(target, property, receiver)
+        if (property !== '$queryRaw' || typeof value !== 'function') return value
+        return (...args: unknown[]) => {
+          const query = args[0]
+          if (query !== null && typeof query === 'object' && 'strings' in query) {
+            this.observe((query as { strings: readonly string[] }).strings.join(''))
+          }
+          return Reflect.apply(value, target, args)
+        }
+      },
+    }) as Db
+  }
+}
+
+const errorDetails = (reason: unknown): string => {
+  let serialized = ''
+  try {
+    serialized = JSON.stringify(reason)
+  } catch {
+    // String(reason) below is still enough for Prisma's rendered database error.
+  }
+  return `${String(reason)} ${serialized}`
 }
 
 const documentFor = (propertyId = 'property-1'): FormVersionDocument => ({
@@ -138,7 +178,7 @@ async function createForm(routeSuffix: string) {
 }
 
 function productionSubmissionService(
-  uow: PrismaUnitOfWork,
+  uow: UnitOfWork,
   formRepo: DatabaseFormRepository = new DatabaseFormRepository(uow),
 ): FormSubmissionService {
   const access = new FormAccessResolver(
@@ -325,6 +365,9 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
           formId: form.id,
           workspaceId,
           pageId: sourcePageId,
+          sourceId,
+          collectionIds: [],
+          parentPageIds: [],
           actorUserId: null,
         })
         if (!locked) throw new Error('FORM_NOT_ACCEPTING')
@@ -391,6 +434,9 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         formId: form.id,
         workspaceId,
         pageId: sourcePageId,
+        sourceId,
+        collectionIds: [],
+        parentPageIds: [],
         actorUserId: null,
       })
       if (!locked) throw new Error('FORM_NOT_ACCEPTING')
@@ -464,6 +510,9 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         formId: form.id,
         workspaceId,
         pageId: sourcePageId,
+        sourceId,
+        collectionIds: [],
+        parentPageIds: [],
         actorUserId: target.id,
       })
       if (!locked) throw new Error('FORM_NOT_ACCEPTING')
@@ -533,6 +582,9 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         formId: form.id,
         workspaceId,
         pageId: sourcePageId,
+        sourceId,
+        collectionIds: [],
+        parentPageIds: [],
         actorUserId: null,
       })
       if (!locked) throw new Error('FORM_NOT_ACCEPTING')
@@ -818,6 +870,206 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     await expect(prisma.databaseFormSubmission.count({ where: { formId: form.id } })).resolves.toBe(
       1,
     )
+  })
+
+  it('does not deadlock when a hard target-page delete owns the FK parent first', async () => {
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    })
+    const targetSourcePage = await prisma.page.create({
+      data: {
+        workspaceId,
+        type: PageType.DATABASE,
+        title: `Hard-delete target ${RUN}`,
+        createdById: userId,
+      },
+    })
+    const targetSource = await prisma.databaseSource.create({
+      data: { workspaceId, pageId: targetSourcePage.id, title: `Hard-delete target ${RUN}` },
+    })
+    const targetPage = await prisma.page.create({
+      data: {
+        workspaceId,
+        parentId: targetSourcePage.id,
+        title: `Hard-delete row ${RUN}`,
+        createdById: userId,
+      },
+    })
+    const targetRow = await prisma.databaseRow.create({
+      data: {
+        sourceId: targetSource.id,
+        pageId: targetPage.id,
+        createdById: userId,
+        updatedById: userId,
+      },
+    })
+    const relationProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId,
+        type: 'RELATION',
+        name: `Hard-delete relation ${RUN}`,
+        position: 9_994,
+        settings: { relation: { targetSourceId: targetSource.id } },
+      },
+    })
+    const schema = relationDocumentFor(relationProperty.id)
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_hard_page_race`,
+        draftSchema: schema,
+        createdById: userId,
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      },
+    })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: form.id,
+        versionNumber: 1,
+        schema,
+        schemaHash: 'b'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    await prisma.databaseForm.update({
+      where: { id: form.id },
+      data: { publishedVersionId: version.id },
+    })
+
+    const parentHeld = deferred()
+    const allowDelete = deferred()
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const writer = writerUow.transaction(async () => {
+      await writerUow.client().$queryRaw`
+        SELECT id FROM pages WHERE id = ${targetSourcePage.id}::uuid FOR UPDATE
+      `
+      parentHeld.resolve()
+      await allowDelete.promise
+      await writerUow.client().page.delete({ where: { id: targetSourcePage.id } })
+    })
+    await parentHeld.promise
+
+    const parentAttempted = deferred()
+    const submitUow = new QueryObservingUnitOfWork((sql) => {
+      if (sql.includes('FROM pages') && sql.includes('WHERE id IN') && sql.includes('FOR UPDATE')) {
+        parentAttempted.resolve()
+      }
+    })
+    const request = productionSubmissionInput(form.routeKey, randomUUID(), [targetRow.id])
+    request.token.schemaHash = version.schemaHash
+    request.token.linkRevision = form.linkRevision
+    const submission = productionSubmissionService(submitUow).submit(
+      userId,
+      request.input,
+      request.token,
+    )
+    await settlesWithin(parentAttempted.promise)
+    allowDelete.resolve()
+
+    const outcomes = await settlesWithin(Promise.allSettled([submission, writer]))
+    expect(outcomes.map((outcome) => outcome.status)).toContain('fulfilled')
+    for (const outcome of outcomes) {
+      if (outcome.status === 'rejected') expect(errorDetails(outcome.reason)).not.toContain('40P01')
+    }
+    await expect(
+      prisma.databaseFormSubmission.count({ where: { formId: form.id } }),
+    ).resolves.toBeLessThanOrEqual(1)
+  })
+
+  it('does not deadlock when a hard file delete owns the FK parent first', async () => {
+    const property = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'FILE', name: `Hard-delete upload ${RUN}`, position: 9_993 },
+    })
+    const schema = fileDocumentFor(property.id)
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_hard_file_race`,
+        draftSchema: schema,
+        createdById: userId,
+        state: 'OPEN',
+      },
+    })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: form.id,
+        versionNumber: 1,
+        schema,
+        schemaHash: 'c'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    await prisma.databaseForm.update({
+      where: { id: form.id },
+      data: { publishedVersionId: version.id },
+    })
+    const file = await prisma.file.create({
+      data: {
+        userId,
+        workspaceId,
+        name: `hard-delete-${RUN}.txt`,
+        ext: 'txt',
+        fileSize: 128n,
+        mimeType: 'text/plain',
+        hash: 'd'.repeat(64),
+        path: `forms/${RUN}/hard-delete.txt`,
+        status: 'PENDING',
+        expiresAt: new Date('2026-07-17T00:00:00.000Z'),
+      },
+    })
+    const leaseToken = `hard-delete-${randomUUID()}`
+    await prisma.databaseFormUpload.create({
+      data: {
+        formId: form.id,
+        versionId: version.id,
+        questionId: 'question-1',
+        fileId: file.id,
+        uploadTokenHash: createHash('sha256').update(leaseToken).digest('hex'),
+        expiresAt: new Date('2026-07-17T00:00:00.000Z'),
+      },
+    })
+
+    const parentHeld = deferred()
+    const allowDelete = deferred()
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const writer = writerUow.transaction(async () => {
+      await writerUow.client().$queryRaw`
+        SELECT id FROM files WHERE id = ${file.id}::uuid FOR UPDATE
+      `
+      parentHeld.resolve()
+      await allowDelete.promise
+      await writerUow.client().file.delete({ where: { id: file.id } })
+    })
+    await parentHeld.promise
+
+    const parentAttempted = deferred()
+    const submitUow = new QueryObservingUnitOfWork((sql) => {
+      if (sql.includes('FROM files') && sql.includes('FOR UPDATE')) parentAttempted.resolve()
+    })
+    const request = productionSubmissionInput(form.routeKey, randomUUID(), [leaseToken])
+    request.token.schemaHash = version.schemaHash
+    request.token.linkRevision = form.linkRevision
+    const submission = productionSubmissionService(submitUow).submit(
+      null,
+      request.input,
+      request.token,
+    )
+    await settlesWithin(parentAttempted.promise)
+    allowDelete.resolve()
+
+    const outcomes = await settlesWithin(Promise.allSettled([submission, writer]))
+    expect(outcomes.map((outcome) => outcome.status)).toContain('fulfilled')
+    for (const outcome of outcomes) {
+      if (outcome.status === 'rejected') expect(errorDetails(outcome.reason)).not.toContain('40P01')
+    }
+    await expect(
+      prisma.databaseFormSubmission.count({ where: { formId: form.id } }),
+    ).resolves.toBeLessThanOrEqual(1)
   })
 
   it('attaches and activates a leased file atomically, then rolls back a second claim', async () => {

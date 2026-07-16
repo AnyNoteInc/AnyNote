@@ -317,6 +317,9 @@ export interface LockFormSubmissionContextRecord {
   formId: string
   workspaceId: string
   pageId: string
+  sourceId: string
+  collectionIds: readonly string[]
+  parentPageIds: readonly string[]
   actorUserId: string | null
 }
 
@@ -351,6 +354,8 @@ export interface LockFormSubmissionAuthoritiesRecord {
   sourceIds: readonly string[]
   propertyIds: readonly string[]
   rowIds: readonly string[]
+  collectionIds: readonly string[]
+  parentPageIds: readonly string[]
   pageIds: readonly string[]
   uploadIds: readonly string[]
   fileIds: readonly string[]
@@ -685,6 +690,10 @@ export class DatabaseFormRepository implements FormRepositoryContract {
 
   async lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean> {
     const client = this.uow.client()
+    const collectionIds = [...new Set(input.collectionIds)].sort()
+    const parentPageIds = [...new Set(input.parentPageIds)].sort()
+    const uuidList = (ids: readonly string[]) =>
+      Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))
     // Parent-before-child is the canonical lock order. Locking the workspace
     // first also closes the lazy policy/membership insertion gap through FK
     // locking and blocks destructive workspace deletion until submission ends.
@@ -707,6 +716,24 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       `)
     }
 
+    if (collectionIds.length > 0) {
+      const collections = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM collections
+        WHERE id IN (${uuidList(collectionIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (collections.length !== collectionIds.length) return false
+    }
+
+    if (parentPageIds.length > 0) {
+      const parentPages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM pages
+        WHERE id IN (${uuidList(parentPageIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (parentPages.length !== parentPageIds.length) return false
+    }
+
     const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT id
       FROM pages
@@ -716,10 +743,21 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     `)
     if (pages.length !== 1) return false
 
+    const sources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT id
+      FROM database_sources
+      WHERE id = ${input.sourceId}::uuid
+        AND workspace_id = ${input.workspaceId}::uuid
+        AND page_id = ${input.pageId}::uuid
+      FOR UPDATE
+    `)
+    if (sources.length !== 1) return false
+
     const forms = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT id
       FROM database_forms
       WHERE id = ${input.formId}::uuid
+        AND source_id = ${input.sourceId}::uuid
       FOR UPDATE
     `)
     if (forms.length !== 1) return false
@@ -728,9 +766,12 @@ export class DatabaseFormRepository implements FormRepositoryContract {
 
   /**
    * Freeze every authority row selected by the preflight semantic snapshot.
-   * The workspace lock is already held by lockSubmissionContext. Within that
-   * serialized workspace boundary, tables and UUIDs are always locked in the
-   * order below. Strong parent locks also block new FK children until commit.
+   * The global order follows the Prisma FK graph, parent before child, rather
+   * than any writer's current call sequence. Every UUID set is sorted before
+   * locking. lockSubmissionContext already holds workspace -> collections ->
+   * parent pages -> source page -> form source -> form, so repeated parent
+   * locks below are idempotent and this continuation never acquires a child
+   * before an unlocked parent.
    */
   async lockFormSubmissionAuthorities(
     input: LockFormSubmissionAuthoritiesRecord,
@@ -740,7 +781,11 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     const sourceIds = [...new Set(input.sourceIds)].sort()
     const targetSourceIds = sourceIds.filter((id) => id !== input.formSourceId)
     const rowIds = [...new Set(input.rowIds)].sort()
+    const collectionIds = [...new Set(input.collectionIds)].sort()
+    const parentPageIds = [...new Set(input.parentPageIds)].sort()
+    const parentPageIdSet = new Set(parentPageIds)
     const pageIds = [...new Set(input.pageIds)].sort()
+    const remainingPageIds = pageIds.filter((id) => !parentPageIdSet.has(id))
     const fileIds = [...new Set(input.fileIds)].sort()
     const uploadIds = [...new Set(input.uploadIds)].sort()
     const uuidList = (ids: readonly string[]) =>
@@ -762,12 +807,30 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       `)
     }
 
-    const formSources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
-      SELECT id FROM database_sources
-      WHERE id = ${input.formSourceId}::uuid
-      ORDER BY id FOR UPDATE
-    `)
-    if (formSources.length !== 1) return false
+    if (collectionIds.length > 0) {
+      const collections = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM collections
+        WHERE id IN (${uuidList(collectionIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (collections.length !== collectionIds.length) return false
+    }
+    if (parentPageIds.length > 0) {
+      const parentPages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM pages
+        WHERE id IN (${uuidList(parentPageIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (parentPages.length !== parentPageIds.length) return false
+    }
+    if (remainingPageIds.length > 0) {
+      const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM pages
+        WHERE id IN (${uuidList(remainingPageIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (pages.length !== remainingPageIds.length) return false
+    }
 
     if (targetSourceIds.length > 0) {
       const targetSources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
@@ -809,20 +872,6 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       `)
     }
     if (pageIds.length > 0) {
-      const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
-        SELECT id FROM pages
-        WHERE id IN (${uuidList(pageIds)})
-        ORDER BY id FOR UPDATE
-      `)
-      if (pages.length !== pageIds.length) return false
-      await client.$queryRaw(Prisma.sql`
-        SELECT id FROM collections
-        WHERE id IN (
-          SELECT collection_id FROM pages
-          WHERE id IN (${uuidList(pageIds)}) AND collection_id IS NOT NULL
-        )
-        ORDER BY id FOR UPDATE
-      `)
       await client.$queryRaw(Prisma.sql`
         SELECT id FROM page_shares
         WHERE page_id IN (${uuidList(pageIds)})
@@ -839,14 +888,6 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         `)
       }
     }
-    if (uploadIds.length > 0) {
-      const uploads = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
-        SELECT id FROM database_form_uploads
-        WHERE id IN (${uuidList(uploadIds)})
-        ORDER BY id FOR UPDATE
-      `)
-      if (uploads.length !== uploadIds.length) return false
-    }
     if (fileIds.length > 0) {
       const files = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM files
@@ -854,6 +895,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         ORDER BY id FOR UPDATE
       `)
       if (files.length !== fileIds.length) return false
+    }
+    if (uploadIds.length > 0) {
+      const uploads = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_form_uploads
+        WHERE id IN (${uuidList(uploadIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (uploads.length !== uploadIds.length) return false
     }
     return true
   }

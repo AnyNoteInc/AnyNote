@@ -879,16 +879,14 @@ export class DatabaseRepository {
   /** True when the user is a member of the workspace (PERSON cell validation). */
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
     const client = this.uow.client()
-    const [member, block] = await Promise.all([
-      client.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId, userId } },
-        select: { id: true },
-      }),
-      client.workspaceBlockedUser.findUnique({
-        where: { workspaceId_userId: { workspaceId, userId } },
-        select: { id: true },
-      }),
-    ])
+    const member = await client.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
+    const block = await client.workspaceBlockedUser.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
     return member !== null && block === null
   }
 
@@ -898,16 +896,14 @@ export class DatabaseRepository {
   ): Promise<Set<string>> {
     const unique = [...new Set(userIds)]
     if (unique.length === 0) return new Set()
-    const [members, blocked] = await Promise.all([
-      this.uow.client().workspaceMember.findMany({
-        where: { workspaceId, userId: { in: unique } },
-        select: { userId: true },
-      }),
-      this.uow.client().workspaceBlockedUser.findMany({
-        where: { workspaceId, userId: { in: unique } },
-        select: { userId: true },
-      }),
-    ])
+    const members = await this.uow.client().workspaceMember.findMany({
+      where: { workspaceId, userId: { in: unique } },
+      select: { userId: true },
+    })
+    const blocked = await this.uow.client().workspaceBlockedUser.findMany({
+      where: { workspaceId, userId: { in: unique } },
+      select: { userId: true },
+    })
     const blockedIds = new Set(blocked.map(({ userId }) => userId))
     return new Set(members.flatMap(({ userId }) => (blockedIds.has(userId) ? [] : [userId])))
   }
