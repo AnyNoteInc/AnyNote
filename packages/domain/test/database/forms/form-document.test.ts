@@ -167,6 +167,43 @@ describe('database form document', () => {
     expect(formVersionDocumentSchema.safeParse(longTitle).success).toBe(false)
   })
 
+  it('accepts safe form covers and rejects network-capable CSS or unsafe image URLs', () => {
+    for (const cover of [
+      { kind: 'color', value: '#6366f1' },
+      { kind: 'gradient', value: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
+      { kind: 'gradient', value: 'radial-gradient(circle, rgb(0 0 0), transparent)' },
+      { kind: 'image', value: '/logo.png' },
+      {
+        kind: 'image',
+        value: '/api/files/019f65ef-1439-7653-92aa-0a2da2269711',
+      },
+    ] as const) {
+      const document = makeDocument()
+      document.presentation.cover = cover
+      expect(formVersionDocumentSchema.safeParse(document).success).toBe(true)
+    }
+
+    for (const cover of [
+      { kind: 'gradient', value: 'url(https://tracker.example.test/pixel)' },
+      {
+        kind: 'gradient',
+        value: 'linear-gradient(#fff, #000), url(https://tracker.example.test/pixel)',
+      },
+      { kind: 'gradient', value: 'image-set(url(https://tracker.example.test/pixel) 1x)' },
+      { kind: 'image', value: 'https://cdn.example.test/form-cover.jpg' },
+      { kind: 'image', value: 'http://cdn.example.test/form-cover.jpg' },
+      { kind: 'image', value: 'https://user:secret@cdn.example.test/form-cover.jpg' },
+      { kind: 'image', value: 'javascript:alert(1)' },
+      { kind: 'image', value: 'data:image/svg+xml,<svg />' },
+      { kind: 'image', value: '//tracker.example.test/form-cover.jpg' },
+      { kind: 'image', value: '/api/files/not-a-uuid' },
+    ] as const) {
+      const document = makeDocument()
+      document.presentation.cover = cover
+      expect(formVersionDocumentSchema.safeParse(document).success).toBe(false)
+    }
+  })
+
   it('enforces finite and internally consistent input bounds', () => {
     expect(
       formInputConfigSchema.safeParse({

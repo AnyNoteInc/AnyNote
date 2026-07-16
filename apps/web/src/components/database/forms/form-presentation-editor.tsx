@@ -13,7 +13,7 @@ type CoverKind = 'none' | FormCover['kind']
 const COVER_DEFAULTS: Record<Exclude<CoverKind, 'none'>, string> = {
   color: '#6366f1',
   gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-  image: 'https://',
+  image: '/logo.png',
 }
 
 export function FormPresentationEditor({ presentation, onChange }: FormPresentationEditorProps) {
@@ -91,7 +91,7 @@ export function FormPresentationEditor({ presentation, onChange }: FormPresentat
             value={presentation.cover.value}
             helperText={
               presentation.cover.kind === 'image'
-                ? 'HTTPS-ссылка на изображение'
+                ? 'Путь к публичному изображению AnyNote: /api/files/{id}'
                 : presentation.cover.kind === 'gradient'
                   ? 'CSS-градиент'
                   : 'Цвет в формате CSS'

@@ -80,7 +80,7 @@ describe('FormRenderer field keys', () => {
     expect(input).toHaveAttribute('name', `answers.${encodeFormFieldKey(QUESTION_ID)}`)
 
     await actor.click(screen.getByRole('button', { name: 'Отправить' }))
-    expect(await screen.findByText('REQUIRED_ANSWER')).toBeInTheDocument()
+    expect(await screen.findByText('Заполните обязательное поле')).toBeInTheDocument()
 
     await actor.type(input, 'Виктор')
     await actor.click(screen.getByRole('button', { name: 'Отправить' }))
@@ -128,6 +128,6 @@ describe('FormRenderer field keys', () => {
       `answers.${encodeFormFieldKey(dependentId)}`,
     )
     await actor.click(screen.getByRole('button', { name: 'Отправить' }))
-    expect(await screen.findByText('REQUIRED_ANSWER')).toBeInTheDocument()
+    expect(await screen.findByText('Заполните обязательное поле')).toBeInTheDocument()
   })
 })

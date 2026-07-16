@@ -21,6 +21,29 @@ const descriptionSchema = z.string().max(4_000)
 const longTextSchema = z.string().max(10_000)
 const colorSchema = z.string().min(1).max(128)
 
+const SAFE_GRADIENT_PATTERN =
+  /^(?:repeating-)?(?:linear|radial|conic)-gradient\([#(),.%\s\p{L}\p{N}_+-]+\)$/iu
+const NETWORK_CAPABLE_CSS_PATTERN = /(?:url|image-set|cross-fade|element)\s*\(/iu
+
+const isSafeCssGradient = (value: string): boolean =>
+  value.trim() === value &&
+  !/\p{Cc}/u.test(value) &&
+  SAFE_GRADIENT_PATTERN.test(value) &&
+  !NETWORK_CAPABLE_CSS_PATTERN.test(value)
+
+const FORM_COVER_FILE_PATH_PATTERN =
+  /^\/api\/files\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+const FORM_COVER_BUILTIN_PATHS = new Set([
+  '/favicon.ico',
+  '/favicon.png',
+  '/favicon.svg',
+  '/logo.png',
+  '/logo.svg',
+])
+
+const isSafeCoverImageUrl = (value: string): boolean =>
+  FORM_COVER_BUILTIN_PATHS.has(value) || FORM_COVER_FILE_PATH_PATTERN.test(value)
+
 export const formLocalIdSchema = z.string().min(1).max(64)
 
 export const FORM_PROPERTY_TYPES = [
@@ -47,10 +70,16 @@ const formCoverColorSchema = z
   .object({ kind: z.literal('color'), value: z.string().min(1).max(128) })
   .strict()
 const formCoverGradientSchema = z
-  .object({ kind: z.literal('gradient'), value: z.string().min(1).max(512) })
+  .object({
+    kind: z.literal('gradient'),
+    value: z.string().min(1).max(512).refine(isSafeCssGradient, 'UNSAFE_FORM_COVER_GRADIENT'),
+  })
   .strict()
 const formCoverImageSchema = z
-  .object({ kind: z.literal('image'), value: z.string().min(1).max(2_048) })
+  .object({
+    kind: z.literal('image'),
+    value: z.string().min(1).max(2_048).refine(isSafeCoverImageUrl, 'UNSAFE_FORM_COVER_IMAGE'),
+  })
   .strict()
 
 export const formCoverSchema = z.discriminatedUnion('kind', [
