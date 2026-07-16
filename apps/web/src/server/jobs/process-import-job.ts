@@ -578,18 +578,21 @@ async function storeAssets(
   } catch (error) {
     if (storedPaths.length > 0) {
       try {
-        await ctx.prisma.$transaction(async (tx) => {
-          const workspaces = await tx.$queryRaw<{ id: string }[]>`
-            SELECT id FROM workspaces
-            WHERE id = ${job.workspaceId}::uuid
-            FOR UPDATE
-          `
-          if (workspaces.length !== 1) return
-          for (const path of new Set(storedPaths)) {
-            const references = await tx.file.count({ where: { path } })
-            if (references === 0) await ctx.storage.delete(path)
-          }
-        })
+        await ctx.prisma.$transaction(
+          async (tx) => {
+            const workspaces = await tx.$queryRaw<{ id: string }[]>`
+              SELECT id FROM workspaces
+              WHERE id = ${job.workspaceId}::uuid
+              FOR UPDATE
+            `
+            if (workspaces.length !== 1) return
+            for (const path of new Set(storedPaths)) {
+              const references = await tx.file.count({ where: { path } })
+              if (references === 0) await ctx.storage.delete(path)
+            }
+          },
+          { maxWait: 10_000, timeout: 120_000 },
+        )
       } catch (cleanupError) {
         console.warn('[import-job] asset rollback cleanup failed', {
           workspaceId: job.workspaceId,
