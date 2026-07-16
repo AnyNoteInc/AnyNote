@@ -486,6 +486,44 @@ describe('dashboard router (integration)', () => {
     expect(byId.get(grouped.id)?.status).toBe('grouped')
   })
 
+  it('rejects tombstoned views and fails closed for widgets already bound to one', async () => {
+    const fx = await seed()
+    const db = await seedDatabase(fx.wsId, fx.ownerId)
+    const dash = await dashboardCaller(fx.ownerId).create({ workspaceId: fx.wsId })
+    const widget = await dashboardCaller(fx.ownerId).addWidget({
+      dashboardId: dash.dashboardId,
+      sourceId: db.sourceId,
+      viewId: db.viewId,
+      type: 'METRIC',
+      config: { metric: { propertyId: db.numId, aggregation: 'sum' } },
+    })
+    await prisma.databaseView.update({
+      where: { id: db.viewId },
+      data: { archivedAt: new Date() },
+    })
+
+    const data = await dashboardCaller(fx.ownerId).dashboardData({
+      dashboardId: dash.dashboardId,
+    })
+    expect(data.status).toBe('ok')
+    if (data.status !== 'ok') throw new Error('unreachable')
+    expect(data.widgets.find(({ widgetId }) => widgetId === widget.id)?.result.status).toBe(
+      'no_access',
+    )
+
+    await expect(
+      dashboardCaller(fx.ownerId).addWidget({
+        dashboardId: dash.dashboardId,
+        sourceId: db.sourceId,
+        viewId: db.viewId,
+        type: 'METRIC',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(
+      dashboardCaller(fx.ownerId).updateWidget({ widgetId: widget.id, viewId: db.viewId }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
   it('dashboardData → no_access for a non-member (never widget data)', async () => {
     const fx = await seed()
     const other = await seedStranger()

@@ -200,7 +200,10 @@ afterAll(async () => {
 })
 
 describe('database form lifecycle real PostgreSQL concurrency', () => {
-  it('holds the pages SHARE lock from embedded scan until the structure transaction commits', async () => {
+  it('archives to a view tombstone while a stale concurrent embed writer completes', async () => {
+    const service = makeFormService(new PrismaUnitOfWork(prisma))
+    const form = await service.create(userId, { pageId, title: 'Stale writer tombstone' })
+    expect(form.viewId).not.toBeNull()
     const textPage = await prisma.page.create({
       data: {
         workspaceId,
@@ -209,43 +212,51 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
         createdById: userId,
       },
     })
-    const viewId = randomUUID()
-    const locked = deferred()
+    const entered = deferred()
     const release = deferred()
-    const uow = new PrismaUnitOfWork(prisma)
-    const lockingRepository = new DatabaseRepository(uow) as DatabaseRepository & {
-      hasEmbeddedViewReference(workspaceId: string, viewId: string): Promise<boolean>
-    }
-    const archiveWindow = uow.transaction(async () => {
-      expect(await lockingRepository.hasEmbeddedViewReference(workspaceId, viewId)).toBe(false)
-      locked.resolve()
-      await release.promise
-    })
-    await locked.promise
-
-    let writerSettled = false
-    const writer = prisma.page
-      .update({
+    const writerUow = new PrismaUnitOfWork(prisma)
+    const writer = writerUow.transaction(async () => {
+      await writerUow.client().page.update({
         where: { id: textPage.id },
         data: {
           content: {
             type: 'doc',
-            content: [{ type: 'embeddedDatabase', attrs: { viewId } }],
+            content: [{ type: 'embeddedDatabase', attrs: { viewId: form.viewId } }],
           },
         },
       })
-      .then(() => {
-        writerSettled = true
-      })
+      entered.resolve()
+      await release.promise
+    })
+    await entered.promise
+
+    const archiving = service.archive(userId, { pageId, formId: form.id })
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(writerSettled).toBe(false)
+      const completedBeforeWriterCommit = await Promise.race([
+        archiving.then(() => true),
+        new Promise<false>((resolve) => setTimeout(() => resolve(false), 2_000)),
+      ])
+      expect(completedBeforeWriterCommit).toBe(true)
     } finally {
       release.resolve()
     }
-    await archiveWindow
     await writer
-    expect(writerSettled).toBe(true)
+    await expect(archiving).resolves.toEqual({ ok: true })
+
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ state: 'ARCHIVED', viewId: null })
+    await expect(
+      prisma.databaseView.findUniqueOrThrow({ where: { id: form.viewId! } }),
+    ).resolves.toMatchObject({ archivedAt: expect.any(Date) })
+    const committedPage = await prisma.page.findUniqueOrThrow({
+      where: { id: textPage.id },
+      select: { content: true },
+    })
+    expect(JSON.stringify(committedPage.content)).toContain(form.viewId!)
+    await expect(
+      new DatabaseRepository(new PrismaUnitOfWork(prisma)).listViews(sourceId),
+    ).resolves.not.toEqual(expect.arrayContaining([expect.objectContaining({ id: form.viewId })]))
   })
 
   it('creates multiple independent forms and FORM views on one source with metadata-only audits', async () => {

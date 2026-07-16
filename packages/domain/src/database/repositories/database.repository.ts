@@ -183,6 +183,7 @@ export class DatabaseRepository {
         pageId: true,
         title: true,
         views: {
+          where: { archivedAt: null },
           select: { id: true, type: true, title: true, position: true, settings: true },
           orderBy: { position: 'asc' },
         },
@@ -227,6 +228,7 @@ export class DatabaseRepository {
         pageId: true,
         title: true,
         views: {
+          where: { archivedAt: null },
           select: { id: true, type: true, title: true, position: true, settings: true },
           orderBy: { position: 'asc' },
         },
@@ -277,15 +279,12 @@ export class DatabaseRepository {
     return result.count === 1
   }
 
-  /**
-   * Serialize the final embedded-view check with every INSERT/UPDATE/DELETE on
-   * pages. PostgreSQL page writes take ROW EXCLUSIVE, which conflicts with this
-   * SHARE lock until the active UnitOfWork transaction commits. Both statements
-   * use tagged templates; only workspace/view values are bound parameters.
-   */
+  /** Scope the candidate scan to live TEXT pages in the owning workspace, then
+   * confirm the JSON structure in memory. View deletion uses a durable tombstone,
+   * so a stale page writer can safely commit after this final scan without ever
+   * creating a reference to a physically missing view id. */
   async hasEmbeddedViewReference(workspaceId: string, viewId: string): Promise<boolean> {
     const client = this.uow.client()
-    await client.$executeRaw`LOCK TABLE "pages" IN SHARE MODE`
     const candidates = await client.$queryRaw<Array<{ content: unknown }>>`
       SELECT "content"
       FROM "pages"
@@ -301,7 +300,7 @@ export class DatabaseRepository {
 
   async listViews(sourceId: string): Promise<ViewRow[]> {
     return this.uow.client().databaseView.findMany({
-      where: { sourceId },
+      where: { sourceId, archivedAt: null },
       orderBy: { position: 'asc' },
       select: { id: true, type: true, title: true, position: true, settings: true },
     }) as Promise<ViewRow[]>
@@ -331,14 +330,17 @@ export class DatabaseRepository {
     data: { title?: string; settings?: Prisma.InputJsonValue },
   ): Promise<ViewRow> {
     return this.uow.client().databaseView.update({
-      where: { id },
+      where: { id, archivedAt: null },
       data,
       select: { id: true, type: true, title: true, position: true, settings: true },
     }) as Promise<ViewRow>
   }
 
   async deleteView(id: string): Promise<void> {
-    await this.uow.client().databaseView.delete({ where: { id } })
+    await this.uow.client().databaseView.updateMany({
+      where: { id, archivedAt: null },
+      data: { archivedAt: new Date() },
+    })
   }
 
   async findViewById(
@@ -349,8 +351,8 @@ export class DatabaseRepository {
     type: import('@repo/db').DatabaseViewType
     formId: string | null
   } | null> {
-    const view = await this.uow.client().databaseView.findUnique({
-      where: { id },
+    const view = await this.uow.client().databaseView.findFirst({
+      where: { id, archivedAt: null },
       select: { id: true, sourceId: true, type: true, form: { select: { id: true } } },
     })
     return view === null

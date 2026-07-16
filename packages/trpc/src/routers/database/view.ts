@@ -33,7 +33,7 @@ export const viewRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertPageEditAccess(ctx, input.pageId)
       const view = await ctx.prisma.databaseView.findFirst({
-        where: { id: input.viewId, source: { pageId: input.pageId } },
+        where: { id: input.viewId, archivedAt: null, source: { pageId: input.pageId } },
         select: { type: true },
       })
       if (view?.type === 'FORM') {

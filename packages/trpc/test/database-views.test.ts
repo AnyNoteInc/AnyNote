@@ -406,6 +406,9 @@ describe('database views router (integration)', () => {
     await c.deleteView({ pageId: fx.pageId, id: other.id })
     const views = await c.listViews({ pageId: fx.pageId })
     expect(views.map((v) => v.id)).not.toContain(other.id)
+    await expect(
+      prisma.databaseView.findUniqueOrThrow({ where: { id: other.id } }),
+    ).resolves.toMatchObject({ archivedAt: expect.any(Date) })
   })
 
   it('checks embedded references before atomically archiving a FORM view', async () => {
@@ -443,6 +446,9 @@ describe('database views router (integration)', () => {
       /встроенном блоке/i,
     )
     await expect(
+      prisma.databaseView.findUniqueOrThrow({ where: { id: form.viewId! } }),
+    ).resolves.toMatchObject({ archivedAt: null })
+    await expect(
       prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
     ).resolves.toMatchObject({ state: 'DRAFT', viewId: form.viewId })
 
@@ -454,7 +460,7 @@ describe('database views router (integration)', () => {
       prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
     ).resolves.toMatchObject({ state: 'ARCHIVED', viewId: null })
     await expect(
-      prisma.databaseView.findUnique({ where: { id: form.viewId! } }),
-    ).resolves.toBeNull()
+      prisma.databaseView.findUniqueOrThrow({ where: { id: form.viewId! } }),
+    ).resolves.toMatchObject({ archivedAt: expect.any(Date) })
   })
 })

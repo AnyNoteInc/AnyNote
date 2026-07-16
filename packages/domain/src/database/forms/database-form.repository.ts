@@ -464,7 +464,10 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       select: { id: true },
     })
     if (form.viewId !== null) {
-      await client.databaseView.delete({ where: { id: form.viewId } })
+      await client.databaseView.updateMany({
+        where: { id: form.viewId, archivedAt: null },
+        data: { archivedAt: new Date() },
+      })
     }
   }
 

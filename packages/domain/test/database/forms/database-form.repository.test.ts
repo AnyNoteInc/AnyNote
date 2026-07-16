@@ -110,6 +110,7 @@ function makeClient(overrides: Record<string, unknown> = {}) {
     databaseView: {
       create: vi.fn(async () => ({ id: 'view-1' })),
       delete: vi.fn(async () => ({ id: 'view-1' })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
     },
     databaseForm: {
       create: vi.fn(async () => managed),
@@ -162,6 +163,7 @@ function makeSwitchableRepository() {
 function expectNoWriteCalls(client: ReturnType<typeof makeClient>) {
   expect(client.databaseView.create).not.toHaveBeenCalled()
   expect(client.databaseView.delete).not.toHaveBeenCalled()
+  expect(client.databaseView.updateMany).not.toHaveBeenCalled()
   expect(client.databaseForm.create).not.toHaveBeenCalled()
   expect(client.databaseForm.updateMany).not.toHaveBeenCalled()
   expect(client.databaseForm.update).not.toHaveBeenCalled()
@@ -407,7 +409,7 @@ describe('DatabaseFormRepository writes', () => {
     expect(client.databaseForm.update).not.toHaveBeenCalled()
   })
 
-  it('archives a form, clears its view link, then deletes the old view on the active client', async () => {
+  it('archives a form, clears its view link, then tombstones the old view on the active client', async () => {
     const { client, repository } = makeRepository()
 
     await repository.archiveForm({ formId: 'form-1' })
@@ -421,7 +423,11 @@ describe('DatabaseFormRepository writes', () => {
       data: { state: 'ARCHIVED', viewId: null },
       select: { id: true },
     })
-    expect(client.databaseView.delete).toHaveBeenCalledWith({ where: { id: 'view-1' } })
+    expect(client.databaseView.delete).not.toHaveBeenCalled()
+    expect(client.databaseView.updateMany).toHaveBeenCalledWith({
+      where: { id: 'view-1', archivedAt: null },
+      data: { archivedAt: expect.any(Date) },
+    })
   })
 
   it('updates only supplied form settings through the active client', async () => {
@@ -628,7 +634,8 @@ describe('DatabaseFormRepository writes', () => {
     expect(baseClient.databaseForm.findUnique).not.toHaveBeenCalled()
     expect(baseClient.databaseForm.findMany).not.toHaveBeenCalled()
     expect(transactionClient.databaseView.create).toHaveBeenCalledTimes(2)
-    expect(transactionClient.databaseView.delete).toHaveBeenCalledTimes(1)
+    expect(transactionClient.databaseView.delete).not.toHaveBeenCalled()
+    expect(transactionClient.databaseView.updateMany).toHaveBeenCalledTimes(1)
     expect(transactionClient.databaseForm.create).toHaveBeenCalledTimes(2)
     expect(transactionClient.databaseForm.updateMany).toHaveBeenCalledTimes(3)
     expect(transactionClient.databaseForm.update).toHaveBeenCalledTimes(2)

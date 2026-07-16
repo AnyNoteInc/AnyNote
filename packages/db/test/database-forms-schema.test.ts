@@ -25,6 +25,12 @@ const cursorMigrationPath = fileURLToPath(
     import.meta.url,
   ),
 )
+const viewArchiveMigrationPath = fileURLToPath(
+  new URL(
+    '../prisma/migrations/20260716090000_database_view_tombstones/migration.sql',
+    import.meta.url,
+  ),
+)
 const schemaPath = fileURLToPath(new URL('../prisma/schema.prisma', import.meta.url))
 
 const migrationSql = readFileSync(migrationPath, 'utf8')
@@ -48,6 +54,23 @@ describe('database forms generated contract', () => {
 })
 
 describe('database forms migration contract', () => {
+  it('adds view tombstones and an index aligned to active source lists', () => {
+    expect(existsSync(viewArchiveMigrationPath)).toBe(true)
+    if (!existsSync(viewArchiveMigrationPath)) return
+
+    const sql = readFileSync(viewArchiveMigrationPath, 'utf8').replace(/\s+/g, ' ').trim()
+    expect(sql).toContain('ALTER TABLE "database_views" ADD COLUMN "archived_at" TIMESTAMPTZ(6);')
+    expect(sql).toContain(
+      'CREATE INDEX "database_views_source_id_archived_at_position_idx" ON "database_views"("source_id", "archived_at", "position");',
+    )
+
+    const schema = readFileSync(schemaPath, 'utf8').replace(/\s+/g, ' ').trim()
+    expect(schema).toContain('archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)')
+    expect(schema).toContain(
+      '@@index([sourceId, archivedAt, position], map: "database_views_source_id_archived_at_position_idx")',
+    )
+  })
+
   it('adds a forward-only composite index aligned to response keyset pagination', () => {
     expect(existsSync(cursorMigrationPath)).toBe(true)
     if (!existsSync(cursorMigrationPath)) return

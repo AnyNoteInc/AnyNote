@@ -1674,18 +1674,20 @@ model DatabasePageAccessRule {
 }
 
 model DatabaseView {
-  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sourceId String           @map("source_id") @db.Uuid
-  type     DatabaseViewType @default(TABLE)
-  title    String           @db.Text
-  position Int              @default(0)
-  settings Json?
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceId   String           @map("source_id") @db.Uuid
+  type       DatabaseViewType @default(TABLE)
+  title      String           @db.Text
+  position   Int              @default(0)
+  settings   Json?
+  archivedAt DateTime?        @map("archived_at") @db.Timestamptz(6)
 
   source           DatabaseSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   dashboardWidgets DashboardWidget[] @relation("WidgetView")
   form             DatabaseForm?
 
   @@index([sourceId])
+  @@index([sourceId, archivedAt, position], map: "database_views_source_id_archived_at_position_idx")
   @@map("database_views")
 }
 

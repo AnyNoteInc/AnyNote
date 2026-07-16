@@ -336,7 +336,7 @@ export const dashboardRouter = router({
       // If a viewId is given it must belong to this source (no foreign view).
       if (input.viewId) {
         const view = await ctx.prisma.databaseView.findFirst({
-          where: { id: input.viewId, sourceId: source.id },
+          where: { id: input.viewId, sourceId: source.id, archivedAt: null },
           select: { id: true },
         })
         if (!view) throw new TRPCError({ code: 'NOT_FOUND', message: 'Представление не найдено' })
@@ -378,7 +378,7 @@ export const dashboardRouter = router({
           select: { sourceId: true },
         })
         const view = await ctx.prisma.databaseView.findFirst({
-          where: { id: input.viewId, sourceId: widgetRow.sourceId },
+          where: { id: input.viewId, sourceId: widgetRow.sourceId, archivedAt: null },
           select: { id: true },
         })
         if (!view) throw new TRPCError({ code: 'NOT_FOUND', message: 'Представление не найдено' })
