@@ -50,12 +50,14 @@ vi.mock('@/components/forms/form-renderer', () => ({
     onReset: () => void
     onSubmit: (values: { answers: Record<string, unknown> }) => Promise<void>
     successEndingId?: string
+    successResponseUrl?: string
     onUpload: (questionId: string, file: File) => Promise<{ token: string }>
     onLoadPickerOptions: (questionId: string, query: string) => Promise<{ items: unknown[] }>
   }) => (
     <div>
       <span data-testid="initial-name">{String(props.initialAnswers['name'] ?? '')}</span>
       <span data-testid="ending">{props.successEndingId ?? ''}</span>
+      <span data-testid="own-response-url">{props.successResponseUrl ?? ''}</span>
       <button type="button" onClick={() => props.onAnswersChange({ name: 'Новый ответ' })}>
         Изменить ответ
       </button>
@@ -201,6 +203,22 @@ describe('FormPageClient', () => {
     })
     expect(localStorage.getItem(key)).toBeNull()
     expect(screen.getByTestId('ending')).toHaveTextContent('done')
+  })
+
+  it('offers the signed-in respondent a link to the accepted response', async () => {
+    const actor = userEvent.setup()
+    mocks.mutateAsync.mockResolvedValue({
+      endingId: 'done',
+      ownResponseUrl: '/f/anf_public/responses/response-id',
+    })
+    render(<FormPageClient locator="anf_public" published={published} />)
+    await screen.findByTestId('initial-name')
+
+    await actor.click(screen.getByRole('button', { name: /^Отправить$/ }))
+
+    expect(await screen.findByTestId('own-response-url')).toHaveTextContent(
+      '/f/anf_public/responses/response-id',
+    )
   })
 
   it('uses the upload CAPTCHA action and public picker API', async () => {

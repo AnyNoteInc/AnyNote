@@ -4,6 +4,7 @@ import { normalizeFormLocator } from './database-form.dto.ts'
 import type {
   FormRepositoryContract,
   FormVersionRecord,
+  OwnResponseSubmissionRecord,
   PublicFormRecord,
 } from './database-form.repository.ts'
 
@@ -30,7 +31,23 @@ export type ReplayFormResolution =
     }
   | { status: 'AUTH_REQUIRED' | 'POLICY_DISABLED' | 'UNAVAILABLE' }
 
-type PublicFormLookup = Pick<FormRepositoryContract, 'findByLocator' | 'findVersion'>
+type OwnResponseResolutionData = {
+  locator: string
+  form: PublicFormRecord
+  version: FormVersionRecord
+  submission: OwnResponseSubmissionRecord
+  respondentUserId: string
+}
+
+export type OwnResponseResolution =
+  | ({ status: 'VIEW' } & OwnResponseResolutionData)
+  | ({ status: 'EDIT' } & OwnResponseResolutionData)
+  | { status: 'UNAVAILABLE' }
+
+type PublicFormLookup = Pick<
+  FormRepositoryContract,
+  'findByLocator' | 'findVersion' | 'findOwnResponseSubmission'
+>
 type ActiveMembershipAuthority = Pick<WorkspaceService, 'assertMembership'>
 
 function isUnavailable(form: PublicFormRecord): boolean {
@@ -38,6 +55,15 @@ function isUnavailable(form: PublicFormRecord): boolean {
     form.state === 'ARCHIVED' ||
     form.state === 'DRAFT' ||
     form.publishedVersionId === null ||
+    form.source.page.archivedAt !== null ||
+    form.source.page.deletedAt !== null
+  )
+}
+
+function isOwnResponseUnavailable(form: PublicFormRecord): boolean {
+  return (
+    form.state === 'ARCHIVED' ||
+    form.state === 'DRAFT' ||
     form.source.page.archivedAt !== null ||
     form.source.page.deletedAt !== null
   )
@@ -136,6 +162,53 @@ export class FormAccessResolver {
       }
     }
     return { status: 'ACCESSIBLE', locator, form, version, respondentUserId: actorUserId }
+  }
+
+  /**
+   * Resolve only a durable response owner. Manual close, schedules and caps do
+   * not revoke an already submitted response; archival and the workspace
+   * public-link kill switch do. Every miss intentionally collapses to the same
+   * status so the locator/submission pair cannot be enumerated.
+   */
+  async resolveOwnResponse(
+    rawLocator: string,
+    submissionId: string,
+    actorUserId: string | null,
+  ): Promise<OwnResponseResolution> {
+    const locator = normalizeFormLocator(rawLocator)
+    if (locator === null || actorUserId === null) return { status: 'UNAVAILABLE' }
+
+    const form = await this.repo.findByLocator(locator)
+    if (
+      form === null ||
+      isOwnResponseUnavailable(form) ||
+      form.respondentAccess === 'NONE' ||
+      form.source.workspace.securityPolicy?.disablePublicLinksSitesForms === true
+    ) {
+      return { status: 'UNAVAILABLE' }
+    }
+
+    const submission = await this.repo.findOwnResponseSubmission(submissionId)
+    if (
+      submission === null ||
+      submission.formId !== form.id ||
+      submission.respondentUserId !== actorUserId ||
+      submission.row.deletedAt !== null ||
+      submission.version.formId !== form.id
+    ) {
+      return { status: 'UNAVAILABLE' }
+    }
+
+    const data: OwnResponseResolutionData = {
+      locator,
+      form,
+      version: submission.version,
+      submission,
+      respondentUserId: actorUserId,
+    }
+    return form.respondentAccess === 'EDIT'
+      ? { status: 'EDIT', ...data }
+      : { status: 'VIEW', ...data }
   }
 
   async resolveVersion(

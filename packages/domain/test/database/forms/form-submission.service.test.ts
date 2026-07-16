@@ -1711,6 +1711,7 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
       'database_page_access_rules',
       'database_rows',
       'database_cell_values',
+      'database_relation_links',
       'page_shares',
       'page_share_users',
       'files',
@@ -1760,7 +1761,9 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
   })
 
   it('does not mask an unrelated or cyclic Prisma raw-query failure', async () => {
-    const unrelated = Object.assign(new Error('unrelated database failure'), { code: 'P2010' }) as Error & {
+    const unrelated = Object.assign(new Error('unrelated database failure'), {
+      code: 'P2010',
+    }) as Error & {
       code: string
       cause?: unknown
     }

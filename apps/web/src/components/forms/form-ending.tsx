@@ -3,7 +3,15 @@
 import { Box, Button, Stack, Typography } from '@repo/ui/components'
 import type { FormEnding } from '@repo/domain/database/forms'
 
-export function FormEnding({ ending, preview = false }: { ending: FormEnding; preview?: boolean }) {
+export function FormEnding({
+  ending,
+  preview = false,
+  ownResponseUrl,
+}: {
+  ending: FormEnding
+  preview?: boolean
+  ownResponseUrl?: string
+}) {
   return (
     <Stack spacing={2} sx={{ py: { xs: 5, md: 8 }, alignItems: 'flex-start' }}>
       <Box
@@ -32,6 +40,11 @@ export function FormEnding({ ending, preview = false }: { ending: FormEnding; pr
           rel="noopener noreferrer"
         >
           {ending.button.label}
+        </Button>
+      ) : null}
+      {ownResponseUrl ? (
+        <Button component="a" href={ownResponseUrl} variant="contained">
+          Посмотреть свой ответ
         </Button>
       ) : null}
     </Stack>

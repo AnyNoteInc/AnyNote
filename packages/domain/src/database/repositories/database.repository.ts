@@ -889,6 +889,21 @@ export class DatabaseRepository {
     return out
   }
 
+  async findPageLabelsByIds(
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    const out = new Map<string, string>()
+    const ids = [...new Set(pageIds)]
+    if (ids.length === 0) return out
+    const pages = await this.uow.client().page.findMany({
+      where: { id: { in: ids }, workspaceId, archivedAt: null, deletedAt: null },
+      select: { id: true, title: true },
+    })
+    for (const page of pages) out.set(page.id, page.title?.trim() || 'Без названия')
+    return out
+  }
+
   /** True when the user is a member of the workspace (PERSON cell validation). */
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
     const client = this.uow.client()

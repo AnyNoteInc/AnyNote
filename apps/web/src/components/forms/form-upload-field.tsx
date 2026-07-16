@@ -38,6 +38,7 @@ interface FormUploadFieldProps {
   readonly onChange: (value: string[]) => void
   readonly onUpload?: FormUploadHandler
   readonly onPendingChange?: (pending: boolean) => void
+  readonly initialNames?: Readonly<Record<string, string>>
 }
 
 export const FormUploadField = forwardRef<HTMLInputElement, FormUploadFieldProps>(
@@ -56,11 +57,12 @@ export const FormUploadField = forwardRef<HTMLInputElement, FormUploadFieldProps
       onChange,
       onUpload,
       onPendingChange,
+      initialNames,
     },
     forwardedRef,
   ) {
     const tokens = useMemo(() => (Array.isArray(value) ? [...value] : []), [value])
-    const [names, setNames] = useState<Record<string, string>>({})
+    const [names, setNames] = useState<Record<string, string>>(() => ({ ...initialNames }))
     const [uploading, setUploading] = useState(false)
     const [uploadError, setUploadError] = useState<string>()
     const mountedRef = useRef(true)

@@ -246,6 +246,68 @@ describe('public FormRenderer', () => {
     expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument()
   })
 
+  it('links a signed-in respondent to their accepted response from the ending', () => {
+    render(
+      <FormRenderer
+        version={version}
+        mode="public"
+        successEndingId="done"
+        successResponseUrl="/f/anf_public/responses/response-id"
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Посмотреть свой ответ' })).toHaveAttribute(
+      'href',
+      '/f/anf_public/responses/response-id',
+    )
+  })
+
+  it('keeps section navigation available in read-only response mode', async () => {
+    const actor = userEvent.setup()
+    render(
+      <FormRenderer
+        version={version}
+        mode="public"
+        initialAnswers={{ name: 'Виктор', 'details-toggle': true, email: 'v@example.test' }}
+        readOnly
+        draftControls={false}
+      />,
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Имя *' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Сбросить черновик' })).not.toBeInTheDocument()
+    await actor.click(screen.getByRole('button', { name: 'Далее' }))
+
+    expect(await screen.findByRole('heading', { name: 'Контакты' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Email *' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument()
+    expect(screen.getByText('Только просмотр')).toBeInTheDocument()
+  })
+
+  it('shows unavailable response questions without validating or submitting their values', async () => {
+    const actor = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <FormRenderer
+        version={version}
+        mode="public"
+        initialAnswers={{ name: 'Скрытое значение', 'details-toggle': false }}
+        unavailableQuestionIds={['name']}
+        draftControls={false}
+        onSubmit={onSubmit}
+      />,
+    )
+
+    expect(screen.queryByRole('textbox', { name: 'Имя *' })).not.toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent('Имя')
+    expect(screen.getByRole('note')).toHaveTextContent('поле больше недоступно')
+    await actor.click(screen.getByRole('button', { name: 'Отправить заявку' }))
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({ answers: { 'details-toggle': false } }),
+    )
+  })
+
   it('uploads files and loads internal picker options through public callbacks', async () => {
     const actor = userEvent.setup()
     const onUpload = vi.fn().mockResolvedValue({ token: 'lease-token', name: 'brief.pdf' })
@@ -299,8 +361,14 @@ describe('public FormRenderer', () => {
         onSubmit={onSubmit}
         onUpload={onUpload}
         onLoadPickerOptions={onLoadPickerOptions}
+        initialAnswers={{ person: ['opaque-existing-person'] }}
+        initialPickerOptions={{
+          person: [{ id: 'opaque-existing-person', label: 'Борис' }],
+        }}
       />,
     )
+
+    expect(screen.getByText('Борис')).toBeInTheDocument()
 
     const file = new File(['pdf'], 'brief.pdf', { type: 'application/pdf' })
     const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]')
@@ -310,12 +378,16 @@ describe('public FormRenderer', () => {
 
     await actor.click(screen.getByRole('textbox', { name: 'Поиск: Ответственный' }))
     expect(await screen.findByRole('option', { name: 'Выбрать Анна' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Убрать Борис' })).toBeInTheDocument()
     await actor.click(screen.getByRole('option', { name: 'Выбрать Анна' }))
     await actor.click(screen.getByRole('button', { name: 'Отправить заявку' }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
-        answers: { file: ['lease-token'], person: ['person-1'] },
+        answers: {
+          file: ['lease-token'],
+          person: ['opaque-existing-person', 'person-1'],
+        },
       }),
     )
   })

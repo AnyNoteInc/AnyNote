@@ -7,7 +7,9 @@ import {
   type FormQuestion,
   type FormVersionDocument,
 } from '@repo/domain/database/forms'
+import { verifyOwnResponseUploadToken } from '@repo/domain'
 import { hashFormLocator, signFormVersionToken } from '@repo/trpc/helpers/form-version-token'
+import { signFormOwnResponseToken } from '@repo/trpc/helpers/form-own-response-token'
 
 import { createFormUploadHandler } from '../src/app/api/forms/[locator]/uploads/route'
 
@@ -18,6 +20,8 @@ const VERSION_ID = '22222222-2222-7222-8222-222222222222'
 const OLD_VERSION_ID = '33333333-3333-7333-8333-333333333333'
 const WORKSPACE_ID = '44444444-4444-7444-8444-444444444444'
 const OWNER_ID = '55555555-5555-7555-8555-555555555555'
+const RESPONDENT_ID = 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa'
+const SUBMISSION_ID = 'bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb'
 const FILE_ID = '66666666-6666-7666-8666-666666666666'
 const QUESTION_ID = 'files'
 const LOCATOR = 'anf_upload-form'
@@ -130,6 +134,38 @@ function uploadRequest(
   })
 }
 
+function ownUploadRequest(overrides: { file?: File; token?: string; questionId?: string } = {}) {
+  const questionId = overrides.questionId ?? QUESTION_ID
+  const data = new FormData()
+  data.set(
+    'ownResponseToken',
+    overrides.token ??
+      signFormOwnResponseToken(
+        {
+          locatorHash: hashFormLocator(LOCATOR),
+          submissionId: SUBMISSION_ID,
+          actorUserId: RESPONDENT_ID,
+          versionNumber: 2,
+          schemaHash: SCHEMA_HASH,
+          questionId,
+          issuedAt: NOW.getTime() - 1_000,
+          expiresAt: NOW.getTime() + 60_000,
+        },
+        SECRET,
+      ),
+  )
+  data.set('questionId', questionId)
+  data.set('file', overrides.file ?? new File([PNG], 'pixel.png', { type: 'image/png' }))
+  return new Request(`http://localhost/api/forms/${LOCATOR}/responses/${SUBMISSION_ID}/uploads`, {
+    method: 'POST',
+    headers: {
+      'x-captcha-response': 'captcha-token',
+      'x-forwarded-for': '203.0.113.7',
+    },
+    body: data,
+  })
+}
+
 function makeHarness(
   options: {
     resolved?: Record<string, unknown>
@@ -144,6 +180,9 @@ function makeHarness(
     storagePutError?: Error
     storageDeleteError?: Error
     sharedPathCount?: number
+    ownResolved?: Record<string, unknown>
+    lockedOwnResolved?: Record<string, unknown>
+    actorUserId?: string | null
   } = {},
 ) {
   const fileCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
@@ -215,6 +254,7 @@ function makeHarness(
   }
   const formAccess = {
     resolvePublished,
+    resolveOwnResponse: vi.fn(async () => options.ownResolved ?? { status: 'UNAVAILABLE' }),
     resolveVersion: vi.fn(async () =>
       options.storedVersion === undefined ? current : options.storedVersion,
     ),
@@ -225,14 +265,23 @@ function makeHarness(
     formAccess: formAccess as never,
     verifyCaptcha,
     rateLimiter: { consume },
-    getActorUserId: vi.fn(async () => null),
+    getActorUserId: vi.fn(async () => options.actorUserId ?? null),
     now: () => NOW,
     tokenSecret: () => SECRET,
   })
   const call = (request = uploadRequest(), locator = LOCATOR) =>
     handler(request, { params: Promise.resolve({ locator }) })
+  const callOwn = (request = ownUploadRequest(), locator = LOCATOR) => {
+    if (options.lockedOwnResolved !== undefined) {
+      formAccess.resolveOwnResponse
+        .mockResolvedValueOnce(options.ownResolved ?? { status: 'UNAVAILABLE' })
+        .mockResolvedValueOnce(options.lockedOwnResolved)
+    }
+    return handler(request, { params: Promise.resolve({ locator, submissionId: SUBMISSION_ID }) })
+  }
   return {
     call,
+    callOwn,
     handler,
     prisma,
     tx,
@@ -575,5 +624,93 @@ describe('public database form upload route', () => {
     expect(harness.prisma.$transaction).toHaveBeenCalledOnce()
     expect(harness.fileCreate).not.toHaveBeenCalled()
     expect(harness.storage.delete).not.toHaveBeenCalled()
+  })
+})
+
+describe('own-response database form upload route', () => {
+  const editable = () => ({
+    status: 'EDIT',
+    locator: LOCATOR,
+    form: { ...form(), state: 'CLOSED', respondentAccess: 'EDIT' },
+    version: version(),
+    submission: { id: SUBMISSION_ID },
+    respondentUserId: RESPONDENT_ID,
+  })
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('creates a lease for the submitted version while the form is CLOSED', async () => {
+    const harness = makeHarness({ ownResolved: editable(), actorUserId: RESPONDENT_ID })
+    const response = await harness.callOwn()
+    const body = (await response.json()) as { uploadToken: string }
+
+    expect(response.status).toBe(201)
+    expect(harness.formAccess.resolveOwnResponse).toHaveBeenCalledWith(
+      LOCATOR,
+      SUBMISSION_ID,
+      RESPONDENT_ID,
+    )
+    expect(harness.formAccess.resolvePublished).not.toHaveBeenCalled()
+    expect(harness.uploadCreate.mock.calls[0]![0].data).toMatchObject({
+      formId: FORM_ID,
+      versionId: VERSION_ID,
+      questionId: QUESTION_ID,
+    })
+    expect(
+      verifyOwnResponseUploadToken(body.uploadToken, SECRET, {
+        formId: FORM_ID,
+        versionId: VERSION_ID,
+        questionId: QUESTION_ID,
+        submissionId: SUBMISSION_ID,
+        actorUserId: RESPONDENT_ID,
+      }),
+    ).toBe(true)
+    expect(
+      verifyOwnResponseUploadToken(body.uploadToken, SECRET, {
+        formId: FORM_ID,
+        versionId: VERSION_ID,
+        questionId: QUESTION_ID,
+        submissionId: 'cccccccc-cccc-7ccc-8ccc-cccccccccccc',
+        actorUserId: RESPONDENT_ID,
+      }),
+    ).toBe(false)
+    expect(
+      verifyOwnResponseUploadToken(body.uploadToken, SECRET, {
+        formId: FORM_ID,
+        versionId: VERSION_ID,
+        questionId: QUESTION_ID,
+        submissionId: SUBMISSION_ID,
+        actorUserId: OWNER_ID,
+      }),
+    ).toBe(false)
+    expect(harness.uploadCreate.mock.calls[0]![0].data.uploadTokenHash).toBe(
+      createHash('sha256').update(body.uploadToken).digest('hex'),
+    )
+    expect(harness.fileCreate.mock.calls[0]![0].data).toMatchObject({ userId: RESPONDENT_ID })
+  })
+
+  it.each([
+    ['anonymous actor', null, editable(), undefined],
+    ['inaccessible response', RESPONDENT_ID, { status: 'UNAVAILABLE' }, undefined],
+    ['forged context token', RESPONDENT_ID, editable(), 'forged'],
+  ])('rejects %s without storage', async (_label, actorUserId, ownResolved, token) => {
+    const harness = makeHarness({ ownResolved, actorUserId })
+    const response = await harness.callOwn(ownUploadRequest({ token }))
+
+    expect(response.status).toBe(404)
+    expect(harness.storage.put).not.toHaveBeenCalled()
+  })
+
+  it('rechecks EDIT access after the workspace lock', async () => {
+    const harness = makeHarness({
+      ownResolved: editable(),
+      lockedOwnResolved: { status: 'UNAVAILABLE' },
+      actorUserId: RESPONDENT_ID,
+    })
+    const response = await harness.callOwn()
+
+    expect(response.status).toBe(404)
+    expect(harness.formAccess.resolveOwnResponse).toHaveBeenCalledTimes(2)
+    expect(harness.storage.put).not.toHaveBeenCalled()
   })
 })

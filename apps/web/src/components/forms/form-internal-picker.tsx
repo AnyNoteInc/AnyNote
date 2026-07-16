@@ -36,6 +36,7 @@ interface FormInternalPickerProps {
   readonly disabled?: boolean
   readonly onChange: (value: string | string[]) => void
   readonly onLoadOptions?: FormPickerLoader
+  readonly initialOptions?: readonly FormPickerOption[]
 }
 
 export const FormInternalPicker = forwardRef<HTMLInputElement, FormInternalPickerProps>(
@@ -52,6 +53,7 @@ export const FormInternalPicker = forwardRef<HTMLInputElement, FormInternalPicke
       disabled,
       onChange,
       onLoadOptions,
+      initialOptions,
     },
     forwardedRef,
   ) {
@@ -59,7 +61,7 @@ export const FormInternalPicker = forwardRef<HTMLInputElement, FormInternalPicke
     const [opened, setOpened] = useState(false)
     const [loading, setLoading] = useState(false)
     const [loadError, setLoadError] = useState<string>()
-    const [options, setOptions] = useState<FormPickerOption[]>([])
+    const [options, setOptions] = useState<FormPickerOption[]>(() => [...(initialOptions ?? [])])
     const [nextCursor, setNextCursor] = useState<string | null>(null)
     const requestId = useRef(0)
     const selectedIds = useMemo(
@@ -87,11 +89,12 @@ export const FormInternalPicker = forwardRef<HTMLInputElement, FormInternalPicke
       try {
         const page = await onLoadOptions(questionId, query, cursor)
         if (currentRequest !== requestId.current) return
-        setOptions((current) =>
-          cursor
-            ? [...new Map([...current, ...page.items].map((item) => [item.id, item])).values()]
-            : [...page.items],
-        )
+        setOptions((current) => {
+          const selected = cursor
+            ? current
+            : current.filter((option) => selectedIds.includes(option.id))
+          return [...new Map([...selected, ...page.items].map((item) => [item.id, item])).values()]
+        })
         setNextCursor(page.nextCursor)
       } catch {
         if (currentRequest === requestId.current) setLoadError('Не удалось загрузить варианты')

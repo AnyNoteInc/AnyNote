@@ -5,7 +5,9 @@ import {
   buildPageVisibilityWhere,
   excludeDatabaseRowPages,
   isDomainError,
+  openOwnResponseSelection,
   propertySettingsSchema,
+  sealOwnResponseSelection,
 } from '@repo/domain'
 import {
   normalizeFormLocator,
@@ -22,14 +24,37 @@ import {
   signFormVersionToken,
   verifyFormVersionToken,
 } from '../helpers/form-version-token'
+import {
+  signFormOwnResponseToken,
+  verifyFormOwnResponseToken,
+} from '../helpers/form-own-response-token'
 import { mapDomain } from '../helpers/map-domain'
-import { publicProcedure, router } from '../trpc'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
+import { protectedProcedure, publicProcedure, router } from '../trpc'
 
 const FORM_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
+const OWN_RESPONSE_TOKEN_TTL_MS = 60 * 60 * 1_000
 const MAX_SERIALIZED_ANSWERS_BYTES = 1_048_576
 const MAX_ANSWER_KEYS = 500
 const UNAVAILABLE_FORM_RATE_KEY = 'unavailable'
 const pickerCursorSchema = z.string().uuid()
+const ownResponseIdentitySchema = z
+  .object({
+    locator: z.string().trim().min(1).max(200),
+    submissionId: z.string().uuid(),
+  })
+  .strict()
+const updateOwnResponseInputSchema = ownResponseIdentitySchema
+  .extend({
+    expectedRevision: z.string().regex(/^[a-f0-9]{64}$/u),
+    answers: z
+      .record(z.string().min(1).max(64), z.unknown())
+      .refine((answers) => Object.keys(answers).length <= MAX_ANSWER_KEYS, {
+        message: 'FORM_TOO_MANY_ANSWERS',
+      }),
+    confirmClearUnreachable: z.boolean().optional(),
+  })
+  .strict()
 
 const submitInputSchema = z
   .object({
@@ -51,6 +76,13 @@ const listPickerOptionsInput = z.object({
   questionId: z.string().min(1).max(64),
   query: z.string().trim().max(200).optional(),
   cursor: pickerCursorSchema.optional(),
+  limit: z.number().int().min(1).max(100).default(50),
+})
+const listOwnResponsePickerOptionsInput = ownResponseIdentitySchema.extend({
+  questionId: z.string().min(1).max(64),
+  ownResponseToken: z.string().min(1).max(4_096),
+  query: z.string().trim().max(200).optional(),
+  cursor: z.string().min(1).max(2_048).optional(),
   limit: z.number().int().min(1).max(100).default(50),
 })
 
@@ -188,7 +220,7 @@ async function listRelationOptions(
   domain: FormRouterDomain,
   actorUserId: string,
   pageId: string,
-  input: z.infer<typeof listPickerOptionsInput>,
+  input: { query?: string; cursor?: string; limit: number },
 ): Promise<PickerPage> {
   const query = input.query?.toLowerCase()
   const options: PickerOption[] = []
@@ -214,6 +246,219 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
   const domain = dependencies.domain
 
   return router({
+    getOwnResponse: protectedProcedure
+      .input(ownResponseIdentitySchema)
+      .query(async ({ ctx, input }) => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
+        const response = await mapDomain(() =>
+          domain.formSubmissions.getOwnResponse(ctx.user.id, input),
+        )
+        const normalizedLocator = normalizeFormLocator(input.locator)
+        if (normalizedLocator === null) throw pickerUnavailable()
+        const issuedAt = dependencies.now()
+        const questionTokens = Object.fromEntries(
+          response.status === 'EDIT'
+            ? response.version.questions.flatMap((question) =>
+                question.available &&
+                (question.input.kind === 'FILE' ||
+                  question.input.kind === 'PERSON' ||
+                  question.input.kind === 'RELATION' ||
+                  question.input.kind === 'PAGE_LINK')
+                  ? [
+                      [
+                        question.id,
+                        signFormOwnResponseToken(
+                          {
+                            locatorHash: hashFormLocator(normalizedLocator),
+                            submissionId: input.submissionId,
+                            actorUserId: ctx.user.id,
+                            versionNumber: response.versionNumber,
+                            schemaHash: response.versionFingerprint,
+                            questionId: question.id,
+                            issuedAt,
+                            expiresAt: issuedAt + OWN_RESPONSE_TOKEN_TTL_MS,
+                          },
+                          tokenSecret(),
+                        ),
+                      ],
+                    ]
+                  : [],
+              )
+            : [],
+        )
+        return { ...response, questionTokens }
+      }),
+
+    updateOwnResponse: protectedProcedure
+      .input(updateOwnResponseInputSchema)
+      .mutation(({ ctx, input }) => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
+        assertSerializedAnswersSize(input.answers)
+        return mapDomain(() => domain.formSubmissions.updateOwnResponse(ctx.user.id, input))
+      }),
+
+    listOwnResponsePickerOptions: protectedProcedure
+      .input(listOwnResponsePickerOptionsInput)
+      .query(async ({ ctx, input }): Promise<PickerPage> => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
+        let token
+        try {
+          token = verifyFormOwnResponseToken(
+            input.ownResponseToken,
+            tokenSecret(),
+            dependencies.now(),
+          )
+        } catch {
+          throw pickerUnavailable()
+        }
+        const normalizedLocator = normalizeFormLocator(input.locator)
+        if (
+          normalizedLocator === null ||
+          token.locatorHash !== hashFormLocator(normalizedLocator) ||
+          token.submissionId !== input.submissionId ||
+          token.actorUserId !== ctx.user.id ||
+          token.questionId !== input.questionId
+        ) {
+          throw pickerUnavailable()
+        }
+
+        const resolved = await domain.formAccess.resolveOwnResponse(
+          input.locator,
+          input.submissionId,
+          ctx.user.id,
+        )
+        if (
+          resolved.status !== 'EDIT' ||
+          resolved.version.versionNumber !== token.versionNumber ||
+          resolved.version.schemaHash !== token.schemaHash
+        ) {
+          throw pickerUnavailable()
+        }
+        try {
+          await assertRole(ctx, resolved.form.source.workspaceId, MEMBER_ROLES)
+        } catch {
+          throw pickerUnavailable()
+        }
+        const document = parseFormVersionDocument(resolved.version.schema)
+        const question = document.questions.find(({ id }) => id === input.questionId)
+        if (
+          question?.property.kind !== 'PROPERTY' ||
+          (question.property.propertyType !== 'PERSON' &&
+            question.property.propertyType !== 'RELATION' &&
+            question.property.propertyType !== 'PAGE_LINK')
+        ) {
+          throw pickerUnavailable()
+        }
+        const property = await ctx.prisma.databaseProperty.findFirst({
+          where: {
+            id: question.property.propertyId,
+            sourceId: resolved.form.sourceId,
+            type: question.property.propertyType,
+          },
+          select: { id: true, type: true, settings: true },
+        })
+        if (property === null) throw pickerUnavailable()
+        const selectionContext = {
+          locator: resolved.locator,
+          submissionId: resolved.submission.id,
+          actorUserId: ctx.user.id,
+          versionId: resolved.version.id,
+          questionId: question.id,
+          kind: question.property.propertyType,
+        } as const
+        const decodedCursor =
+          input.cursor === undefined
+            ? undefined
+            : openOwnResponseSelection(input.cursor, tokenSecret(), selectionContext)
+        if (input.cursor !== undefined && decodedCursor === null) throw pickerUnavailable()
+        const pickerInput = {
+          ...input,
+          ...(decodedCursor === undefined || decodedCursor === null
+            ? { cursor: undefined }
+            : { cursor: decodedCursor }),
+        }
+        const sanitizeOptions = (page: PickerPage): PickerPage => ({
+          ...page,
+          items: page.items.map(({ id, label }) => ({
+            id: sealOwnResponseSelection(id, tokenSecret(), selectionContext),
+            label,
+          })),
+          nextCursor:
+            page.nextCursor === null
+              ? null
+              : sealOwnResponseSelection(page.nextCursor, tokenSecret(), selectionContext),
+        })
+
+        if (question.property.propertyType === 'PERSON') {
+          const users = await ctx.prisma.user.findMany({
+            where: {
+              ...(pickerInput.cursor === undefined ? {} : { id: { gt: pickerInput.cursor } }),
+              ...(input.query
+                ? { name: { contains: input.query, mode: 'insensitive' as const } }
+                : {}),
+              workspaceMemberships: { some: { workspaceId: resolved.form.source.workspaceId } },
+              workspaceBlocks: { none: { workspaceId: resolved.form.source.workspaceId } },
+            },
+            orderBy: { id: 'asc' },
+            take: input.limit + 1,
+            select: { id: true, name: true },
+          })
+          return sanitizeOptions(
+            pageOf(
+              users.map(({ id, name }) => ({ id, label: displayLabel(name) })),
+              input.limit,
+            ),
+          )
+        }
+
+        if (question.property.propertyType === 'RELATION') {
+          const settings = propertySettingsSchema.safeParse(property.settings)
+          const targetSourceId = settings.success
+            ? settings.data.relation?.targetSourceId
+            : undefined
+          if (targetSourceId === undefined) throw pickerUnavailable()
+          const target = await ctx.prisma.databaseSource.findFirst({
+            where: {
+              id: targetSourceId,
+              workspaceId: resolved.form.source.workspaceId,
+              page: {
+                archivedAt: null,
+                deletedAt: null,
+                AND: [buildPageVisibilityWhere(ctx.user.id)],
+              },
+            },
+            select: { id: true, pageId: true },
+          })
+          if (target === null) throw pickerUnavailable()
+          return sanitizeOptions(
+            await listRelationOptions(domain, ctx.user.id, target.pageId, pickerInput),
+          )
+        }
+
+        const pages = await ctx.prisma.page.findMany({
+          where: {
+            workspaceId: resolved.form.source.workspaceId,
+            archivedAt: null,
+            deletedAt: null,
+            isTemplate: null,
+            ...(pickerInput.cursor === undefined ? {} : { id: { gt: pickerInput.cursor } }),
+            ...(input.query
+              ? { title: { contains: input.query, mode: 'insensitive' as const } }
+              : {}),
+            AND: [buildPageVisibilityWhere(ctx.user.id), excludeDatabaseRowPages()],
+          },
+          orderBy: { id: 'asc' },
+          take: input.limit + 1,
+          select: { id: true, title: true },
+        })
+        return sanitizeOptions(
+          pageOf(
+            pages.map(({ id, title }) => ({ id, label: displayLabel(title) })),
+            input.limit,
+          ),
+        )
+      }),
+
     getPublished: publicProcedure
       .input(z.object({ locator: z.string() }))
       .query(async ({ ctx, input }) => {

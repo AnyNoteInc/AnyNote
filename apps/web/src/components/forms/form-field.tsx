@@ -20,7 +20,11 @@ import {
 } from '@repo/ui/components'
 import type { PublicFormQuestion } from '@repo/domain/database/forms'
 
-import { FormInternalPicker, type FormPickerLoader } from './form-internal-picker'
+import {
+  FormInternalPicker,
+  type FormPickerLoader,
+  type FormPickerOption,
+} from './form-internal-picker'
 import { FormUploadField, type FormUploadHandler } from './form-upload-field'
 
 export type FormAnswerValues = { answers: Record<string, unknown> }
@@ -283,6 +287,8 @@ interface FormFieldProps {
   readonly onUpload?: FormUploadHandler
   readonly onUploadPendingChange?: (pending: boolean) => void
   readonly onLoadPickerOptions?: FormPickerLoader
+  readonly initialFileNames?: Readonly<Record<string, string>>
+  readonly initialPickerOptions?: Readonly<Record<string, readonly FormPickerOption[]>>
 }
 
 export function formFieldError(
@@ -303,6 +309,8 @@ export function FormField({
   onUpload,
   onUploadPendingChange,
   onLoadPickerOptions,
+  initialFileNames,
+  initialPickerOptions,
 }: FormFieldProps) {
   const input = question.input
   const name = `answers.${fieldKey}` as const
@@ -515,6 +523,7 @@ export function FormField({
             onChange={field.onChange}
             onUpload={onUpload}
             onPendingChange={onUploadPendingChange}
+            initialNames={initialFileNames}
           />
         )}
       />
@@ -549,6 +558,7 @@ export function FormField({
             disabled={disabled}
             onChange={field.onChange}
             onLoadOptions={onLoadPickerOptions}
+            initialOptions={initialPickerOptions?.[question.id]}
           />
         )}
       />

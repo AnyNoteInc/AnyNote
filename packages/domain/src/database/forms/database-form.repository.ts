@@ -129,6 +129,33 @@ const submissionProvenanceSelect = {
   row: { select: { pageId: true } },
 } as const satisfies Prisma.DatabaseFormSubmissionSelect
 
+const ownResponseSubmissionSelect = {
+  ...submissionProvenanceSelect,
+  version: { select: versionSelect },
+  row: {
+    select: {
+      pageId: true,
+      deletedAt: true,
+      updatedAt: true,
+      page: {
+        select: {
+          title: true,
+          files: {
+            select: {
+              fileId: true,
+              file: {
+                select: { name: true, mimeType: true, fileSize: true, status: true },
+              },
+            },
+          },
+        },
+      },
+      cells: { select: { propertyId: true, value: true } },
+      relationLinks: { select: { propertyId: true, targetRowId: true } },
+    },
+  },
+} as const satisfies Prisma.DatabaseFormSubmissionSelect
+
 const formUploadLeaseSelect = {
   id: true,
   formId: true,
@@ -162,6 +189,10 @@ export type FormResponseRecord = Prisma.DatabaseFormSubmissionGetPayload<{
 
 export type FormSubmissionRecord = Prisma.DatabaseFormSubmissionGetPayload<{
   select: typeof submissionProvenanceSelect
+}>
+
+export type OwnResponseSubmissionRecord = Prisma.DatabaseFormSubmissionGetPayload<{
+  select: typeof ownResponseSubmissionSelect
 }>
 
 export type FormUploadLeaseRecord = Prisma.DatabaseFormUploadGetPayload<{
@@ -371,6 +402,18 @@ export interface ConsumeFormUploadLeasesRecord {
   consumedAt: Date
 }
 
+export interface LockOwnResponseContextRecord {
+  formId: string
+  submissionId: string
+  rowId: string
+  sourceId: string
+  workspaceId: string
+  sourcePageId: string
+  responsePageId: string
+  respondentUserId: string
+  expectedUpdatedAt: Date
+}
+
 export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
@@ -385,8 +428,10 @@ export interface FormRepositoryContract {
   findByLocator(locator: string): Promise<PublicFormRecord | null>
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
   findSubmission(submissionId: string): Promise<FormSubmissionRecord | null>
+  findOwnResponseSubmission(submissionId: string): Promise<OwnResponseSubmissionRecord | null>
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
   lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean>
+  lockOwnResponseContext(input: LockOwnResponseContextRecord): Promise<boolean>
   lockFormSubmissionAuthorities(input: LockFormSubmissionAuthoritiesRecord): Promise<boolean>
   reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean>
   resolveUploadLeases(input: ResolveFormUploadLeasesRecord): Promise<FormUploadLeaseRecord[]>
@@ -394,6 +439,8 @@ export interface FormRepositoryContract {
     input: ResolveFormUploadLeasesBatchRecord,
   ): Promise<FormUploadLeaseRecord[]>
   consumeUploadLeases(input: ConsumeFormUploadLeasesRecord): Promise<void>
+  detachPageFiles(pageId: string, fileIds: readonly string[]): Promise<void>
+  touchOwnResponseRow(rowId: string, actorUserId: string): Promise<void>
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord>
   enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void>
   hasProtectedPropertyDependency(
@@ -697,6 +744,84 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     })
   }
 
+  findOwnResponseSubmission(submissionId: string): Promise<OwnResponseSubmissionRecord | null> {
+    return this.uow.client().databaseFormSubmission.findUnique({
+      where: { id: submissionId },
+      select: ownResponseSubmissionSelect,
+    })
+  }
+
+  async lockOwnResponseContext(input: LockOwnResponseContextRecord): Promise<boolean> {
+    const client = this.uow.client()
+    try {
+      if (!(await lockWorkspaceForMutation(client, input.workspaceId))) return false
+      const pageIds = [...new Set([input.sourcePageId, input.responsePageId])].sort()
+      const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM pages
+        WHERE id IN (${Prisma.join(pageIds.map((id) => Prisma.sql`${id}::uuid`))})
+        ORDER BY id FOR UPDATE NOWAIT
+      `)
+      if (pages.length !== pageIds.length) return false
+      const sources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_sources
+        WHERE id = ${input.sourceId}::uuid
+          AND workspace_id = ${input.workspaceId}::uuid
+          AND page_id = ${input.sourcePageId}::uuid
+        FOR UPDATE NOWAIT
+      `)
+      if (sources.length !== 1) return false
+      const forms = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_forms
+        WHERE id = ${input.formId}::uuid AND source_id = ${input.sourceId}::uuid
+        FOR UPDATE NOWAIT
+      `)
+      if (forms.length !== 1) return false
+      const rows = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_rows
+        WHERE id = ${input.rowId}::uuid
+          AND source_id = ${input.sourceId}::uuid
+          AND page_id = ${input.responsePageId}::uuid
+          AND deleted_at IS NULL
+          AND updated_at = ${input.expectedUpdatedAt}
+        FOR UPDATE NOWAIT
+      `)
+      if (rows.length !== 1) return false
+      const submissions = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_form_submissions
+        WHERE id = ${input.submissionId}::uuid
+          AND form_id = ${input.formId}::uuid
+          AND row_id = ${input.rowId}::uuid
+          AND respondent_user_id = ${input.respondentUserId}::uuid
+        FOR UPDATE NOWAIT
+      `)
+      if (submissions.length !== 1) return false
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM database_cell_values
+        WHERE row_id = ${input.rowId}::uuid
+        ORDER BY id FOR UPDATE NOWAIT
+      `)
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM database_relation_links
+        WHERE row_id = ${input.rowId}::uuid
+        ORDER BY id FOR UPDATE NOWAIT
+      `)
+      await client.$queryRaw(Prisma.sql`
+        SELECT file_id FROM page_files
+        WHERE page_id = ${input.responsePageId}::uuid
+        ORDER BY file_id FOR UPDATE NOWAIT
+      `)
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM files
+        WHERE id IN (SELECT file_id FROM page_files WHERE page_id = ${input.responsePageId}::uuid)
+        ORDER BY id FOR UPDATE NOWAIT
+      `)
+      return true
+    } catch (error) {
+      if (isPostgresLockUnavailable(error)) return false
+      throw error
+    }
+  }
+
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null> {
     return this.uow.client().databaseFormSubmission.findUnique({
       where: { formId_idempotencyKey: { formId, idempotencyKey: key } },
@@ -908,6 +1033,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
           )
         ORDER BY id FOR UPDATE NOWAIT
       `)
+      if (input.propertyIds.length > 0) {
+        await client.$queryRaw(Prisma.sql`
+          SELECT id FROM database_relation_links
+          WHERE property_id IN (${uuidList([...new Set(input.propertyIds)].sort())})
+            AND (row_id IN (${uuidList(rowIds)}) OR target_row_id IN (${uuidList(rowIds)}))
+          ORDER BY id FOR UPDATE NOWAIT
+        `)
+      }
     }
     if (pageIds.length > 0) {
       await client.$queryRaw(Prisma.sql`
@@ -1031,6 +1164,31 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         data: { pageId: input.pageId, fileId: upload.fileId },
       })
     }
+  }
+
+  async detachPageFiles(pageId: string, fileIds: readonly string[]): Promise<void> {
+    if (fileIds.length === 0) return
+    const uniqueFileIds = [...new Set(fileIds)]
+    await this.uow.client().pageFile.deleteMany({
+      where: { pageId, fileId: { in: uniqueFileIds } },
+    })
+    await this.uow.client().file.updateMany({
+      where: {
+        id: { in: uniqueFileIds },
+        status: 'ACTIVE',
+        pages: { none: {} },
+        formUpload: { isNot: null },
+      },
+      data: { status: 'DELETED' },
+    })
+  }
+
+  async touchOwnResponseRow(rowId: string, actorUserId: string): Promise<void> {
+    await this.uow.client().databaseRow.update({
+      where: { id: rowId },
+      data: { updatedById: actorUserId, updatedAt: new Date() },
+      select: { id: true },
+    })
   }
 
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord> {

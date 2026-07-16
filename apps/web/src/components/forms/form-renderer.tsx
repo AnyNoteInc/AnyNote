@@ -16,7 +16,7 @@ import {
 
 import { FormEnding } from './form-ending'
 import { FormField, formFieldError } from './form-field'
-import type { FormPickerLoader } from './form-internal-picker'
+import type { FormPickerLoader, FormPickerOption } from './form-internal-picker'
 import {
   decodeFormFieldKey,
   encodeFormFieldKey,
@@ -24,6 +24,8 @@ import {
 } from './form-field-key'
 import { FormSectionMap } from './form-section-map'
 import type { FormUploadHandler } from './form-upload-field'
+
+const NO_UNAVAILABLE_QUESTIONS: readonly string[] = []
 
 export interface FormRendererProps {
   readonly version: FormVersionDocument | PublicFormVersion
@@ -36,9 +38,17 @@ export interface FormRendererProps {
   readonly onAnswersChange?: (answers: Record<string, unknown>) => void
   readonly serverFieldErrors?: Record<string, readonly string[]>
   readonly successEndingId?: string
+  readonly successResponseUrl?: string
   readonly onReset?: () => void
   readonly onUpload?: FormUploadHandler
   readonly onLoadPickerOptions?: FormPickerLoader
+  readonly readOnly?: boolean
+  readonly draftControls?: boolean
+  readonly submitButtonText?: string
+  readonly footerText?: string
+  readonly unavailableQuestionIds?: readonly string[]
+  readonly initialFileNames?: Readonly<Record<string, string>>
+  readonly initialPickerOptions?: Readonly<Record<string, readonly FormPickerOption[]>>
 }
 
 function isStoredVersion(
@@ -108,9 +118,17 @@ export function FormRenderer({
   onAnswersChange,
   serverFieldErrors,
   successEndingId,
+  successResponseUrl,
   onReset,
   onUpload,
   onLoadPickerOptions,
+  readOnly = false,
+  draftControls = mode === 'public',
+  submitButtonText,
+  footerText,
+  unavailableQuestionIds = NO_UNAVAILABLE_QUESTIONS,
+  initialFileNames,
+  initialPickerOptions,
 }: FormRendererProps) {
   const publicVersion = useMemo(
     () => (isStoredVersion(version) ? toPublicFormVersion(version) : version),
@@ -120,7 +138,17 @@ export function FormRenderer({
     () => new Set(publicVersion.questions.map((question) => question.id)),
     [publicVersion.questions],
   )
-  const encodedVersion = useMemo(() => encodeFormVersionQuestionIds(publicVersion), [publicVersion])
+  const unavailableIds = useMemo(() => new Set(unavailableQuestionIds), [unavailableQuestionIds])
+  const clientVersion = useMemo(
+    () => ({
+      ...publicVersion,
+      questions: publicVersion.questions.map((question) =>
+        unavailableIds.has(question.id) ? { ...question, required: false } : question,
+      ),
+    }),
+    [publicVersion, unavailableIds],
+  )
+  const encodedVersion = useMemo(() => encodeFormVersionQuestionIds(clientVersion), [clientVersion])
   const answerSchema = useMemo(() => buildFormAnswerSchema(encodedVersion), [encodedVersion])
   const resolver = useMemo(
     () => zodResolver(answerSchema as never) as Resolver<FormAnswerEnvelope>,
@@ -195,8 +223,11 @@ export function FormRenderer({
   const activePathIndex = path.sectionIds.indexOf(activeSection.id)
   const nextSectionId = activePathIndex >= 0 ? path.sectionIds[activePathIndex + 1] : undefined
   const previousSectionId = activePathIndex > 0 ? path.sectionIds[activePathIndex - 1] : undefined
-  const activeVisibleQuestionIds = activeSection.questionIds.filter((id) => visibleIds.has(id))
+  const activeVisibleQuestionIds = activeSection.questionIds.filter(
+    (id) => visibleIds.has(id) && !unavailableIds.has(id),
+  )
   const errorItems = publicVersion.questions.flatMap((question) => {
+    if (unavailableIds.has(question.id)) return []
     const message = formFieldError(errors, encodeFormFieldKey(question.id))
     return message ? [{ question, message }] : []
   })
@@ -204,12 +235,13 @@ export function FormRenderer({
     () =>
       Object.fromEntries(
         Object.entries(answers).filter(([questionId, value]) => {
+          if (unavailableIds.has(questionId)) return false
           const encodedId = encodeFormFieldKey(questionId)
           const dirty = Boolean(dirtyFields.answers?.[encodedId])
           return isDraftAnswer(value, dirty || initialAnswerIds.has(questionId))
         }),
       ),
-    [answers, dirtyFields.answers, initialAnswerIds],
+    [answers, dirtyFields.answers, initialAnswerIds, unavailableIds],
   )
   const hasAnswers = Object.keys(draftAnswers).length > 0
   const uploadsPending = pendingUploadIds.size > 0
@@ -283,7 +315,11 @@ export function FormRenderer({
 
   async function submitReachableAnswers() {
     if (uploadsPending) return
-    const projected = projectReachableAnswers(publicVersion, answers)
+    const projected = Object.fromEntries(
+      Object.entries(projectReachableAnswers(publicVersion, answers)).filter(
+        ([questionId]) => !unavailableIds.has(questionId),
+      ),
+    )
     setValue('answers', encodeAnswers(projected, questionIds), { shouldDirty: true })
     const valid = await trigger(undefined, { shouldFocus: true })
     if (!valid) {
@@ -344,7 +380,7 @@ export function FormRenderer({
       }}
       onSubmit={(event) => {
         event.preventDefault()
-        if (submissionDisabled || activeEnding || uploadsPending) return
+        if (submissionDisabled || readOnly || activeEnding || uploadsPending) return
         if (nextSectionId) void goNext()
         else void submitReachableAnswers()
       }}
@@ -434,7 +470,11 @@ export function FormRenderer({
             <Divider sx={{ my: 3 }} />
 
             {activeEnding ? (
-              <FormEnding ending={activeEnding} preview={mode === 'preview'} />
+              <FormEnding
+                ending={activeEnding}
+                preview={mode === 'preview'}
+                ownResponseUrl={successResponseUrl}
+              />
             ) : (
               <>
                 <Stack spacing={0.75} sx={{ display: { xs: 'flex', md: 'none' }, mb: 2.5 }}>
@@ -487,7 +527,22 @@ export function FormRenderer({
                 <Stack spacing={3} sx={{ mt: 3.5 }}>
                   {activeSection.questionIds.map((questionId) => {
                     const question = questionsById.get(questionId)
-                    return question && visibleIds.has(question.id) ? (
+                    if (!question || !visibleIds.has(question.id)) return null
+                    if (unavailableIds.has(question.id)) {
+                      return (
+                        <Box
+                          key={question.id}
+                          role="note"
+                          sx={{ borderLeft: 3, borderColor: 'divider', pl: 2, py: 0.5 }}
+                        >
+                          <Typography sx={{ fontWeight: 650 }}>{question.label}</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Это поле больше недоступно и не будет изменено.
+                          </Typography>
+                        </Box>
+                      )
+                    }
+                    return (
                       <FormField
                         key={question.id}
                         question={question}
@@ -495,7 +550,7 @@ export function FormRenderer({
                         control={control}
                         register={register}
                         errors={errors}
-                        disabled={submissionDisabled}
+                        disabled={submissionDisabled || readOnly}
                         onUpload={onUpload}
                         onUploadPendingChange={(pending) =>
                           setPendingUploadIds((current) => {
@@ -506,8 +561,10 @@ export function FormRenderer({
                           })
                         }
                         onLoadPickerOptions={onLoadPickerOptions}
+                        initialFileNames={initialFileNames}
+                        initialPickerOptions={initialPickerOptions}
                       />
-                    ) : null
+                    )
                   })}
                 </Stack>
 
@@ -530,7 +587,7 @@ export function FormRenderer({
                         Назад
                       </Button>
                     ) : null}
-                    {mode === 'public' && hasAnswers ? (
+                    {mode === 'public' && draftControls && hasAnswers ? (
                       <Button type="button" color="inherit" onClick={resetDraft}>
                         Сбросить черновик
                       </Button>
@@ -546,6 +603,10 @@ export function FormRenderer({
                     >
                       Далее
                     </Button>
+                  ) : readOnly ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                      Только просмотр
+                    </Typography>
                   ) : (
                     <Button
                       type="submit"
@@ -563,17 +624,24 @@ export function FormRenderer({
                           : {}),
                       }}
                     >
-                      {submitting ? 'Отправляем…' : publicVersion.presentation.submitButtonText}
+                      {submitting
+                        ? 'Отправляем…'
+                        : (submitButtonText ?? publicVersion.presentation.submitButtonText)}
                     </Button>
                   )}
                 </Stack>
                 <Stack spacing={0.5} sx={{ mt: 4 }}>
                   <Typography variant="caption" color="text.secondary">
-                    {mode === 'preview'
-                      ? 'Предпросмотр · ответы не сохраняются'
-                      : 'Черновик хранится только в этом браузере. На общем устройстве его смогут увидеть другие.'}
+                    {footerText ??
+                      (mode === 'preview'
+                        ? 'Предпросмотр · ответы не сохраняются'
+                        : readOnly
+                          ? 'Показаны текущие значения сохранённого ответа.'
+                          : draftControls
+                            ? 'Черновик хранится только в этом браузере. На общем устройстве его смогут увидеть другие.'
+                            : 'Изменения сохранятся только после отправки.')}
                   </Typography>
-                  {mode === 'public' ? (
+                  {mode === 'public' && !readOnly ? (
                     <Typography variant="caption" color="text.secondary">
                       Ответы будут сохранены только после отправки формы.
                     </Typography>

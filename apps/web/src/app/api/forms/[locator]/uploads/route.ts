@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 
 import { FileStatus, Prisma, prisma, type PrismaClient } from '@repo/db'
-import type { FormAccessResolver } from '@repo/domain'
+import { bindOwnResponseUploadToken, type FormAccessResolver } from '@repo/domain'
 import {
   normalizeFormLocator,
   parseFormVersionDocument,
@@ -21,6 +21,7 @@ import {
   hashFormLocator,
   verifyFormVersionToken,
 } from '@repo/trpc/helpers/form-version-token'
+import { verifyFormOwnResponseToken } from '@repo/trpc/helpers/form-own-response-token'
 
 import { extractExt, mediaMimeMatchesSniff, sniffImageMime } from '@/lib/file-validation'
 import { getSession } from '@/lib/get-session'
@@ -32,7 +33,8 @@ const MAX_MULTIPART_OVERHEAD_BYTES = 512 * 1_024
 const MAX_REQUEST_BYTES = MAX_FORM_FILE_BYTES + MAX_MULTIPART_OVERHEAD_BYTES
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1_000
 const STORAGE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 120_000 } as const
-const ALLOWED_FIELDS = new Set(['file', 'versionToken', 'questionId'])
+const PUBLIC_ALLOWED_FIELDS = new Set(['file', 'versionToken', 'questionId'])
+const OWN_ALLOWED_FIELDS = new Set(['file', 'ownResponseToken', 'questionId'])
 const UNAVAILABLE_FORM_RATE_KEY = 'unavailable'
 
 type UploadPrisma = Pick<
@@ -121,17 +123,22 @@ async function boundedFormData(request: Request): Promise<FormData> {
   }
 }
 
-function exactMultipartEnvelope(formData: FormData): {
+function exactMultipartEnvelope(
+  formData: FormData,
+  ownResponse: boolean,
+): {
   file: File
-  versionToken: string
+  contextToken: string
   questionId: string
 } {
+  const allowedFields = ownResponse ? OWN_ALLOWED_FIELDS : PUBLIC_ALLOWED_FIELDS
+  const tokenField = ownResponse ? 'ownResponseToken' : 'versionToken'
   const entries = [...formData.entries()]
-  if (entries.some(([key]) => !ALLOWED_FIELDS.has(key))) {
+  if (entries.some(([key]) => !allowedFields.has(key))) {
     throw new UploadHttpError(400, 'FORM_UPLOAD_INVALID')
   }
   const files = formData.getAll('file')
-  const tokens = formData.getAll('versionToken')
+  const tokens = formData.getAll(tokenField)
   const questions = formData.getAll('questionId')
   if (
     // One initiation leases one file. `maxFiles` is a per-response rule and is
@@ -146,17 +153,74 @@ function exactMultipartEnvelope(formData: FormData): {
   ) {
     throw new UploadHttpError(400, 'FORM_UPLOAD_INVALID')
   }
-  const versionToken = tokens[0]
+  const contextToken = tokens[0]
   const questionId = questions[0].trim()
   if (
-    versionToken.length === 0 ||
-    versionToken.length > 4_096 ||
+    contextToken.length === 0 ||
+    contextToken.length > 4_096 ||
     questionId.length === 0 ||
     questionId.length > 64
   ) {
     throw new UploadHttpError(400, 'FORM_UPLOAD_INVALID')
   }
-  return { file: files[0], versionToken, questionId }
+  return { file: files[0], contextToken, questionId }
+}
+
+type PublicOpenResolution = Extract<
+  Awaited<ReturnType<FormAccessResolver['resolvePublished']>>,
+  { status: 'OPEN' }
+>
+type OwnEditResolution = Extract<
+  Awaited<ReturnType<FormAccessResolver['resolveOwnResponse']>>,
+  { status: 'EDIT' }
+>
+type UploadAccess =
+  | {
+      kind: 'PUBLIC'
+      locator: string
+      actorUserId: string | null
+      form: PublicOpenResolution['form']
+      version: PublicOpenResolution['version']
+    }
+  | {
+      kind: 'OWN'
+      locator: string
+      submissionId: string
+      actorUserId: string
+      form: OwnEditResolution['form']
+      version: OwnEditResolution['version']
+    }
+
+async function resolveUploadAccess(
+  formAccess: FormAccessResolver,
+  locator: string,
+  submissionId: string | undefined,
+  actorUserId: string | null,
+): Promise<UploadAccess | null> {
+  if (submissionId === undefined) {
+    const resolved = await formAccess.resolvePublished(locator, actorUserId)
+    return resolved.status === 'OPEN'
+      ? {
+          kind: 'PUBLIC',
+          locator: resolved.locator,
+          actorUserId,
+          form: resolved.form,
+          version: resolved.version,
+        }
+      : null
+  }
+  if (actorUserId === null) return null
+  const resolved = await formAccess.resolveOwnResponse(locator, submissionId, actorUserId)
+  return resolved.status === 'EDIT'
+    ? {
+        kind: 'OWN',
+        locator: resolved.locator,
+        submissionId,
+        actorUserId,
+        form: resolved.form,
+        version: resolved.version,
+      }
+    : null
 }
 
 function reachableSectionIds(document: FormVersionDocument): Set<string> {
@@ -277,13 +341,13 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
 
   return async function POST(
     request: Request,
-    { params }: { params: Promise<{ locator: string }> },
+    { params }: { params: Promise<{ locator: string; submissionId?: string }> },
   ): Promise<Response> {
     let objectPath: string | null = null
     let cleanupWorkspaceId: string | null = null
     let stored = false
     try {
-      const rawLocator = (await params).locator
+      const { locator: rawLocator, submissionId } = await params
       const locator = normalizeFormLocator(rawLocator)
       if (locator === null) throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
 
@@ -298,8 +362,13 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }
       const actorUserId = await dependencies.getActorUserId()
-      const resolved = await dependencies.formAccess.resolvePublished(locator, actorUserId)
-      const rateFormKey = resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
+      const access = await resolveUploadAccess(
+        dependencies.formAccess,
+        locator,
+        submissionId,
+        actorUserId,
+      )
+      const rateFormKey = access?.form.id ?? UNAVAILABLE_FORM_RATE_KEY
       if (
         !dependencies.rateLimiter.consume(
           'upload-ip',
@@ -319,41 +388,66 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }
 
-      if (resolved.status !== 'OPEN') throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
-      const envelope = exactMultipartEnvelope(await boundedFormData(request))
+      if (access === null) throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+      const envelope = exactMultipartEnvelope(await boundedFormData(request), access.kind === 'OWN')
 
-      let token
-      try {
-        token = verifyFormVersionToken(
-          envelope.versionToken,
-          dependencies.tokenSecret(),
-          now.getTime(),
+      let publicToken: ReturnType<typeof verifyFormVersionToken> | null = null
+      let ownToken: ReturnType<typeof verifyFormOwnResponseToken> | null = null
+      let selectedVersion = access.version
+      if (access.kind === 'OWN') {
+        try {
+          ownToken = verifyFormOwnResponseToken(
+            envelope.contextToken,
+            dependencies.tokenSecret(),
+            now.getTime(),
+          )
+        } catch {
+          throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+        }
+        if (
+          ownToken.locatorHash !== hashFormLocator(access.locator) ||
+          ownToken.submissionId !== access.submissionId ||
+          ownToken.actorUserId !== access.actorUserId ||
+          ownToken.versionNumber !== access.version.versionNumber ||
+          ownToken.schemaHash !== access.version.schemaHash ||
+          ownToken.questionId !== envelope.questionId
+        ) {
+          throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+        }
+      } else {
+        try {
+          publicToken = verifyFormVersionToken(
+            envelope.contextToken,
+            dependencies.tokenSecret(),
+            now.getTime(),
+          )
+        } catch {
+          throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+        }
+        const resolvedVersion = await dependencies.formAccess.resolveVersion(
+          access.form,
+          publicToken.versionNumber,
         )
-      } catch {
-        throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
-      }
-      const selectedVersion = await dependencies.formAccess.resolveVersion(
-        resolved.form,
-        token.versionNumber,
-      )
-      if (selectedVersion === null || selectedVersion.formId !== resolved.form.id) {
-        throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
-      }
-      try {
-        assertFormVersionContext(
-          token,
-          {
-            locatorHash: hashFormLocator(resolved.locator),
-            versionNumber: selectedVersion.versionNumber,
-            schemaHash: selectedVersion.schemaHash,
-            linkRevision: resolved.form.linkRevision,
-            isCurrent: selectedVersion.id === resolved.form.publishedVersionId,
-            acceptUntil: selectedVersion.acceptUntil,
-          },
-          now.getTime(),
-        )
-      } catch {
-        throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+        if (resolvedVersion === null || resolvedVersion.formId !== access.form.id) {
+          throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+        }
+        selectedVersion = resolvedVersion
+        try {
+          assertFormVersionContext(
+            publicToken,
+            {
+              locatorHash: hashFormLocator(access.locator),
+              versionNumber: selectedVersion.versionNumber,
+              schemaHash: selectedVersion.schemaHash,
+              linkRevision: access.form.linkRevision,
+              isCurrent: selectedVersion.id === access.form.publishedVersionId,
+              acceptUntil: selectedVersion.acceptUntil,
+            },
+            now.getTime(),
+          )
+        } catch {
+          throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+        }
       }
 
       let question: FormQuestion | null
@@ -380,7 +474,7 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
       }
 
       const capacity = {
-        workspaceId: resolved.form.source.workspaceId,
+        workspaceId: access.form.source.workspaceId,
         newBytes: envelope.file.size,
         now,
       }
@@ -394,10 +488,20 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
       const hash = createHash('sha256').update(bytes).digest('hex')
       const ext = extractExt(fileName)
       objectPath = ext
-        ? `forms/${resolved.form.id}/${hash.slice(0, 2)}/${hash}.${ext}`
-        : `forms/${resolved.form.id}/${hash.slice(0, 2)}/${hash}`
+        ? `forms/${access.form.id}/${hash.slice(0, 2)}/${hash}.${ext}`
+        : `forms/${access.form.id}/${hash.slice(0, 2)}/${hash}`
       const expiresAt = new Date(now.getTime() + UPLOAD_TTL_MS)
-      const uploadToken = randomBytes(32).toString('base64url')
+      const randomUploadSecret = randomBytes(32).toString('base64url')
+      const uploadToken =
+        access.kind === 'OWN'
+          ? bindOwnResponseUploadToken(randomUploadSecret, dependencies.tokenSecret(), {
+              formId: access.form.id,
+              versionId: selectedVersion.id,
+              questionId: question.id,
+              submissionId: access.submissionId,
+              actorUserId: access.actorUserId,
+            })
+          : randomUploadSecret
       const uploadTokenHash = createHash('sha256').update(uploadToken).digest('hex')
 
       const created = await dependencies.prisma.$transaction(async (tx) => {
@@ -408,36 +512,61 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         `)
         if (workspace.length !== 1) throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
 
-        const lockedResolved = await dependencies.formAccess.resolvePublished(locator, actorUserId)
-        if (
-          lockedResolved.status !== 'OPEN' ||
-          lockedResolved.form.id !== resolved.form.id ||
-          lockedResolved.form.source.workspaceId !== capacity.workspaceId
-        ) {
-          throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
-        }
-        const lockedVersion = await dependencies.formAccess.resolveVersion(
-          lockedResolved.form,
-          token.versionNumber,
-        )
-        if (lockedVersion === null || lockedVersion.id !== selectedVersion.id) {
-          throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
-        }
-        try {
-          assertFormVersionContext(
-            token,
-            {
-              locatorHash: hashFormLocator(lockedResolved.locator),
-              versionNumber: lockedVersion.versionNumber,
-              schemaHash: lockedVersion.schemaHash,
-              linkRevision: lockedResolved.form.linkRevision,
-              isCurrent: lockedVersion.id === lockedResolved.form.publishedVersionId,
-              acceptUntil: lockedVersion.acceptUntil,
-            },
-            now.getTime(),
+        let lockedVersion
+        if (access.kind === 'OWN') {
+          const lockedResolved = await dependencies.formAccess.resolveOwnResponse(
+            locator,
+            access.submissionId,
+            access.actorUserId,
           )
-        } catch {
-          throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+          if (
+            lockedResolved.status !== 'EDIT' ||
+            lockedResolved.form.id !== access.form.id ||
+            lockedResolved.form.source.workspaceId !== capacity.workspaceId ||
+            lockedResolved.version.id !== selectedVersion.id ||
+            ownToken === null ||
+            lockedResolved.version.versionNumber !== ownToken.versionNumber ||
+            lockedResolved.version.schemaHash !== ownToken.schemaHash
+          ) {
+            throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+          }
+          lockedVersion = lockedResolved.version
+        } else {
+          const lockedResolved = await dependencies.formAccess.resolvePublished(
+            locator,
+            actorUserId,
+          )
+          if (
+            lockedResolved.status !== 'OPEN' ||
+            lockedResolved.form.id !== access.form.id ||
+            lockedResolved.form.source.workspaceId !== capacity.workspaceId ||
+            publicToken === null
+          ) {
+            throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+          }
+          lockedVersion = await dependencies.formAccess.resolveVersion(
+            lockedResolved.form,
+            publicToken.versionNumber,
+          )
+          if (lockedVersion === null || lockedVersion.id !== selectedVersion.id) {
+            throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+          }
+          try {
+            assertFormVersionContext(
+              publicToken,
+              {
+                locatorHash: hashFormLocator(lockedResolved.locator),
+                versionNumber: lockedVersion.versionNumber,
+                schemaHash: lockedVersion.schemaHash,
+                linkRevision: lockedResolved.form.linkRevision,
+                isCurrent: lockedVersion.id === lockedResolved.form.publishedVersionId,
+                acceptUntil: lockedVersion.acceptUntil,
+              },
+              now.getTime(),
+            )
+          } catch {
+            throw new UploadHttpError(412, 'FORM_REFRESH_REQUIRED')
+          }
         }
         if (fileQuestion(parseFormVersionDocument(lockedVersion.schema), question.id) === null) {
           throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
@@ -459,7 +588,7 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         try {
           const file = await tx.file.create({
             data: {
-              userId: resolved.form.createdById,
+              userId: access.kind === 'OWN' ? access.actorUserId : access.form.createdById,
               workspaceId: capacity.workspaceId,
               name: fileName,
               ext,
@@ -474,7 +603,7 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
           })
           await tx.databaseFormUpload.create({
             data: {
-              formId: resolved.form.id,
+              formId: access.form.id,
               versionId: selectedVersion.id,
               questionId: question.id,
               fileId: file.id,
