@@ -4,24 +4,37 @@ import { z } from 'zod'
 import {
   buildPageVisibilityWhere,
   excludeDatabaseRowPages,
+  isDomainError,
   propertySettingsSchema,
 } from '@repo/domain'
-import {
-  parseFormVersionDocument,
-  toPublicFormVersion,
-} from '@repo/domain/database/forms'
+import { parseFormVersionDocument, toPublicFormVersion } from '@repo/domain/database/forms'
 
 import { domain as domainSvc } from '../domain'
+import { verifyFormCaptcha } from '../helpers/form-captcha'
+import { formClientIp, formRateLimiter, type FormRateLimiter } from '../helpers/form-rate-limit'
 import {
   assertFormVersionContext,
   hashFormLocator,
   signFormVersionToken,
   verifyFormVersionToken,
 } from '../helpers/form-version-token'
+import { mapDomain } from '../helpers/map-domain'
 import { publicProcedure, router } from '../trpc'
 
 const FORM_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
+const MAX_SERIALIZED_ANSWERS_BYTES = 1_048_576
 const pickerCursorSchema = z.string().uuid()
+
+const submitInputSchema = z
+  .object({
+    locator: z.string().trim().min(1).max(200),
+    versionToken: z.string().min(1).max(4_096),
+    idempotencyKey: z.string().uuid(),
+    answers: z.record(z.string().min(1).max(64), z.unknown()),
+    honeypot: z.string().max(512),
+    captchaToken: z.string().max(4_096).optional(),
+  })
+  .strict()
 
 const listPickerOptionsInput = z.object({
   locator: z.string(),
@@ -34,6 +47,27 @@ const listPickerOptionsInput = z.object({
 
 type PickerOption = { id: string; label: string }
 type PickerPage = { items: PickerOption[]; nextCursor: string | null }
+type FormSubmissionInput = {
+  locator: string
+  idempotencyKey: string
+  answers: Record<string, unknown>
+}
+
+type FormRouterDomain = Pick<typeof domainSvc, 'database' | 'formAccess' | 'formSubmissions'>
+
+type FormRouterDependencies = {
+  domain: FormRouterDomain
+  rateLimiter: FormRateLimiter
+  verifyCaptcha: typeof verifyFormCaptcha
+  now: () => number
+}
+
+const defaultDependencies: FormRouterDependencies = {
+  domain: domainSvc,
+  rateLimiter: formRateLimiter,
+  verifyCaptcha: verifyFormCaptcha,
+  now: Date.now,
+}
 
 function tokenSecret(): string {
   return process.env.FORM_TOKEN_SECRET ?? ''
@@ -41,6 +75,38 @@ function tokenSecret(): string {
 
 function pickerUnavailable(): TRPCError {
   return new TRPCError({ code: 'NOT_FOUND', message: 'FORM_PICKER_UNAVAILABLE' })
+}
+
+function formProtected(): TRPCError {
+  return new TRPCError({ code: 'FORBIDDEN', message: 'FORM_PROTECTED' })
+}
+
+function formRefreshRequired(): TRPCError {
+  return new TRPCError({ code: 'PRECONDITION_FAILED', message: 'FORM_REFRESH_REQUIRED' })
+}
+
+function formAnswersTooLarge(): TRPCError {
+  return new TRPCError({ code: 'PAYLOAD_TOO_LARGE', message: 'FORM_ANSWERS_TOO_LARGE' })
+}
+
+function assertSerializedAnswersSize(answers: Record<string, unknown>): void {
+  let serialized: string
+  try {
+    serialized = JSON.stringify(answers)
+  } catch {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'FORM_ANSWERS_INVALID' })
+  }
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_SERIALIZED_ANSWERS_BYTES) {
+    throw formAnswersTooLarge()
+  }
+}
+
+function toDomainSubmissionInput(input: z.infer<typeof submitInputSchema>): FormSubmissionInput {
+  return {
+    locator: input.locator,
+    idempotencyKey: input.idempotencyKey,
+    answers: input.answers,
+  }
 }
 
 function pageOf(options: PickerOption[], limit: number): PickerPage {
@@ -77,6 +143,7 @@ function signResolvedVersion(
 }
 
 async function listRelationOptions(
+  domain: FormRouterDomain,
   actorUserId: string,
   pageId: string,
   input: z.infer<typeof listPickerOptionsInput>,
@@ -85,7 +152,7 @@ async function listRelationOptions(
   const options: PickerOption[] = []
   const batchLimit = Math.min(Math.max(input.limit * 5 + 1, 51), 200)
 
-  const page = await domainSvc.database.listRows(actorUserId, {
+  const page = await domain.database.listRows(actorUserId, {
     pageId,
     ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
     limit: batchLimit,
@@ -100,151 +167,258 @@ async function listRelationOptions(
   return { items: options, nextCursor: page.nextCursor }
 }
 
-export const formRouter = router({
-  getPublished: publicProcedure
-    .input(z.object({ locator: z.string() }))
-    .query(async ({ ctx, input }) => {
-      ctx.resHeaders.set('Cache-Control', 'private, no-store')
-      const resolved = await domainSvc.formAccess.resolvePublished(
-        input.locator,
-        ctx.user?.id ?? null,
-      )
-      if (resolved.status !== 'OPEN') return resolved
+export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}) {
+  const dependencies = { ...defaultDependencies, ...overrides }
+  const domain = dependencies.domain
 
-      return {
-        status: 'OPEN' as const,
-        version: toPublicFormVersion(parseFormVersionDocument(resolved.version.schema)),
-        versionFingerprint: resolved.version.schemaHash,
-        versionToken: signResolvedVersion(resolved),
-        respondentKind: resolved.respondentUserId
-          ? ('authenticated' as const)
-          : ('anonymous' as const),
-      }
-    }),
+  return router({
+    getPublished: publicProcedure
+      .input(z.object({ locator: z.string() }))
+      .query(async ({ ctx, input }) => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
+        const resolved = await domain.formAccess.resolvePublished(
+          input.locator,
+          ctx.user?.id ?? null,
+        )
+        if (resolved.status !== 'OPEN') return resolved
 
-  listPickerOptions: publicProcedure
-    .input(listPickerOptionsInput)
-    .query(async ({ ctx, input }): Promise<PickerPage> => {
-      ctx.resHeaders.set('Cache-Control', 'private, no-store')
+        return {
+          status: 'OPEN' as const,
+          version: toPublicFormVersion(parseFormVersionDocument(resolved.version.schema)),
+          versionFingerprint: resolved.version.schemaHash,
+          versionToken: signResolvedVersion(resolved),
+          respondentKind: resolved.respondentUserId
+            ? ('authenticated' as const)
+            : ('anonymous' as const),
+        }
+      }),
 
-      let token
-      try {
-        token = verifyFormVersionToken(input.versionToken, tokenSecret())
-      } catch {
-        throw pickerUnavailable()
-      }
+    listPickerOptions: publicProcedure
+      .input(listPickerOptionsInput)
+      .query(async ({ ctx, input }): Promise<PickerPage> => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
 
-      const actorUserId = ctx.user?.id ?? null
-      const resolved = await domainSvc.formAccess.resolvePublished(input.locator, actorUserId)
-      if (
-        resolved.status !== 'OPEN' ||
-        resolved.form.audience !== 'WORKSPACE_MEMBERS_WITH_LINK' ||
-        resolved.respondentUserId === null
-      ) {
-        throw pickerUnavailable()
-      }
+        let token
+        try {
+          token = verifyFormVersionToken(input.versionToken, tokenSecret())
+        } catch {
+          throw pickerUnavailable()
+        }
 
-      const storedVersion = await domainSvc.formAccess.resolveVersion(
-        resolved.form,
-        token.versionNumber,
-      )
-      if (storedVersion === null || storedVersion.formId !== resolved.form.id) {
-        throw pickerUnavailable()
-      }
+        const actorUserId = ctx.user?.id ?? null
+        const resolved = await domain.formAccess.resolvePublished(input.locator, actorUserId)
+        if (
+          resolved.status !== 'OPEN' ||
+          resolved.form.audience !== 'WORKSPACE_MEMBERS_WITH_LINK' ||
+          resolved.respondentUserId === null
+        ) {
+          throw pickerUnavailable()
+        }
 
-      try {
-        assertFormVersionContext(token, {
-          locatorHash: hashFormLocator(resolved.locator),
-          versionNumber: storedVersion.versionNumber,
-          schemaHash: storedVersion.schemaHash,
-          linkRevision: resolved.form.linkRevision,
-          isCurrent: storedVersion.id === resolved.form.publishedVersionId,
-          acceptUntil: storedVersion.acceptUntil,
-        })
-      } catch {
-        throw pickerUnavailable()
-      }
+        const storedVersion = await domain.formAccess.resolveVersion(
+          resolved.form,
+          token.versionNumber,
+        )
+        if (storedVersion === null || storedVersion.formId !== resolved.form.id) {
+          throw pickerUnavailable()
+        }
 
-      const document = parseFormVersionDocument(storedVersion.schema)
-      const question = document.questions.find(({ id }) => id === input.questionId)
-      if (
-        question?.property.kind !== 'PROPERTY' ||
-        (question.property.propertyType !== 'PERSON' &&
-          question.property.propertyType !== 'RELATION' &&
-          question.property.propertyType !== 'PAGE_LINK')
-      ) {
-        throw pickerUnavailable()
-      }
+        try {
+          assertFormVersionContext(token, {
+            locatorHash: hashFormLocator(resolved.locator),
+            versionNumber: storedVersion.versionNumber,
+            schemaHash: storedVersion.schemaHash,
+            linkRevision: resolved.form.linkRevision,
+            isCurrent: storedVersion.id === resolved.form.publishedVersionId,
+            acceptUntil: storedVersion.acceptUntil,
+          })
+        } catch {
+          throw pickerUnavailable()
+        }
 
-      const property = await ctx.prisma.databaseProperty.findFirst({
-        where: {
-          id: question.property.propertyId,
-          sourceId: resolved.form.sourceId,
-          type: question.property.propertyType,
-        },
-        select: { id: true, type: true, settings: true },
-      })
-      if (property === null) throw pickerUnavailable()
+        const document = parseFormVersionDocument(storedVersion.schema)
+        const question = document.questions.find(({ id }) => id === input.questionId)
+        if (
+          question?.property.kind !== 'PROPERTY' ||
+          (question.property.propertyType !== 'PERSON' &&
+            question.property.propertyType !== 'RELATION' &&
+            question.property.propertyType !== 'PAGE_LINK')
+        ) {
+          throw pickerUnavailable()
+        }
 
-      if (question.property.propertyType === 'PERSON') {
-        const users = await ctx.prisma.user.findMany({
+        const property = await ctx.prisma.databaseProperty.findFirst({
           where: {
+            id: question.property.propertyId,
+            sourceId: resolved.form.sourceId,
+            type: question.property.propertyType,
+          },
+          select: { id: true, type: true, settings: true },
+        })
+        if (property === null) throw pickerUnavailable()
+
+        if (question.property.propertyType === 'PERSON') {
+          const users = await ctx.prisma.user.findMany({
+            where: {
+              ...(input.cursor === undefined ? {} : { id: { gt: input.cursor } }),
+              ...(input.query
+                ? { name: { contains: input.query, mode: 'insensitive' as const } }
+                : {}),
+              workspaceMemberships: { some: { workspaceId: resolved.form.source.workspaceId } },
+              workspaceBlocks: { none: { workspaceId: resolved.form.source.workspaceId } },
+            },
+            orderBy: { id: 'asc' },
+            take: input.limit + 1,
+            select: { id: true, name: true },
+          })
+          return pageOf(
+            users.map(({ id, name }) => ({ id, label: displayLabel(name) })),
+            input.limit,
+          )
+        }
+
+        if (question.property.propertyType === 'RELATION') {
+          const settings = propertySettingsSchema.safeParse(property.settings)
+          const targetSourceId = settings.success
+            ? settings.data.relation?.targetSourceId
+            : undefined
+          if (targetSourceId === undefined) throw pickerUnavailable()
+          const target = await ctx.prisma.databaseSource.findFirst({
+            where: {
+              id: targetSourceId,
+              workspaceId: resolved.form.source.workspaceId,
+              page: {
+                archivedAt: null,
+                deletedAt: null,
+                AND: [buildPageVisibilityWhere(resolved.respondentUserId)],
+              },
+            },
+            select: { id: true, pageId: true },
+          })
+          if (target === null) throw pickerUnavailable()
+          return listRelationOptions(domain, resolved.respondentUserId, target.pageId, input)
+        }
+
+        const pages = await ctx.prisma.page.findMany({
+          where: {
+            workspaceId: resolved.form.source.workspaceId,
+            archivedAt: null,
+            deletedAt: null,
+            isTemplate: null,
             ...(input.cursor === undefined ? {} : { id: { gt: input.cursor } }),
             ...(input.query
-              ? { name: { contains: input.query, mode: 'insensitive' as const } }
+              ? { title: { contains: input.query, mode: 'insensitive' as const } }
               : {}),
-            workspaceMemberships: { some: { workspaceId: resolved.form.source.workspaceId } },
-            workspaceBlocks: { none: { workspaceId: resolved.form.source.workspaceId } },
+            AND: [buildPageVisibilityWhere(resolved.respondentUserId), excludeDatabaseRowPages()],
           },
           orderBy: { id: 'asc' },
           take: input.limit + 1,
-          select: { id: true, name: true },
+          select: { id: true, title: true },
         })
         return pageOf(
-          users.map(({ id, name }) => ({ id, label: displayLabel(name) })),
+          pages.map(({ id, title }) => ({ id, label: displayLabel(title) })),
           input.limit,
         )
+      }),
+
+    submit: publicProcedure.input(submitInputSchema).mutation(async ({ ctx, input }) => {
+      ctx.resHeaders.set('Cache-Control', 'private, no-store')
+
+      assertSerializedAnswersSize(input.answers)
+      if (input.honeypot.length > 0) throw formProtected()
+
+      const actorUserId = ctx.user?.id ?? null
+      const submissionInput = toDomainSubmissionInput(input)
+      const resolved = await domain.formAccess.resolvePublished(input.locator, actorUserId)
+      const rateFormKey =
+        resolved.status === 'OPEN' ? resolved.form.id : hashFormLocator(input.locator.trim())
+
+      let token: ReturnType<typeof verifyFormVersionToken> | null = null
+      let tokenContextValid = false
+      try {
+        token = verifyFormVersionToken(input.versionToken, tokenSecret(), dependencies.now())
+      } catch {
+        token = null
       }
 
-      if (question.property.propertyType === 'RELATION') {
-        const settings = propertySettingsSchema.safeParse(property.settings)
-        const targetSourceId = settings.success ? settings.data.relation?.targetSourceId : undefined
-        if (targetSourceId === undefined) throw pickerUnavailable()
-        const target = await ctx.prisma.databaseSource.findFirst({
-          where: {
-            id: targetSourceId,
-            workspaceId: resolved.form.source.workspaceId,
-            page: {
-              archivedAt: null,
-              deletedAt: null,
-              AND: [buildPageVisibilityWhere(resolved.respondentUserId)],
-            },
-          },
-          select: { id: true, pageId: true },
+      if (token !== null && resolved.status === 'OPEN') {
+        const storedVersion = await domain.formAccess.resolveVersion(
+          resolved.form,
+          token.versionNumber,
+        )
+        if (storedVersion !== null && storedVersion.formId === resolved.form.id) {
+          try {
+            assertFormVersionContext(
+              token,
+              {
+                locatorHash: hashFormLocator(resolved.locator),
+                versionNumber: storedVersion.versionNumber,
+                schemaHash: storedVersion.schemaHash,
+                linkRevision: resolved.form.linkRevision,
+                isCurrent: storedVersion.id === resolved.form.publishedVersionId,
+                acceptUntil: storedVersion.acceptUntil,
+              },
+              dependencies.now(),
+            )
+            tokenContextValid = true
+          } catch {
+            tokenContextValid = false
+          }
+        }
+      }
+
+      if (token !== null && tokenContextValid) {
+        try {
+          const replay = await domain.formSubmissions.findReplay(
+            actorUserId,
+            submissionInput,
+            token,
+          )
+          if (replay !== null) return replay
+        } catch (error) {
+          // Context can change between the public lookup and the replay lookup. Do not
+          // turn that race into a pre-CAPTCHA oracle; the authoritative submit below
+          // will return the public error after the normal protection boundary.
+          if (
+            !isDomainError(error) ||
+            (error.message !== 'FORM_NOT_ACCEPTING' && error.message !== 'FORM_VERSION_STALE')
+          ) {
+            throw error
+          }
+        }
+      }
+
+      const now = dependencies.now()
+      if (
+        !dependencies.rateLimiter.consume(
+          'submit-ip',
+          `${rateFormKey}:${formClientIp(ctx.headers)}`,
+          now,
+        )
+      ) {
+        throw formProtected()
+      }
+      if (!dependencies.rateLimiter.consume('submit-form', rateFormKey, now)) {
+        throw formProtected()
+      }
+
+      try {
+        await dependencies.verifyCaptcha({
+          token: ctx.headers.get('x-captcha-response') ?? input.captchaToken,
+          action: 'form_submit',
+          headers: ctx.headers,
         })
-        if (target === null) throw pickerUnavailable()
-        return listRelationOptions(resolved.respondentUserId, target.pageId, input)
+      } catch {
+        throw formProtected()
       }
 
-      const pages = await ctx.prisma.page.findMany({
-        where: {
-          workspaceId: resolved.form.source.workspaceId,
-          archivedAt: null,
-          deletedAt: null,
-          isTemplate: null,
-          ...(input.cursor === undefined ? {} : { id: { gt: input.cursor } }),
-          ...(input.query
-            ? { title: { contains: input.query, mode: 'insensitive' as const } }
-            : {}),
-          AND: [buildPageVisibilityWhere(resolved.respondentUserId), excludeDatabaseRowPages()],
-        },
-        orderBy: { id: 'asc' },
-        take: input.limit + 1,
-        select: { id: true, title: true },
-      })
-      return pageOf(
-        pages.map(({ id, title }) => ({ id, label: displayLabel(title) })),
-        input.limit,
-      )
+      if (token === null || (resolved.status === 'OPEN' && !tokenContextValid)) {
+        throw formRefreshRequired()
+      }
+
+      return mapDomain(() => domain.formSubmissions.submit(actorUserId, submissionInput, token))
     }),
-})
+  })
+}
+
+export const formRouter = createFormRouter()
