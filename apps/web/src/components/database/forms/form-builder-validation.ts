@@ -11,6 +11,7 @@ export interface FormPublishReadinessIssue {
   code: string
   path: IssuePath
   entityId?: string
+  transitionId?: string
   message: string
 }
 
@@ -79,21 +80,12 @@ const propertyOptions = (settings: unknown): FormOptionSnapshot[] | undefined =>
   return snapshots
 }
 
-const sameOptions = (
+const includesSnapshotOptionIds = (
   snapshot: readonly FormOptionSnapshot[],
   current: readonly FormOptionSnapshot[] | undefined,
 ): boolean =>
   current !== undefined &&
-  snapshot.length === current.length &&
-  snapshot.every((option, index) => {
-    const currentOption = current[index]
-    return (
-      currentOption !== undefined &&
-      option.id === currentOption.id &&
-      option.label === currentOption.label &&
-      (option.color ?? null) === (currentOption.color ?? null)
-    )
-  })
+  snapshot.every((option) => current.some((currentOption) => currentOption.id === option.id))
 
 const validateProperties = (
   document: FormVersionDocument,
@@ -130,13 +122,13 @@ const validateProperties = (
     }
     if (
       (question.input.kind === 'SINGLE_CHOICE' || question.input.kind === 'MULTI_CHOICE') &&
-      !sameOptions(question.input.options, propertyOptions(property.settings))
+      !includesSnapshotOptionIds(question.input.options, propertyOptions(property.settings))
     ) {
       issues.push(
         issue(
           'FORM_PROPERTY_OPTIONS_MISMATCH',
           ['questions', questionIndex, 'input', 'options'],
-          'The choice options changed after this question was configured.',
+          'One or more selected database options no longer exist.',
           question.id,
         ),
       )
@@ -234,12 +226,27 @@ export function validateFormPublishReadiness({
   }
 
   const graph = validateFormGraph(parsed.data)
-  const issues: FormPublishReadinessIssue[] = graph.errors.map((graphIssue) => ({
-    code: graphIssue.code,
-    path: graphIssue.path,
-    ...(graphIssue.entityId === undefined ? {} : { entityId: graphIssue.entityId }),
-    message: graphIssue.message,
-  }))
+  const issues: FormPublishReadinessIssue[] = graph.errors.map((graphIssue) => {
+    const transitionIndex =
+      graphIssue.path[0] === 'transitions' && typeof graphIssue.path[1] === 'number'
+        ? graphIssue.path[1]
+        : undefined
+    const transition =
+      transitionIndex === undefined ? undefined : parsed.data.transitions[transitionIndex]
+    const hasSourceSection =
+      transition !== undefined &&
+      parsed.data.sections.some(({ id }) => id === transition.fromSectionId)
+    return {
+      code: graphIssue.code,
+      path: graphIssue.path,
+      ...(hasSourceSection
+        ? { entityId: transition.fromSectionId, transitionId: transition.id }
+        : graphIssue.entityId === undefined
+          ? {}
+          : { entityId: graphIssue.entityId }),
+      message: graphIssue.message,
+    }
+  })
 
   issues.push(...validateProperties(parsed.data, properties))
   issues.push(...validateAudience(parsed.data, audience))

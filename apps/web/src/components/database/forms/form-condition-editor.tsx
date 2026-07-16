@@ -72,10 +72,6 @@ const OPERATORS: Partial<
     { value: 'TEXT_EQUALS', label: 'Равно тексту' },
     { value: 'TEXT_CONTAINS', label: 'Содержит текст' },
   ],
-  PAGE_LINK: [
-    { value: 'TEXT_EQUALS', label: 'Равно тексту' },
-    { value: 'TEXT_CONTAINS', label: 'Содержит текст' },
-  ],
   NUMBER: [
     { value: 'NUMBER_EQUALS', label: 'Равно' },
     { value: 'NUMBER_NOT_EQUALS', label: 'Не равно' },

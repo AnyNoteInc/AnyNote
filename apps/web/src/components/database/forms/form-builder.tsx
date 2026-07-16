@@ -353,6 +353,7 @@ function LoadedFormBuilder({
         <FormSettingsPanel
           state={state}
           issues={readiness.issues}
+          properties={form.source.properties}
           conditionalLogicEnabled={features.formConditionalLogicEnabled}
           dispatch={dispatch}
         />

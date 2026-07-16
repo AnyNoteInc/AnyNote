@@ -26,6 +26,15 @@ const questions: FormQuestion[] = [
     input: { kind: 'TEXT', multiline: false, maxLength: 200 },
   },
   {
+    id: 'q-page-link',
+    sectionId: 'section',
+    property: { kind: 'PROPERTY', propertyId: 'page-link', propertyType: 'PAGE_LINK' },
+    label: 'Страница',
+    required: false,
+    syncWithPropertyName: false,
+    input: { kind: 'PAGE_LINK' },
+  },
+  {
     id: 'q-number',
     sectionId: 'section',
     property: { kind: 'PROPERTY', propertyId: 'number', propertyType: 'NUMBER' },
@@ -75,7 +84,8 @@ describe('form builder focused editors', () => {
     expect(screen.queryByRole('option', { name: 'Содержит текст' })).not.toBeInTheDocument()
   })
 
-  it('edits choice option snapshots and selection bounds', async () => {
+  it('adds only persisted choice options and never invents synthetic ids', async () => {
+    const changes: FormInputConfig[] = []
     function Harness() {
       const [input, setInput] = useState<FormInputConfig>({
         kind: 'MULTI_CHOICE',
@@ -83,18 +93,59 @@ describe('form builder focused editors', () => {
         options: [{ id: 'first', label: 'Первый' }],
         maxSelections: 1,
       })
-      return <FormInputConfigEditor input={input} onChange={setInput} />
+      return (
+        <FormInputConfigEditor
+          input={input}
+          persistedOptions={[
+            { id: 'first', label: 'Первый' },
+            { id: 'second-persisted', label: 'Второй из базы', color: 'blue' },
+          ]}
+          onChange={(next) => {
+            changes.push(next)
+            setInput(next)
+          }}
+        />
+      )
     }
 
     const actor = userEvent.setup()
     render(<Harness />)
-    await actor.click(screen.getByRole('button', { name: 'Добавить вариант' }))
+    await actor.click(screen.getByRole('combobox', { name: 'Добавить сохранённый вариант' }))
+    await actor.click(screen.getByRole('option', { name: 'Второй из базы' }))
 
     expect(screen.getAllByLabelText(/Название варианта/u)).toHaveLength(2)
     expect(screen.getByLabelText('Максимум выбранных')).toHaveValue(2)
-    await actor.clear(screen.getAllByLabelText(/Название варианта/u)[1]!)
-    await actor.type(screen.getAllByLabelText(/Название варианта/u)[1]!, 'Второй')
-    expect(screen.getByDisplayValue('Второй')).toBeInTheDocument()
+    expect(changes.at(-1)).toMatchObject({
+      options: [
+        { id: 'first', label: 'Первый' },
+        { id: 'second-persisted', label: 'Второй из базы', color: 'blue' },
+      ],
+    })
+    await actor.click(screen.getByRole('button', { name: 'Поднять вариант 2' }))
+    await actor.clear(screen.getAllByLabelText(/Название варианта/u)[0]!)
+    await actor.type(screen.getAllByLabelText(/Название варианта/u)[0]!, 'Своя подпись')
+    expect(changes.at(-1)).toMatchObject({
+      options: [
+        { id: 'second-persisted', label: 'Своя подпись', color: 'blue' },
+        { id: 'first', label: 'Первый' },
+      ],
+    })
+    expect(JSON.stringify(changes)).not.toContain('option-')
+  })
+
+  it('offers only empty operations for opaque page links', async () => {
+    const value: FormConditionGroup = {
+      kind: 'ALL',
+      members: [{ kind: 'IS_NOT_EMPTY', questionId: 'q-page-link' }],
+    }
+    const actor = userEvent.setup()
+    render(<FormConditionEditor value={value} availableQuestions={questions} onChange={vi.fn()} />)
+
+    await actor.click(screen.getByLabelText('Оператор условия'))
+    expect(screen.getByRole('option', { name: 'Не заполнено' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Заполнено' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Равно тексту' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Содержит текст' })).not.toBeInTheDocument()
   })
 
   it('edits presentation cover without taking ownership of branding', async () => {

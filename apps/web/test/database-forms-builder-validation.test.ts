@@ -110,7 +110,7 @@ describe('validateFormPublishReadiness', () => {
     )
   })
 
-  it('requires choice snapshots to exactly match option ids, labels, colors, and order', () => {
+  it('accepts persisted option additions, renames, colors and reordering when snapshot ids remain', () => {
     const document: FormVersionDocument = {
       ...documentFixture(),
       questions: [
@@ -129,42 +129,115 @@ describe('validateFormPublishReadiness', () => {
       ],
     }
 
-    const exact = validate(document, {
+    const result = validate(document, {
       properties: [
         {
           id: 'property-1',
           type: 'SELECT',
           settings: {
             options: [
-              { id: 'red', label: 'Red', color: '#f00' },
-              { id: 'blue', label: 'Blue', color: null },
-            ],
-          },
-        },
-      ],
-    })
-    const stale = validate(document, {
-      properties: [
-        {
-          id: 'property-1',
-          type: 'SELECT',
-          settings: {
-            options: [
-              { id: 'blue', label: 'Blue', color: null },
-              { id: 'red', label: 'Renamed', color: '#00f' },
+              { id: 'new', label: 'New database option', color: '#0f0' },
+              { id: 'blue', label: 'Renamed blue', color: '#00f' },
+              { id: 'red', label: 'Renamed red', color: null },
             ],
           },
         },
       ],
     })
 
-    expect(exact).toEqual({ ok: true, issues: [] })
-    expect(stale.issues).toContainEqual(
+    expect(result).toEqual({ ok: true, issues: [] })
+  })
+
+  it('rejects a choice snapshot only when one of its persisted option ids was removed', () => {
+    const document: FormVersionDocument = {
+      ...documentFixture(),
+      questions: [
+        {
+          ...documentFixture().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'SELECT' },
+          input: {
+            kind: 'SINGLE_CHOICE',
+            appearance: 'RADIO',
+            options: [
+              { id: 'red', label: 'Red' },
+              { id: 'blue', label: 'Blue' },
+            ],
+          },
+        },
+      ],
+    }
+    const result = validate(document, {
+      properties: [
+        {
+          id: 'property-1',
+          type: 'SELECT',
+          settings: { options: [{ id: 'red', label: 'Red' }] },
+        },
+      ],
+    })
+
+    expect(result.issues).toContainEqual(
       expect.objectContaining({
         code: 'FORM_PROPERTY_OPTIONS_MISMATCH',
         path: ['questions', 0, 'input', 'options'],
         entityId: 'question-1',
       }),
+    )
+  })
+
+  it('maps transition graph issues to their source section and retains the transition id', () => {
+    const document = documentFixture()
+    document.transitions[0]!.target = { kind: 'ENDING', endingId: 'missing-ending' }
+
+    const result = validate(document)
+
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'TRANSITION_TARGET_ENDING_NOT_FOUND',
+        entityId: 'section-1',
+        transitionId: 'transition-1',
+      }),
+    )
+  })
+
+  it('keeps fallback issues section-scoped and maps priority and condition issues to cards', () => {
+    const document = documentFixture()
+    document.transitions = [
+      {
+        id: 'transition-number-condition',
+        fromSectionId: 'section-1',
+        priority: 0,
+        when: {
+          kind: 'ALL',
+          members: [{ kind: 'NUMBER_EQUALS', questionId: 'question-1', value: 1 }],
+        },
+        target: { kind: 'ENDING', endingId: 'ending-1' },
+      },
+      {
+        id: 'transition-duplicate-priority',
+        fromSectionId: 'section-1',
+        priority: 0,
+        when: { kind: 'ALL', members: [{ kind: 'IS_NOT_EMPTY', questionId: 'question-1' }] },
+        target: { kind: 'ENDING', endingId: 'ending-1' },
+      },
+    ]
+
+    const result = validate(document)
+
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'MISSING_FALLBACK_TRANSITION', entityId: 'section-1' }),
+        expect.objectContaining({
+          code: 'DUPLICATE_TRANSITION_PRIORITY',
+          entityId: 'section-1',
+          transitionId: 'transition-duplicate-priority',
+        }),
+        expect.objectContaining({
+          code: 'CONDITION_OPERATOR_INCOMPATIBLE',
+          entityId: 'section-1',
+          transitionId: 'transition-number-condition',
+        }),
+      ]),
     )
   })
 

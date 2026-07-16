@@ -1,9 +1,9 @@
 'use client'
 
 import {
-  AddIcon,
   Alert,
-  Button,
+  ArrowDownwardIcon,
+  ArrowUpwardIcon,
   DeleteOutlineIcon,
   FormControlLabel,
   IconButton,
@@ -17,6 +17,7 @@ import type { FormInputConfig, FormOptionSnapshot } from '@repo/domain/database/
 
 interface FormInputConfigEditorProps {
   readonly input: FormInputConfig
+  readonly persistedOptions?: readonly FormOptionSnapshot[]
   readonly onChange: (input: FormInputConfig) => void
 }
 
@@ -24,19 +25,19 @@ function optionalNumber(value: string): number | undefined {
   return value === '' ? undefined : Number(value)
 }
 
-function optionId(existing: readonly FormOptionSnapshot[]): string {
-  let suffix = existing.length + 1
-  while (existing.some(({ id }) => id === `option-${suffix}`)) suffix += 1
-  return `option-${suffix}`
-}
-
 function ChoiceOptions({
   options,
+  persistedOptions,
   onChange,
 }: {
   options: readonly FormOptionSnapshot[]
+  persistedOptions: readonly FormOptionSnapshot[]
   onChange: (options: FormOptionSnapshot[]) => void
 }) {
+  const unusedOptions = persistedOptions.filter(
+    (persisted) => !options.some((selected) => selected.id === persisted.id),
+  )
+
   function update(index: number, patch: Partial<FormOptionSnapshot>) {
     onChange(
       options.map((option, itemIndex) => (itemIndex === index ? { ...option, ...patch } : option)),
@@ -70,23 +71,59 @@ function ChoiceOptions({
           >
             <DeleteOutlineIcon />
           </IconButton>
+          <IconButton
+            aria-label={`Поднять вариант ${index + 1}`}
+            disabled={index === 0}
+            onClick={() => {
+              const next = [...options]
+              const [selected] = next.splice(index, 1)
+              if (selected) next.splice(index - 1, 0, selected)
+              onChange(next)
+            }}
+          >
+            <ArrowUpwardIcon />
+          </IconButton>
+          <IconButton
+            aria-label={`Опустить вариант ${index + 1}`}
+            disabled={index === options.length - 1}
+            onClick={() => {
+              const next = [...options]
+              const [selected] = next.splice(index, 1)
+              if (selected) next.splice(index + 1, 0, selected)
+              onChange(next)
+            }}
+          >
+            <ArrowDownwardIcon />
+          </IconButton>
         </Stack>
       ))}
-      <Button
+      <TextField
+        select
         size="small"
-        startIcon={<AddIcon />}
+        label="Добавить сохранённый вариант"
+        value=""
+        disabled={unusedOptions.length === 0}
         sx={{ alignSelf: 'flex-start' }}
-        onClick={() =>
-          onChange([...options, { id: optionId(options), label: `Вариант ${options.length + 1}` }])
-        }
+        onChange={(event) => {
+          const option = unusedOptions.find(({ id }) => id === event.target.value)
+          if (option) onChange([...options, option])
+        }}
       >
-        Добавить вариант
-      </Button>
+        {unusedOptions.map((option) => (
+          <MenuItem key={option.id} value={option.id}>
+            {option.label}
+          </MenuItem>
+        ))}
+      </TextField>
     </Stack>
   )
 }
 
-export function FormInputConfigEditor({ input, onChange }: FormInputConfigEditorProps) {
+export function FormInputConfigEditor({
+  input,
+  persistedOptions = [],
+  onChange,
+}: FormInputConfigEditorProps) {
   switch (input.kind) {
     case 'TEXT':
       return (
@@ -172,6 +209,7 @@ export function FormInputConfigEditor({ input, onChange }: FormInputConfigEditor
           </TextField>
           <ChoiceOptions
             options={input.options}
+            persistedOptions={persistedOptions}
             onChange={(options) => onChange({ ...input, options })}
           />
         </Stack>
@@ -217,6 +255,7 @@ export function FormInputConfigEditor({ input, onChange }: FormInputConfigEditor
           </Stack>
           <ChoiceOptions
             options={input.options}
+            persistedOptions={persistedOptions}
             onChange={(options) =>
               onChange({
                 ...input,

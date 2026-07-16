@@ -21,7 +21,11 @@ import {
   Typography,
   IconButton,
 } from '@repo/ui/components'
-import type { FormTransitionTarget, FormVersionDocument } from '@repo/domain/database/forms'
+import type {
+  FormOptionSnapshot,
+  FormTransitionTarget,
+  FormVersionDocument,
+} from '@repo/domain/database/forms'
 
 import type { FormBuilderAction, FormBuilderState } from './form-builder-state'
 import type { FormPublishReadinessIssue } from './form-builder-validation'
@@ -32,8 +36,22 @@ import { FormPresentationEditor } from './form-presentation-editor'
 interface FormSettingsPanelProps {
   readonly state: FormBuilderState
   readonly issues: readonly FormPublishReadinessIssue[]
+  readonly properties: ReadonlyArray<{ id: string; settings?: unknown }>
   readonly conditionalLogicEnabled: boolean
   readonly dispatch: React.Dispatch<FormBuilderAction>
+}
+
+function persistedOptions(settings: unknown): FormOptionSnapshot[] {
+  if (settings === null || typeof settings !== 'object' || Array.isArray(settings)) return []
+  const options = (settings as { options?: unknown }).options
+  if (!Array.isArray(options)) return []
+  return options.flatMap((option) => {
+    if (option === null || typeof option !== 'object' || Array.isArray(option)) return []
+    const { id, label, color } = option as { id?: unknown; label?: unknown; color?: unknown }
+    return typeof id === 'string' && typeof label === 'string'
+      ? [{ id, label, ...(typeof color === 'string' ? { color } : {}) }]
+      : []
+  })
 }
 
 function transitionTargetValue(
@@ -53,6 +71,7 @@ function transitionTargetValue(
 export function FormSettingsPanel({
   state,
   issues,
+  properties,
   conditionalLogicEnabled,
   dispatch,
 }: FormSettingsPanelProps) {
@@ -92,6 +111,10 @@ export function FormSettingsPanel({
     ({ entityId }) => entityId === undefined || entityId === selection.id,
   )
   const conditionalTransitions = transitions.filter(({ when }) => when !== null)
+  const questionPersistedOptions =
+    question?.property.kind === 'PROPERTY'
+      ? persistedOptions(properties.find(({ id }) => id === question.property.propertyId)?.settings)
+      : []
 
   return (
     <Stack
@@ -170,6 +193,7 @@ export function FormSettingsPanel({
             {transitions.map((transition, index) => (
               <Stack
                 key={transition.id}
+                data-testid={`transition-card-${transition.id}`}
                 spacing={1}
                 sx={{ p: 1.25, border: 1, borderColor: 'divider', borderRadius: 1.5 }}
               >
@@ -200,6 +224,22 @@ export function FormSettingsPanel({
                     }}
                   />
                 ) : null}
+                {issues
+                  .filter(({ transitionId }) => transitionId === transition.id)
+                  .map((transitionIssue) => (
+                    <Alert
+                      key={`${transitionIssue.code}-${transitionIssue.path.join('.')}`}
+                      severity="error"
+                      variant="outlined"
+                    >
+                      <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+                        {transitionIssue.code}
+                      </Typography>
+                      {transitionIssue.message !== transitionIssue.code ? (
+                        <Typography variant="caption">{transitionIssue.message}</Typography>
+                      ) : null}
+                    </Alert>
+                  ))}
                 <FormControl size="small" fullWidth>
                   <InputLabel id={`transition-target-${transition.id}`}>Перейти к</InputLabel>
                   <Select
@@ -383,6 +423,7 @@ export function FormSettingsPanel({
               </Typography>
               <FormInputConfigEditor
                 input={question.input}
+                persistedOptions={questionPersistedOptions}
                 onChange={(input) =>
                   dispatch({
                     type: 'QUESTION_UPDATED',

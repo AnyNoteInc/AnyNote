@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -198,8 +198,13 @@ describe('database FORM UI', () => {
     expect(screen.getByRole('complementary', { name: 'Структура формы' })).toBeInTheDocument()
     expect(screen.getByRole('main', { name: 'Предпросмотр формы' })).toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: 'Настройки формы' })).toBeInTheDocument()
-    expect(screen.getByText(/ошибок: 1/u)).toBeInTheDocument()
+    expect(screen.getByText(/ошибок: 2/u)).toBeInTheDocument()
     expect(screen.getByText(/Публикация недоступна/u)).toBeInTheDocument()
+    expect(
+      within(screen.getByTestId('transition-card-transition-1')).getByText(
+        'TRANSITION_TARGET_ENDING_NOT_FOUND',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
   })
