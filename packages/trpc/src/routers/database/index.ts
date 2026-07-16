@@ -8,6 +8,7 @@ import { cellRouter } from './cell'
 import { relationRouter } from './relation'
 import { accessRouter } from './access'
 import { reminderRouter } from './reminder'
+import { formManagementRouter } from './form'
 
 // Flat procedure surface (database.getByPage, database.createView, ...) built by
 // merging the per-entity sub-routers. The sub-files keep each entity's CRUD
@@ -25,6 +26,21 @@ export const databaseRouter = router({
   updateView: viewRouter.update,
   duplicateView: viewRouter.duplicate,
   deleteView: viewRouter.delete,
+
+  // Protected database-form management
+  createForm: formManagementRouter.create,
+  getForm: formManagementRouter.get,
+  listForms: formManagementRouter.list,
+  updateFormDraft: formManagementRouter.updateDraft,
+  publishForm: formManagementRouter.publish,
+  updateFormSettings: formManagementRouter.updateSettings,
+  setFormSlug: formManagementRouter.setSlug,
+  rotateFormKey: formManagementRouter.rotateKey,
+  closeForm: formManagementRouter.close,
+  reopenForm: formManagementRouter.reopen,
+  archiveForm: formManagementRouter.archive,
+  listFormVersions: formManagementRouter.listVersions,
+  listFormResponses: formManagementRouter.listResponses,
 
   // Properties
   listProperties: propertyRouter.list,

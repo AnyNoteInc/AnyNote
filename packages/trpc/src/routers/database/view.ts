@@ -32,28 +32,31 @@ export const viewRouter = router({
       return mapDomain(() => domainSvc.database.listViews(ctx.user.id, input.pageId))
     }),
 
-  create: protectedProcedure
-    .input(domain.createViewInput)
-    .mutation(async ({ ctx, input }) => {
-      await assertPageEditAccess(ctx, input.pageId)
-      return mapDomain(() => domainSvc.database.createView(ctx.user.id, input))
-    }),
+  create: protectedProcedure.input(domain.createViewInput).mutation(async ({ ctx, input }) => {
+    await assertPageEditAccess(ctx, input.pageId)
+    return mapDomain(() => domainSvc.database.createView(ctx.user.id, input))
+  }),
 
   // `settings` is validated against the typed `viewSettingsSchema` (filters /
   // sorts / groupBy / visibleProperties / layout) by `updateViewInput`, so a
   // malformed filter (e.g. an unknown operator) is rejected with a zod error
   // before reaching the domain.
-  update: protectedProcedure
-    .input(domain.updateViewInput)
-    .mutation(async ({ ctx, input }) => {
-      await assertPageEditAccess(ctx, input.pageId)
-      return mapDomain(() => domainSvc.database.updateView(ctx.user.id, input))
-    }),
+  update: protectedProcedure.input(domain.updateViewInput).mutation(async ({ ctx, input }) => {
+    await assertPageEditAccess(ctx, input.pageId)
+    return mapDomain(() => domainSvc.database.updateView(ctx.user.id, input))
+  }),
 
   duplicate: protectedProcedure
     .input(domain.duplicateViewInput)
     .mutation(async ({ ctx, input }) => {
       await assertPageEditAccess(ctx, input.pageId)
+      const view = await ctx.prisma.databaseView.findFirst({
+        where: { id: input.viewId, source: { pageId: input.pageId } },
+        select: { type: true },
+      })
+      if (view?.type === 'FORM') {
+        return mapDomain(() => domainSvc.databaseForms.duplicateByView(ctx.user.id, input))
+      }
       return mapDomain(() => domainSvc.database.duplicateView(ctx.user.id, input))
     }),
 
@@ -64,29 +67,40 @@ export const viewRouter = router({
   // and pre-narrow with a `content::text LIKE` raw query (Prisma's
   // `string_contains` only matches string-scalar JSON, not the doc-object content
   // here), then confirm the reference structurally in JS.
-  delete: protectedProcedure
-    .input(domain.viewIdInput)
-    .mutation(async ({ ctx, input }) => {
-      const page = await assertPageEditAccess(ctx, input.pageId)
-      const candidates = await ctx.prisma.$queryRaw<Array<{ id: string }>>`
+  delete: protectedProcedure.input(domain.viewIdInput).mutation(async ({ ctx, input }) => {
+    const page = await assertPageEditAccess(ctx, input.pageId)
+    const view = await ctx.prisma.databaseView.findFirst({
+      where: { id: input.id, source: { pageId: input.pageId } },
+      select: { type: true, form: { select: { id: true } } },
+    })
+    const formId = view?.type === 'FORM' ? view.form?.id : undefined
+    const candidates = await ctx.prisma.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "pages"
         WHERE "workspace_id" = ${page.workspaceId}::uuid
           AND "type" = 'TEXT'
           AND "deleted_at" IS NULL
           AND "content"::text LIKE ${`%${input.id}%`}
       `
-      if (candidates.length > 0) {
-        const pages = await ctx.prisma.page.findMany({
-          where: { id: { in: candidates.map((c) => c.id) } },
-          select: { content: true },
+    if (candidates.length > 0) {
+      const pages = await ctx.prisma.page.findMany({
+        where: { id: { in: candidates.map((c) => c.id) } },
+        select: { content: true },
+      })
+      if (pages.some((p) => contentReferencesView(p.content, input.id))) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: 'Представление используется во встроенном блоке',
         })
-        if (pages.some((p) => contentReferencesView(p.content, input.id))) {
-          throw new TRPCError({
-            code: 'CONFLICT',
-            message: 'Представление используется во встроенном блоке',
-          })
-        }
       }
-      return mapDomain(() => domainSvc.database.deleteView(ctx.user.id, input))
-    }),
+    }
+    if (formId !== undefined) {
+      return mapDomain(() =>
+        domainSvc.databaseForms.archive(ctx.user.id, {
+          pageId: input.pageId,
+          formId,
+        }),
+      )
+    }
+    return mapDomain(() => domainSvc.database.deleteView(ctx.user.id, input))
+  }),
 })

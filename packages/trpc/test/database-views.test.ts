@@ -20,7 +20,9 @@ const EMAIL_SUFFIX = '+database-views-test@anynote.dev'
 
 async function cleanFixtures() {
   await prisma.databaseCellValue.deleteMany({
-    where: { property: { source: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } } } },
+    where: {
+      property: { source: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } } },
+    },
   })
   await prisma.databaseRow.deleteMany({
     where: { source: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } } },
@@ -141,8 +143,18 @@ describe('database views router (integration)', () => {
     const [optA, optB] = status.settings!.options!
     const apple = await c.createRow({ pageId: fx.pageId, title: 'Apple' })
     const banana = await c.createRow({ pageId: fx.pageId, title: 'Banana' })
-    await c.updateCellValue({ pageId: fx.pageId, rowId: apple.rowId, propertyId: status.id, value: optA!.id })
-    await c.updateCellValue({ pageId: fx.pageId, rowId: banana.rowId, propertyId: status.id, value: optB!.id })
+    await c.updateCellValue({
+      pageId: fx.pageId,
+      rowId: apple.rowId,
+      propertyId: status.id,
+      value: optA!.id,
+    })
+    await c.updateCellValue({
+      pageId: fx.pageId,
+      rowId: banana.rowId,
+      propertyId: status.id,
+      value: optB!.id,
+    })
 
     // View 1: filter STATUS == optA (only Apple).
     const v1 = (await c.listViews({ pageId: fx.pageId }))[0]!
@@ -188,7 +200,12 @@ describe('database views router (integration)', () => {
     const r100 = await c.createRow({ pageId: fx.pageId, title: 'hundred' })
     await c.updateCellValue({ pageId: fx.pageId, rowId: r9.rowId, propertyId: num.id, value: 9 })
     await c.updateCellValue({ pageId: fx.pageId, rowId: r20.rowId, propertyId: num.id, value: 20 })
-    await c.updateCellValue({ pageId: fx.pageId, rowId: r100.rowId, propertyId: num.id, value: 100 })
+    await c.updateCellValue({
+      pageId: fx.pageId,
+      rowId: r100.rowId,
+      propertyId: num.id,
+      value: 100,
+    })
 
     const view = (await c.listViews({ pageId: fx.pageId }))[0]!
     await c.updateView({
@@ -241,8 +258,18 @@ describe('database views router (integration)', () => {
     const a = await c.createRow({ pageId: fx.pageId, title: 'InA' })
     const b = await c.createRow({ pageId: fx.pageId, title: 'InB' })
     await c.createRow({ pageId: fx.pageId, title: 'Ungrouped' })
-    await c.updateCellValue({ pageId: fx.pageId, rowId: a.rowId, propertyId: status.id, value: optA!.id })
-    await c.updateCellValue({ pageId: fx.pageId, rowId: b.rowId, propertyId: status.id, value: optB!.id })
+    await c.updateCellValue({
+      pageId: fx.pageId,
+      rowId: a.rowId,
+      propertyId: status.id,
+      value: optA!.id,
+    })
+    await c.updateCellValue({
+      pageId: fx.pageId,
+      rowId: b.rowId,
+      propertyId: status.id,
+      value: optB!.id,
+    })
 
     // A BOARD view groups by the STATUS property (default-seeded on creation).
     const board = await c.createView({ pageId: fx.pageId, type: 'BOARD', title: 'Доска' })
@@ -269,6 +296,30 @@ describe('database views router (integration)', () => {
     expect(views).toHaveLength(2)
     // The copy sits after the original.
     expect(views.at(-1)?.id).toBe(copy.id)
+  })
+
+  it('rejects generic FORM creation and duplicates a FORM through its lifecycle service', async () => {
+    const fx = await seed()
+    const c = caller(fx.ownerId)
+
+    await expect(
+      c.createView({ pageId: fx.pageId, type: 'FORM', title: 'Нельзя так' }),
+    ).rejects.toThrow(/FORM_REQUIRES_CREATE_FORM/)
+
+    const original = await c.createForm({ pageId: fx.pageId, title: 'Анкета' })
+    await c.publishForm({ pageId: fx.pageId, formId: original.id })
+    const copy = await c.duplicateView({ pageId: fx.pageId, viewId: original.viewId! })
+
+    expect(copy).toMatchObject({
+      state: 'DRAFT',
+      customSlug: null,
+      publishedVersionId: null,
+      acceptedResponses: 0,
+    })
+    expect(copy.id).not.toBe(original.id)
+    expect(copy.viewId).not.toBe(original.viewId)
+    expect(copy.routeKey).not.toBe(original.routeKey)
+    await expect(c.listFormVersions({ pageId: fx.pageId, formId: copy.id })).resolves.toEqual([])
   })
 
   it('updateView accepts typed settings and rejects a malformed operator', async () => {
@@ -334,7 +385,12 @@ describe('database views router (integration)', () => {
           content: [
             {
               type: 'embeddedDatabase',
-              attrs: { sourceId: source.id, viewId: board.id, displayMode: 'table', readonly: false },
+              attrs: {
+                sourceId: source.id,
+                viewId: board.id,
+                displayMode: 'table',
+                readonly: false,
+              },
             },
           ],
         },
@@ -350,5 +406,52 @@ describe('database views router (integration)', () => {
     await c.deleteView({ pageId: fx.pageId, id: other.id })
     const views = await c.listViews({ pageId: fx.pageId })
     expect(views.map((v) => v.id)).not.toContain(other.id)
+  })
+
+  it('checks embedded references before atomically archiving a FORM view', async () => {
+    const fx = await seed()
+    const c = caller(fx.ownerId)
+    const form = await c.createForm({ pageId: fx.pageId, title: 'Встроенная форма' })
+    const source = (await c.getByPage({ pageId: fx.pageId })).source
+    const embedded = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        type: 'TEXT',
+        title: 'Embeds the form',
+        createdById: fx.ownerId,
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'embeddedDatabase',
+              attrs: {
+                sourceId: source.id,
+                viewId: form.viewId,
+                displayMode: 'table',
+                readonly: false,
+              },
+            },
+          ],
+        },
+      },
+    })
+
+    await expect(c.deleteView({ pageId: fx.pageId, id: form.viewId! })).rejects.toThrow(
+      /встроенном блоке/i,
+    )
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ state: 'DRAFT', viewId: form.viewId })
+
+    await prisma.page.update({ where: { id: embedded.id }, data: { content: { type: 'doc' } } })
+    await expect(c.deleteView({ pageId: fx.pageId, id: form.viewId! })).resolves.toEqual({
+      ok: true,
+    })
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ state: 'ARCHIVED', viewId: null })
+    await expect(
+      prisma.databaseView.findUnique({ where: { id: form.viewId! } }),
+    ).resolves.toBeNull()
   })
 })
