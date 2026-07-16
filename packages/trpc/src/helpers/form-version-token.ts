@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
 import { z } from 'zod'
 
@@ -26,6 +26,10 @@ export type FormVersionContext = Pick<
 > & {
   isCurrent: boolean
   acceptUntil: Date | null
+}
+
+export function hashFormLocator(locator: string): string {
+  return createHash('sha256').update(locator).digest('hex')
 }
 
 function assertSecret(secret: string): void {

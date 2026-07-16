@@ -31,6 +31,7 @@ import { securityRouter } from './routers/security'
 import { billingRouter } from './routers/billing'
 import { meetingRouter } from './routers/meeting'
 import { dashboardRouter } from './routers/dashboard'
+import { formRouter } from './routers/form'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -85,6 +86,7 @@ export const appRouter = router({
   billing: billingRouter,
   meeting: meetingRouter,
   dashboard: dashboardRouter,
+  form: formRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)

@@ -26,6 +26,7 @@ import { databaseFormsModule, databaseModule } from './database/database.module.
 import type { DatabaseService } from './database/services/database.service.ts'
 import { DATABASE_FORMS } from './database/forms/database-forms.tokens.ts'
 import type { DatabaseFormService } from './database/forms/database-form.service.ts'
+import type { FormAccessResolver } from './database/forms/form-access-resolver.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
@@ -73,6 +74,7 @@ export interface Domain {
   kanban: KanbanService
   database: DatabaseService
   databaseForms: DatabaseFormService
+  formAccess: FormAccessResolver
   pages: PageService
   people: PeopleService
   identity: IdentityService
@@ -130,6 +132,7 @@ export function createDomain(deps: DomainDeps): Domain {
     kanban: c.get<KanbanService>(KANBAN.Service),
     database: c.get<DatabaseService>(DATABASE.Service),
     databaseForms: c.get<DatabaseFormService>(DATABASE_FORMS.Service),
+    formAccess: c.get<FormAccessResolver>(DATABASE_FORMS.AccessResolver),
     pages: c.get<PageService>(PAGES.Service),
     people: c.get<PeopleService>(PEOPLE.Service),
     identity: c.get<IdentityService>(IDENTITY.Service),
