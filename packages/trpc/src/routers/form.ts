@@ -23,6 +23,7 @@ import { publicProcedure, router } from '../trpc'
 
 const FORM_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
 const MAX_SERIALIZED_ANSWERS_BYTES = 1_048_576
+const MAX_ANSWER_KEYS = 500
 const pickerCursorSchema = z.string().uuid()
 
 const submitInputSchema = z
@@ -30,9 +31,12 @@ const submitInputSchema = z
     locator: z.string().trim().min(1).max(200),
     versionToken: z.string().min(1).max(4_096),
     idempotencyKey: z.string().uuid(),
-    answers: z.record(z.string().min(1).max(64), z.unknown()),
+    answers: z
+      .record(z.string().min(1).max(64), z.unknown())
+      .refine((answers) => Object.keys(answers).length <= MAX_ANSWER_KEYS, {
+        message: 'FORM_TOO_MANY_ANSWERS',
+      }),
     honeypot: z.string().max(512),
-    captchaToken: z.string().max(4_096).optional(),
   })
   .strict()
 
@@ -51,6 +55,12 @@ type FormSubmissionInput = {
   locator: string
   idempotencyKey: string
   answers: Record<string, unknown>
+}
+type SubmitFormResult = {
+  submissionId: string
+  endingId: string
+  ownResponseUrl: string | null
+  created: boolean
 }
 
 type FormRouterDomain = Pick<typeof domainSvc, 'database' | 'formAccess' | 'formSubmissions'>
@@ -106,6 +116,15 @@ function toDomainSubmissionInput(input: z.infer<typeof submitInputSchema>): Form
     locator: input.locator,
     idempotencyKey: input.idempotencyKey,
     answers: input.answers,
+  }
+}
+
+function toSubmitFormResult(result: SubmitFormResult): SubmitFormResult {
+  return {
+    submissionId: result.submissionId,
+    endingId: result.endingId,
+    ownResponseUrl: result.ownResponseUrl,
+    created: result.created,
   }
 }
 
@@ -334,54 +353,32 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
         resolved.status === 'OPEN' ? resolved.form.id : hashFormLocator(input.locator.trim())
 
       let token: ReturnType<typeof verifyFormVersionToken> | null = null
-      let tokenContextValid = false
+      let replayVersionStale = false
       try {
         token = verifyFormVersionToken(input.versionToken, tokenSecret(), dependencies.now())
       } catch {
         token = null
       }
 
-      if (token !== null && resolved.status === 'OPEN') {
-        const storedVersion = await domain.formAccess.resolveVersion(
-          resolved.form,
-          token.versionNumber,
-        )
-        if (storedVersion !== null && storedVersion.formId === resolved.form.id) {
-          try {
-            assertFormVersionContext(
-              token,
-              {
-                locatorHash: hashFormLocator(resolved.locator),
-                versionNumber: storedVersion.versionNumber,
-                schemaHash: storedVersion.schemaHash,
-                linkRevision: resolved.form.linkRevision,
-                isCurrent: storedVersion.id === resolved.form.publishedVersionId,
-                acceptUntil: storedVersion.acceptUntil,
-              },
-              dependencies.now(),
-            )
-            tokenContextValid = true
-          } catch {
-            tokenContextValid = false
-          }
-        }
-      }
-
-      if (token !== null && tokenContextValid) {
+      if (token !== null) {
         try {
           const replay = await domain.formSubmissions.findReplay(
             actorUserId,
             submissionInput,
             token,
           )
-          if (replay !== null) return replay
+          if (replay !== null) return toSubmitFormResult(replay)
         } catch (error) {
           // Context can change between the public lookup and the replay lookup. Do not
           // turn that race into a pre-CAPTCHA oracle; the authoritative submit below
           // will return the public error after the normal protection boundary.
-          if (
-            !isDomainError(error) ||
-            (error.message !== 'FORM_NOT_ACCEPTING' && error.message !== 'FORM_VERSION_STALE')
+          if (!isDomainError(error)) {
+            throw error
+          }
+          if (error.message === 'FORM_VERSION_STALE') replayVersionStale = true
+          else if (
+            error.message !== 'FORM_NOT_ACCEPTING' &&
+            error.message !== 'FORM_IDEMPOTENCY_CONFLICT'
           ) {
             throw error
           }
@@ -404,7 +401,7 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
 
       try {
         await dependencies.verifyCaptcha({
-          token: ctx.headers.get('x-captcha-response') ?? input.captchaToken,
+          token: ctx.headers.get('x-captcha-response'),
           action: 'form_submit',
           headers: ctx.headers,
         })
@@ -412,11 +409,14 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
         throw formProtected()
       }
 
-      if (token === null || (resolved.status === 'OPEN' && !tokenContextValid)) {
+      if (token === null || replayVersionStale) {
         throw formRefreshRequired()
       }
 
-      return mapDomain(() => domain.formSubmissions.submit(actorUserId, submissionInput, token))
+      const result = await mapDomain(() =>
+        domain.formSubmissions.submit(actorUserId, submissionInput, token),
+      )
+      return toSubmitFormResult(result)
     }),
   })
 }

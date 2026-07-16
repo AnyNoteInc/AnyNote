@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@repo/db'
 import { getUserFromRequest } from '@repo/auth'
 import type { CreatePaymentInput, Payment } from '@repo/yookassa'
+import { publicFormFieldErrors } from './helpers/map-domain'
 
 type YookassaClientLike = {
   createPayment(input: CreatePaymentInput, idempotencyKey: string): Promise<Payment>
@@ -64,7 +65,13 @@ export const createServerContext = async (
 
 export type Context = Awaited<ReturnType<typeof createContext>>
 
-const t = initTRPC.context<Context>().create()
+const t = initTRPC.context<Context>().create({
+  errorFormatter({ shape, error }) {
+    const fieldErrors = publicFormFieldErrors(error)
+    if (fieldErrors === undefined) return shape
+    return { ...shape, data: { ...shape.data, fieldErrors } }
+  },
+})
 
 export const router = t.router
 export const publicProcedure = t.procedure

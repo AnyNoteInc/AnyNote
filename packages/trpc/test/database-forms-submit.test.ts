@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   conflict,
+  FormValidationError,
   type FormSubmissionResult,
   type FormVersionRecord,
   type PublicFormRecord,
@@ -80,14 +81,28 @@ const openResolution: PublishedFormResolution = {
 
 const createdResult: FormSubmissionResult = {
   submissionId: SUBMISSION_ID,
-  rowId: ROW_ID,
-  pageId: RESPONSE_PAGE_ID,
   endingId: 'ending-1',
-  submittedAt: new Date(NOW),
+  ownResponseUrl: null,
   created: true,
 }
 
 const replayResult: FormSubmissionResult = { ...createdResult, created: false }
+const domainCreatedResult = {
+  ...createdResult,
+  rowId: ROW_ID,
+  pageId: RESPONSE_PAGE_ID,
+  submittedAt: new Date(NOW),
+}
+const domainReplayResult = { ...domainCreatedResult, created: false }
+const ownResponseUrl = `/f/anf_submit-key/responses/${SUBMISSION_ID}`
+const authenticatedCreatedResult: FormSubmissionResult = {
+  ...createdResult,
+  ownResponseUrl,
+}
+const domainAuthenticatedCreatedResult = {
+  ...domainCreatedResult,
+  ownResponseUrl,
+}
 
 function tokenFor(overrides: Partial<Parameters<typeof signFormVersionToken>[0]> = {}): string {
   return signFormVersionToken(
@@ -106,14 +121,14 @@ function tokenFor(overrides: Partial<Parameters<typeof signFormVersionToken>[0]>
 
 type HarnessOptions = {
   replay?: FormSubmissionResult | null
+  submitResult?: FormSubmissionResult
   replayError?: Error
   limiterResults?: readonly boolean[]
   captchaError?: Error
   resolved?: PublishedFormResolution
-  storedVersion?: FormVersionRecord | null
-  versionError?: Error
   submitError?: Error
   headers?: Headers
+  userId?: string | null
 }
 
 function makeHarness(options: HarnessOptions = {}) {
@@ -124,8 +139,7 @@ function makeHarness(options: HarnessOptions = {}) {
   })
   const resolveVersion = vi.fn(async () => {
     order.push('version-context')
-    if (options.versionError) throw options.versionError
-    return options.storedVersion === undefined ? version : options.storedVersion
+    return version
   })
   const findReplay = vi.fn(async () => {
     order.push('replay')
@@ -135,7 +149,7 @@ function makeHarness(options: HarnessOptions = {}) {
   const submit = vi.fn(async () => {
     order.push('submit')
     if (options.submitError) throw options.submitError
-    return createdResult
+    return options.submitResult ?? domainCreatedResult
   })
   const consume = vi.fn((scope: string) => {
     order.push(`limit:${scope}`)
@@ -159,7 +173,16 @@ function makeHarness(options: HarnessOptions = {}) {
   })
   const api = createCallerFactory(router)({
     prisma: {} as never,
-    user: null,
+    user:
+      options.userId === undefined || options.userId === null
+        ? null
+        : ({
+            id: options.userId,
+            email: 'respondent@example.test',
+            firstName: 'Response',
+            lastName: 'Owner',
+            emailVerified: true,
+          } as never),
     headers:
       options.headers ??
       new Headers({
@@ -211,7 +234,6 @@ describe('public database form submission', () => {
 
     expect(harness.order).toEqual([
       'lookup',
-      'version-context',
       'replay',
       'limit:submit-ip',
       'limit:submit-form',
@@ -242,11 +264,11 @@ describe('public database form submission', () => {
   })
 
   it('returns an exact replay only after signed and stored context revalidation', async () => {
-    const harness = makeHarness({ replay: replayResult })
+    const harness = makeHarness({ replay: domainReplayResult })
 
     await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
 
-    expect(harness.order).toEqual(['lookup', 'version-context', 'replay'])
+    expect(harness.order).toEqual(['lookup', 'replay'])
     expect(harness.findReplay).toHaveBeenCalledWith(
       null,
       {
@@ -261,6 +283,33 @@ describe('public database form submission', () => {
     expect(harness.submit).not.toHaveBeenCalled()
   })
 
+  it('returns a capped-form replay before limiter and CAPTCHA without leaking row internals', async () => {
+    const harness = makeHarness({ resolved: { status: 'CAPPED' }, replay: domainReplayResult })
+
+    await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
+
+    expect(harness.order).toEqual(['lookup', 'replay'])
+    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('returns the first success for the same key after that response caps the form', async () => {
+    const harness = makeHarness()
+    harness.findReplay.mockResolvedValueOnce(null).mockResolvedValueOnce(domainReplayResult)
+    harness.resolvePublished
+      .mockResolvedValueOnce(openResolution)
+      .mockResolvedValueOnce({ status: 'CAPPED' })
+
+    await expect(harness.api.submit(validInput())).resolves.toEqual(createdResult)
+    await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
+
+    expect(harness.submit).toHaveBeenCalledOnce()
+    expect(harness.verifyCaptcha).toHaveBeenCalledOnce()
+    expect(harness.consume).toHaveBeenCalledTimes(2)
+    expect(harness.findReplay).toHaveBeenCalledTimes(2)
+  })
+
   it('propagates an unexpected replay lookup failure instead of hiding infrastructure errors', async () => {
     const databaseFailure = new Error('database unavailable')
     const harness = makeHarness({ replayError: databaseFailure })
@@ -270,7 +319,7 @@ describe('public database form submission', () => {
       message: databaseFailure.message,
     })
 
-    expect(harness.order).toEqual(['lookup', 'version-context', 'replay'])
+    expect(harness.order).toEqual(['lookup', 'replay'])
     expect(harness.consume).not.toHaveBeenCalled()
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
@@ -288,39 +337,23 @@ describe('public database form submission', () => {
     expect(harness.submit).not.toHaveBeenCalled()
   })
 
-  it('never returns replay when the signed token disagrees with stored version context', async () => {
-    const changedVersion = { ...version, schemaHash: 'f'.repeat(64) }
-    const harness = makeHarness({ replay: replayResult, storedVersion: changedVersion })
+  it('never returns replay when the domain rejects its stored version context', async () => {
+    const harness = makeHarness({ replayError: conflict('FORM_VERSION_STALE') })
 
     await expect(harness.api.submit(validInput())).rejects.toMatchObject({
       code: 'PRECONDITION_FAILED',
       message: 'FORM_REFRESH_REQUIRED',
     })
 
-    expect(harness.findReplay).not.toHaveBeenCalled()
+    expect(harness.findReplay).toHaveBeenCalledOnce()
     expect(harness.order).toEqual([
       'lookup',
-      'version-context',
+      'replay',
       'limit:submit-ip',
       'limit:submit-form',
       'captcha',
     ])
     expect(harness.submit).not.toHaveBeenCalled()
-  })
-
-  it('propagates a stored-version infrastructure failure instead of disguising it as refresh-required', async () => {
-    const repositoryFailure = new Error('version repository unavailable')
-    const harness = makeHarness({ versionError: repositoryFailure })
-
-    await expect(harness.api.submit(validInput())).rejects.toMatchObject({
-      code: 'INTERNAL_SERVER_ERROR',
-      message: repositoryFailure.message,
-    })
-
-    expect(harness.order).toEqual(['lookup', 'version-context'])
-    expect(harness.findReplay).not.toHaveBeenCalled()
-    expect(harness.consume).not.toHaveBeenCalled()
-    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
   })
 
   it('lets the domain return the authoritative unavailable state after protection checks', async () => {
@@ -334,9 +367,10 @@ describe('public database form submission', () => {
       message: 'FORM_NOT_ACCEPTING',
     })
 
-    expect(harness.findReplay).not.toHaveBeenCalled()
+    expect(harness.findReplay).toHaveBeenCalledOnce()
     expect(harness.order).toEqual([
       'lookup',
+      'replay',
       'limit:submit-ip',
       'limit:submit-form',
       'captcha',
@@ -365,6 +399,23 @@ describe('public database form submission', () => {
 
     expect(harness.resolvePublished).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('rejects more than 500 top-level answer keys before lookup or protection work', async () => {
+    const harness = makeHarness()
+    const answers = Object.fromEntries(
+      Array.from({ length: 501 }, (_, index) => [`q${index}`, null]),
+    )
+
+    await expect(harness.api.submit(validInput({ answers }))).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    })
+
+    expect(harness.order).toEqual([])
+    expect(harness.resolvePublished).not.toHaveBeenCalled()
+    expect(harness.findReplay).not.toHaveBeenCalled()
+    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
   })
 
   it('measures the serialized payload in UTF-8 bytes rather than JavaScript characters', async () => {
@@ -414,7 +465,7 @@ describe('public database form submission', () => {
       message: 'FORM_PROTECTED',
     })
 
-    expect(ipLimited.order).toEqual(['lookup', 'version-context', 'replay', 'limit:submit-ip'])
+    expect(ipLimited.order).toEqual(['lookup', 'replay', 'limit:submit-ip'])
     expect(ipLimited.verifyCaptcha).not.toHaveBeenCalled()
     expect(ipLimited.submit).not.toHaveBeenCalled()
   })
@@ -427,13 +478,7 @@ describe('public database form submission', () => {
       message: 'FORM_PROTECTED',
     })
 
-    expect(formLimited.order).toEqual([
-      'lookup',
-      'version-context',
-      'replay',
-      'limit:submit-ip',
-      'limit:submit-form',
-    ])
+    expect(formLimited.order).toEqual(['lookup', 'replay', 'limit:submit-ip', 'limit:submit-form'])
     expect(formLimited.verifyCaptcha).not.toHaveBeenCalled()
     expect(formLimited.submit).not.toHaveBeenCalled()
   })
@@ -450,50 +495,35 @@ describe('public database form submission', () => {
     expect(harness.submit).not.toHaveBeenCalled()
   })
 
-  it('accepts an optional input CAPTCHA token only when the header is absent', async () => {
-    const harness = makeHarness({ headers: new Headers({ 'x-real-ip': '203.0.113.11' }) })
+  it('keeps safe question-keyed field errors inspectable for server callers', async () => {
+    const fieldErrors = { question: ['REQUIRED_ANSWER'] }
+    const harness = makeHarness({ submitError: new FormValidationError(fieldErrors) })
 
-    await harness.api.submit(validInput({ captchaToken: 'captcha-input-token' }))
-
-    expect(harness.verifyCaptcha).toHaveBeenCalledWith({
-      token: 'captcha-input-token',
-      action: 'form_submit',
-      headers: expect.any(Headers),
+    await expect(harness.api.submit(validInput())).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'FORM_ANSWERS_INVALID',
+      cause: { details: { fieldErrors } },
     })
   })
 
-  it('propagates the authenticated actor to replay and submission without trusting input actor data', async () => {
-    const harness = makeHarness()
-    const router = createFormRouter({
-      domain: {
-        formAccess: {
-          resolvePublished: harness.resolvePublished,
-          resolveVersion: harness.resolveVersion,
-        },
-        formSubmissions: { findReplay: harness.findReplay, submit: harness.submit },
-        database: { listRows: vi.fn() },
-      } as never,
-      rateLimiter: { consume: harness.consume },
-      verifyCaptcha: harness.verifyCaptcha,
-      now: () => NOW,
-    })
-    const api = createCallerFactory(router)({
-      prisma: {} as never,
-      user: {
-        id: USER_ID,
-        email: 'respondent@example.test',
-        firstName: 'Response',
-        lastName: 'Owner',
-        emailVerified: true,
-      } as never,
-      headers: new Headers({ 'x-captcha-response': 'captcha-header-token' }),
-      resHeaders: new Headers(),
-      yookassa: {} as never,
-      returnUrlBase: 'http://localhost',
-      jobs: { kick: vi.fn() },
+  it('rejects a CAPTCHA token in the body before any form work', async () => {
+    const harness = makeHarness({ headers: new Headers({ 'x-real-ip': '203.0.113.11' }) })
+
+    await expect(
+      harness.api.submit(validInput({ captchaToken: 'captcha-input-token' })),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+    expect(harness.order).toEqual([])
+    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
+  })
+
+  it('returns only the authenticated public result and propagates the session actor', async () => {
+    const harness = makeHarness({
+      userId: USER_ID,
+      submitResult: domainAuthenticatedCreatedResult,
     })
 
-    await api.submit(validInput())
+    await expect(harness.api.submit(validInput())).resolves.toEqual(authenticatedCreatedResult)
 
     expect(harness.findReplay).toHaveBeenCalledWith(USER_ID, expect.any(Object), expect.any(Object))
     expect(harness.submit).toHaveBeenCalledWith(USER_ID, expect.any(Object), expect.any(Object))
