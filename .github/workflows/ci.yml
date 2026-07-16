@@ -87,6 +87,7 @@ jobs:
       YOOKASSA_MOCK_ENABLED: 'true'
       NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ci-recaptcha-key
       RECAPTCHA_SECRET_KEY: ci-recaptcha-secret
+      FORM_TOKEN_SECRET: ci-form-token-secret-at-least-32-bytes
 
     steps:
       - uses: actions/checkout@v5

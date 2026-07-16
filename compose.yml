@@ -1,3 +1,5 @@
+# Application processes run through `pnpm dev` and read FORM_TOKEN_SECRET from
+# the root .env; this compose file intentionally contains infrastructure only.
 services:
   postgres:
     image: postgres:16-alpine

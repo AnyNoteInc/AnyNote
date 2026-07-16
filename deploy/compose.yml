@@ -120,6 +120,8 @@ services:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: unless-stopped
     env_file: .env
+    environment:
+      FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -146,6 +148,8 @@ services:
     image: ghcr.io/anynoteinc/anynote-engines:latest
     restart: unless-stopped
     env_file: .env
+    environment:
+      FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
     depends_on:
       migrate:
         condition: service_completed_successfully

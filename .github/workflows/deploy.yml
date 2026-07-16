@@ -123,6 +123,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
           RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+          FORM_TOKEN_SECRET: ${{ secrets.FORM_TOKEN_SECRET }}
           YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
           YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
           YOOKASSA_SAVE_PAYMENT_METHOD: ${{ vars.YOOKASSA_SAVE_PAYMENT_METHOD }}
@@ -141,6 +142,10 @@ jobs:
           SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE || '0.1' }}
           SENTRY_RELEASE: ${{ github.ref_name }}
         run: |
+          if [ -z "$FORM_TOKEN_SECRET" ] || [ "${#FORM_TOKEN_SECRET}" -lt 32 ]; then
+            echo "ERROR: FORM_TOKEN_SECRET must be set to at least 32 characters"
+            exit 1
+          fi
           envsubst < deploy/.env.template > /tmp/.env
           chmod 600 /tmp/.env
           # Materialise the dashboard-users file for traefik basicAuth.usersFile.
