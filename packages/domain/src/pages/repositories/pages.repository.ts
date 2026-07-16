@@ -3,10 +3,6 @@ import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import {
-  lockPagesForMutation,
-  lockWorkspaceForMutation,
-} from '../../shared/workspace-transaction-lock.ts'
 import { buildPageVisibilityWhere, excludeDatabaseRowPages } from '../page-visibility.ts'
 import type {
   CountResultDto,
@@ -717,54 +713,9 @@ export class PageRepository {
     page: PageRowDto,
     input: MovePageInput,
   ): Promise<CreateResultDto> {
-    const client = this.uow.client()
-    if (!(await lockWorkspaceForMutation(client, page.workspaceId))) {
-      throw notFound('Воркспейс не найден')
-    }
-    const currentPage = await client.page.findUnique({ where: { id: page.id } })
-    if (
-      currentPage === null ||
-      currentPage.workspaceId !== page.workspaceId ||
-      currentPage.deletedAt !== null
-    ) {
-      throw notFound('Страница не найдена')
-    }
-    const staticPageIds = [
-      currentPage.id,
-      currentPage.parentId,
-      currentPage.prevPageId,
-      input.newParentId,
-    ].filter(
-      (id): id is string => id !== null,
-    )
-    const affectedPages = await client.page.findMany({
-      where: {
-        workspaceId: page.workspaceId,
-        OR: [
-          { id: { in: staticPageIds } },
-          { prevPageId: currentPage.id, deletedAt: null },
-          {
-            parentId: input.newParentId,
-            prevPageId: null,
-            id: { not: currentPage.id },
-            deletedAt: null,
-          },
-        ],
-      },
-      select: { id: true },
-    })
-    if (
-      !(await lockPagesForMutation(
-        client,
-        affectedPages.map(({ id }) => id),
-      ))
-    ) {
-      throw notFound('Страница не найдена')
-    }
-
     // 1. Remove from old linked-list (detach first to avoid unique constraint)
     const nextSibling = await this.uow.client().page.findFirst({
-      where: { prevPageId: currentPage.id, deletedAt: null },
+      where: { prevPageId: page.id, deletedAt: null },
     })
     if (nextSibling) {
       await this.uow.client().page.update({
@@ -778,7 +729,7 @@ export class PageRepository {
 
     // 3. Set new parentId
     await this.uow.client().page.update({
-      where: { id: currentPage.id },
+      where: { id: page.id },
       data: {
         parentId: input.newParentId,
         prevPageId: null,
@@ -790,43 +741,43 @@ export class PageRepository {
     if (nextSibling) {
       await this.uow.client().page.update({
         where: { id: nextSibling.id },
-        data: { prevPageId: currentPage.prevPageId },
+        data: { prevPageId: page.prevPageId },
       })
     }
 
     // 4. Insert at head of new parent's linked-list
     const existingFirst = await this.uow.client().page.findFirst({
       where: {
-        workspaceId: currentPage.workspaceId,
+        workspaceId: page.workspaceId,
         parentId: input.newParentId,
         prevPageId: null,
-        id: { not: currentPage.id },
+        id: { not: page.id },
         deletedAt: null,
       },
     })
     if (existingFirst) {
       await this.uow.client().page.update({
         where: { id: existingFirst.id },
-        data: { prevPageId: currentPage.id },
+        data: { prevPageId: page.id },
       })
     }
 
     await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
-      aggregateId: currentPage.id,
-      workspaceId: currentPage.workspaceId,
+      aggregateId: page.id,
+      workspaceId: page.workspaceId,
     })
     await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.moved',
       resourceType: 'page',
-      resourceId: currentPage.id,
-      workspaceId: currentPage.workspaceId,
+      resourceId: page.id,
+      workspaceId: page.workspaceId,
       actorId: actorUserId,
       hints: { to: input.newParentId ?? null },
     })
 
-    return { id: currentPage.id }
+    return { id: page.id }
   }
 
   async reorderPageTx(
