@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PageType, prisma } from '@repo/db'
 
 import { PrismaUnitOfWork, type Db, type UnitOfWork } from '../../../src/shared/unit-of-work.ts'
+import { conflict } from '../../../src/shared/errors.ts'
 import { lockWorkspaceForMutation } from '../../../src/shared/workspace-transaction-lock.ts'
 import {
   DatabaseFormRepository,
@@ -979,6 +980,125 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     await expect(
       prisma.databaseFormSubmission.count({ where: { formId: form.id } }),
     ).resolves.toBeLessThanOrEqual(1)
+  })
+
+  it('fails fast instead of deadlocking with a child-first page duplication', async () => {
+    const original = await prisma.page.create({
+      data: { workspaceId, title: `Duplicate original ${RUN}`, createdById: userId },
+    })
+    const oldNext = await prisma.page.create({
+      data: {
+        workspaceId,
+        title: `Duplicate next ${RUN}`,
+        prevPageId: original.id,
+        createdById: userId,
+      },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_duplicate_race`,
+        draftSchema: documentFor(),
+        createdById: userId,
+        state: 'OPEN',
+      },
+    })
+
+    const childHeld = deferred()
+    const allowInsert = deferred()
+    let paused = false
+    class PausingDuplicateUnitOfWork implements UnitOfWork {
+      private readonly inner = new PrismaUnitOfWork(prisma)
+
+      transaction<T>(fn: () => Promise<T>): Promise<T> {
+        return this.inner.transaction(fn)
+      }
+
+      client(): Db {
+        const client = this.inner.client()
+        return new Proxy(client, {
+          get: (target, property, receiver) => {
+            const value = Reflect.get(target, property, receiver)
+            if (property !== 'page' || value === null || typeof value !== 'object') return value
+            return new Proxy(value, {
+              get: (delegate, operation, delegateReceiver) => {
+                const method = Reflect.get(delegate, operation, delegateReceiver)
+                if (operation !== 'update' || typeof method !== 'function') return method
+                return async (...args: unknown[]) => {
+                  const result = await Reflect.apply(method, delegate, args)
+                  if (!paused) {
+                    paused = true
+                    childHeld.resolve()
+                    await allowInsert.promise
+                  }
+                  return result
+                }
+              },
+            })
+          },
+        }) as Db
+      }
+    }
+
+    const duplicateUow = new PausingDuplicateUnitOfWork()
+    const duplication = duplicateUow.transaction(() =>
+      new PageRepository(duplicateUow).duplicatePageTx(userId, original as never),
+    )
+    await childHeld.promise
+
+    const authorityAttempted = deferred()
+    const submitUow = new QueryObservingUnitOfWork((sql) => {
+      if (sql.includes('FROM pages') && sql.includes('WHERE id IN') && sql.includes('FOR UPDATE')) {
+        authorityAttempted.resolve()
+      }
+    })
+    const submitRepo = new DatabaseFormRepository(submitUow)
+    const submission = submitUow.transaction(async () => {
+      if (
+        !(await submitRepo.lockSubmissionContext({
+          formId: form.id,
+          workspaceId,
+          pageId: sourcePageId,
+          sourceId,
+          collectionIds: [],
+          parentPageIds: [],
+          actorUserId: null,
+        }))
+      ) {
+        throw conflict('FORM_NOT_ACCEPTING')
+      }
+      if (
+        !(await submitRepo.lockFormSubmissionAuthorities({
+          formId: form.id,
+          workspaceId,
+          formSourceId: sourceId,
+          actorUserId: null,
+          personUserIds: [],
+          sourceIds: [sourceId],
+          propertyIds: [],
+          rowIds: [],
+          collectionIds: [],
+          parentPageIds: [],
+          pageIds: [oldNext.id],
+          uploadIds: [],
+          fileIds: [],
+        }))
+      ) {
+        throw conflict('FORM_NOT_ACCEPTING')
+      }
+    })
+    await settlesWithin(authorityAttempted.promise)
+    allowInsert.resolve()
+
+    const outcomes = await settlesWithin(Promise.allSettled([submission, duplication]))
+    for (const outcome of outcomes) {
+      if (outcome.status === 'rejected') expect(errorDetails(outcome.reason)).not.toContain('40P01')
+    }
+    expect(outcomes[1]?.status).toBe('fulfilled')
+    expect(outcomes[0]).toMatchObject({
+      status: 'rejected',
+      reason: { code: 'CONFLICT', message: 'FORM_NOT_ACCEPTING' },
+    })
   })
 
   it('does not deadlock when a row soft-delete overlaps a relation submission', async () => {

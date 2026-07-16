@@ -403,6 +403,22 @@ export interface FormRepositoryContract {
   ): Promise<boolean>
 }
 
+function isPostgresLockUnavailable(error: unknown): boolean {
+  const pending: unknown[] = [error]
+  const seen = new WeakSet<object>()
+  let inspected = 0
+  while (pending.length > 0 && inspected < 16) {
+    const value = pending.pop()
+    if (value === null || typeof value !== 'object' || seen.has(value)) continue
+    seen.add(value)
+    inspected += 1
+    const record = value as Record<string, unknown>
+    if (record.code === '55P03' || record.originalCode === '55P03') return true
+    pending.push(record.meta, record.cause, record.driverAdapterError)
+  }
+  return false
+}
+
 export class DatabaseFormRepository implements FormRepositoryContract {
   private readonly uow: UnitOfWork
 
@@ -689,6 +705,17 @@ export class DatabaseFormRepository implements FormRepositoryContract {
   }
 
   async lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean> {
+    try {
+      return await this.lockSubmissionContextNowait(input)
+    } catch (error) {
+      if (isPostgresLockUnavailable(error)) return false
+      throw error
+    }
+  }
+
+  private async lockSubmissionContextNowait(
+    input: LockFormSubmissionContextRecord,
+  ): Promise<boolean> {
     const client = this.uow.client()
     const collectionIds = [...new Set(input.collectionIds)].sort()
     const parentPageIds = [...new Set(input.parentPageIds)].sort()
@@ -703,7 +730,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       SELECT workspace_id AS "workspaceId"
       FROM workspace_security_policies
       WHERE workspace_id = ${input.workspaceId}::uuid
-      FOR UPDATE
+      FOR UPDATE NOWAIT
     `)
 
     if (input.actorUserId !== null) {
@@ -712,7 +739,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         FROM workspace_members
         WHERE workspace_id = ${input.workspaceId}::uuid
           AND user_id = ${input.actorUserId}::uuid
-        FOR UPDATE
+        FOR UPDATE NOWAIT
       `)
     }
 
@@ -720,7 +747,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const collections = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM collections
         WHERE id IN (${uuidList(collectionIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (collections.length !== collectionIds.length) return false
     }
@@ -729,7 +756,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const parentPages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM pages
         WHERE id IN (${uuidList(parentPageIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (parentPages.length !== parentPageIds.length) return false
     }
@@ -739,7 +766,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       FROM pages
       WHERE id = ${input.pageId}::uuid
         AND workspace_id = ${input.workspaceId}::uuid
-      FOR UPDATE
+      FOR UPDATE NOWAIT
     `)
     if (pages.length !== 1) return false
 
@@ -749,7 +776,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       WHERE id = ${input.sourceId}::uuid
         AND workspace_id = ${input.workspaceId}::uuid
         AND page_id = ${input.pageId}::uuid
-      FOR UPDATE
+      FOR UPDATE NOWAIT
     `)
     if (sources.length !== 1) return false
 
@@ -758,7 +785,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       FROM database_forms
       WHERE id = ${input.formId}::uuid
         AND source_id = ${input.sourceId}::uuid
-      FOR UPDATE
+      FOR UPDATE NOWAIT
     `)
     if (forms.length !== 1) return false
     return true
@@ -774,6 +801,17 @@ export class DatabaseFormRepository implements FormRepositoryContract {
    * before an unlocked parent.
    */
   async lockFormSubmissionAuthorities(
+    input: LockFormSubmissionAuthoritiesRecord,
+  ): Promise<boolean> {
+    try {
+      return await this.lockFormSubmissionAuthoritiesNowait(input)
+    } catch (error) {
+      if (isPostgresLockUnavailable(error)) return false
+      throw error
+    }
+  }
+
+  private async lockFormSubmissionAuthoritiesNowait(
     input: LockFormSubmissionAuthoritiesRecord,
   ): Promise<boolean> {
     const client = this.uow.client()
@@ -796,14 +834,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         SELECT user_id FROM workspace_members
         WHERE workspace_id = ${input.workspaceId}::uuid
           AND user_id IN (${uuidList(personUserIds)})
-        ORDER BY user_id FOR UPDATE
+        ORDER BY user_id FOR UPDATE NOWAIT
       `)
       if (members.length !== personUserIds.length) return false
       await client.$queryRaw(Prisma.sql`
         SELECT user_id FROM workspace_blocked_users
         WHERE workspace_id = ${input.workspaceId}::uuid
           AND user_id IN (${uuidList(personUserIds)})
-        ORDER BY user_id FOR UPDATE
+        ORDER BY user_id FOR UPDATE NOWAIT
       `)
     }
 
@@ -811,7 +849,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const collections = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM collections
         WHERE id IN (${uuidList(collectionIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (collections.length !== collectionIds.length) return false
     }
@@ -819,7 +857,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const parentPages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM pages
         WHERE id IN (${uuidList(parentPageIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (parentPages.length !== parentPageIds.length) return false
     }
@@ -827,7 +865,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM pages
         WHERE id IN (${uuidList(remainingPageIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (pages.length !== remainingPageIds.length) return false
     }
@@ -836,14 +874,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const targetSources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM database_sources
         WHERE id IN (${uuidList(targetSourceIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (targetSources.length !== targetSourceIds.length) return false
     }
     const properties = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT id FROM database_properties
       WHERE source_id IN (${uuidList(sourceIds)})
-      ORDER BY id FOR UPDATE
+      ORDER BY id FOR UPDATE NOWAIT
     `)
     const lockedPropertyIds = new Set(properties.map(({ id }) => id))
     if (input.propertyIds.some((id) => !lockedPropertyIds.has(id))) return false
@@ -851,14 +889,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       await client.$queryRaw(Prisma.sql`
         SELECT id FROM database_page_access_rules
         WHERE source_id IN (${uuidList(sourceIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
     }
     if (rowIds.length > 0) {
       const rows = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM database_rows
         WHERE id IN (${uuidList(rowIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (rows.length !== rowIds.length) return false
       await client.$queryRaw(Prisma.sql`
@@ -868,14 +906,14 @@ export class DatabaseFormRepository implements FormRepositoryContract {
             SELECT property_id FROM database_page_access_rules
             WHERE source_id IN (${uuidList(sourceIds)})
           )
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
     }
     if (pageIds.length > 0) {
       await client.$queryRaw(Prisma.sql`
         SELECT id FROM page_shares
         WHERE page_id IN (${uuidList(pageIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (input.actorUserId !== null) {
         await client.$queryRaw(Prisma.sql`
@@ -884,7 +922,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
             AND page_share_id IN (
               SELECT id FROM page_shares WHERE page_id IN (${uuidList(pageIds)})
             )
-          ORDER BY id FOR UPDATE
+          ORDER BY id FOR UPDATE NOWAIT
         `)
       }
     }
@@ -892,7 +930,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const files = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM files
         WHERE id IN (${uuidList(fileIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (files.length !== fileIds.length) return false
     }
@@ -900,7 +938,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       const uploads = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT id FROM database_form_uploads
         WHERE id IN (${uuidList(uploadIds)})
-        ORDER BY id FOR UPDATE
+        ORDER BY id FOR UPDATE NOWAIT
       `)
       if (uploads.length !== uploadIds.length) return false
     }

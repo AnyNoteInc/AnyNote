@@ -721,7 +721,20 @@ export class PageRepository {
     if (!(await lockWorkspaceForMutation(client, page.workspaceId))) {
       throw notFound('Воркспейс не найден')
     }
-    const staticPageIds = [page.id, page.parentId, page.prevPageId, input.newParentId].filter(
+    const currentPage = await client.page.findUnique({ where: { id: page.id } })
+    if (
+      currentPage === null ||
+      currentPage.workspaceId !== page.workspaceId ||
+      currentPage.deletedAt !== null
+    ) {
+      throw notFound('Страница не найдена')
+    }
+    const staticPageIds = [
+      currentPage.id,
+      currentPage.parentId,
+      currentPage.prevPageId,
+      input.newParentId,
+    ].filter(
       (id): id is string => id !== null,
     )
     const affectedPages = await client.page.findMany({
@@ -729,11 +742,11 @@ export class PageRepository {
         workspaceId: page.workspaceId,
         OR: [
           { id: { in: staticPageIds } },
-          { prevPageId: page.id, deletedAt: null },
+          { prevPageId: currentPage.id, deletedAt: null },
           {
             parentId: input.newParentId,
             prevPageId: null,
-            id: { not: page.id },
+            id: { not: currentPage.id },
             deletedAt: null,
           },
         ],
@@ -751,7 +764,7 @@ export class PageRepository {
 
     // 1. Remove from old linked-list (detach first to avoid unique constraint)
     const nextSibling = await this.uow.client().page.findFirst({
-      where: { prevPageId: page.id, deletedAt: null },
+      where: { prevPageId: currentPage.id, deletedAt: null },
     })
     if (nextSibling) {
       await this.uow.client().page.update({
@@ -765,7 +778,7 @@ export class PageRepository {
 
     // 3. Set new parentId
     await this.uow.client().page.update({
-      where: { id: page.id },
+      where: { id: currentPage.id },
       data: {
         parentId: input.newParentId,
         prevPageId: null,
@@ -777,43 +790,43 @@ export class PageRepository {
     if (nextSibling) {
       await this.uow.client().page.update({
         where: { id: nextSibling.id },
-        data: { prevPageId: page.prevPageId },
+        data: { prevPageId: currentPage.prevPageId },
       })
     }
 
     // 4. Insert at head of new parent's linked-list
     const existingFirst = await this.uow.client().page.findFirst({
       where: {
-        workspaceId: page.workspaceId,
+        workspaceId: currentPage.workspaceId,
         parentId: input.newParentId,
         prevPageId: null,
-        id: { not: page.id },
+        id: { not: currentPage.id },
         deletedAt: null,
       },
     })
     if (existingFirst) {
       await this.uow.client().page.update({
         where: { id: existingFirst.id },
-        data: { prevPageId: page.id },
+        data: { prevPageId: currentPage.id },
       })
     }
 
     await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
-      aggregateId: page.id,
-      workspaceId: page.workspaceId,
+      aggregateId: currentPage.id,
+      workspaceId: currentPage.workspaceId,
     })
     await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.moved',
       resourceType: 'page',
-      resourceId: page.id,
-      workspaceId: page.workspaceId,
+      resourceId: currentPage.id,
+      workspaceId: currentPage.workspaceId,
       actorId: actorUserId,
       hints: { to: input.newParentId ?? null },
     })
 
-    return { id: page.id }
+    return { id: currentPage.id }
   }
 
   async reorderPageTx(

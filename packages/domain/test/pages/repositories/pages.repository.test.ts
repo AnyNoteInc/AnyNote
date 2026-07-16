@@ -427,6 +427,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     createdById: 'u1',
     deletedAt: null,
   }
+  const moveFindUnique = vi.fn(async () => page)
 
   it('moves page and enqueues page.upserted', async () => {
     const txFindFirst = vi.fn(async () => null) // no next sibling, no ancestor, no existingFirst
@@ -436,7 +437,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         $queryRaw: moveQueryRaw,
-        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
+        page: { findUnique: moveFindUnique, findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       } as never),
     )
@@ -480,7 +481,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         $queryRaw: moveQueryRaw,
-        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
+        page: { findUnique: moveFindUnique, findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: vi.fn(), createMany: vi.fn() },
       } as never),
     )
@@ -508,7 +509,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         $queryRaw: moveQueryRaw,
-        page: { findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
+        page: { findUnique: moveFindUnique, findMany: moveFindMany, findFirst: txFindFirst, update: pageUpdate },
         outboxEvent: { create: vi.fn(), createMany: vi.fn() },
       } as never),
     )
@@ -537,7 +538,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         $queryRaw: queryRaw,
-        page: { findMany, findFirst, update },
+        page: { findUnique: moveFindUnique, findMany, findFirst, update },
         outboxEvent: { create: vi.fn(async () => ({})), createMany: vi.fn(async () => ({})) },
       } as never),
     )
@@ -552,6 +553,44 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     ])
     const pageLock = queryRaw.mock.calls[1]?.[0] as { strings: readonly string[] }
     expect(pageLock.strings.join(' ')).toMatch(/ORDER BY id\s+FOR UPDATE/)
+  })
+
+  it('re-reads the moved page after the workspace lock instead of using stale preflight links', async () => {
+    const stalePage = { ...page, parentId: 'old-parent', prevPageId: 'old-prev' }
+    const freshPage = { ...page, parentId: 'fresh-parent', prevPageId: 'fresh-prev' }
+    const queryRaw = vi.fn(async (query: { strings: readonly string[] }) =>
+      query.strings.join(' ').includes('FROM workspaces') ? [{ id: 'w1' }] : [{ id: 'p1' }],
+    )
+    const findUnique = vi.fn(async () => freshPage)
+    const findMany = vi.fn(async () => [{ id: 'p1' }])
+    const findFirst = vi.fn(async (args: { where?: { prevPageId?: string } }) =>
+      args.where?.prevPageId === 'p1' ? { id: 'next-page' } : null,
+    )
+    const update = vi.fn(async () => ({}))
+    const repo = new PageRepository(
+      makeUow({
+        $queryRaw: queryRaw,
+        page: { findUnique, findMany, findFirst, update },
+        outboxEvent: { create: vi.fn(async () => ({})), createMany: vi.fn(async () => ({})) },
+      } as never),
+    )
+
+    await repo.movePageTx('u1', stalePage as never, { pageId: 'p1', newParentId: 'new-parent' })
+
+    expect(findUnique).toHaveBeenCalledWith({ where: { id: 'p1' } })
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            { id: { in: ['p1', 'fresh-parent', 'fresh-prev', 'new-parent'] } },
+          ]),
+        }),
+      }),
+    )
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'next-page' },
+      data: { prevPageId: 'fresh-prev' },
+    })
   })
 })
 

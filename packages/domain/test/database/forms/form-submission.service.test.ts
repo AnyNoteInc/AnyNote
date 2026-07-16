@@ -1647,6 +1647,7 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     expect(locks[6]).toContain('database_sources')
     expect(locks[7]).toContain('database_forms')
     expect(locks.slice(1).every((sql) => sql.includes('FOR UPDATE'))).toBe(true)
+    expect(locks.slice(1).every((sql) => sql.includes('NOWAIT'))).toBe(true)
   })
 
   it('locks submission authorities in a deterministic table and sorted-id order', async () => {
@@ -1718,11 +1719,73 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     expect(sql.every((query) => query.includes('ORDER BY') && query.includes('FOR UPDATE'))).toBe(
       true,
     )
+    expect(sql.every((query) => query.includes('NOWAIT'))).toBe(true)
     expect(queries[0]!.values.slice(1)).toEqual([ACTOR_ID, OWNER_ID].sort())
     expect(queries[2]!.values).toEqual([COLLECTION_ID])
     expect(queries[3]!.values).toEqual([PARENT_PAGE_ID, TARGET_SOURCE_PAGE_ID].sort())
     expect(queries[5]!.values).toEqual([TARGET_SOURCE_ID])
     expect(queries[8]!.values).toEqual([ROW_ID, TARGET_ROW_ID].sort())
+  })
+
+  it('fails closed when a legacy child-first writer holds a submission authority lock', async () => {
+    const lockUnavailable = Object.assign(new Error('Raw query failed'), {
+      code: 'P2010',
+      meta: {
+        driverAdapterError: {
+          cause: { originalCode: '55P03', originalMessage: 'could not obtain lock on row' },
+        },
+      },
+    })
+    const client = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+        .mockRejectedValueOnce(lockUnavailable),
+    }
+    const repository = new DatabaseFormRepository({
+      client: vi.fn(() => client),
+    } as unknown as UnitOfWork)
+
+    await expect(
+      repository.lockSubmissionContext({
+        formId: FORM_ID,
+        workspaceId: WORKSPACE_ID,
+        pageId: SOURCE_PAGE_ID,
+        sourceId: SOURCE_ID,
+        collectionIds: [],
+        parentPageIds: [],
+        actorUserId: null,
+      }),
+    ).resolves.toBe(false)
+  })
+
+  it('does not mask an unrelated or cyclic Prisma raw-query failure', async () => {
+    const unrelated = Object.assign(new Error('unrelated database failure'), { code: 'P2010' }) as Error & {
+      code: string
+      cause?: unknown
+    }
+    unrelated.cause = unrelated
+    const client = {
+      $queryRaw: vi
+        .fn()
+        .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
+        .mockRejectedValueOnce(unrelated),
+    }
+    const repository = new DatabaseFormRepository({
+      client: vi.fn(() => client),
+    } as unknown as UnitOfWork)
+
+    await expect(
+      repository.lockSubmissionContext({
+        formId: FORM_ID,
+        workspaceId: WORKSPACE_ID,
+        pageId: SOURCE_PAGE_ID,
+        sourceId: SOURCE_ID,
+        collectionIds: [],
+        parentPageIds: [],
+        actorUserId: null,
+      }),
+    ).rejects.toBe(unrelated)
   })
 
   it('reserves a slot with one conditional update covering state, schedule, and the live limit', async () => {
