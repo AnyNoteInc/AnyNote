@@ -885,11 +885,18 @@ export class DatabaseRepository {
 
   /** True when the user is a member of the workspace (PERSON cell validation). */
   async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
-    const member = await this.uow.client().workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      select: { id: true },
-    })
-    return member !== null
+    const client = this.uow.client()
+    const [member, block] = await Promise.all([
+      client.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        select: { id: true },
+      }),
+      client.workspaceBlockedUser.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        select: { id: true },
+      }),
+    ])
+    return member !== null && block === null
   }
 
   /**

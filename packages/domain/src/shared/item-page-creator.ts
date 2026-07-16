@@ -6,6 +6,11 @@
  * preserves domain-module isolation (see `.dependency-cruiser.cjs`).
  */
 export interface ItemPageCreator {
+  findAccessiblePageIds(
+    actorUserId: string,
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Set<string>>
   createItemPageTx(
     parentPageId: string,
     workspaceId: string,

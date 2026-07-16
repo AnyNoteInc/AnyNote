@@ -129,6 +129,25 @@ const submissionProvenanceSelect = {
   row: { select: { pageId: true } },
 } as const satisfies Prisma.DatabaseFormSubmissionSelect
 
+const formUploadLeaseSelect = {
+  id: true,
+  formId: true,
+  versionId: true,
+  questionId: true,
+  fileId: true,
+  uploadTokenHash: true,
+  expiresAt: true,
+  consumedAt: true,
+  file: {
+    select: {
+      workspaceId: true,
+      status: true,
+      mimeType: true,
+      fileSize: true,
+    },
+  },
+} as const satisfies Prisma.DatabaseFormUploadSelect
+
 export type ManagedFormRecord = Prisma.DatabaseFormGetPayload<{
   select: typeof managedFormSelect
 }>
@@ -143,6 +162,10 @@ export type FormResponseRecord = Prisma.DatabaseFormSubmissionGetPayload<{
 
 export type FormSubmissionRecord = Prisma.DatabaseFormSubmissionGetPayload<{
   select: typeof submissionProvenanceSelect
+}>
+
+export type FormUploadLeaseRecord = Prisma.DatabaseFormUploadGetPayload<{
+  select: typeof formUploadLeaseSelect
 }>
 
 export interface PublicFormRecord {
@@ -304,6 +327,24 @@ export interface ReserveFormResponseSlotRecord {
   expectedAudience: DatabaseFormAudience
 }
 
+export interface ResolveFormUploadLeasesRecord {
+  formId: string
+  versionId: string
+  questionId: string
+  tokenHashes: readonly string[]
+  now: Date
+}
+
+export interface ConsumeFormUploadLeasesRecord {
+  formId: string
+  versionId: string
+  questionId: string
+  workspaceId: string
+  uploads: readonly FormUploadLeaseRecord[]
+  pageId: string
+  consumedAt: Date
+}
+
 export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
@@ -321,6 +362,8 @@ export interface FormRepositoryContract {
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
   lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean>
   reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean>
+  resolveUploadLeases(input: ResolveFormUploadLeasesRecord): Promise<FormUploadLeaseRecord[]>
+  consumeUploadLeases(input: ConsumeFormUploadLeasesRecord): Promise<void>
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord>
   enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void>
   hasProtectedPropertyDependency(
@@ -673,6 +716,55 @@ export class DatabaseFormRepository implements FormRepositoryContract {
       RETURNING id
     `)
     return reserved.length === 1
+  }
+
+  resolveUploadLeases(input: ResolveFormUploadLeasesRecord): Promise<FormUploadLeaseRecord[]> {
+    if (input.tokenHashes.length === 0) return Promise.resolve([])
+    return this.uow.client().databaseFormUpload.findMany({
+      where: {
+        formId: input.formId,
+        versionId: input.versionId,
+        questionId: input.questionId,
+        uploadTokenHash: { in: [...input.tokenHashes] },
+        expiresAt: { gt: input.now },
+        consumedAt: null,
+        file: { is: { status: 'PENDING' } },
+      },
+      select: formUploadLeaseSelect,
+    })
+  }
+
+  async consumeUploadLeases(input: ConsumeFormUploadLeasesRecord): Promise<void> {
+    const client = this.uow.client()
+    for (const upload of input.uploads) {
+      const claimed = await client.databaseFormUpload.updateMany({
+        where: {
+          id: upload.id,
+          formId: input.formId,
+          versionId: input.versionId,
+          questionId: input.questionId,
+          fileId: upload.fileId,
+          expiresAt: { gt: input.consumedAt },
+          consumedAt: null,
+        },
+        data: { consumedAt: input.consumedAt },
+      })
+      if (claimed.count !== 1) throw conflict('FORM_UPLOAD_INVALID')
+
+      const activated = await client.file.updateMany({
+        where: {
+          id: upload.fileId,
+          workspaceId: input.workspaceId,
+          status: 'PENDING',
+        },
+        data: { status: 'ACTIVE', expiresAt: null },
+      })
+      if (activated.count !== 1) throw conflict('FORM_UPLOAD_INVALID')
+
+      await client.pageFile.create({
+        data: { pageId: input.pageId, fileId: upload.fileId },
+      })
+    }
   }
 
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord> {

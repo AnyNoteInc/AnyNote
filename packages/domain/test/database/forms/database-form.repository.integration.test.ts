@@ -536,6 +536,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
       endingId: 'server-ending',
       title: 'Server-prepared title',
       scalarValues: [{ propertyId: property.id, value: 'Server-prepared value' }],
+      relationValues: [],
+      fileValues: [],
       submittedAt,
     }
     const pagesBefore = await prisma.page.count({ where: { parentId: sourcePageId } })
@@ -574,6 +576,207 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         cells: [{ propertyId: property.id, value: 'Server-prepared value' }],
       },
     })
+  })
+
+  it('converges simultaneous same-idempotency submissions to one committed response', async () => {
+    const property = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'TEXT', name: `Concurrent replay ${RUN}`, position: 9_997 },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_concurrent_replay`,
+        draftSchema: documentFor(property.id),
+        createdById: userId,
+        state: 'OPEN',
+        responseLimit: 2,
+      },
+    })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: form.id,
+        versionNumber: 1,
+        schema: documentFor(property.id),
+        schemaHash: '7'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    await prisma.databaseForm.update({
+      where: { id: form.id },
+      data: { publishedVersionId: version.id },
+    })
+    const idempotencyKey = randomUUID()
+    const prepared = {
+      formId: form.id,
+      linkRevision: form.linkRevision,
+      audience: form.audience,
+      versionId: version.id,
+      versionNumber: 1,
+      sourceId,
+      sourcePageId,
+      workspaceId,
+      respondentUserId: userId,
+      idempotencyKey,
+      endingId: 'server-ending',
+      title: 'Concurrent replay',
+      scalarValues: [{ propertyId: property.id, value: 'same response' }],
+      relationValues: [],
+      fileValues: [],
+      submittedAt,
+    }
+    const pagesBefore = await prisma.page.count({ where: { parentId: sourcePageId } })
+    const outboxBefore = await prisma.outboxEvent.count({ where: { workspaceId } })
+    const makeService = () => {
+      const uow = new PrismaUnitOfWork(prisma)
+      return new FormSubmissionService(
+        new DatabaseFormRepository(uow),
+        new DatabaseRepository(uow),
+        new PageRepository(uow),
+        uow,
+      )
+    }
+
+    const [first, second] = await Promise.all([
+      makeService().persistPrepared(prepared),
+      makeService().persistPrepared(prepared),
+    ])
+
+    expect([first.created, second.created].sort()).toEqual([false, true])
+    expect(first.submissionId).toBe(second.submissionId)
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ acceptedResponses: 1 })
+    await expect(prisma.page.count({ where: { parentId: sourcePageId } })).resolves.toBe(
+      pagesBefore + 1,
+    )
+    await expect(prisma.databaseFormSubmission.count({ where: { formId: form.id } })).resolves.toBe(
+      1,
+    )
+    await expect(prisma.outboxEvent.count({ where: { workspaceId } })).resolves.toBe(
+      outboxBefore + 2,
+    )
+  })
+
+  it('attaches and activates a leased file atomically, then rolls back a second claim', async () => {
+    const property = await prisma.databaseProperty.create({
+      data: { sourceId, type: 'FILE', name: `Upload ${RUN}`, position: 9_996 },
+    })
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_file_consume`,
+        draftSchema: documentFor(property.id),
+        createdById: userId,
+        state: 'OPEN',
+        responseLimit: 2,
+      },
+    })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: form.id,
+        versionNumber: 1,
+        schema: documentFor(property.id),
+        schemaHash: '8'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    await prisma.databaseForm.update({
+      where: { id: form.id },
+      data: { publishedVersionId: version.id },
+    })
+    const file = await prisma.file.create({
+      data: {
+        userId,
+        workspaceId,
+        name: `form-${RUN}.txt`,
+        ext: 'txt',
+        fileSize: 128n,
+        mimeType: 'text/plain',
+        hash: '9'.repeat(64),
+        path: `forms/${RUN}/file.txt`,
+        status: 'PENDING',
+        expiresAt: new Date('2026-07-17T00:00:00.000Z'),
+      },
+    })
+    const tokenHash = 'a'.repeat(64)
+    await prisma.databaseFormUpload.create({
+      data: {
+        formId: form.id,
+        versionId: version.id,
+        questionId: 'files',
+        fileId: file.id,
+        uploadTokenHash: tokenHash,
+        expiresAt: new Date('2026-07-17T00:00:00.000Z'),
+      },
+    })
+    const uow = new PrismaUnitOfWork(prisma)
+    const formRepo = new DatabaseFormRepository(uow)
+    const service = new FormSubmissionService(
+      formRepo,
+      new DatabaseRepository(uow),
+      new PageRepository(uow),
+      uow,
+    )
+    const uploads = await formRepo.resolveUploadLeases({
+      formId: form.id,
+      versionId: version.id,
+      questionId: 'files',
+      tokenHashes: [tokenHash],
+      now: submittedAt,
+    })
+    const pagesBefore = await prisma.page.count({ where: { parentId: sourcePageId } })
+    const base = {
+      formId: form.id,
+      linkRevision: form.linkRevision,
+      audience: form.audience,
+      versionId: version.id,
+      versionNumber: 1,
+      sourceId,
+      sourcePageId,
+      workspaceId,
+      respondentUserId: userId,
+      endingId: 'server-ending',
+      title: 'File response',
+      scalarValues: [],
+      relationValues: [],
+      fileValues: [{ propertyId: property.id, questionId: 'files', uploads }],
+      submittedAt,
+    }
+
+    const first = await service.persistPrepared({ ...base, idempotencyKey: randomUUID() })
+
+    await expect(
+      prisma.databaseFormUpload.findUniqueOrThrow({ where: { fileId: file.id } }),
+    ).resolves.toMatchObject({ consumedAt: submittedAt })
+    await expect(prisma.file.findUniqueOrThrow({ where: { id: file.id } })).resolves.toMatchObject({
+      status: 'ACTIVE',
+      expiresAt: null,
+    })
+    await expect(
+      prisma.pageFile.findUniqueOrThrow({
+        where: { pageId_fileId: { pageId: first.pageId, fileId: file.id } },
+      }),
+    ).resolves.toMatchObject({ pageId: first.pageId, fileId: file.id })
+    await expect(
+      prisma.databaseCellValue.findUniqueOrThrow({
+        where: { rowId_propertyId: { rowId: first.rowId, propertyId: property.id } },
+      }),
+    ).resolves.toMatchObject({ value: [file.id] })
+
+    await expect(
+      service.persistPrepared({ ...base, idempotencyKey: randomUUID() }),
+    ).rejects.toMatchObject({ message: 'FORM_UPLOAD_INVALID' })
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: form.id } }),
+    ).resolves.toMatchObject({ acceptedResponses: 1 })
+    await expect(prisma.page.count({ where: { parentId: sourcePageId } })).resolves.toBe(
+      pagesBefore + 1,
+    )
+    await expect(prisma.databaseFormSubmission.count({ where: { formId: form.id } })).resolves.toBe(
+      1,
+    )
   })
 
   it('rolls back the slot, page, row, value, submission, and outbox when the final write fails', async () => {
@@ -634,6 +837,8 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
         endingId: 'ending-1',
         title: 'Must roll back',
         scalarValues: [{ propertyId: property.id, value: 'Must roll back' }],
+        relationValues: [],
+        fileValues: [],
         submittedAt,
       }),
     ).rejects.toThrow('TEST_OUTBOX_FAILURE')

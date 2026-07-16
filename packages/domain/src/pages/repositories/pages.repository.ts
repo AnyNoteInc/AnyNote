@@ -79,6 +79,30 @@ export class PageRepository {
     }
   }
 
+  async findAccessiblePageIds(
+    userId: string,
+    workspaceId: string,
+    pageIds: readonly string[],
+  ): Promise<Set<string>> {
+    const unique = [...new Set(pageIds)]
+    if (unique.length === 0) return new Set()
+    const rows = await this.uow.client().page.findMany({
+      where: {
+        id: { in: unique },
+        workspaceId,
+        archivedAt: null,
+        deletedAt: null,
+        workspace: {
+          members: { some: { userId } },
+          blockedUsers: { none: { userId } },
+        },
+        AND: [buildPageVisibilityWhere(userId)],
+      },
+      select: { id: true },
+    })
+    return new Set(rows.map(({ id }) => id))
+  }
+
   // Lookup by id only (not workspace-filtered) — matches reorderPage's original semantics.
   async findActivePageById(pageId: string): Promise<PageRowDto | null> {
     const row = await this.uow.client().page.findFirst({
