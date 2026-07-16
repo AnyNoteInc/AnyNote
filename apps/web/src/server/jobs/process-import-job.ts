@@ -497,44 +497,79 @@ async function storeAssets(
   }
   if (toUpload.length === 0) return out
 
-  const newBytes = toUpload.reduce((s, u) => s + u.buf.byteLength, 0)
-  const [usage, limits] = await Promise.all([
-    ctx.prisma.file.aggregate({
-      where: { workspaceId: job.workspaceId, status: FileStatus.ACTIVE },
-      _sum: { fileSize: true },
-    }),
-    ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: job.workspaceId } }),
-  ])
-  const used = usage._sum.fileSize ?? 0n
-  if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
-    journal.warn('Картинки из архива пропущены: превышен лимит хранилища пространства')
-    return out
-  }
+  await ctx.prisma.$transaction(
+    async (tx) => {
+      // All workspace-scoped upload paths use this same row as the quota mutex.
+      // Keep the lock through object persistence and File creation so forms,
+      // imports and MCP uploads cannot each pass a stale aggregate concurrently.
+      const workspaces = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM workspaces
+        WHERE id = ${job.workspaceId}::uuid
+        FOR UPDATE
+      `
+      if (workspaces.length !== 1) throw new Error('IMPORT_WORKSPACE_NOT_FOUND')
 
-  // Second pass: upload only the new assets.
-  for (const { sourceKey, asset, hash, buf } of toUpload) {
-    const s3Key = computeS3Key(hash, asset.ext)
-    await ctx.storage.put(s3Key, buf, {
-      contentType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
-      size: buf.byteLength,
-    })
-    const created = await ctx.prisma.file.create({
-      data: {
-        userId: job.userId,
-        workspaceId: job.workspaceId,
-        name: `${asset.baseName}.${asset.ext}`,
-        ext: asset.ext,
-        fileSize: BigInt(buf.byteLength),
-        mimeType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
-        hash,
-        path: s3Key,
-        status: FileStatus.ACTIVE,
-        isPublic: false,
-      },
-      select: { id: true },
-    })
-    out.set(sourceKey, created.id)
-  }
+      // The first pass is an inexpensive fast path. Repeat dedupe under the
+      // quota lock because another uploader may have committed in between.
+      const pending: typeof toUpload = []
+      for (const candidate of toUpload) {
+        const existing = await tx.file.findFirst({
+          where: {
+            userId: job.userId,
+            hash: candidate.hash,
+            workspaceId: job.workspaceId,
+            status: FileStatus.ACTIVE,
+          },
+          select: { id: true },
+        })
+        if (existing) out.set(candidate.sourceKey, existing.id)
+        else pending.push(candidate)
+      }
+
+      const newBytes = pending.reduce((sum, candidate) => sum + candidate.buf.byteLength, 0)
+      const usage = await tx.file.aggregate({
+        where: {
+          workspaceId: job.workspaceId,
+          OR: [
+            { status: FileStatus.ACTIVE },
+            { status: FileStatus.PENDING, expiresAt: { gt: new Date() } },
+          ],
+        },
+        _sum: { fileSize: true },
+      })
+      const limits = await tx.workspaceLimit.findUnique({ where: { workspaceId: job.workspaceId } })
+      const used = usage._sum.fileSize ?? 0n
+      if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
+        journal.warn('Картинки из архива пропущены: превышен лимит хранилища пространства')
+        return
+      }
+
+      for (const { sourceKey, asset, hash, buf } of pending) {
+        const s3Key = computeS3Key(hash, asset.ext)
+        await ctx.storage.put(s3Key, buf, {
+          contentType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
+          size: buf.byteLength,
+        })
+        const created = await tx.file.create({
+          data: {
+            userId: job.userId,
+            workspaceId: job.workspaceId,
+            name: `${asset.baseName}.${asset.ext}`,
+            ext: asset.ext,
+            fileSize: BigInt(buf.byteLength),
+            mimeType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
+            hash,
+            path: s3Key,
+            status: FileStatus.ACTIVE,
+            isPublic: false,
+          },
+          select: { id: true },
+        })
+        out.set(sourceKey, created.id)
+      }
+    },
+    { maxWait: 10_000, timeout: 120_000 },
+  )
   return out
 }
 

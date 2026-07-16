@@ -16,8 +16,10 @@ const mocks = vi.hoisted(() => ({
   limitFindUnique: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
   userUpdate: vi.fn<(args: unknown) => Promise<unknown>>(async () => ({})),
   txFileCreate: vi.fn<(args: unknown) => Promise<unknown>>(),
+  txFileCount: vi.fn<(args: unknown) => Promise<number>>(async () => 0),
   txUserUpdate: vi.fn<(args: unknown) => Promise<unknown>>(async () => ({})),
   storagePut: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
+  storageDelete: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
   getSession: vi.fn<() => Promise<unknown>>(),
   getActiveWorkspaceForUser: vi.fn<() => Promise<unknown>>(async () => null),
   workspaceFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
@@ -35,7 +37,11 @@ vi.mock('@repo/db', () => ({
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
         $queryRaw: mocks.txQueryRaw,
-        file: { create: mocks.txFileCreate, aggregate: mocks.fileAggregate },
+        file: {
+          create: mocks.txFileCreate,
+          aggregate: mocks.fileAggregate,
+          count: mocks.txFileCount,
+        },
         workspaceLimit: { findUnique: mocks.limitFindUnique },
         user: { update: mocks.txUserUpdate },
       }),
@@ -43,7 +49,7 @@ vi.mock('@repo/db', () => ({
 }))
 
 vi.mock('@repo/storage', () => ({
-  storage: { put: mocks.storagePut },
+  storage: { put: mocks.storagePut, delete: mocks.storageDelete },
 }))
 
 vi.mock('@/lib/get-session', () => ({
@@ -141,8 +147,10 @@ beforeEach(() => {
   mocks.limitFindUnique.mockReset().mockResolvedValue(null)
   mocks.userUpdate.mockReset().mockResolvedValue({})
   mocks.txFileCreate.mockReset().mockResolvedValue(createdRow())
+  mocks.txFileCount.mockReset().mockResolvedValue(0)
   mocks.txUserUpdate.mockReset().mockResolvedValue({})
   mocks.storagePut.mockReset().mockResolvedValue(undefined)
+  mocks.storageDelete.mockReset().mockResolvedValue(undefined)
   mocks.getSession.mockReset().mockResolvedValue({ user: { id: USER_ID } })
   mocks.getActiveWorkspaceForUser.mockReset().mockResolvedValue(null)
   mocks.workspaceFindFirst.mockReset().mockResolvedValue(null)
@@ -525,6 +533,38 @@ describe('POST /api/files/upload — media kind (workspace-quota, auth-gated)', 
     const body = (await res.json()) as { error: string }
     expect(body.error).toBe('WORKSPACE_STORAGE_LIMIT')
     expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('rechecks quota under the workspace lock before storing concurrent bytes', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
+    mocks.fileAggregate
+      .mockResolvedValueOnce({ _sum: { fileSize: 0n } })
+      .mockResolvedValueOnce({ _sum: { fileSize: BigInt(100 * MB) } })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+
+    const res = await POST(
+      makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')),
+    )
+
+    expect(res.status).toBe(413)
+    expect(mocks.txQueryRaw).toHaveBeenCalledOnce()
+    expect(mocks.storagePut).not.toHaveBeenCalled()
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('removes an unreferenced object after a workspace transaction failure', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+    mocks.txFileCreate.mockRejectedValueOnce(new Error('commit failed'))
+
+    await expect(
+      POST(makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4'))),
+    ).rejects.toThrow('commit failed')
+
+    expect(mocks.storagePut).toHaveBeenCalledOnce()
+    expect(mocks.txFileCount).toHaveBeenCalledOnce()
+    expect(mocks.storageDelete).toHaveBeenCalledOnce()
+    expect(mocks.txQueryRaw).toHaveBeenCalledTimes(2)
   })
 
   it('400s when there is no active workspace', async () => {

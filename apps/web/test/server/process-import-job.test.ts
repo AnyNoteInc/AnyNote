@@ -163,6 +163,42 @@ describe('processImportJob', () => {
     expect(done.status).toBe('DONE')
   })
 
+  it('counts live pending form files against the workspace asset quota', async () => {
+    const { user, ws, job, storage, ctx } = await seed(ZIP_FIXTURE())
+    const active = await prisma.file.aggregate({
+      where: { workspaceId: ws.id, status: 'ACTIVE' },
+      _sum: { fileSize: true },
+    })
+    await prisma.workspaceLimit.update({
+      where: { workspaceId: ws.id },
+      data: { maxFileBytes: (active._sum.fileSize ?? 0n) + 4n },
+    })
+    await prisma.file.create({
+      data: {
+        userId: user.id,
+        workspaceId: ws.id,
+        name: 'pending-form-upload.bin',
+        ext: 'bin',
+        fileSize: 1n,
+        mimeType: 'application/octet-stream',
+        hash: 'f'.repeat(64),
+        path: 'forms/test/pending.bin',
+        status: 'PENDING',
+        expiresAt: new Date(Date.now() + 60_000),
+        isPublic: false,
+      },
+    })
+
+    await processImportJob(ctx, job.id)
+
+    expect(
+      await prisma.file.count({ where: { workspaceId: ws.id, ext: 'png', status: 'ACTIVE' } }),
+    ).toBe(0)
+    expect(storage.store.get(`imports/${job.id}-report.txt`)?.toString('utf8')).toContain(
+      'превышен лимит хранилища пространства',
+    )
+  })
+
   it('fails with a user-facing error on zip-slip archives', async () => {
     const evil = zipSync({ '../evil.md': strToU8('x') })
     const { job, ctx } = await seed(evil)

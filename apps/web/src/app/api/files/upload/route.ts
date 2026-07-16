@@ -59,6 +59,26 @@ function workspaceLimitResponse(error: unknown): Response | null {
   return null
 }
 
+async function cleanupUnreferencedWorkspaceObject(
+  workspaceId: string,
+  path: string,
+): Promise<void> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      const workspaces = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM workspaces
+        WHERE id = ${workspaceId}::uuid
+        FOR UPDATE
+      `
+      if (workspaces.length !== 1) return
+      const references = await tx.file.count({ where: { path } })
+      if (references === 0) await storage.delete(path)
+    })
+  } catch {
+    // Best effort only: never replace the authoritative upload failure.
+  }
+}
+
 const setUserAvatar = (userId: string, fileId: string) =>
   prisma.user.update({
     where: { id: userId },
@@ -192,8 +212,7 @@ export async function POST(request: NextRequest) {
 
   let fileRow = existing
   if (!fileRow) {
-    await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
-
+    let stored = false
     try {
       fileRow = await prisma.$transaction(async (tx) => {
         if (workspaceId !== null) {
@@ -205,6 +224,8 @@ export async function POST(request: NextRequest) {
           if (workspaces.length !== 1) throw new WorkspaceLimitMissingError()
           await assertWorkspaceStorageCapacity(tx, workspaceId, bytes.length)
         }
+        await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
+        stored = true
         const created = await tx.file.create({
           data: {
             userId: session.user.id,
@@ -238,6 +259,9 @@ export async function POST(request: NextRequest) {
           },
         })
         if (!fileRow) {
+          if (stored && workspaceId !== null) {
+            await cleanupUnreferencedWorkspaceObject(workspaceId, s3Key)
+          }
           return Response.json({ error: 'Upload conflict' }, { status: 409 })
         }
         // Dedup recovery: point User.image at the existing row if avatar
@@ -245,6 +269,9 @@ export async function POST(request: NextRequest) {
           await setUserAvatar(session.user.id, fileRow.id)
         }
       } else {
+        if (stored && workspaceId !== null) {
+          await cleanupUnreferencedWorkspaceObject(workspaceId, s3Key)
+        }
         const response = workspaceLimitResponse(err)
         if (response) return response
         throw err

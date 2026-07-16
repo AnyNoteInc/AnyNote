@@ -294,11 +294,18 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
 
       const clientIp = formClientIp(request.headers)
       const now = dependencies.now()
+      if (!dependencies.rateLimiter.consume('upload-ip', `probe:${clientIp}`, now.getTime())) {
+        throw new UploadHttpError(403, 'FORM_PROTECTED')
+      }
       const actorUserId = await dependencies.getActorUserId()
       const resolved = await dependencies.formAccess.resolvePublished(locator, actorUserId)
       const rateFormKey = resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
       if (
-        !dependencies.rateLimiter.consume('upload-ip', `${rateFormKey}:${clientIp}`, now.getTime())
+        !dependencies.rateLimiter.consume(
+          'upload-ip',
+          `form:${rateFormKey}:${clientIp}`,
+          now.getTime(),
+        )
       ) {
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }

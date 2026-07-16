@@ -139,6 +139,7 @@ function makeHarness(
     usedBytes?: bigint
     maxFileBytes?: bigint
     limiterAllowed?: boolean
+    limiterResults?: boolean[]
     transactionError?: Error
     storagePutError?: Error
     storageDeleteError?: Error
@@ -196,7 +197,8 @@ function makeHarness(
     }),
   }
   const verifyCaptcha = vi.fn(async () => {})
-  const consume = vi.fn(() => options.limiterAllowed ?? true)
+  const limiterResults = [...(options.limiterResults ?? [])]
+  const consume = vi.fn(() => limiterResults.shift() ?? options.limiterAllowed ?? true)
   const current = version()
   const openResolved = options.resolved ?? {
     status: 'OPEN',
@@ -265,9 +267,10 @@ describe('public database form upload route', () => {
       action: 'form_upload',
       headers: expect.any(Headers),
     })
+    expect(harness.consume).toHaveBeenCalledWith('upload-ip', 'probe:203.0.113.7', NOW.getTime())
     expect(harness.consume).toHaveBeenCalledWith(
       'upload-ip',
-      `${FORM_ID}:203.0.113.7`,
+      `form:${FORM_ID}:203.0.113.7`,
       NOW.getTime(),
     )
     expect(harness.storage.put).toHaveBeenCalledWith(
@@ -340,13 +343,25 @@ describe('public database form upload route', () => {
     expect(harness.consume).toHaveBeenNthCalledWith(
       1,
       'upload-ip',
-      'unavailable:203.0.113.7',
+      'probe:203.0.113.7',
       NOW.getTime(),
     )
     expect(harness.consume).toHaveBeenNthCalledWith(
       2,
       'upload-ip',
-      'unavailable:203.0.113.7',
+      'form:unavailable:203.0.113.7',
+      NOW.getTime(),
+    )
+    expect(harness.consume).toHaveBeenNthCalledWith(
+      3,
+      'upload-ip',
+      'probe:203.0.113.7',
+      NOW.getTime(),
+    )
+    expect(harness.consume).toHaveBeenNthCalledWith(
+      4,
+      'upload-ip',
+      'form:unavailable:203.0.113.7',
       NOW.getTime(),
     )
   })
@@ -435,16 +450,22 @@ describe('public database form upload route', () => {
     expect(harness.fileCreate).not.toHaveBeenCalled()
   })
 
-  it('resolves a canonical form bucket before rate limiting and CAPTCHA', async () => {
+  it('rate-limits probes before lookup and the canonical form before CAPTCHA', async () => {
     const limited = makeHarness({ limiterAllowed: false })
     expect((await limited.call()).status).toBe(403)
     expect(limited.verifyCaptcha).not.toHaveBeenCalled()
-    expect(limited.formAccess.resolvePublished).toHaveBeenCalledOnce()
+    expect(limited.formAccess.resolvePublished).not.toHaveBeenCalled()
+
+    const canonicalLimited = makeHarness({ limiterResults: [true, false] })
+    expect((await canonicalLimited.call()).status).toBe(403)
+    expect(canonicalLimited.formAccess.resolvePublished).toHaveBeenCalledOnce()
+    expect(canonicalLimited.verifyCaptcha).not.toHaveBeenCalled()
 
     const captcha = makeHarness()
     captcha.verifyCaptcha.mockRejectedValueOnce(new Error('captcha'))
     expect((await captcha.call()).status).toBe(403)
     expect(captcha.formAccess.resolvePublished).toHaveBeenCalledOnce()
+    expect(captcha.consume).toHaveBeenCalledTimes(2)
     expect(captcha.storage.put).not.toHaveBeenCalled()
   })
 
@@ -516,7 +537,7 @@ describe('public database form upload route', () => {
     } as RequestInit)
     const response = await harness.call(request)
     expect(response.status).toBe(413)
-    expect(harness.consume).toHaveBeenCalledOnce()
+    expect(harness.consume).toHaveBeenCalledTimes(2)
     expect(harness.storage.put).not.toHaveBeenCalled()
   })
 
