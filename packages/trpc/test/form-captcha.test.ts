@@ -54,6 +54,10 @@ describe('form CAPTCHA verification', () => {
 
   it.each([
     [success('form_submit', 0.49), 'low score'],
+    [success('form_submit', 1.01), 'score above one'],
+    [success('form_submit', -0.01), 'negative score'],
+    [{ ...success('form_submit'), score: '0.9' }, 'non-number score'],
+    [{ ...success('form_submit'), score: null }, 'non-finite JSON score'],
     [success('form_upload'), 'wrong action'],
     [{ success: false, action: 'form_submit', score: 0.9 }, 'upstream rejection'],
   ])('fails closed for %s (%s)', async (result) => {

@@ -17,7 +17,7 @@ type VerifyFormCaptchaInput = {
 
 const recaptchaResponseSchema = z.object({
   success: z.boolean(),
-  score: z.number().optional(),
+  score: z.number().finite().min(0).max(1).optional(),
   action: z.string().optional(),
   hostname: z.string().optional(),
 })

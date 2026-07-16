@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const MINIMUM_SECRET_BYTES = 32
 const TOKEN_DOMAIN = 'form-v1.'
+const BASE64URL = /^[A-Za-z0-9_-]+$/
 const SHA256_HEX = /^[a-f0-9]{64}$/
 
 const formVersionTokenPayloadSchema = z
@@ -37,6 +38,14 @@ function invalidToken(): Error {
   return new Error('FORM_TOKEN_INVALID')
 }
 
+function decodeCanonicalBase64Url(encoded: string): Buffer {
+  if (!BASE64URL.test(encoded)) throw invalidToken()
+
+  const decoded = Buffer.from(encoded, 'base64url')
+  if (decoded.toString('base64url') !== encoded) throw invalidToken()
+  return decoded
+}
+
 function signatureFor(body: string, secret: string): Buffer {
   return createHmac('sha256', secret).update(`${TOKEN_DOMAIN}${body}`).digest()
 }
@@ -63,7 +72,7 @@ export function verifyFormVersionToken(
 
   let signature: Buffer
   try {
-    signature = Buffer.from(encodedSignature, 'base64url')
+    signature = decodeCanonicalBase64Url(encodedSignature)
   } catch {
     throw invalidToken()
   }
@@ -78,8 +87,7 @@ export function verifyFormVersionToken(
 
   let payload: FormVersionTokenPayload
   try {
-    const decoded = Buffer.from(body, 'base64url')
-    if (decoded.toString('base64url') !== body) throw invalidToken()
+    const decoded = decodeCanonicalBase64Url(body)
     payload = formVersionTokenPayloadSchema.parse(JSON.parse(decoded.toString('utf8')))
   } catch {
     throw invalidToken()
@@ -103,7 +111,10 @@ export function assertFormVersionContext(
     throw new Error('FORM_TOKEN_CONTEXT_MISMATCH')
   }
 
-  if (!context.isCurrent && (!context.acceptUntil || context.acceptUntil.getTime() <= now)) {
-    throw new Error('FORM_VERSION_STALE')
+  if (!context.isCurrent) {
+    const acceptUntil = context.acceptUntil?.getTime()
+    if (acceptUntil === undefined || !Number.isFinite(acceptUntil) || acceptUntil <= now) {
+      throw new Error('FORM_VERSION_STALE')
+    }
   }
 }

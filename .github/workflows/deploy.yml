@@ -142,8 +142,9 @@ jobs:
           SENTRY_TRACES_SAMPLE_RATE: ${{ vars.SENTRY_TRACES_SAMPLE_RATE || '0.1' }}
           SENTRY_RELEASE: ${{ github.ref_name }}
         run: |
-          if [ -z "$FORM_TOKEN_SECRET" ] || [ "${#FORM_TOKEN_SECRET}" -lt 32 ]; then
-            echo "ERROR: FORM_TOKEN_SECRET must be set to at least 32 characters"
+          FORM_TOKEN_SECRET_BYTES=$(printf '%s' "$FORM_TOKEN_SECRET" | LC_ALL=C wc -c)
+          if [ -z "$FORM_TOKEN_SECRET" ] || [ "$FORM_TOKEN_SECRET_BYTES" -lt 32 ]; then
+            echo "ERROR: FORM_TOKEN_SECRET must be set to at least 32 UTF-8 bytes"
             exit 1
           fi
           envsubst < deploy/.env.template > /tmp/.env

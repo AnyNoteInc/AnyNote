@@ -78,6 +78,50 @@ describe('form version tokens', () => {
     )
   })
 
+  it.each([
+    ['whitespace', (signature: string) => `${signature.slice(0, 4)} ${signature.slice(5)}`],
+    [
+      'an invalid character',
+      (signature: string) => `${signature.slice(0, 4)}!${signature.slice(5)}`,
+    ],
+    ['padding', (signature: string) => `${signature}=`],
+  ])('rejects a signature containing %s', (_description, mutateSignature) => {
+    const token = signFormVersionToken(payload, SECRET)
+    const [body, signature] = token.split('.') as [string, string]
+
+    expect(() =>
+      verifyFormVersionToken(`${body}.${mutateSignature(signature)}`, SECRET, NOW),
+    ).toThrow('FORM_TOKEN_INVALID')
+  })
+
+  it('rejects a standard-base64 signature spelling of the same bytes', () => {
+    const secret = 'task-9-test-form-token-secret-32-bytes-0'
+    const token = signFormVersionToken(payload, secret)
+    const [body, signature] = token.split('.') as [string, string]
+    const standardBase64Signature = signature.replaceAll('-', '+').replaceAll('_', '/')
+
+    expect(standardBase64Signature).not.toBe(signature)
+    expect(Buffer.from(standardBase64Signature, 'base64')).toEqual(
+      Buffer.from(signature, 'base64url'),
+    )
+    expect(() => verifyFormVersionToken(`${body}.${standardBase64Signature}`, secret, NOW)).toThrow(
+      'FORM_TOKEN_INVALID',
+    )
+  })
+
+  it('rejects a non-canonical base64url signature spelling of the same bytes', () => {
+    const token = signFormVersionToken(payload, SECRET)
+    const [body, signature] = token.split('.') as [string, string]
+    const nonCanonicalSignature = `${signature.slice(0, -1)}h`
+
+    expect(Buffer.from(nonCanonicalSignature, 'base64url')).toEqual(
+      Buffer.from(signature, 'base64url'),
+    )
+    expect(() => verifyFormVersionToken(`${body}.${nonCanonicalSignature}`, SECRET, NOW)).toThrow(
+      'FORM_TOKEN_INVALID',
+    )
+  })
+
   it('rejects short signing and verification secrets', () => {
     expect(() => signFormVersionToken(payload, 'too-short')).toThrow('FORM_TOKEN_SECRET_INVALID')
 
@@ -156,6 +200,23 @@ describe('form version tokens', () => {
       assertFormVersionContext(
         payload,
         { ...baseContext, isCurrent: false, acceptUntil: new Date(NOW) },
+        NOW,
+      ),
+    ).toThrow('FORM_VERSION_STALE')
+  })
+
+  it('rejects a grace version with an invalid acceptance deadline', () => {
+    expect(() =>
+      assertFormVersionContext(
+        payload,
+        {
+          locatorHash: payload.locatorHash,
+          versionNumber: payload.versionNumber,
+          schemaHash: payload.schemaHash,
+          linkRevision: payload.linkRevision,
+          isCurrent: false,
+          acceptUntil: new Date(Number.NaN),
+        },
         NOW,
       ),
     ).toThrow('FORM_VERSION_STALE')
