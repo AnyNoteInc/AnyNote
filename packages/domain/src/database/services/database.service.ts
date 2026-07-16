@@ -47,6 +47,7 @@ import type {
   RowWithPage,
   SourceWithLock,
 } from '../repositories/database.repository.ts'
+import { EMBEDDED_VIEW_CONFLICT_MESSAGE } from '../repositories/database.repository.ts'
 import {
   buildRowAccessWhere,
   canEditRow,
@@ -579,17 +580,29 @@ export class DatabaseService {
 
   async deleteView(actorUserId: string, input: ViewIdInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireStructureEdit(actorUserId, input.pageId)
-    const view = await this.repo.findViewById(input.id)
-    if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
-    if (view.type === DatabaseViewType.FORM) {
-      if (view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
-      return this.formService.archive(actorUserId, { pageId: input.pageId, formId: view.formId })
-    }
-    const all = await this.repo.listViews(source.id)
-    if (all.length <= 1) throw badRequest('Нельзя удалить единственное представление')
-    await this.repo.deleteView(input.id)
-    return { ok: true as const }
+    const initialSource = await this.requireStructureEdit(actorUserId, input.pageId)
+    return this.uow.transaction(async () => {
+      if (!(await this.repo.lockSourceForStructureMutation(initialSource.id, new Date()))) {
+        throw conflict('FORM_SOURCE_CONFLICT')
+      }
+      const source = await this.requireStructureEdit(actorUserId, input.pageId)
+      const view = await this.repo.findViewById(input.id)
+      if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
+      if (view.type === DatabaseViewType.FORM) {
+        if (view.formId === null) throw notFound('FORM_VIEW_NOT_FOUND')
+        return this.formService.archive(actorUserId, {
+          pageId: input.pageId,
+          formId: view.formId,
+        })
+      }
+      const all = await this.repo.listViews(source.id)
+      if (all.length <= 1) throw badRequest('Нельзя удалить единственное представление')
+      if (await this.repo.hasEmbeddedViewReference(source.workspaceId, view.id)) {
+        throw conflict(EMBEDDED_VIEW_CONFLICT_MESSAGE)
+      }
+      await this.repo.deleteView(input.id)
+      return { ok: true as const }
+    })
   }
 
   /** Copy a view (title + " (копия)", type, settings) at the next position. */

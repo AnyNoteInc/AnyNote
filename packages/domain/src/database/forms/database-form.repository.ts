@@ -98,17 +98,17 @@ const publicFormScalarSelect = {
 
 const responseSelect = {
   id: true,
-  formId: true,
-  versionId: true,
-  rowId: true,
-  respondentUserId: true,
   endingId: true,
-  idempotencyKey: true,
   submittedAt: true,
   row: {
     select: {
       id: true,
       pageId: true,
+      position: true,
+      createdAt: true,
+      createdById: true,
+      updatedAt: true,
+      updatedById: true,
       page: { select: { title: true, icon: true } },
       cells: { select: { propertyId: true, value: true } },
     },
@@ -246,6 +246,7 @@ export interface ListFormResponsesRecord {
   formId: string
   cursor?: FormResponseCursor
   limit: number
+  rowWhere?: Prisma.DatabaseRowWhereInput
 }
 
 export interface FormResponseCursor {
@@ -504,6 +505,12 @@ export class DatabaseFormRepository implements FormRepositoryContract {
               ],
             }
           : {}),
+        row: {
+          is: {
+            deletedAt: null,
+            ...(input.rowWhere === undefined ? {} : { AND: [input.rowWhere] }),
+          },
+        },
       },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: input.limit + 1,

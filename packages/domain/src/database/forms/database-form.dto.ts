@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { DatabaseRowView } from '../dto/database.dto.ts'
+
 import { formVersionDocumentSchema } from './form-document.ts'
 
 const uuidSchema = z.string().uuid()
@@ -77,3 +79,15 @@ export const listFormResponsesInput = formIdInput.extend({
   limit: z.number().int().min(1).max(100).default(50),
 })
 export type ListFormResponsesInput = z.infer<typeof listFormResponsesInput>
+
+export interface FormResponseListItem {
+  submissionId: string
+  submittedAt: Date
+  endingId: string
+  row: DatabaseRowView
+}
+
+export interface ListFormResponsesResult {
+  items: FormResponseListItem[]
+  nextCursor: { submittedAt: Date; id: string } | null
+}

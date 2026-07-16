@@ -200,6 +200,54 @@ afterAll(async () => {
 })
 
 describe('database form lifecycle real PostgreSQL concurrency', () => {
+  it('holds the pages SHARE lock from embedded scan until the structure transaction commits', async () => {
+    const textPage = await prisma.page.create({
+      data: {
+        workspaceId,
+        type: PageType.TEXT,
+        title: 'Concurrent embed writer',
+        createdById: userId,
+      },
+    })
+    const viewId = randomUUID()
+    const locked = deferred()
+    const release = deferred()
+    const uow = new PrismaUnitOfWork(prisma)
+    const lockingRepository = new DatabaseRepository(uow) as DatabaseRepository & {
+      hasEmbeddedViewReference(workspaceId: string, viewId: string): Promise<boolean>
+    }
+    const archiveWindow = uow.transaction(async () => {
+      expect(await lockingRepository.hasEmbeddedViewReference(workspaceId, viewId)).toBe(false)
+      locked.resolve()
+      await release.promise
+    })
+    await locked.promise
+
+    let writerSettled = false
+    const writer = prisma.page
+      .update({
+        where: { id: textPage.id },
+        data: {
+          content: {
+            type: 'doc',
+            content: [{ type: 'embeddedDatabase', attrs: { viewId } }],
+          },
+        },
+      })
+      .then(() => {
+        writerSettled = true
+      })
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(writerSettled).toBe(false)
+    } finally {
+      release.resolve()
+    }
+    await archiveWindow
+    await writer
+    expect(writerSettled).toBe(true)
+  })
+
   it('creates multiple independent forms and FORM views on one source with metadata-only audits', async () => {
     const uow = new PrismaUnitOfWork(prisma)
     const service = makeFormService(uow)

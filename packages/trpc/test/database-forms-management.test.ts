@@ -80,17 +80,17 @@ const titleDocument = (title: string): FormVersionDocument => ({
   ],
   endings: [{ id: 'ending-1', title: 'Спасибо' }],
 })
-
 type Fixture = Awaited<ReturnType<typeof seed>>
 let fixture: Fixture
 
 async function seed() {
-  const [owner, admin, creator, editor, viewer] = await Promise.all([
+  const [owner, admin, creator, editor, viewer, outsider] = await Promise.all([
     makeUser('owner'),
     makeUser('admin'),
     makeUser('creator'),
     makeUser('editor'),
     makeUser('viewer'),
+    makeUser('outsider'),
   ])
   const plan = await prisma.plan.upsert({
     where: { slug: TEST_PLAN_SLUG },
@@ -145,6 +145,7 @@ async function seed() {
     creatorId: creator.id,
     editorId: editor.id,
     viewerId: viewer.id,
+    outsiderId: outsider.id,
   }
 }
 
@@ -258,7 +259,9 @@ describe('database form management router (real PostgreSQL)', () => {
       formId: created.id,
       limit: 2,
     })
-    expect(firstPage.items.map(({ id }) => id)).toEqual(expectedIds.slice(0, 2))
+    expect(firstPage.items.map(({ submissionId }) => submissionId)).toEqual(
+      expectedIds.slice(0, 2),
+    )
     expect(firstPage.nextCursor).toEqual({ submittedAt, id: expectedIds[1] })
     const secondPage = await owner.listFormResponses({
       pageId: fixture.pageId,
@@ -266,7 +269,9 @@ describe('database form management router (real PostgreSQL)', () => {
       limit: 2,
       cursor: firstPage.nextCursor!,
     })
-    expect(secondPage.items.map(({ id }) => id)).toEqual(expectedIds.slice(2))
+    expect(secondPage.items.map(({ submissionId }) => submissionId)).toEqual(
+      expectedIds.slice(2),
+    )
     expect(secondPage.nextCursor).toBeNull()
 
     await expect(
@@ -287,6 +292,24 @@ describe('database form management router (real PostgreSQL)', () => {
       pageId: fixture.pageId,
       title: 'Права на форму',
     })
+    await prisma.page.create({
+      data: {
+        workspaceId: fixture.workspaceId,
+        type: PageType.TEXT,
+        title: 'Hidden embed probe',
+        createdById: fixture.ownerId,
+        content: {
+          type: 'doc',
+          content: [{ type: 'embeddedDatabase', attrs: { viewId: created.viewId } }],
+        },
+      },
+    })
+    await expect(
+      editor.archiveForm({ pageId: fixture.pageId, formId: created.id }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      editor.deleteView({ pageId: fixture.pageId, id: created.viewId! }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
 
     await expect(
       editor.updateFormDraft({
@@ -374,5 +397,112 @@ describe('database form management router (real PostgreSQL)', () => {
     await expect(viewer.listForms({ pageId: fixture.pageId })).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: created.id })]),
     )
+  })
+
+  it('filters response DTOs through PERSON and CREATED_BY rules with visible keysets', async () => {
+    const owner = caller(fixture.ownerId)
+    const editor = caller(fixture.editorId)
+    const outsider = caller(fixture.outsiderId)
+    const person = await owner.createProperty({
+      pageId: fixture.pageId,
+      type: 'PERSON',
+      name: 'Ответственный',
+    })
+    const createdBy = await owner.createProperty({
+      pageId: fixture.pageId,
+      type: 'CREATED_BY',
+      name: 'Автор',
+    })
+    await owner.createAccessRule({
+      pageId: fixture.pageId,
+      propertyId: person.id,
+      accessLevel: 'CAN_VIEW',
+    })
+    await owner.createAccessRule({
+      pageId: fixture.pageId,
+      propertyId: createdBy.id,
+      accessLevel: 'CAN_VIEW',
+    })
+
+    const form = await owner.createForm({ pageId: fixture.pageId, title: 'ACL responses' })
+    await owner.publishForm({ pageId: fixture.pageId, formId: form.id })
+    const version = await prisma.databaseFormVersion.findFirstOrThrow({
+      where: { formId: form.id, versionNumber: 1 },
+      select: { id: true },
+    })
+    const submittedAt = new Date('2026-07-16T01:00:00.000Z')
+    const seeded: Array<{ id: string; visible: boolean }> = []
+    const addSubmission = async (
+      rowCaller: ReturnType<typeof caller>,
+      title: string,
+      personUserId: string | null,
+      visible: boolean,
+    ) => {
+      const row = await rowCaller.createRow({ pageId: fixture.pageId, title })
+      if (personUserId !== null) {
+        await owner.updateCellValue({
+          pageId: fixture.pageId,
+          rowId: row.rowId,
+          propertyId: person.id,
+          value: personUserId,
+        })
+      }
+      const id = uuid7()
+      seeded.push({ id, visible })
+      await prisma.databaseFormSubmission.create({
+        data: {
+          id,
+          formId: form.id,
+          versionId: version.id,
+          rowId: row.rowId,
+          endingId: 'ending-1',
+          idempotencyKey: uuid7(),
+          submittedAt,
+        },
+      })
+    }
+    await addSubmission(owner, 'PERSON match', fixture.editorId, true)
+    await addSubmission(editor, 'CREATED_BY match 1', null, true)
+    await addSubmission(owner, 'Hidden 1', null, false)
+    await addSubmission(editor, 'CREATED_BY match 2', null, true)
+    await addSubmission(owner, 'Hidden 2', fixture.viewerId, false)
+    const expected = seeded
+      .filter(({ visible }) => visible)
+      .map(({ id }) => id)
+      .sort()
+      .reverse()
+
+    const first = await editor.listFormResponses({
+      pageId: fixture.pageId,
+      formId: form.id,
+      limit: 1,
+    })
+    const second = await editor.listFormResponses({
+      pageId: fixture.pageId,
+      formId: form.id,
+      limit: 1,
+      cursor: first.nextCursor!,
+    })
+    const third = await editor.listFormResponses({
+      pageId: fixture.pageId,
+      formId: form.id,
+      limit: 1,
+      cursor: second.nextCursor!,
+    })
+    expect(
+      [...first.items, ...second.items, ...third.items].map((item) => item.submissionId),
+    ).toEqual(expected)
+    expect(third.nextCursor).toBeNull()
+    for (const page of [first, second, third]) {
+      const serialized = JSON.stringify(page)
+      expect(serialized).not.toContain('idempotencyKey')
+      expect(serialized).not.toContain('formId')
+      expect(serialized).not.toContain('versionId')
+      expect(serialized).not.toContain('respondentUserId')
+      expect(page.items[0]?.row.cells).toBeDefined()
+    }
+    await expect(
+      outsider.listFormResponses({ pageId: fixture.pageId, formId: form.id, limit: 10 }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 })

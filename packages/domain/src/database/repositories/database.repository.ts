@@ -64,6 +64,20 @@ export interface SourceWithLock {
   pageCreatedById: string | null
 }
 
+export const EMBEDDED_VIEW_CONFLICT_MESSAGE = 'Представление используется во встроенном блоке'
+
+function contentReferencesView(node: unknown, viewId: string): boolean {
+  if (Array.isArray(node)) {
+    return node.some((child) => contentReferencesView(child, viewId))
+  }
+  if (node !== null && typeof node === 'object') {
+    const value = node as { type?: unknown; attrs?: { viewId?: unknown }; content?: unknown }
+    if (value.type === 'embeddedDatabase' && value.attrs?.viewId === viewId) return true
+    if (value.content !== undefined) return contentReferencesView(value.content, viewId)
+  }
+  return false
+}
+
 export interface RowWithPage {
   id: string
   pageId: string
@@ -261,6 +275,26 @@ export class DatabaseRepository {
       data: { updatedAt: at },
     })
     return result.count === 1
+  }
+
+  /**
+   * Serialize the final embedded-view check with every INSERT/UPDATE/DELETE on
+   * pages. PostgreSQL page writes take ROW EXCLUSIVE, which conflicts with this
+   * SHARE lock until the active UnitOfWork transaction commits. Both statements
+   * use tagged templates; only workspace/view values are bound parameters.
+   */
+  async hasEmbeddedViewReference(workspaceId: string, viewId: string): Promise<boolean> {
+    const client = this.uow.client()
+    await client.$executeRaw`LOCK TABLE "pages" IN SHARE MODE`
+    const candidates = await client.$queryRaw<Array<{ content: unknown }>>`
+      SELECT "content"
+      FROM "pages"
+      WHERE "workspace_id" = ${workspaceId}::uuid
+        AND "type" = 'TEXT'
+        AND "deleted_at" IS NULL
+        AND "content"::text LIKE ${`%${viewId}%`}
+    `
+    return candidates.some(({ content }) => contentReferencesView(content, viewId))
   }
 
   // ── Views ───────────────────────────────────────────────────────────────────

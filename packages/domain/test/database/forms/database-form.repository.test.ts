@@ -736,7 +736,17 @@ describe('DatabaseFormRepository focused reads', () => {
       endingId: 'ending-1',
       idempotencyKey: `00000000-0000-7000-8000-00000000000${id}`,
       submittedAt,
-      row: { id: `row-${id}`, pageId: `page-${id}`, page: { title: id, icon: null }, cells: [] },
+      row: {
+        id: `row-${id}`,
+        pageId: `page-${id}`,
+        position: Number(id),
+        createdAt: submittedAt,
+        createdById: null,
+        updatedAt: submittedAt,
+        updatedById: null,
+        page: { title: id, icon: null },
+        cells: [],
+      },
     })
     const records = [
       submission('1', new Date('2026-07-15T03:00:00.000Z')),
@@ -751,8 +761,11 @@ describe('DatabaseFormRepository focused reads', () => {
     })
     const { repository } = makeRepository(client)
     const cursor = { submittedAt: new Date('2026-07-16T00:00:00.000Z'), id: 'cursor-id' }
+    const rowWhere = { OR: [{ createdById: 'reader' }] }
 
-    const result = await repository.listResponses({ formId: 'form-1', cursor, limit: 2 })
+    const result = await repository.listResponses({
+      formId: 'form-1', cursor, limit: 2, rowWhere,
+    })
 
     expect(client.databaseFormSubmission.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -762,6 +775,7 @@ describe('DatabaseFormRepository focused reads', () => {
             { submittedAt: { lt: cursor.submittedAt } },
             { submittedAt: cursor.submittedAt, id: { lt: 'cursor-id' } },
           ],
+          row: { is: { deletedAt: null, AND: [rowWhere] } },
         },
         orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
         take: 3,
@@ -769,7 +783,23 @@ describe('DatabaseFormRepository focused reads', () => {
     )
     expect(result.items).toEqual(records.slice(0, 2))
     expect(result.nextCursor).toEqual({ submittedAt: records[1]!.submittedAt, id: '2' })
-    expectNoRowsInSelection(client.databaseFormSubmission.findMany.mock.calls[0]?.[0])
+    const args = client.databaseFormSubmission.findMany.mock.calls[0]?.[0]
+    expectNoRowsInSelection(args)
+    expect(args.select).not.toHaveProperty('formId')
+    expect(args.select).not.toHaveProperty('versionId')
+    expect(args.select).not.toHaveProperty('rowId')
+    expect(args.select).not.toHaveProperty('idempotencyKey')
+    expect(args.select.row.select).toEqual({
+      id: true,
+      pageId: true,
+      position: true,
+      createdAt: true,
+      createdById: true,
+      updatedAt: true,
+      updatedById: true,
+      page: { select: { title: true, icon: true } },
+      cells: { select: { propertyId: true, value: true } },
+    })
   })
 
   it('orders form versions newest-first with a stable id tie-breaker', async () => {

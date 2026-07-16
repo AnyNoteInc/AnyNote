@@ -42,6 +42,7 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     createView: vi.fn(async (d) => ({ id: 'view1', type: d.type, title: d.title, position: d.position, settings: null })),
     updateView: vi.fn(async (id, d) => ({ id, type: 'TABLE', title: d.title ?? 'V', position: 0, settings: d.settings ?? null })),
     deleteView: vi.fn(async () => undefined),
+    hasEmbeddedViewReference: vi.fn(async () => false),
     findViewById: vi.fn(async () => ({ id: 'view1', sourceId: 'src1', type: 'TABLE', formId: null })),
     listProperties: vi.fn(async () => []),
     createProperty: vi.fn(async (d) => ({ id: 'prop1', type: d.type, name: d.name, position: d.position, settings: d.settings ?? null })),
@@ -1079,6 +1080,48 @@ describe('DatabaseService.deleteView FORM delegation', () => {
     expect(formService.archive).toHaveBeenCalledWith('u1', {
       pageId: 'db-page', formId: 'form1',
     })
+    expect(repo.deleteView).not.toHaveBeenCalled()
+  })
+
+  it('does not scan embedded pages before final structure authorization', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page', workspaceId: 'w1', createdById: 'other',
+      })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false,
+        pageCreatedById: 'other',
+      })),
+    })
+
+    await expect(
+      makeService(repo).deleteView('u1', { pageId: 'db-page', id: 'view1' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.hasEmbeddedViewReference).not.toHaveBeenCalled()
+  })
+
+  it('blocks an embedded non-FORM view after locking and reauthorizing the source', async () => {
+    const repo = makeRepo({
+      findViewById: vi.fn(async () => ({
+        id: 'view1', sourceId: 'src1', type: 'TABLE', formId: null,
+      })),
+      listViews: vi.fn(async () => [
+        { id: 'view1', type: 'TABLE', title: 'A', position: 0, settings: null },
+        { id: 'view2', type: 'TABLE', title: 'B', position: 1024, settings: null },
+      ]),
+      hasEmbeddedViewReference: vi.fn(async () => true),
+    })
+
+    await expect(
+      makeService(repo).deleteView('u1', { pageId: 'db-page', id: 'view1' }),
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'Представление используется во встроенном блоке',
+    })
+    expect(repo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(repo.hasEmbeddedViewReference).toHaveBeenCalledWith('w1', 'view1')
     expect(repo.deleteView).not.toHaveBeenCalled()
   })
 })

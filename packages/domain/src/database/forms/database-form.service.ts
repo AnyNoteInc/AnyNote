@@ -3,7 +3,11 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { DatabaseFormAudience, DatabaseFormRespondentAccess } from '@repo/db'
 
 import type { BillingService } from '../../billing/services/billing.service.ts'
-import type { DatabaseRepository, SourceWithLock } from '../repositories/database.repository.ts'
+import {
+  EMBEDDED_VIEW_CONFLICT_MESSAGE,
+  type DatabaseRepository,
+  type SourceWithLock,
+} from '../repositories/database.repository.ts'
 import { assertCanEditDatabaseStructure } from '../services/database-structure-access.ts'
 import { badRequest, conflict, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
@@ -12,6 +16,7 @@ import type {
   DuplicateFormViewInput,
   FormIdInput,
   ListFormResponsesInput,
+  ListFormResponsesResult,
   ListFormsInput,
   PublishFormInput,
   RenameFormViewInput,
@@ -33,6 +38,12 @@ import {
 } from './form-document.ts'
 import { validateFormGraph } from './form-graph.ts'
 import { FORM_AUDIT, writeFormAudit } from './form-audit.ts'
+import { buildRowAccessWhere } from '../services/row-access-resolver.ts'
+import {
+  buildRowAccessContext,
+  filterViewableRows,
+  toResolverRules,
+} from '../services/row-post-filters.ts'
 
 const POSITION_GAP = 1024
 const VERSION_GRACE_MS = 24 * 60 * 60 * 1000
@@ -406,6 +417,12 @@ export class DatabaseFormService {
       await this.lockSource(initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') return { ok: true }
+      if (
+        form.viewId !== null &&
+        (await this.databaseRepo.hasEmbeddedViewReference(form.source.workspaceId, form.viewId))
+      ) {
+        throw conflict(EMBEDDED_VIEW_CONFLICT_MESSAGE)
+      }
       await this.repo.archiveForm({ formId: form.id })
       await writeFormAudit(this.uow, {
         workspaceId: form.source.workspaceId,
@@ -503,9 +520,67 @@ export class DatabaseFormService {
     return this.repo.listVersions(form.id)
   }
 
-  async listResponses(actorUserId: string, input: ListFormResponsesInput) {
-    const form = await this.requireManageableForm(actorUserId, input)
-    return this.repo.listResponses({ formId: form.id, cursor: input.cursor, limit: input.limit })
+  async listResponses(
+    actorUserId: string,
+    input: ListFormResponsesInput,
+  ): Promise<ListFormResponsesResult> {
+    await this.requireReadablePage(actorUserId, input.pageId)
+    const form = await this.requireForm(input.pageId, input.formId)
+    const rules = toResolverRules(
+      await this.databaseRepo.findEnabledAccessRules(form.sourceId),
+    )
+    const accessContext = await buildRowAccessContext(
+      this.databaseRepo,
+      actorUserId,
+      form.source,
+      null,
+    )
+    const rowWhere = buildRowAccessWhere(accessContext, rules)
+    const collected: Awaited<ReturnType<FormRepositoryContract['listResponses']>>['items'] = []
+    let cursor = input.cursor
+    const batchLimit = Math.min(Math.max(input.limit * 5, 50), 500)
+
+    for (;;) {
+      const page = await this.repo.listResponses({
+        formId: form.id,
+        cursor,
+        limit: batchLimit,
+        ...(rowWhere === null ? {} : { rowWhere }),
+      })
+      const visibleRowIds = new Set(
+        filterViewableRows(accessContext, rules, page.items.map(({ row }) => row)).map(
+          ({ id }) => id,
+        ),
+      )
+      collected.push(...page.items.filter(({ row }) => visibleRowIds.has(row.id)))
+      if (collected.length > input.limit || page.nextCursor === null) break
+      cursor = page.nextCursor
+    }
+
+    const hasMore = collected.length > input.limit
+    const visiblePage = hasMore ? collected.slice(0, input.limit) : collected
+    const last = visiblePage.at(-1)
+    return {
+      items: visiblePage.map((response) => ({
+        submissionId: response.id,
+        submittedAt: response.submittedAt,
+        endingId: response.endingId,
+        row: {
+          rowId: response.row.id,
+          pageId: response.row.pageId,
+          title: response.row.page.title,
+          icon: response.row.page.icon,
+          position: response.row.position,
+          cells: Object.fromEntries(
+            response.row.cells.map(({ propertyId, value }) => [propertyId, value]),
+          ),
+        },
+      })),
+      nextCursor:
+        hasMore && last !== undefined
+          ? { submittedAt: last.submittedAt, id: last.id }
+          : null,
+    }
   }
 
   private async changeState(

@@ -191,6 +191,14 @@ function makeHarness(
   } as unknown as FormRepositoryContract
   const databaseRepo = {
     findWorkspaceRole: vi.fn(async () => 'OWNER'),
+    findAccessiblePage: vi.fn(async () => ({
+      id: current.source.pageId,
+      workspaceId: current.source.workspaceId,
+      createdById: current.source.page.createdById,
+    })),
+    isSourcePageCreatedBy: vi.fn(async () => false),
+    findItemPageShareLevel: vi.fn(async () => null),
+    findEnabledAccessRules: vi.fn(async () => []),
     findSourceWithLockByPageId: vi.fn(async () => ({
       id: current.sourceId,
       workspaceId: current.source.workspaceId,
@@ -212,6 +220,7 @@ function makeHarness(
       position: current.view?.position ?? 1024,
       settings: data.settings ?? null,
     })),
+    hasEmbeddedViewReference: vi.fn(async () => false),
     lockSourceForStructureMutation: vi.fn(async () => true),
     findSourceWorkspaceId: vi.fn(async () => null),
     findSourceWorkspaceIds: vi.fn(async () => new Map<string, string>()),
@@ -1122,9 +1131,180 @@ describe('DatabaseFormService lifecycle', () => {
     })
     expect(transaction).toHaveBeenCalledOnce()
     expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(databaseRepo.hasEmbeddedViewReference).toHaveBeenCalledWith(
+      '00000000-0000-7000-8000-000000000040',
+      '00000000-0000-7000-8000-000000000030',
+    )
     expect(formRepo.archiveForm).toHaveBeenCalledWith({
       formId: '00000000-0000-7000-8000-000000000010',
     })
+  })
+
+  it('blocks direct archive when an authorized form view is embedded', async () => {
+    const { service, formRepo, databaseRepo } = makeHarness({
+      databaseRepo: { hasEmbeddedViewReference: vi.fn(async () => true) },
+    })
+
+    await expect(
+      service.archive('00000000-0000-7000-8000-000000000001', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+      }),
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'Представление используется во встроенном блоке',
+    })
+    expect(databaseRepo.lockSourceForStructureMutation).toHaveBeenCalled()
+    expect(formRepo.archiveForm).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseFormService response listing', () => {
+  const response = (
+    id: string,
+    viewerId: string,
+    submittedAt: Date,
+    extra: Record<string, unknown> = {},
+  ) => ({
+    id,
+    formId: '00000000-0000-7000-8000-000000000010',
+    versionId: '00000000-0000-7000-8000-000000000060',
+    idempotencyKey: `00000000-0000-7000-8000-0000000000${id.slice(-2)}`,
+    respondentUserId: '00000000-0000-7000-8000-000000000099',
+    endingId: 'ending-1',
+    submittedAt,
+    row: {
+      id: `00000000-0000-7000-8000-0000000001${id.slice(-2)}`,
+      pageId: `00000000-0000-7000-8000-0000000002${id.slice(-2)}`,
+      position: Number(id.slice(-2)),
+      createdAt: submittedAt,
+      createdById: viewerId,
+      updatedAt: submittedAt,
+      updatedById: viewerId,
+      page: { title: `Response ${id}`, icon: null },
+      cells: [{ propertyId: 'person-property', value: viewerId }],
+    },
+    ...extra,
+  })
+
+  it.each(['EDITOR', 'VIEWER'] as const)(
+    'allows a readable-page %s to list visible responses',
+    async (role) => {
+      const raw = response(
+        '00000000-0000-7000-8000-000000000001',
+        'reader',
+        new Date('2026-07-16T00:00:00.000Z'),
+      )
+      const { service } = makeHarness({
+        formRepo: { listResponses: vi.fn(async () => ({ items: [raw], nextCursor: null })) },
+        databaseRepo: {
+          findWorkspaceRole: vi.fn(async () => role),
+          isSourcePageCreatedBy: vi.fn(async () => false),
+        },
+      })
+
+      await expect(
+        service.listResponses('reader', {
+          pageId: '00000000-0000-7000-8000-000000000050',
+          formId: '00000000-0000-7000-8000-000000000010',
+          limit: 10,
+        }),
+      ).resolves.toMatchObject({
+        items: [{ submissionId: raw.id, row: { rowId: raw.row.id } }],
+      })
+    },
+  )
+
+  it('filters restrictive access rules across raw pages and paginates visible responses', async () => {
+    const at = new Date('2026-07-16T00:00:00.000Z')
+    const hidden1 = response('00000000-0000-7000-8000-000000000010', 'other', at)
+    const visible1 = response('00000000-0000-7000-8000-000000000009', 'reader', at)
+    const hidden2 = response('00000000-0000-7000-8000-000000000008', 'other', at)
+    const visible2 = response('00000000-0000-7000-8000-000000000007', 'reader', at)
+    const visible3 = response('00000000-0000-7000-8000-000000000006', 'reader', at)
+    const listResponses = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: [hidden1, visible1, hidden2],
+        nextCursor: { submittedAt: at, id: hidden2.id },
+      })
+      .mockResolvedValueOnce({ items: [visible2, visible3], nextCursor: null })
+    const { service, formRepo } = makeHarness({
+      formRepo: { listResponses },
+      databaseRepo: {
+        findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+        isSourcePageCreatedBy: vi.fn(async () => false),
+        findEnabledAccessRules: vi.fn(async () => [
+          {
+            propertyId: 'person-property',
+            propertyType: 'PERSON',
+            accessLevel: 'CAN_VIEW',
+            enabled: true,
+          },
+        ]),
+      },
+    })
+
+    const result = await service.listResponses('reader', {
+      pageId: '00000000-0000-7000-8000-000000000050',
+      formId: '00000000-0000-7000-8000-000000000010',
+      limit: 2,
+    })
+
+    expect(result).toEqual({
+      items: [
+        {
+          submissionId: visible1.id,
+          submittedAt: at,
+          endingId: 'ending-1',
+          row: {
+            rowId: visible1.row.id,
+            pageId: visible1.row.pageId,
+            title: visible1.row.page.title,
+            icon: null,
+            position: visible1.row.position,
+            cells: { 'person-property': 'reader' },
+          },
+        },
+        {
+          submissionId: visible2.id,
+          submittedAt: at,
+          endingId: 'ending-1',
+          row: {
+            rowId: visible2.row.id,
+            pageId: visible2.row.pageId,
+            title: visible2.row.page.title,
+            icon: null,
+            position: visible2.row.position,
+            cells: { 'person-property': 'reader' },
+          },
+        },
+      ],
+      nextCursor: { submittedAt: at, id: visible2.id },
+    })
+    expect(formRepo.listResponses).toHaveBeenCalledTimes(2)
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain('idempotencyKey')
+    expect(serialized).not.toContain('formId')
+    expect(serialized).not.toContain('versionId')
+    expect(serialized).not.toContain('respondentUserId')
+  })
+
+  it('returns NOT_FOUND for a denied page before loading response rows', async () => {
+    const listResponses = vi.fn(async () => ({ items: [], nextCursor: null }))
+    const { service } = makeHarness({
+      formRepo: { listResponses },
+      databaseRepo: { findAccessiblePage: vi.fn(async () => null) },
+    })
+
+    await expect(
+      service.listResponses('outsider', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+        limit: 10,
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(listResponses).not.toHaveBeenCalled()
   })
 })
 

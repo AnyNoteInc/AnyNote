@@ -436,6 +436,9 @@ describe('database views router (integration)', () => {
       },
     })
 
+    await expect(
+      c.archiveForm({ pageId: fx.pageId, formId: form.id }),
+    ).rejects.toThrow(/встроенном блоке/i)
     await expect(c.deleteView({ pageId: fx.pageId, id: form.viewId! })).rejects.toThrow(
       /встроенном блоке/i,
     )
