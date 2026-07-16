@@ -133,6 +133,24 @@ function toSubmitFormResult(result: SubmitFormResult): SubmitFormResult {
   }
 }
 
+async function withSanitizedFormSubmissionFailures<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (error instanceof TRPCError) throw error
+    if (isDomainError(error)) {
+      return mapDomain(async () => {
+        throw error
+      })
+    }
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'FORM_SUBMISSION_FAILED',
+      cause: error,
+    })
+  }
+}
+
 function pageOf(options: PickerOption[], limit: number): PickerPage {
   const hasMore = options.length > limit
   const items = hasMore ? options.slice(0, limit) : options
@@ -345,86 +363,87 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
         )
       }),
 
-    submit: publicProcedure.input(submitInputSchema).mutation(async ({ ctx, input }) => {
-      ctx.resHeaders.set('Cache-Control', 'private, no-store')
+    submit: publicProcedure.input(submitInputSchema).mutation(({ ctx, input }) =>
+      withSanitizedFormSubmissionFailures(async () => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store')
 
-      assertSerializedAnswersSize(input.answers)
-      if (input.honeypot.length > 0) throw formProtected()
+        assertSerializedAnswersSize(input.answers)
+        if (input.honeypot.length > 0) throw formProtected()
 
-      const actorUserId = ctx.user?.id ?? null
-      const submissionInput = toDomainSubmissionInput(input)
-      const resolved = await domain.formAccess.resolvePublished(input.locator, actorUserId)
-      const rateFormKey = resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
-      const clientIp = formClientIp(ctx.headers)
-      const now = dependencies.now()
+        const actorUserId = ctx.user?.id ?? null
+        const submissionInput = toDomainSubmissionInput(input)
+        const resolved = await domain.formAccess.resolvePublished(input.locator, actorUserId)
+        const rateFormKey =
+          resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
+        const clientIp = formClientIp(ctx.headers)
+        const now = dependencies.now()
 
-      let token: ReturnType<typeof verifyFormVersionToken> | null = null
-      let replayVersionStale = false
-      try {
-        token = verifyFormVersionToken(input.versionToken, tokenSecret(), now)
-      } catch {
-        token = null
-      }
-
-      const normalizedLocator = normalizeFormLocator(input.locator)
-      if (
-        token !== null &&
-        normalizedLocator !== null &&
-        hashFormLocator(normalizedLocator) === token.locatorHash &&
-        dependencies.rateLimiter.consume('replay-ip', clientIp, now)
-      ) {
+        let token: ReturnType<typeof verifyFormVersionToken> | null = null
+        let replayVersionStale = false
         try {
-          const replay = await domain.formSubmissions.findReplay(
-            actorUserId,
-            submissionInput,
-            token,
-          )
-          if (replay !== null) return toSubmitFormResult(replay)
-        } catch (error) {
-          // Context can change between the public lookup and the replay lookup. Do not
-          // turn that race into a pre-CAPTCHA oracle; the authoritative submit below
-          // will return the public error after the normal protection boundary.
-          if (!isDomainError(error)) {
-            throw error
-          }
-          if (error.message === 'FORM_VERSION_STALE') replayVersionStale = true
-          else if (
-            error.message !== 'FORM_NOT_ACCEPTING' &&
-            error.message !== 'FORM_IDEMPOTENCY_CONFLICT'
-          ) {
-            throw error
+          token = verifyFormVersionToken(input.versionToken, tokenSecret(), now)
+        } catch {
+          token = null
+        }
+
+        const normalizedLocator = normalizeFormLocator(input.locator)
+        if (
+          token !== null &&
+          normalizedLocator !== null &&
+          hashFormLocator(normalizedLocator) === token.locatorHash &&
+          dependencies.rateLimiter.consume('replay-ip', clientIp, now)
+        ) {
+          try {
+            const replay = await domain.formSubmissions.findReplay(
+              actorUserId,
+              submissionInput,
+              token,
+            )
+            if (replay !== null) return toSubmitFormResult(replay)
+          } catch (error) {
+            // Context can change between the public lookup and the replay lookup. Do not
+            // turn that race into a pre-CAPTCHA oracle; the authoritative submit below
+            // will return the public error after the normal protection boundary.
+            if (!isDomainError(error)) {
+              throw error
+            }
+            if (error.message === 'FORM_VERSION_STALE') replayVersionStale = true
+            else if (
+              error.message !== 'FORM_NOT_ACCEPTING' &&
+              error.message !== 'FORM_IDEMPOTENCY_CONFLICT'
+            ) {
+              throw error
+            }
           }
         }
-      }
 
-      if (
-        !dependencies.rateLimiter.consume('submit-ip', `${rateFormKey}:${clientIp}`, now)
-      ) {
-        throw formProtected()
-      }
-      if (!dependencies.rateLimiter.consume('submit-form', rateFormKey, now)) {
-        throw formProtected()
-      }
+        if (!dependencies.rateLimiter.consume('submit-ip', `${rateFormKey}:${clientIp}`, now)) {
+          throw formProtected()
+        }
+        if (!dependencies.rateLimiter.consume('submit-form', rateFormKey, now)) {
+          throw formProtected()
+        }
 
-      try {
-        await dependencies.verifyCaptcha({
-          token: ctx.headers.get('x-captcha-response'),
-          action: 'form_submit',
-          headers: ctx.headers,
-        })
-      } catch {
-        throw formProtected()
-      }
+        try {
+          await dependencies.verifyCaptcha({
+            token: ctx.headers.get('x-captcha-response'),
+            action: 'form_submit',
+            headers: ctx.headers,
+          })
+        } catch {
+          throw formProtected()
+        }
 
-      if (token === null || replayVersionStale) {
-        throw formRefreshRequired()
-      }
+        if (token === null || replayVersionStale) {
+          throw formRefreshRequired()
+        }
 
-      const result = await mapDomain(() =>
-        domain.formSubmissions.submit(actorUserId, submissionInput, token),
-      )
-      return toSubmitFormResult(result)
-    }),
+        const result = await mapDomain(() =>
+          domain.formSubmissions.submit(actorUserId, submissionInput, token),
+        )
+        return toSubmitFormResult(result)
+      }),
+    ),
   })
 }
 

@@ -126,6 +126,7 @@ type HarnessOptions = {
   limiterResults?: readonly boolean[]
   captchaError?: Error
   resolved?: PublishedFormResolution
+  resolveError?: Error
   submitError?: Error
   headers?: Headers
   userId?: string | null
@@ -136,6 +137,7 @@ function makeHarness(options: HarnessOptions = {}) {
   const order: string[] = []
   const resolvePublished = vi.fn(async () => {
     order.push('lookup')
+    if (options.resolveError) throw options.resolveError
     return options.resolved ?? openResolution
   })
   const resolveVersion = vi.fn(async () => {
@@ -424,19 +426,57 @@ describe('public database form submission', () => {
     expect(new Set(submitFormKeys)).toHaveProperty('size', 1)
   })
 
-  it('propagates an unexpected replay lookup failure instead of hiding infrastructure errors', async () => {
-    const databaseFailure = new Error('database unavailable')
+  it('sanitizes an infrastructure failure during the public form lookup', async () => {
+    const databaseFailure = new Error('relation forms does not exist at db.internal:5432')
+    const harness = makeHarness({ resolveError: databaseFailure })
+
+    await expect(harness.api.submit(validInput())).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'FORM_SUBMISSION_FAILED',
+      cause: databaseFailure,
+    })
+
+    expect(harness.order).toEqual(['lookup'])
+    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('sanitizes an infrastructure failure during the early replay lookup', async () => {
+    const databaseFailure = new Error('database unavailable for submission secret-row-id')
     const harness = makeHarness({ replayError: databaseFailure })
 
     await expect(harness.api.submit(validInput())).rejects.toMatchObject({
       code: 'INTERNAL_SERVER_ERROR',
-      message: databaseFailure.message,
+      message: 'FORM_SUBMISSION_FAILED',
+      cause: databaseFailure,
     })
 
     expect(harness.order).toEqual(['lookup', 'limit:replay-ip', 'replay'])
     expect(harness.consume).toHaveBeenCalledWith('replay-ip', '203.0.113.10', NOW)
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('sanitizes an infrastructure failure during the final atomic submit', async () => {
+    const databaseFailure = new Error('duplicate key value exposes private-row-id')
+    const harness = makeHarness({ submitError: databaseFailure })
+
+    await expect(harness.api.submit(validInput())).rejects.toMatchObject({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'FORM_SUBMISSION_FAILED',
+      cause: databaseFailure,
+    })
+
+    expect(harness.order).toEqual([
+      'lookup',
+      'limit:replay-ip',
+      'replay',
+      'limit:submit-ip',
+      'limit:submit-form',
+      'captcha',
+      'submit',
+    ])
   })
 
   it('never probes replay with a forged token and rejects it only after protection checks', async () => {
@@ -581,12 +621,7 @@ describe('public database form submission', () => {
       message: 'FORM_PROTECTED',
     })
 
-    expect(ipLimited.order).toEqual([
-      'lookup',
-      'limit:replay-ip',
-      'replay',
-      'limit:submit-ip',
-    ])
+    expect(ipLimited.order).toEqual(['lookup', 'limit:replay-ip', 'replay', 'limit:submit-ip'])
     expect(ipLimited.verifyCaptcha).not.toHaveBeenCalled()
     expect(ipLimited.submit).not.toHaveBeenCalled()
   })
