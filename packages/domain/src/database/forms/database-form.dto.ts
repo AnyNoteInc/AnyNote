@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import type { DatabaseRowView } from '../dto/database.dto.ts'
 
-import { formVersionDocumentSchema } from './form-document.ts'
+import { formVersionDocumentSchema, MAX_FORM_QUESTIONS } from './form-document.ts'
 
 const uuidSchema = z.string().uuid()
 
@@ -23,7 +23,14 @@ export type ListFormsInput = z.infer<typeof listFormsInput>
 export const updateFormDraftInput = formIdInput.extend({
   expectedRevision: z.number().int().positive(),
   schema: formVersionDocumentSchema,
-  propertyNameIntents: z.record(uuidSchema, z.string().trim().min(1).max(200)).optional(),
+  propertyNameIntents: z
+    .record(uuidSchema, z.string().min(1).max(200))
+    .superRefine((intents, context) => {
+      if (Object.keys(intents).length > MAX_FORM_QUESTIONS) {
+        context.addIssue({ code: 'custom', message: 'TOO_MANY_PROPERTY_NAME_INTENTS' })
+      }
+    })
+    .optional(),
 })
 export type UpdateFormDraftInput = z.infer<typeof updateFormDraftInput>
 

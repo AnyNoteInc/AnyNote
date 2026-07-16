@@ -5,6 +5,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { FormVersionDocument } from '@repo/domain/database/forms'
 
+const mocks = vi.hoisted(() => ({ zodResolver: vi.fn() }))
+
+vi.mock('@hookform/resolvers/zod', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@hookform/resolvers/zod')>()
+  return {
+    ...actual,
+    zodResolver: (...args: Parameters<typeof actual.zodResolver>) => {
+      mocks.zodResolver(...args)
+      return actual.zodResolver(...args)
+    },
+  }
+})
+
 import { decodeFormFieldKey, encodeFormFieldKey } from '@/components/forms/form-field-key'
 import { FormRenderer } from '@/components/forms/form-renderer'
 
@@ -43,7 +56,10 @@ const version: FormVersionDocument = {
 }
 
 describe('FormRenderer field keys', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    mocks.zodResolver.mockClear()
+  })
 
   it('encodes arbitrary UTF-8 question ids to a reversible path-safe key', () => {
     const key = encodeFormFieldKey(QUESTION_ID)
@@ -59,6 +75,7 @@ describe('FormRenderer field keys', () => {
     const onSubmit = vi.fn()
     render(<FormRenderer version={version} mode="public" onSubmit={onSubmit} />)
 
+    expect(mocks.zodResolver).toHaveBeenCalledOnce()
     const input = screen.getByLabelText('Имя *')
     expect(input).toHaveAttribute('name', `answers.${encodeFormFieldKey(QUESTION_ID)}`)
 
@@ -69,5 +86,48 @@ describe('FormRenderer field keys', () => {
     await actor.click(screen.getByRole('button', { name: 'Отправить' }))
 
     expect(onSubmit).toHaveBeenCalledWith({ answers: { [QUESTION_ID]: 'Виктор' } })
+  })
+
+  it('encodes question references used by conditional visibility', async () => {
+    const actor = userEvent.setup()
+    const controllingId = 'choice.value[0]'
+    const dependentId = 'details.value[1]'
+    const conditionalVersion: FormVersionDocument = {
+      ...version,
+      sections: [{ id: 'section-1', title: 'Данные', questionIds: [controllingId, dependentId] }],
+      questions: [
+        {
+          ...version.questions[0]!,
+          id: controllingId,
+          label: 'Показывать детали',
+          property: { kind: 'TITLE' },
+        },
+        {
+          ...version.questions[0]!,
+          id: dependentId,
+          label: 'Детали',
+          property: {
+            kind: 'PROPERTY',
+            propertyId: 'property.details[0]',
+            propertyType: 'TEXT',
+          },
+          visibleWhen: {
+            kind: 'ALL',
+            members: [{ kind: 'IS_NOT_EMPTY', questionId: controllingId }],
+          },
+        },
+      ],
+    }
+
+    render(<FormRenderer version={conditionalVersion} mode="public" />)
+    expect(screen.queryByLabelText('Детали *')).not.toBeInTheDocument()
+
+    await actor.type(screen.getByLabelText('Показывать детали *'), 'Да')
+    expect(await screen.findByLabelText('Детали *')).toHaveAttribute(
+      'name',
+      `answers.${encodeFormFieldKey(dependentId)}`,
+    )
+    await actor.click(screen.getByRole('button', { name: 'Отправить' }))
+    expect(await screen.findByText('REQUIRED_ANSWER')).toBeInTheDocument()
   })
 })

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { PlanFeatures } from '../../../src/billing/dto/billing.dto.ts'
 import type { BillingService } from '../../../src/billing/services/billing.service.ts'
 import type { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
+import { updateFormDraftInput } from '../../../src/database/forms/database-form.dto.ts'
 import {
   DatabaseFormService,
   canonicalFormSchemaHash,
@@ -352,6 +353,42 @@ describe('DatabaseFormService lifecycle', () => {
     expect(formRepo.updateDraftIfRevision.mock.invocationCallOrder[0]).toBeLessThan(
       databaseRepo.updateProperty.mock.invocationCallOrder[0]!,
     )
+  })
+
+  it('persists a synced property name with trailing whitespace exactly as typed', async () => {
+    const propertyId = '00000000-0000-7000-8000-000000000070'
+    const label = 'Название '
+    const document = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId, propertyType: 'TEXT' },
+          label,
+          syncWithPropertyName: true,
+        },
+      ],
+    })
+    const form = managedForm({
+      draftSchema: document,
+      source: {
+        ...managedForm().source,
+        properties: [
+          { id: propertyId, type: 'TEXT', name: 'Название', position: 1024, settings: null },
+        ],
+      },
+    })
+    const { service, databaseRepo } = makeHarness({ form })
+    const input = updateFormDraftInput.parse({
+      pageId: form.source.pageId,
+      formId: form.id,
+      expectedRevision: 1,
+      schema: document,
+      propertyNameIntents: { [propertyId]: label },
+    })
+
+    await service.updateDraft('00000000-0000-7000-8000-000000000001', input)
+
+    expect(databaseRepo.updateProperty).toHaveBeenCalledWith(propertyId, { name: label })
   })
 
   it('does not rename a property when the draft CAS conflicts', async () => {

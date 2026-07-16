@@ -145,13 +145,16 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
             canManageExposure={canManageExposure}
           />
         </Stack>
-        {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
-        <DatabaseItemModal
-          pageId={pageId}
-          viewId={activeView.id}
-          schema={schema}
-          editable={canEditContent}
-        />
+        {/* FORM responses own their authoritative rowOverride modal. Other views
+            resolve a row from their shared active-view cache here. */}
+        {activeView.type === 'FORM' ? null : (
+          <DatabaseItemModal
+            pageId={pageId}
+            viewId={activeView.id}
+            schema={schema}
+            editable={canEditContent}
+          />
+        )}
       </ActiveViewIdProvider>
     </DatabaseWorkspaceIdProvider>
   )
