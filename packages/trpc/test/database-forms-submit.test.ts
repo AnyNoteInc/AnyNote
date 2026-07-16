@@ -129,6 +129,7 @@ type HarnessOptions = {
   submitError?: Error
   headers?: Headers
   userId?: string | null
+  limiterDecision?: (scope: string, key: string, now: number) => boolean
 }
 
 function makeHarness(options: HarnessOptions = {}) {
@@ -151,8 +152,9 @@ function makeHarness(options: HarnessOptions = {}) {
     if (options.submitError) throw options.submitError
     return options.submitResult ?? domainCreatedResult
   })
-  const consume = vi.fn((scope: string) => {
+  const consume = vi.fn((scope: string, key: string, now: number) => {
     order.push(`limit:${scope}`)
+    if (options.limiterDecision) return options.limiterDecision(scope, key, now)
     const result = options.limiterResults?.[consume.mock.calls.length - 1]
     return result ?? true
   })
@@ -227,21 +229,23 @@ afterEach(() => {
 })
 
 describe('public database form submission', () => {
-  it('applies lookup, replay, both limiters, CAPTCHA, token context and domain submit in order', async () => {
+  it('applies lookup, replay-probe limit, submit limits, CAPTCHA and domain submit in order', async () => {
     const harness = makeHarness()
 
     await expect(harness.api.submit(validInput())).resolves.toEqual(createdResult)
 
     expect(harness.order).toEqual([
       'lookup',
+      'limit:replay-ip',
       'replay',
       'limit:submit-ip',
       'limit:submit-form',
       'captcha',
       'submit',
     ])
-    expect(harness.consume).toHaveBeenNthCalledWith(1, 'submit-ip', `${FORM_ID}:203.0.113.10`, NOW)
-    expect(harness.consume).toHaveBeenNthCalledWith(2, 'submit-form', FORM_ID, NOW)
+    expect(harness.consume).toHaveBeenNthCalledWith(1, 'replay-ip', '203.0.113.10', NOW)
+    expect(harness.consume).toHaveBeenNthCalledWith(2, 'submit-ip', `${FORM_ID}:203.0.113.10`, NOW)
+    expect(harness.consume).toHaveBeenNthCalledWith(3, 'submit-form', FORM_ID, NOW)
     expect(harness.verifyCaptcha).toHaveBeenCalledWith({
       token: 'captcha-header-token',
       action: 'form_submit',
@@ -268,7 +272,7 @@ describe('public database form submission', () => {
 
     await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
 
-    expect(harness.order).toEqual(['lookup', 'replay'])
+    expect(harness.order).toEqual(['lookup', 'limit:replay-ip', 'replay'])
     expect(harness.findReplay).toHaveBeenCalledWith(
       null,
       {
@@ -278,7 +282,7 @@ describe('public database form submission', () => {
       },
       expect.objectContaining({ locatorHash: hashFormLocator('anf_submit-key') }),
     )
-    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.consume).toHaveBeenCalledWith('replay-ip', '203.0.113.10', NOW)
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
   })
@@ -288,8 +292,8 @@ describe('public database form submission', () => {
 
     await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
 
-    expect(harness.order).toEqual(['lookup', 'replay'])
-    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.order).toEqual(['lookup', 'limit:replay-ip', 'replay'])
+    expect(harness.consume).toHaveBeenCalledWith('replay-ip', '203.0.113.10', NOW)
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
   })
@@ -306,8 +310,118 @@ describe('public database form submission', () => {
 
     expect(harness.submit).toHaveBeenCalledOnce()
     expect(harness.verifyCaptcha).toHaveBeenCalledOnce()
-    expect(harness.consume).toHaveBeenCalledTimes(2)
+    expect(harness.consume).toHaveBeenCalledTimes(4)
     expect(harness.findReplay).toHaveBeenCalledTimes(2)
+  })
+
+  it('bounds early replay probes globally per client IP across random idempotency keys', async () => {
+    let remainingReplayProbes = 30
+    const harness = makeHarness({
+      limiterDecision: (scope) => scope !== 'replay-ip' || remainingReplayProbes-- > 0,
+    })
+
+    for (let index = 0; index < 35; index += 1) {
+      const idempotencyKey = `00000000-0000-7000-8000-${index.toString(16).padStart(12, '0')}`
+      await expect(harness.api.submit(validInput({ idempotencyKey }))).resolves.toEqual(
+        createdResult,
+      )
+    }
+
+    expect(harness.findReplay).toHaveBeenCalledTimes(30)
+    expect(harness.consume.mock.calls.filter(([scope]) => scope === 'replay-ip')).toHaveLength(35)
+    expect(harness.verifyCaptcha).toHaveBeenCalledTimes(35)
+    expect(harness.submit).toHaveBeenCalledTimes(35)
+  })
+
+  it('falls back through CAPTCHA and atomic submit when the early replay budget is exhausted', async () => {
+    const harness = makeHarness({
+      replay: domainReplayResult,
+      submitResult: domainReplayResult,
+      limiterDecision: (scope) => scope !== 'replay-ip',
+    })
+
+    await expect(harness.api.submit(validInput())).resolves.toEqual(replayResult)
+
+    expect(harness.order).toEqual([
+      'lookup',
+      'limit:replay-ip',
+      'limit:submit-ip',
+      'limit:submit-form',
+      'captcha',
+      'submit',
+    ])
+    expect(harness.findReplay).not.toHaveBeenCalled()
+    expect(harness.verifyCaptcha).toHaveBeenCalledOnce()
+    expect(harness.submit).toHaveBeenCalledOnce()
+  })
+
+  it('normalizes the locator before binding an early replay to the signed token', async () => {
+    const harness = makeHarness({ replay: domainReplayResult })
+
+    await expect(
+      harness.api.submit(
+        validInput({
+          locator: ' SUBMIT-FORM ',
+          versionToken: tokenFor({ locatorHash: hashFormLocator('submit-form') }),
+        }),
+      ),
+    ).resolves.toEqual(replayResult)
+
+    expect(harness.order).toEqual(['lookup', 'limit:replay-ip', 'replay'])
+    expect(harness.findReplay).toHaveBeenCalledOnce()
+    expect(harness.verifyCaptcha).not.toHaveBeenCalled()
+    expect(harness.submit).not.toHaveBeenCalled()
+  })
+
+  it('skips the early replay probe when the locator does not match the signed token', async () => {
+    const harness = makeHarness({
+      replay: domainReplayResult,
+      submitError: conflict('FORM_VERSION_STALE'),
+    })
+
+    await expect(harness.api.submit(validInput({ locator: 'other-form' }))).rejects.toMatchObject({
+      code: 'CONFLICT',
+      message: 'FORM_VERSION_STALE',
+    })
+
+    expect(harness.order).toEqual([
+      'lookup',
+      'limit:submit-ip',
+      'limit:submit-form',
+      'captcha',
+      'submit',
+    ])
+    expect(harness.findReplay).not.toHaveBeenCalled()
+    expect(harness.verifyCaptcha).toHaveBeenCalledOnce()
+    expect(harness.submit).toHaveBeenCalledOnce()
+    expect(harness.consume).not.toHaveBeenCalledWith(
+      'replay-ip',
+      expect.any(String),
+      expect.any(Number),
+    )
+  })
+
+  it('shares one unavailable-form limiter bucket across locator variants', async () => {
+    const harness = makeHarness({
+      resolved: { status: 'CLOSED' },
+      submitError: conflict('FORM_NOT_ACCEPTING'),
+    })
+
+    for (const locator of ['missing-form', 'MISSING-FORM', 'candidate-form']) {
+      await expect(harness.api.submit(validInput({ locator }))).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message: 'FORM_NOT_ACCEPTING',
+      })
+    }
+
+    const submitIpKeys = harness.consume.mock.calls
+      .filter(([scope]) => scope === 'submit-ip')
+      .map(([, key]) => key)
+    const submitFormKeys = harness.consume.mock.calls
+      .filter(([scope]) => scope === 'submit-form')
+      .map(([, key]) => key)
+    expect(new Set(submitIpKeys)).toHaveProperty('size', 1)
+    expect(new Set(submitFormKeys)).toHaveProperty('size', 1)
   })
 
   it('propagates an unexpected replay lookup failure instead of hiding infrastructure errors', async () => {
@@ -319,8 +433,8 @@ describe('public database form submission', () => {
       message: databaseFailure.message,
     })
 
-    expect(harness.order).toEqual(['lookup', 'replay'])
-    expect(harness.consume).not.toHaveBeenCalled()
+    expect(harness.order).toEqual(['lookup', 'limit:replay-ip', 'replay'])
+    expect(harness.consume).toHaveBeenCalledWith('replay-ip', '203.0.113.10', NOW)
     expect(harness.verifyCaptcha).not.toHaveBeenCalled()
     expect(harness.submit).not.toHaveBeenCalled()
   })
@@ -348,6 +462,7 @@ describe('public database form submission', () => {
     expect(harness.findReplay).toHaveBeenCalledOnce()
     expect(harness.order).toEqual([
       'lookup',
+      'limit:replay-ip',
       'replay',
       'limit:submit-ip',
       'limit:submit-form',
@@ -370,6 +485,7 @@ describe('public database form submission', () => {
     expect(harness.findReplay).toHaveBeenCalledOnce()
     expect(harness.order).toEqual([
       'lookup',
+      'limit:replay-ip',
       'replay',
       'limit:submit-ip',
       'limit:submit-form',
@@ -458,27 +574,38 @@ describe('public database form submission', () => {
   })
 
   it('short-circuits an IP limit without consuming the global form budget', async () => {
-    const ipLimited = makeHarness({ limiterResults: [false, true] })
+    const ipLimited = makeHarness({ limiterResults: [true, false] })
 
     await expect(ipLimited.api.submit(validInput())).rejects.toMatchObject({
       code: 'FORBIDDEN',
       message: 'FORM_PROTECTED',
     })
 
-    expect(ipLimited.order).toEqual(['lookup', 'replay', 'limit:submit-ip'])
+    expect(ipLimited.order).toEqual([
+      'lookup',
+      'limit:replay-ip',
+      'replay',
+      'limit:submit-ip',
+    ])
     expect(ipLimited.verifyCaptcha).not.toHaveBeenCalled()
     expect(ipLimited.submit).not.toHaveBeenCalled()
   })
 
   it('uses the same protection error when the global form limiter rejects', async () => {
-    const formLimited = makeHarness({ limiterResults: [true, false] })
+    const formLimited = makeHarness({ limiterResults: [true, true, false] })
 
     await expect(formLimited.api.submit(validInput())).rejects.toMatchObject({
       code: 'FORBIDDEN',
       message: 'FORM_PROTECTED',
     })
 
-    expect(formLimited.order).toEqual(['lookup', 'replay', 'limit:submit-ip', 'limit:submit-form'])
+    expect(formLimited.order).toEqual([
+      'lookup',
+      'limit:replay-ip',
+      'replay',
+      'limit:submit-ip',
+      'limit:submit-form',
+    ])
     expect(formLimited.verifyCaptcha).not.toHaveBeenCalled()
     expect(formLimited.submit).not.toHaveBeenCalled()
   })

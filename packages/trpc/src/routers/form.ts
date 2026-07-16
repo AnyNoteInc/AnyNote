@@ -7,7 +7,11 @@ import {
   isDomainError,
   propertySettingsSchema,
 } from '@repo/domain'
-import { parseFormVersionDocument, toPublicFormVersion } from '@repo/domain/database/forms'
+import {
+  normalizeFormLocator,
+  parseFormVersionDocument,
+  toPublicFormVersion,
+} from '@repo/domain/database/forms'
 
 import { domain as domainSvc } from '../domain'
 import { verifyFormCaptcha } from '../helpers/form-captcha'
@@ -24,6 +28,7 @@ import { publicProcedure, router } from '../trpc'
 const FORM_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
 const MAX_SERIALIZED_ANSWERS_BYTES = 1_048_576
 const MAX_ANSWER_KEYS = 500
+const UNAVAILABLE_FORM_RATE_KEY = 'unavailable'
 const pickerCursorSchema = z.string().uuid()
 
 const submitInputSchema = z
@@ -349,18 +354,25 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
       const actorUserId = ctx.user?.id ?? null
       const submissionInput = toDomainSubmissionInput(input)
       const resolved = await domain.formAccess.resolvePublished(input.locator, actorUserId)
-      const rateFormKey =
-        resolved.status === 'OPEN' ? resolved.form.id : hashFormLocator(input.locator.trim())
+      const rateFormKey = resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
+      const clientIp = formClientIp(ctx.headers)
+      const now = dependencies.now()
 
       let token: ReturnType<typeof verifyFormVersionToken> | null = null
       let replayVersionStale = false
       try {
-        token = verifyFormVersionToken(input.versionToken, tokenSecret(), dependencies.now())
+        token = verifyFormVersionToken(input.versionToken, tokenSecret(), now)
       } catch {
         token = null
       }
 
-      if (token !== null) {
+      const normalizedLocator = normalizeFormLocator(input.locator)
+      if (
+        token !== null &&
+        normalizedLocator !== null &&
+        hashFormLocator(normalizedLocator) === token.locatorHash &&
+        dependencies.rateLimiter.consume('replay-ip', clientIp, now)
+      ) {
         try {
           const replay = await domain.formSubmissions.findReplay(
             actorUserId,
@@ -385,13 +397,8 @@ export function createFormRouter(overrides: Partial<FormRouterDependencies> = {}
         }
       }
 
-      const now = dependencies.now()
       if (
-        !dependencies.rateLimiter.consume(
-          'submit-ip',
-          `${rateFormKey}:${formClientIp(ctx.headers)}`,
-          now,
-        )
+        !dependencies.rateLimiter.consume('submit-ip', `${rateFormKey}:${clientIp}`, now)
       ) {
         throw formProtected()
       }

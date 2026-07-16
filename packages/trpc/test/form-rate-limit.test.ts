@@ -29,6 +29,15 @@ describe('form rate limiter', () => {
     expect(limiter.consume('submit-ip', key, 10 * MINUTE_MS)).toBe(true)
   })
 
+  it('allows 30 early replay probes per IP in 10 minutes', () => {
+    const limiter = createFormRateLimiter({ salt: SALT })
+    const key = '203.0.113.8'
+
+    expect(consumeMany(limiter, 'replay-ip', key, 30, 0)).toEqual(Array(30).fill(true))
+    expect(limiter.consume('replay-ip', key, 9 * MINUTE_MS)).toBe(false)
+    expect(limiter.consume('replay-ip', key, 10 * MINUTE_MS)).toBe(true)
+  })
+
   it('allows 100 form-wide submissions per minute', () => {
     const limiter = createFormRateLimiter({ salt: SALT })
 
@@ -55,6 +64,7 @@ describe('form rate limiter', () => {
     expect(limiter.consume('submit-ip', saturated, 0)).toBe(false)
     expect(limiter.consume('submit-ip', '203.0.113.9:anf_form-a', 0)).toBe(true)
     expect(limiter.consume('submit-ip', '203.0.113.8:anf_form-b', 0)).toBe(true)
+    expect(limiter.consume('replay-ip', saturated, 0)).toBe(true)
     expect(limiter.consume('upload-ip', saturated, 0)).toBe(true)
   })
 

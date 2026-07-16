@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto'
 
-export type FormRateLimitScope = 'submit-ip' | 'submit-form' | 'upload-ip'
+export type FormRateLimitScope = 'replay-ip' | 'submit-ip' | 'submit-form' | 'upload-ip'
 
 export interface FormRateLimiter {
   consume(scope: FormRateLimitScope, key: string, now: number): boolean
@@ -21,6 +21,9 @@ const MAX_KEYS = 20_000
 const PROCESS_SALT = randomBytes(32)
 
 const LIMITS: Record<FormRateLimitScope, { attempts: number; windowMs: number }> = {
+  // Early replay is a pre-CAPTCHA convenience path, so cap its DB probes
+  // conservatively and globally per client IP.
+  'replay-ip': { attempts: 30, windowMs: 10 * 60 * 1_000 },
   'submit-ip': { attempts: 10, windowMs: 10 * 60 * 1_000 },
   'submit-form': { attempts: 100, windowMs: 60 * 1_000 },
   'upload-ip': { attempts: 30, windowMs: 10 * 60 * 1_000 },
