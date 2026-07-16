@@ -27,6 +27,7 @@ import type { DatabaseService } from './database/services/database.service.ts'
 import { DATABASE_FORMS } from './database/forms/database-forms.tokens.ts'
 import type { DatabaseFormService } from './database/forms/database-form.service.ts'
 import type { FormAccessResolver } from './database/forms/form-access-resolver.ts'
+import type { FormSubmissionService } from './database/forms/form-submission.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
@@ -75,6 +76,7 @@ export interface Domain {
   database: DatabaseService
   databaseForms: DatabaseFormService
   formAccess: FormAccessResolver
+  formSubmissions: FormSubmissionService
   pages: PageService
   people: PeopleService
   identity: IdentityService
@@ -133,6 +135,7 @@ export function createDomain(deps: DomainDeps): Domain {
     database: c.get<DatabaseService>(DATABASE.Service),
     databaseForms: c.get<DatabaseFormService>(DATABASE_FORMS.Service),
     formAccess: c.get<FormAccessResolver>(DATABASE_FORMS.AccessResolver),
+    formSubmissions: c.get<FormSubmissionService>(DATABASE_FORMS.SubmissionService),
     pages: c.get<PageService>(PAGES.Service),
     people: c.get<PeopleService>(PEOPLE.Service),
     identity: c.get<IdentityService>(IDENTITY.Service),

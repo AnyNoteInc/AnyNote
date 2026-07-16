@@ -9,6 +9,6 @@ export interface ItemPageCreator {
   createItemPageTx(
     parentPageId: string,
     workspaceId: string,
-    actorUserId: string,
+    actorUserId: string | null,
   ): Promise<{ id: string }>
 }

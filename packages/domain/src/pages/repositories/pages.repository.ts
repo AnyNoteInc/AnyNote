@@ -260,7 +260,7 @@ export class PageRepository {
   async createItemPageTx(
     parentPageId: string,
     workspaceId: string,
-    actorUserId: string,
+    actorUserId: string | null,
   ): Promise<CreateResultDto> {
     const newPage = await this.uow.client().page.create({
       data: {

@@ -1,8 +1,9 @@
-import type {
+import {
   DatabaseFormAudience,
   DatabaseFormRespondentAccess,
   DatabaseFormState,
   Prisma,
+  enqueueWebhookEvent,
 } from '@repo/db'
 
 import { conflict } from '../../shared/errors.ts'
@@ -124,6 +125,7 @@ const submissionProvenanceSelect = {
   endingId: true,
   idempotencyKey: true,
   submittedAt: true,
+  row: { select: { pageId: true } },
 } as const satisfies Prisma.DatabaseFormSubmissionSelect
 
 export type ManagedFormRecord = Prisma.DatabaseFormGetPayload<{
@@ -264,6 +266,29 @@ export interface ListFormVersionsOptions {
   limit?: number
 }
 
+export interface CreateFormSubmissionRecord {
+  formId: string
+  versionId: string
+  rowId: string
+  respondentUserId: string | null
+  endingId: string
+  idempotencyKey: string
+  submittedAt: Date
+}
+
+export interface EnqueueFormSubmittedEventRecord {
+  formId: string
+  versionNumber: number
+  sourceId: string
+  sourcePageId: string
+  workspaceId: string
+  rowId: string
+  itemPageId: string
+  submissionId: string
+  respondentUserId: string | null
+  submittedAt: Date
+}
+
 export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
@@ -279,6 +304,9 @@ export interface FormRepositoryContract {
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
   findSubmission(submissionId: string): Promise<FormSubmissionRecord | null>
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
+  reserveResponseSlot(formId: string, now: Date): Promise<boolean>
+  createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord>
+  enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void>
   hasProtectedPropertyDependency(
     propertyId: string,
     now: Date,
@@ -568,6 +596,48 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     return this.uow.client().databaseFormSubmission.findUnique({
       where: { formId_idempotencyKey: { formId, idempotencyKey: key } },
       select: submissionProvenanceSelect,
+    })
+  }
+
+  async reserveResponseSlot(formId: string, now: Date): Promise<boolean> {
+    const reserved = await this.uow.client().$queryRaw<{ id: string }[]>(Prisma.sql`
+      UPDATE database_forms
+      SET accepted_responses = accepted_responses + 1,
+          updated_at = now()
+      WHERE id = ${formId}::uuid
+        AND state = ${DatabaseFormState.OPEN}::"DatabaseFormState"
+        AND (opens_at IS NULL OR opens_at <= ${now})
+        AND (closes_at IS NULL OR closes_at > ${now})
+        AND (response_limit IS NULL OR accepted_responses < response_limit)
+      RETURNING id
+    `)
+    return reserved.length === 1
+  }
+
+  createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord> {
+    return this.uow.client().databaseFormSubmission.create({
+      data: input,
+      select: submissionProvenanceSelect,
+    })
+  }
+
+  async enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void> {
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'database.form.submitted',
+      resourceType: 'page',
+      resourceId: input.sourcePageId,
+      workspaceId: input.workspaceId,
+      actorId: input.respondentUserId,
+      hints: {
+        formId: input.formId,
+        versionNumber: input.versionNumber,
+        sourceId: input.sourceId,
+        rowId: input.rowId,
+        itemPageId: input.itemPageId,
+        submissionId: input.submissionId,
+        submittedAt: input.submittedAt.toISOString(),
+        respondentKind: input.respondentUserId === null ? 'anonymous' : 'authenticated',
+      },
     })
   }
 

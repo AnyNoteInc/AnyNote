@@ -446,7 +446,7 @@ export class DatabaseRepository {
     sourceId: string
     pageId: string
     position: number
-    createdById: string
+    createdById: string | null
   }): Promise<{ id: string; pageId: string; position: number }> {
     return this.uow.client().databaseRow.create({
       data: {
@@ -618,7 +618,11 @@ export class DatabaseRepository {
 
   // ── Item-page bridge (title/icon live on the real Page) ──────────────────────
 
-  async updatePageTitle(pageId: string, title: string | null, updatedById: string): Promise<void> {
+  async updatePageTitle(
+    pageId: string,
+    title: string | null,
+    updatedById: string | null,
+  ): Promise<void> {
     await this.uow.client().page.update({
       where: { id: pageId },
       data: { title, updatedById },
