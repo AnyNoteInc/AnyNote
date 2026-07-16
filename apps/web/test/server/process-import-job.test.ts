@@ -15,17 +15,25 @@ const EMAIL_SUFFIX = '+import-job-test@anynote.dev'
 
 function makeFakeStorage(initial: Record<string, Buffer> = {}) {
   const store = new Map<string, Buffer>(Object.entries(initial))
-  return {
+  let putCalls = 0
+  const fake = {
     store,
+    failOnPutCall: null as number | null,
     async get(key: string): Promise<Readable> {
       const buf = store.get(key)
       if (!buf) throw new Error(`missing ${key}`)
       return Readable.from([buf])
     },
     async put(key: string, body: Readable | Buffer): Promise<void> {
+      putCalls += 1
+      if (fake.failOnPutCall === putCalls) throw new Error('injected storage failure')
       store.set(key, Buffer.isBuffer(body) ? body : await streamToBuffer(body))
     },
+    async delete(key: string): Promise<void> {
+      store.delete(key)
+    },
   }
+  return fake
 }
 
 async function cleanFixtures() {
@@ -197,6 +205,28 @@ describe('processImportJob', () => {
     expect(storage.store.get(`imports/${job.id}-report.txt`)?.toString('utf8')).toContain(
       'превышен лимит хранилища пространства',
     )
+  })
+
+  it('removes namespaced asset objects when a later import upload fails', async () => {
+    const fixture = zipSync({
+      'Проект.md': strToU8(
+        '# Проект\n\n![первая](Проект/img/one.png)\n\n![вторая](Проект/img/two.png)\n',
+      ),
+      'Проект/img/one.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1]),
+      'Проект/img/two.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 2]),
+    })
+    const { ws, job, storage, ctx } = await seed(fixture)
+    storage.failOnPutCall = 2
+
+    await processImportJob(ctx, job.id)
+
+    expect((await prisma.importJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe(
+      'FAILED',
+    )
+    expect(
+      [...storage.store.keys()].filter((key) => key.startsWith(`workspaces/${ws.id}/`)),
+    ).toEqual([])
+    expect(await prisma.file.count({ where: { workspaceId: ws.id, ext: 'png' } })).toBe(0)
   })
 
   it('fails with a user-facing error on zip-slip archives', async () => {

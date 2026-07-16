@@ -35,7 +35,7 @@ export type PagesCreatePort = {
 
 export type ImportJobContext = {
   prisma: PrismaClient
-  storage: Pick<StorageClient, 'get' | 'put'>
+  storage: Pick<StorageClient, 'get' | 'put' | 'delete'>
   pages: PagesCreatePort
   database: DatabasePort
 }
@@ -497,79 +497,108 @@ async function storeAssets(
   }
   if (toUpload.length === 0) return out
 
-  await ctx.prisma.$transaction(
-    async (tx) => {
-      // All workspace-scoped upload paths use this same row as the quota mutex.
-      // Keep the lock through object persistence and File creation so forms,
-      // imports and MCP uploads cannot each pass a stale aggregate concurrently.
-      const workspaces = await tx.$queryRaw<{ id: string }[]>`
+  const storedPaths: string[] = []
+  try {
+    await ctx.prisma.$transaction(
+      async (tx) => {
+        // All workspace-scoped upload paths use this same row as the quota mutex.
+        // Keep the lock through object persistence and File creation so forms,
+        // imports and MCP uploads cannot each pass a stale aggregate concurrently.
+        const workspaces = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM workspaces
         WHERE id = ${job.workspaceId}::uuid
         FOR UPDATE
       `
-      if (workspaces.length !== 1) throw new Error('IMPORT_WORKSPACE_NOT_FOUND')
+        if (workspaces.length !== 1) throw new Error('IMPORT_WORKSPACE_NOT_FOUND')
 
-      // The first pass is an inexpensive fast path. Repeat dedupe under the
-      // quota lock because another uploader may have committed in between.
-      const pending: typeof toUpload = []
-      for (const candidate of toUpload) {
-        const existing = await tx.file.findFirst({
+        // The first pass is an inexpensive fast path. Repeat dedupe under the
+        // quota lock because another uploader may have committed in between.
+        const pending: typeof toUpload = []
+        for (const candidate of toUpload) {
+          const existing = await tx.file.findFirst({
+            where: {
+              userId: job.userId,
+              hash: candidate.hash,
+              workspaceId: job.workspaceId,
+              status: FileStatus.ACTIVE,
+            },
+            select: { id: true },
+          })
+          if (existing) out.set(candidate.sourceKey, existing.id)
+          else pending.push(candidate)
+        }
+
+        const newBytes = pending.reduce((sum, candidate) => sum + candidate.buf.byteLength, 0)
+        const usage = await tx.file.aggregate({
           where: {
-            userId: job.userId,
-            hash: candidate.hash,
             workspaceId: job.workspaceId,
-            status: FileStatus.ACTIVE,
+            OR: [
+              { status: FileStatus.ACTIVE },
+              { status: FileStatus.PENDING, expiresAt: { gt: new Date() } },
+            ],
           },
-          select: { id: true },
+          _sum: { fileSize: true },
         })
-        if (existing) out.set(candidate.sourceKey, existing.id)
-        else pending.push(candidate)
-      }
+        const limits = await tx.workspaceLimit.findUnique({
+          where: { workspaceId: job.workspaceId },
+        })
+        const used = usage._sum.fileSize ?? 0n
+        if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
+          journal.warn('Картинки из архива пропущены: превышен лимит хранилища пространства')
+          return
+        }
 
-      const newBytes = pending.reduce((sum, candidate) => sum + candidate.buf.byteLength, 0)
-      const usage = await tx.file.aggregate({
-        where: {
+        for (const { sourceKey, asset, hash, buf } of pending) {
+          const s3Key = `workspaces/${job.workspaceId}/${computeS3Key(hash, asset.ext)}`
+          await ctx.storage.put(s3Key, buf, {
+            contentType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
+            size: buf.byteLength,
+          })
+          storedPaths.push(s3Key)
+          const created = await tx.file.create({
+            data: {
+              userId: job.userId,
+              workspaceId: job.workspaceId,
+              name: `${asset.baseName}.${asset.ext}`,
+              ext: asset.ext,
+              fileSize: BigInt(buf.byteLength),
+              mimeType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
+              hash,
+              path: s3Key,
+              status: FileStatus.ACTIVE,
+              isPublic: false,
+            },
+            select: { id: true },
+          })
+          out.set(sourceKey, created.id)
+        }
+      },
+      { maxWait: 10_000, timeout: 120_000 },
+    )
+  } catch (error) {
+    if (storedPaths.length > 0) {
+      try {
+        await ctx.prisma.$transaction(async (tx) => {
+          const workspaces = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM workspaces
+            WHERE id = ${job.workspaceId}::uuid
+            FOR UPDATE
+          `
+          if (workspaces.length !== 1) return
+          for (const path of new Set(storedPaths)) {
+            const references = await tx.file.count({ where: { path } })
+            if (references === 0) await ctx.storage.delete(path)
+          }
+        })
+      } catch (cleanupError) {
+        console.warn('[import-job] asset rollback cleanup failed', {
           workspaceId: job.workspaceId,
-          OR: [
-            { status: FileStatus.ACTIVE },
-            { status: FileStatus.PENDING, expiresAt: { gt: new Date() } },
-          ],
-        },
-        _sum: { fileSize: true },
-      })
-      const limits = await tx.workspaceLimit.findUnique({ where: { workspaceId: job.workspaceId } })
-      const used = usage._sum.fileSize ?? 0n
-      if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
-        journal.warn('Картинки из архива пропущены: превышен лимит хранилища пространства')
-        return
-      }
-
-      for (const { sourceKey, asset, hash, buf } of pending) {
-        const s3Key = computeS3Key(hash, asset.ext)
-        await ctx.storage.put(s3Key, buf, {
-          contentType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
-          size: buf.byteLength,
+          cleanupError,
         })
-        const created = await tx.file.create({
-          data: {
-            userId: job.userId,
-            workspaceId: job.workspaceId,
-            name: `${asset.baseName}.${asset.ext}`,
-            ext: asset.ext,
-            fileSize: BigInt(buf.byteLength),
-            mimeType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
-            hash,
-            path: s3Key,
-            status: FileStatus.ACTIVE,
-            isPublic: false,
-          },
-          select: { id: true },
-        })
-        out.set(sourceKey, created.id)
       }
-    },
-    { maxWait: 10_000, timeout: 120_000 },
-  )
+    }
+    throw error
+  }
   return out
 }
 

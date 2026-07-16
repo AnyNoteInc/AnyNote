@@ -197,9 +197,9 @@ export async function POST(request: NextRequest) {
 
   const hash = createHash('sha256').update(bytes).digest('hex')
   const ext = extractExt(file.name)
-  const s3Key = computeS3Key(hash, ext)
-
   const workspaceId = isWorkspaceKind ? workspaceScopedId : null
+  const contentKey = computeS3Key(hash, ext)
+  const s3Key = workspaceId === null ? contentKey : `workspaces/${workspaceId}/${contentKey}`
 
   const existing = await prisma.file.findFirst({
     where: {
@@ -214,40 +214,43 @@ export async function POST(request: NextRequest) {
   if (!fileRow) {
     let stored = false
     try {
-      fileRow = await prisma.$transaction(async (tx) => {
-        if (workspaceId !== null) {
-          const workspaces = await tx.$queryRaw<{ id: string }[]>`
-            SELECT id FROM workspaces
-            WHERE id = ${workspaceId}::uuid
-            FOR UPDATE
-          `
-          if (workspaces.length !== 1) throw new WorkspaceLimitMissingError()
-          await assertWorkspaceStorageCapacity(tx, workspaceId, bytes.length)
-        }
-        await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
-        stored = true
-        const created = await tx.file.create({
-          data: {
-            userId: session.user.id,
-            workspaceId,
-            name: file.name,
-            ext,
-            fileSize: BigInt(bytes.length),
-            mimeType,
-            hash,
-            path: s3Key,
-            status: FileStatus.ACTIVE,
-            isPublic: isPublicKind,
-          },
-        })
-        if (kind === 'avatar') {
-          await tx.user.update({
-            where: { id: session.user.id },
-            data: { image: `/api/files/${created.id}` },
+      fileRow = await prisma.$transaction(
+        async (tx) => {
+          if (workspaceId !== null) {
+            const workspaces = await tx.$queryRaw<{ id: string }[]>`
+              SELECT id FROM workspaces
+              WHERE id = ${workspaceId}::uuid
+              FOR UPDATE
+            `
+            if (workspaces.length !== 1) throw new WorkspaceLimitMissingError()
+            await assertWorkspaceStorageCapacity(tx, workspaceId, bytes.length)
+          }
+          await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
+          stored = true
+          const created = await tx.file.create({
+            data: {
+              userId: session.user.id,
+              workspaceId,
+              name: file.name,
+              ext,
+              fileSize: BigInt(bytes.length),
+              mimeType,
+              hash,
+              path: s3Key,
+              status: FileStatus.ACTIVE,
+              isPublic: isPublicKind,
+            },
           })
-        }
-        return created
-      })
+          if (kind === 'avatar') {
+            await tx.user.update({
+              where: { id: session.user.id },
+              data: { image: `/api/files/${created.id}` },
+            })
+          }
+          return created
+        },
+        { maxWait: 10_000, timeout: 120_000 },
+      )
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         fileRow = await prisma.file.findFirst({

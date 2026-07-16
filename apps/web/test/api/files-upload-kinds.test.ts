@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   getActiveWorkspaceForUser: vi.fn<() => Promise<unknown>>(async () => null),
   workspaceFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
   txQueryRaw: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => [{ id: 'workspace' }]),
+  transaction: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 }))
 
 vi.mock('@repo/db', () => ({
@@ -34,19 +35,20 @@ vi.mock('@repo/db', () => ({
     workspace: { findFirst: mocks.workspaceFindFirst },
     workspaceLimit: { findUnique: mocks.limitFindUnique },
     user: { update: mocks.userUpdate },
-    $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({
-        $queryRaw: mocks.txQueryRaw,
-        file: {
-          create: mocks.txFileCreate,
-          aggregate: mocks.fileAggregate,
-          count: mocks.txFileCount,
-        },
-        workspaceLimit: { findUnique: mocks.limitFindUnique },
-        user: { update: mocks.txUserUpdate },
-      }),
+    $transaction: mocks.transaction,
   },
 }))
+
+const transactionClient = () => ({
+  $queryRaw: mocks.txQueryRaw,
+  file: {
+    create: mocks.txFileCreate,
+    aggregate: mocks.fileAggregate,
+    count: mocks.txFileCount,
+  },
+  workspaceLimit: { findUnique: mocks.limitFindUnique },
+  user: { update: mocks.txUserUpdate },
+})
 
 vi.mock('@repo/storage', () => ({
   storage: { put: mocks.storagePut, delete: mocks.storageDelete },
@@ -155,6 +157,11 @@ beforeEach(() => {
   mocks.getActiveWorkspaceForUser.mockReset().mockResolvedValue(null)
   mocks.workspaceFindFirst.mockReset().mockResolvedValue(null)
   mocks.txQueryRaw.mockReset().mockResolvedValue([{ id: 'workspace' }])
+  mocks.transaction
+    .mockReset()
+    .mockImplementation(async (fn: unknown) =>
+      (fn as (tx: ReturnType<typeof transactionClient>) => Promise<unknown>)(transactionClient()),
+    )
 })
 
 // ── validateUpload: the new kinds ────────────────────────────────────────────
@@ -604,6 +611,12 @@ describe('POST /api/files/upload — explicit workspaceId (chat context pinning)
     expect(mocks.txFileCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ workspaceId: WS_ID }) }),
     )
+    expect(mocks.txFileCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ path: expect.stringContaining(`workspaces/${WS_ID}/`) }),
+      }),
+    )
+    expect(mocks.transaction.mock.calls[0]?.[1]).toEqual({ maxWait: 10_000, timeout: 120_000 })
     expect(mocks.fileAggregate).toHaveBeenCalledTimes(2)
     expect(mocks.fileAggregate).toHaveBeenLastCalledWith({
       where: {

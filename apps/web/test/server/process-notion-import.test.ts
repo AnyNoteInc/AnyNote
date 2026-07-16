@@ -51,6 +51,9 @@ function makeFakeStorage(initial: Record<string, Buffer> = {}) {
     async put(key: string, body: Readable | Buffer): Promise<void> {
       store.set(key, Buffer.isBuffer(body) ? body : await streamToBuffer(body))
     },
+    async delete(key: string): Promise<void> {
+      store.delete(key)
+    },
   }
 }
 
