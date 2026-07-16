@@ -12,6 +12,7 @@ import { DatabaseBoardView } from './views/database-board-view'
 import { DatabaseCalendarView } from './views/database-calendar-view'
 import { DatabaseListView } from './views/database-list-view'
 import { DatabaseItemModal } from './database-item-modal'
+import { FormBuilder } from './forms/form-builder'
 import {
   ActiveViewIdProvider,
   DatabaseWorkspaceIdProvider,
@@ -179,6 +180,8 @@ function ViewDispatch({
     myAccess: schema.myAccess,
   }
   switch (view.type) {
+    case 'FORM':
+      return <FormBuilder pageId={pageId} formViewId={view.id} editable={canEditStructure} />
     case 'BOARD':
       return <DatabaseBoardView {...props} />
     case 'CALENDAR':

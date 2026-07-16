@@ -1,0 +1,232 @@
+// @vitest-environment jsdom
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { FormVersionDocument } from '@repo/domain/database/forms'
+
+const mocks = vi.hoisted(() => ({
+  createForm: vi.fn(),
+  createView: vi.fn(),
+  updateDraft: vi.fn(),
+  publish: vi.fn(),
+  routerReplace: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mocks.routerReplace }),
+  useSearchParams: () => new URLSearchParams(),
+}))
+
+const invalidDocument: FormVersionDocument = {
+  schemaVersion: 1,
+  firstSectionId: 'section-1',
+  presentation: {
+    title: 'Обратная связь',
+    submitButtonText: 'Отправить',
+    hideAnyNoteBranding: false,
+  },
+  sections: [{ id: 'section-1', title: 'Вопросы', questionIds: ['q-title'] }],
+  questions: [
+    {
+      id: 'q-title',
+      sectionId: 'section-1',
+      property: { kind: 'TITLE' },
+      label: 'Ваше имя',
+      required: true,
+      syncWithPropertyName: false,
+      input: { kind: 'TEXT', multiline: false, maxLength: 200 },
+    },
+  ],
+  transitions: [
+    {
+      id: 'transition-1',
+      fromSectionId: 'section-1',
+      priority: 0,
+      when: null,
+      target: { kind: 'ENDING', endingId: 'missing-ending' },
+    },
+  ],
+  endings: [{ id: 'ending-1', title: 'Спасибо' }],
+}
+
+const managedForm = {
+  id: '11111111-1111-4111-8111-111111111111',
+  sourceId: '22222222-2222-4222-8222-222222222222',
+  viewId: '33333333-3333-4333-8333-333333333333',
+  routeKey: 'anf_route',
+  customSlug: null,
+  linkRevision: 1,
+  state: 'DRAFT',
+  audience: 'ANYONE_WITH_LINK',
+  respondentAccess: 'NONE',
+  draftSchema: invalidDocument,
+  draftRevision: 3,
+  publishedVersionId: null,
+  opensAt: null,
+  closesAt: null,
+  responseLimit: null,
+  acceptedResponses: 0,
+  notifyOwners: false,
+  createdById: '44444444-4444-4444-8444-444444444444',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  source: {
+    id: '22222222-2222-4222-8222-222222222222',
+    workspaceId: '55555555-5555-4555-8555-555555555555',
+    pageId: '66666666-6666-4666-8666-666666666666',
+    structureLocked: false,
+    page: {
+      id: '66666666-6666-4666-8666-666666666666',
+      createdById: '44444444-4444-4444-8444-444444444444',
+      archivedAt: null,
+      deletedAt: null,
+    },
+    workspace: { id: '55555555-5555-4555-8555-555555555555', securityPolicy: null },
+    properties: [],
+  },
+  view: { id: '33333333-3333-4333-8333-333333333333', title: 'Форма', position: 1024 },
+  createdBy: { id: '44444444-4444-4444-8444-444444444444', name: 'Владелец' },
+  publishedVersion: null,
+}
+
+vi.mock('@/trpc/client', () => ({
+  trpc: {
+    useUtils: () => ({
+      database: {
+        getByPage: { invalidate: vi.fn() },
+        listForms: { invalidate: vi.fn() },
+        getForm: { invalidate: vi.fn() },
+      },
+    }),
+    database: {
+      listForms: { useQuery: () => ({ data: [managedForm], isLoading: false, error: null }) },
+      getForm: {
+        useQuery: () => ({
+          data: managedForm,
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(async () => ({ data: managedForm })),
+        }),
+      },
+      getByPage: { useQuery: () => ({ data: undefined, isLoading: false, error: null }) },
+      createForm: { useMutation: () => ({ mutate: mocks.createForm }) },
+      createView: { useMutation: () => ({ mutate: mocks.createView }) },
+      updateView: { useMutation: () => ({ mutate: vi.fn() }) },
+      duplicateView: { useMutation: () => ({ mutate: vi.fn() }) },
+      deleteView: { useMutation: () => ({ mutate: vi.fn() }) },
+      updateFormDraft: {
+        useMutation: () => ({ mutateAsync: mocks.updateDraft, isPending: false }),
+      },
+      publishForm: { useMutation: () => ({ mutateAsync: mocks.publish, isPending: false }) },
+      updateProperty: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      updateFormSettings: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      setFormSlug: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      rotateFormKey: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      closeForm: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      reopenForm: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      listFormResponses: {
+        useInfiniteQuery: () => ({ data: undefined, isLoading: false, hasNextPage: false }),
+      },
+    },
+  },
+}))
+
+vi.mock('@/components/workspace/plan-features-context', () => ({
+  usePlanFeatures: () => ({
+    formConditionalLogicEnabled: true,
+    formCustomSlugEnabled: true,
+    formBrandingRemovalEnabled: true,
+  }),
+}))
+
+import { FormBuilder } from '@/components/database/forms/form-builder'
+import { DatabaseViewTabs } from '@/components/database/database-view-tabs'
+
+describe('database FORM UI', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(cleanup)
+
+  it('renders FORM tab icon/title/menu and creates it through createForm only', async () => {
+    const actor = userEvent.setup()
+    render(
+      <DatabaseViewTabs
+        pageId="66666666-6666-4666-8666-666666666666"
+        activeViewId="33333333-3333-4333-8333-333333333333"
+        views={[
+          {
+            id: '33333333-3333-4333-8333-333333333333',
+            type: 'FORM',
+            title: 'Анкета',
+            position: 1024,
+            settings: {},
+          },
+        ]}
+        editable
+        myAccess={{
+          canEditContent: true,
+          canEditStructure: true,
+          structureLocked: false,
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('tab', { name: /Анкета/u })).toBeInTheDocument()
+    await actor.click(screen.getByRole('button', { name: 'Добавить представление' }))
+    await actor.click(screen.getByRole('menuitem', { name: 'Форма' }))
+    expect(mocks.createForm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Форма' }))
+    expect(mocks.createView).not.toHaveBeenCalled()
+  })
+
+  it('renders the three-panel open-document builder, inline graph error and disabled publish', () => {
+    render(
+      <FormBuilder
+        pageId="66666666-6666-4666-8666-666666666666"
+        formViewId="33333333-3333-4333-8333-333333333333"
+      />,
+    )
+
+    expect(screen.getByRole('complementary', { name: 'Структура формы' })).toBeInTheDocument()
+    expect(screen.getByRole('main', { name: 'Предпросмотр формы' })).toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Настройки формы' })).toBeInTheDocument()
+    expect(screen.getByText('TRANSITION_TARGET_ENDING_NOT_FOUND')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+  })
+
+  it('stops the 700ms autosave and exposes recovery actions after a stale revision conflict', async () => {
+    vi.useFakeTimers()
+    mocks.updateDraft.mockRejectedValueOnce({
+      data: { code: 'CONFLICT' },
+      message: 'FORM_DRAFT_CONFLICT',
+    })
+    try {
+      render(
+        <FormBuilder
+          pageId="66666666-6666-4666-8666-666666666666"
+          formViewId="33333333-3333-4333-8333-333333333333"
+        />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Ваше имя/u }))
+      fireEvent.change(screen.getByLabelText('Текст вопроса'), {
+        target: { value: 'Как вас зовут?' },
+      })
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(700)
+      })
+
+      expect(screen.getByText('Конфликт версий')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Перезагрузить' })).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /Скопировать локальный JSON/u }),
+      ).toBeInTheDocument()
+      expect(mocks.updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 3 }),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

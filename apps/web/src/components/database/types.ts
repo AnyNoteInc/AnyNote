@@ -11,6 +11,37 @@ import type { ViewSettings } from '@repo/domain/database/dto/database.dto.ts'
 export type DatabaseSchema = RouterOutputs['database']['getByPage']
 /** A row of the view-aware, paginated `listRows` result. */
 export type DatabaseRowView = RouterOutputs['database']['listRows']['rows'][number]
+/** Client-facing subset of the form management record used by the builder. */
+export interface DatabaseManagedForm {
+  id: string
+  sourceId: string
+  viewId: string | null
+  routeKey: string
+  customSlug: string | null
+  linkRevision: number
+  state: 'DRAFT' | 'OPEN' | 'CLOSED' | 'ARCHIVED'
+  audience: 'ANYONE_WITH_LINK' | 'SIGNED_IN_WITH_LINK' | 'WORKSPACE_MEMBERS_WITH_LINK'
+  respondentAccess: 'NONE' | 'VIEW' | 'EDIT'
+  draftSchema: unknown
+  draftRevision: number
+  publishedVersionId: string | null
+  opensAt: Date | string | null
+  closesAt: Date | string | null
+  responseLimit: number | null
+  acceptedResponses: number
+  notifyOwners: boolean
+  source: {
+    properties: ReadonlyArray<{ id: string; name: string; type: string }>
+  }
+}
+
+/** One visible, access-filtered response returned by the form response API. */
+export interface DatabaseFormResponse {
+  submissionId: string
+  submittedAt: Date | string
+  endingId: string
+  row: DatabaseRowView
+}
 
 export type DatabasePropertyView = DatabaseSchema['properties'][number]
 export type DatabaseViewEntry = DatabaseSchema['views'][number]

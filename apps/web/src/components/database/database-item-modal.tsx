@@ -57,6 +57,12 @@ interface DatabaseItemModalProps {
   /** The loaded database schema, so we can resolve the property list. */
   readonly schema: DatabaseSchema
   readonly editable?: boolean
+  /**
+   * A response row may live beyond the active view's first listRows page. When
+   * supplied it is the authoritative row for this modal; regular view callers
+   * omit it and keep using the shared active-view cache.
+   */
+  readonly rowOverride?: DatabaseRowView
 }
 
 /**
@@ -69,6 +75,7 @@ export function DatabaseItemModal({
   viewId,
   schema,
   editable = true,
+  rowOverride,
 }: DatabaseItemModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -77,10 +84,11 @@ export function DatabaseItemModal({
   // Resolve the row from the active view's listRows cache (the same paginated
   // query the table reads), so the modal and table share one source of truth.
   const { rows } = useViewRows(pageId, viewId)
-  const row = useMemo(
-    () => (rowId ? (rows.find((r) => r.rowId === rowId) ?? null) : null),
-    [rows, rowId],
-  )
+  const row = useMemo(() => {
+    if (!rowId) return null
+    if (rowOverride?.rowId === rowId) return rowOverride
+    return rows.find((candidate) => candidate.rowId === rowId) ?? null
+  }, [rowOverride, rows, rowId])
 
   function close() {
     const params = new URLSearchParams(searchParams?.toString() ?? '')

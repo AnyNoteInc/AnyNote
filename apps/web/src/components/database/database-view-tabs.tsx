@@ -9,6 +9,7 @@ import {
   CalendarMonthIcon,
   ContentCopyIcon,
   DeleteIcon,
+  DescriptionIcon,
   Dialog,
   DialogActions,
   DialogContent,
@@ -45,11 +46,20 @@ interface DatabaseViewTabsProps {
   readonly myAccess: MyDatabaseAccess
 }
 
+type DuplicateViewMutation = {
+  useMutation(options: {
+    onSuccess: (created: { id: string; viewId?: string | null }) => Promise<void>
+  }): {
+    mutate(input: { pageId: string; viewId: string }): void
+  }
+}
+
 const VIEW_TYPE_ICON: Record<DatabaseViewType, React.ReactNode> = {
   TABLE: <TableChartIcon fontSize="small" />,
   BOARD: <ViewKanbanIcon fontSize="small" />,
   CALENDAR: <CalendarMonthIcon fontSize="small" />,
   LIST: <ViewListIcon fontSize="small" />,
+  FORM: <DescriptionIcon fontSize="small" />,
 }
 
 const ADD_VIEW_TYPES: ReadonlyArray<{ type: DatabaseViewType; label: string }> = [
@@ -57,6 +67,7 @@ const ADD_VIEW_TYPES: ReadonlyArray<{ type: DatabaseViewType; label: string }> =
   { type: 'BOARD', label: 'Доска' },
   { type: 'CALENDAR', label: 'Календарь' },
   { type: 'LIST', label: 'Список' },
+  { type: 'FORM', label: 'Форма' },
 ]
 
 const DEFAULT_VIEW_TITLE: Record<DatabaseViewType, string> = {
@@ -64,6 +75,7 @@ const DEFAULT_VIEW_TITLE: Record<DatabaseViewType, string> = {
   BOARD: 'Доска',
   CALENDAR: 'Календарь',
   LIST: 'Список',
+  FORM: 'Форма',
 }
 
 /**
@@ -103,11 +115,22 @@ export function DatabaseViewTabs({
       selectView(created.id)
     },
   })
+  const createForm = trpc.database.createForm.useMutation({
+    onSuccess: async (created: { viewId: string | null }) => {
+      await afterMutation()
+      if (created.viewId) selectView(created.viewId)
+    },
+  })
   const updateView = trpc.database.updateView.useMutation({ onSuccess: afterMutation })
-  const duplicateView = trpc.database.duplicateView.useMutation({
+  // FORM duplication returns a managed form while other view types return a
+  // view. Keep the UI boundary intentionally narrow and select the new view id
+  // in both cases; this also avoids expanding that server union throughout the
+  // component's inferred hook type.
+  const duplicateViewProcedure = trpc.database.duplicateView as unknown as DuplicateViewMutation
+  const duplicateView = duplicateViewProcedure.useMutation({
     onSuccess: async (created) => {
       await afterMutation()
-      selectView(created.id)
+      selectView(created.viewId ?? created.id)
     },
   })
   const deleteView = trpc.database.deleteView.useMutation({
@@ -127,6 +150,10 @@ export function DatabaseViewTabs({
 
   function addView(type: DatabaseViewType) {
     setAddAnchor(null)
+    if (type === 'FORM') {
+      createForm.mutate({ pageId, title: DEFAULT_VIEW_TITLE.FORM })
+      return
+    }
     createView.mutate({ pageId, type, title: DEFAULT_VIEW_TITLE[type] })
   }
 
