@@ -8,6 +8,17 @@ const uuidSchema = z.string().uuid()
 
 export const formLocatorSchema = z.string().trim().min(3).max(64)
 
+const GENERATED_FORM_LOCATOR = /^anf_[A-Za-z0-9_-]+$/u
+
+/** Normalize a public route key without importing the server-only form resolver. */
+export function normalizeFormLocator(raw: string): string | null {
+  const locator = formLocatorSchema.safeParse(raw)
+  if (!locator.success) return null
+  if (GENERATED_FORM_LOCATOR.test(locator.data)) return locator.data
+  const slug = customSlugSchema.safeParse(locator.data)
+  return slug.success ? slug.data : null
+}
+
 export const createFormInput = z.object({
   pageId: uuidSchema,
   title: z.string().trim().min(1).max(200),

@@ -8,6 +8,7 @@ import { lockWorkspaceForMutation } from '../../../src/shared/workspace-transact
 import {
   DatabaseFormRepository,
   type EnqueueFormSubmittedEventRecord,
+  type LockFormSubmissionAuthoritiesRecord,
 } from '../../../src/database/forms/database-form.repository.ts'
 import { FormSubmissionService } from '../../../src/database/forms/form-submission.service.ts'
 import { FormAccessResolver } from '../../../src/database/forms/form-access-resolver.ts'
@@ -95,6 +96,17 @@ const fileDocumentFor = (propertyId: string): FormVersionDocument => ({
         maxBytesPerFile: 1_000,
         maxFiles: 1,
       },
+    },
+  ],
+})
+
+const relationDocumentFor = (propertyId: string): FormVersionDocument => ({
+  ...documentFor(propertyId),
+  questions: [
+    {
+      ...documentFor(propertyId).questions[0]!,
+      property: { kind: 'PROPERTY', propertyId, propertyType: 'RELATION' },
+      input: { kind: 'RELATION', maxSelections: 1 },
     },
   ],
 })
@@ -671,6 +683,140 @@ describe('DatabaseFormRepository real PostgreSQL behavior', () => {
     )
     await expect(prisma.outboxEvent.count({ where: { workspaceId } })).resolves.toBe(
       outboxBefore + 2,
+    )
+  })
+
+  it('holds row, page, and access-rule authorities through locked revalidation and commit', async () => {
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    })
+    const targetSourcePage = await prisma.page.create({
+      data: {
+        workspaceId,
+        type: PageType.DATABASE,
+        title: `Authority target ${RUN}`,
+        createdById: userId,
+      },
+    })
+    const targetSource = await prisma.databaseSource.create({
+      data: { workspaceId, pageId: targetSourcePage.id, title: `Authority target ${RUN}` },
+    })
+    const aclProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId: targetSource.id,
+        type: 'CREATED_BY',
+        name: `Authority creator ${RUN}`,
+        position: 0,
+      },
+    })
+    const rule = await prisma.databasePageAccessRule.create({
+      data: {
+        sourceId: targetSource.id,
+        propertyId: aclProperty.id,
+        accessLevel: 'FULL_ACCESS',
+      },
+    })
+    const targetPage = await prisma.page.create({
+      data: {
+        workspaceId,
+        parentId: targetSourcePage.id,
+        title: `Authority row ${RUN}`,
+        createdById: userId,
+      },
+    })
+    const targetRow = await prisma.databaseRow.create({
+      data: {
+        sourceId: targetSource.id,
+        pageId: targetPage.id,
+        createdById: userId,
+        updatedById: userId,
+      },
+    })
+    const relationProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId,
+        type: 'RELATION',
+        name: `Authority relation ${RUN}`,
+        position: 9_995,
+        settings: { relation: { targetSourceId: targetSource.id } },
+      },
+    })
+    const schema = relationDocumentFor(relationProperty.id)
+    const form = await prisma.databaseForm.create({
+      data: {
+        sourceId,
+        routeKey: `anf_it_${RUN}_authority_race`,
+        draftSchema: schema,
+        createdById: userId,
+        state: 'OPEN',
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      },
+    })
+    const version = await prisma.databaseFormVersion.create({
+      data: {
+        formId: form.id,
+        versionNumber: 1,
+        schema,
+        schemaHash: 'a'.repeat(64),
+        publishedById: userId,
+        publishedAt: submittedAt,
+      },
+    })
+    await prisma.databaseForm.update({
+      where: { id: form.id },
+      data: { publishedVersionId: version.id },
+    })
+
+    const authoritiesLocked = deferred()
+    const releaseSubmission = deferred()
+    const submitUow = new PrismaUnitOfWork(prisma)
+    class PausingAuthorityFormRepository extends DatabaseFormRepository {
+      override async lockFormSubmissionAuthorities(
+        input: LockFormSubmissionAuthoritiesRecord,
+      ): Promise<boolean> {
+        const locked = await super.lockFormSubmissionAuthorities(input)
+        authoritiesLocked.resolve()
+        await releaseSubmission.promise
+        return locked
+      }
+    }
+    const service = productionSubmissionService(
+      submitUow,
+      new PausingAuthorityFormRepository(submitUow),
+    )
+    const request = productionSubmissionInput(form.routeKey, randomUUID(), [targetRow.id])
+    request.token.schemaHash = version.schemaHash
+    request.token.linkRevision = form.linkRevision
+    const submission = service.submit(userId, request.input, request.token)
+    await authoritiesLocked.promise
+
+    const rowWriter = prisma.databaseRow.update({
+      where: { id: targetRow.id },
+      data: { deletedAt: new Date('2026-07-16T01:00:00.000Z') },
+    })
+    const pageWriter = prisma.page.update({
+      where: { id: targetPage.id },
+      data: { archivedAt: new Date('2026-07-16T01:00:00.000Z') },
+    })
+    const ruleWriter = prisma.databasePageAccessRule.update({
+      where: { id: rule.id },
+      data: { accessLevel: 'CAN_VIEW' },
+    })
+    const writerState = Promise.all([rowWriter, pageWriter, ruleWriter]).then(() => 'committed')
+    await expect(
+      Promise.race([
+        writerState,
+        new Promise<'waiting'>((resolve) => setTimeout(() => resolve('waiting'), 100)),
+      ]),
+    ).resolves.toBe('waiting')
+
+    releaseSubmission.resolve()
+    await expect(settlesWithin(submission)).resolves.toMatchObject({ created: true })
+    await expect(settlesWithin(writerState)).resolves.toBe('committed')
+    await expect(prisma.databaseFormSubmission.count({ where: { formId: form.id } })).resolves.toBe(
+      1,
     )
   })
 

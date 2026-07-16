@@ -335,6 +335,27 @@ export interface ResolveFormUploadLeasesRecord {
   now: Date
 }
 
+export interface ResolveFormUploadLeasesBatchRecord {
+  formId: string
+  versionId: string
+  bindings: readonly { questionId: string; tokenHashes: readonly string[] }[]
+  now: Date
+}
+
+export interface LockFormSubmissionAuthoritiesRecord {
+  formId: string
+  workspaceId: string
+  formSourceId: string
+  actorUserId: string | null
+  personUserIds: readonly string[]
+  sourceIds: readonly string[]
+  propertyIds: readonly string[]
+  rowIds: readonly string[]
+  pageIds: readonly string[]
+  uploadIds: readonly string[]
+  fileIds: readonly string[]
+}
+
 export interface ConsumeFormUploadLeasesRecord {
   formId: string
   versionId: string
@@ -361,8 +382,12 @@ export interface FormRepositoryContract {
   findSubmission(submissionId: string): Promise<FormSubmissionRecord | null>
   findSubmissionByIdempotency(formId: string, key: string): Promise<FormSubmissionRecord | null>
   lockSubmissionContext(input: LockFormSubmissionContextRecord): Promise<boolean>
+  lockFormSubmissionAuthorities(input: LockFormSubmissionAuthoritiesRecord): Promise<boolean>
   reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean>
   resolveUploadLeases(input: ResolveFormUploadLeasesRecord): Promise<FormUploadLeaseRecord[]>
+  resolveUploadLeasesBatch(
+    input: ResolveFormUploadLeasesBatchRecord,
+  ): Promise<FormUploadLeaseRecord[]>
   consumeUploadLeases(input: ConsumeFormUploadLeasesRecord): Promise<void>
   createSubmission(input: CreateFormSubmissionRecord): Promise<FormSubmissionRecord>
   enqueueFormSubmittedEvent(input: EnqueueFormSubmittedEventRecord): Promise<void>
@@ -701,6 +726,138 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     return true
   }
 
+  /**
+   * Freeze every authority row selected by the preflight semantic snapshot.
+   * The workspace lock is already held by lockSubmissionContext. Within that
+   * serialized workspace boundary, tables and UUIDs are always locked in the
+   * order below. Strong parent locks also block new FK children until commit.
+   */
+  async lockFormSubmissionAuthorities(
+    input: LockFormSubmissionAuthoritiesRecord,
+  ): Promise<boolean> {
+    const client = this.uow.client()
+    const personUserIds = [...new Set(input.personUserIds)].sort()
+    const sourceIds = [...new Set(input.sourceIds)].sort()
+    const targetSourceIds = sourceIds.filter((id) => id !== input.formSourceId)
+    const rowIds = [...new Set(input.rowIds)].sort()
+    const pageIds = [...new Set(input.pageIds)].sort()
+    const fileIds = [...new Set(input.fileIds)].sort()
+    const uploadIds = [...new Set(input.uploadIds)].sort()
+    const uuidList = (ids: readonly string[]) =>
+      Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))
+
+    if (personUserIds.length > 0) {
+      const members = await client.$queryRaw<{ user_id: string }[]>(Prisma.sql`
+        SELECT user_id FROM workspace_members
+        WHERE workspace_id = ${input.workspaceId}::uuid
+          AND user_id IN (${uuidList(personUserIds)})
+        ORDER BY user_id FOR UPDATE
+      `)
+      if (members.length !== personUserIds.length) return false
+      await client.$queryRaw(Prisma.sql`
+        SELECT user_id FROM workspace_blocked_users
+        WHERE workspace_id = ${input.workspaceId}::uuid
+          AND user_id IN (${uuidList(personUserIds)})
+        ORDER BY user_id FOR UPDATE
+      `)
+    }
+
+    const formSources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT id FROM database_sources
+      WHERE id = ${input.formSourceId}::uuid
+      ORDER BY id FOR UPDATE
+    `)
+    if (formSources.length !== 1) return false
+
+    if (targetSourceIds.length > 0) {
+      const targetSources = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_sources
+        WHERE id IN (${uuidList(targetSourceIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (targetSources.length !== targetSourceIds.length) return false
+    }
+    const properties = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT id FROM database_properties
+      WHERE source_id IN (${uuidList(sourceIds)})
+      ORDER BY id FOR UPDATE
+    `)
+    const lockedPropertyIds = new Set(properties.map(({ id }) => id))
+    if (input.propertyIds.some((id) => !lockedPropertyIds.has(id))) return false
+    if (sourceIds.length > 0) {
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM database_page_access_rules
+        WHERE source_id IN (${uuidList(sourceIds)})
+        ORDER BY id FOR UPDATE
+      `)
+    }
+    if (rowIds.length > 0) {
+      const rows = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_rows
+        WHERE id IN (${uuidList(rowIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (rows.length !== rowIds.length) return false
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM database_cell_values
+        WHERE row_id IN (${uuidList(rowIds)})
+          AND property_id IN (
+            SELECT property_id FROM database_page_access_rules
+            WHERE source_id IN (${uuidList(sourceIds)})
+          )
+        ORDER BY id FOR UPDATE
+      `)
+    }
+    if (pageIds.length > 0) {
+      const pages = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM pages
+        WHERE id IN (${uuidList(pageIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (pages.length !== pageIds.length) return false
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM collections
+        WHERE id IN (
+          SELECT collection_id FROM pages
+          WHERE id IN (${uuidList(pageIds)}) AND collection_id IS NOT NULL
+        )
+        ORDER BY id FOR UPDATE
+      `)
+      await client.$queryRaw(Prisma.sql`
+        SELECT id FROM page_shares
+        WHERE page_id IN (${uuidList(pageIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (input.actorUserId !== null) {
+        await client.$queryRaw(Prisma.sql`
+          SELECT id FROM page_share_users
+          WHERE user_id = ${input.actorUserId}::uuid
+            AND page_share_id IN (
+              SELECT id FROM page_shares WHERE page_id IN (${uuidList(pageIds)})
+            )
+          ORDER BY id FOR UPDATE
+        `)
+      }
+    }
+    if (uploadIds.length > 0) {
+      const uploads = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM database_form_uploads
+        WHERE id IN (${uuidList(uploadIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (uploads.length !== uploadIds.length) return false
+    }
+    if (fileIds.length > 0) {
+      const files = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT id FROM files
+        WHERE id IN (${uuidList(fileIds)})
+        ORDER BY id FOR UPDATE
+      `)
+      if (files.length !== fileIds.length) return false
+    }
+    return true
+  }
+
   async reserveResponseSlot(input: ReserveFormResponseSlotRecord): Promise<boolean> {
     const reserved = await this.uow.client().$queryRaw<{ id: string }[]>(Prisma.sql`
       UPDATE database_forms
@@ -726,6 +883,28 @@ export class DatabaseFormRepository implements FormRepositoryContract {
         versionId: input.versionId,
         questionId: input.questionId,
         uploadTokenHash: { in: [...input.tokenHashes] },
+        expiresAt: { gt: input.now },
+        consumedAt: null,
+        file: { is: { status: 'PENDING' } },
+      },
+      select: formUploadLeaseSelect,
+    })
+  }
+
+  resolveUploadLeasesBatch(
+    input: ResolveFormUploadLeasesBatchRecord,
+  ): Promise<FormUploadLeaseRecord[]> {
+    const questionIds = [...new Set(input.bindings.map(({ questionId }) => questionId))]
+    const tokenHashes = [
+      ...new Set(input.bindings.flatMap(({ tokenHashes: hashes }) => [...hashes])),
+    ]
+    if (questionIds.length === 0 || tokenHashes.length === 0) return Promise.resolve([])
+    return this.uow.client().databaseFormUpload.findMany({
+      where: {
+        formId: input.formId,
+        versionId: input.versionId,
+        questionId: { in: questionIds },
+        uploadTokenHash: { in: tokenHashes },
         expiresAt: { gt: input.now },
         consumedAt: null,
         file: { is: { status: 'PENDING' } },
@@ -826,8 +1005,7 @@ export class DatabaseFormRepository implements FormRepositoryContract {
           if (question === undefined) continue
           if (removedOptionIds === undefined) return true
           if (
-            (question.input.kind === 'SINGLE_CHOICE' ||
-              question.input.kind === 'MULTI_CHOICE') &&
+            (question.input.kind === 'SINGLE_CHOICE' || question.input.kind === 'MULTI_CHOICE') &&
             question.input.options.some(({ id }) => removedOptionIds.includes(id))
           ) {
             return true

@@ -1,6 +1,6 @@
 import type { WorkspaceService } from '../../workspace/services/workspace.service.ts'
 import { isDomainError } from '../../shared/errors.ts'
-import { customSlugSchema, formLocatorSchema } from './database-form.dto.ts'
+import { normalizeFormLocator } from './database-form.dto.ts'
 import type {
   FormRepositoryContract,
   FormVersionRecord,
@@ -32,16 +32,6 @@ export type ReplayFormResolution =
 
 type PublicFormLookup = Pick<FormRepositoryContract, 'findByLocator' | 'findVersion'>
 type ActiveMembershipAuthority = Pick<WorkspaceService, 'assertMembership'>
-
-const GENERATED_LOCATOR = /^anf_[A-Za-z0-9_-]+$/u
-
-export function normalizeFormLocator(raw: string): string | null {
-  const locator = formLocatorSchema.safeParse(raw)
-  if (!locator.success) return null
-  if (GENERATED_LOCATOR.test(locator.data)) return locator.data
-  const slug = customSlugSchema.safeParse(locator.data)
-  return slug.success ? slug.data : null
-}
 
 function isUnavailable(form: PublicFormRecord): boolean {
   return (

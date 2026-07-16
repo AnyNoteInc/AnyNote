@@ -60,6 +60,16 @@ interface PreparedFormSubmissionFileValue {
   uploads: readonly FormUploadLeaseRecord[]
 }
 
+interface SubmissionAuthoritySnapshot {
+  personUserIds: readonly string[]
+  sourceIds: readonly string[]
+  propertyIds: readonly string[]
+  rowIds: readonly string[]
+  pageIds: readonly string[]
+  uploadIds: readonly string[]
+  fileIds: readonly string[]
+}
+
 /**
  * Server-authoritative response data that has already passed document, path,
  * property, target, and upload validation. Public input must never be cast to
@@ -82,6 +92,7 @@ interface PreparedFormSubmission {
   scalarValues: readonly PreparedFormSubmissionScalarValue[]
   relationValues: readonly PreparedFormSubmissionRelationValue[]
   fileValues: readonly PreparedFormSubmissionFileValue[]
+  authorities: SubmissionAuthoritySnapshot
   submittedAt: Date
 }
 
@@ -175,6 +186,18 @@ const relationTargetSourceId = (property: PropertyRow): string | null => {
 const isUniqueConflict = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
 
+const sortedUnique = (values: readonly string[]): string[] => [...new Set(values)].sort()
+
+const sameAuthorities = (
+  left: SubmissionAuthoritySnapshot,
+  right: SubmissionAuthoritySnapshot,
+): boolean =>
+  (Object.keys(left) as (keyof SubmissionAuthoritySnapshot)[]).every(
+    (key) =>
+      left[key].length === right[key].length &&
+      left[key].every((value, index) => value === right[key][index]),
+  )
+
 export function automaticResponseTitle(now: Date): string {
   const stamp = new Intl.DateTimeFormat('ru-RU', {
     dateStyle: 'short',
@@ -205,7 +228,7 @@ const addFieldError = (
   questionId: string,
   message: string,
 ): void => {
-  const messages = errors[questionId]
+  const messages = Object.hasOwn(errors, questionId) ? errors[questionId] : undefined
   if (messages === undefined) errors[questionId] = [message]
   else if (!messages.includes(message)) messages.push(message)
 }
@@ -267,7 +290,7 @@ export class FormSubmissionService {
     const publicVersion = toPublicFormVersion(document)
     const answersResult = buildFormAnswerSchema(publicVersion).safeParse({ answers: input.answers })
     if (!answersResult.success) {
-      const fieldErrors: Record<string, string[]> = {}
+      const fieldErrors = Object.create(null) as Record<string, string[]>
       for (const issue of answersResult.error.issues) {
         const questionId = issue.path[0] === 'answers' ? issue.path[1] : undefined
         if (typeof questionId === 'string') addFieldError(fieldErrors, questionId, issue.message)
@@ -301,7 +324,22 @@ export class FormSubmissionService {
     const scalarValues: PreparedFormSubmissionScalarValue[] = []
     const relationValues: PreparedFormSubmissionRelationValue[] = []
     const fileValues: PreparedFormSubmissionFileValue[] = []
+    const personPlans: { questionId: string; propertyId: string; userId: string }[] = []
+    const pageLinkPlans: { questionId: string; propertyId: string; pageId: string }[] = []
+    const relationPlans: {
+      questionId: string
+      propertyId: string
+      targetSourceId: string
+      targetRowIds: string[]
+    }[] = []
+    const filePlans: {
+      questionId: string
+      propertyId: string
+      tokenHashes: string[]
+      input: Extract<FormQuestion['input'], { kind: 'FILE' }>
+    }[] = []
     let title: string | undefined
+
     for (const question of document.questions) {
       if (!visibleQuestionIds.has(question.id)) continue
       const value = answersResult.data.answers[question.id]
@@ -315,176 +353,228 @@ export class FormSubmissionService {
       if (property === undefined) throw conflict('FORM_PROPERTY_INVALID')
 
       if (SCALAR_PROPERTY_TYPES.has(question.property.propertyType)) {
-        scalarValues.push({
-          propertyId,
-          value: value as DatabaseCellWriteValue,
-        })
-        continue
-      }
-
-      if (question.property.propertyType === 'PERSON') {
-        if (
-          question.input.kind !== 'PERSON' ||
-          !Array.isArray(value) ||
-          value.length !== 1 ||
-          typeof value[0] !== 'string' ||
-          !(await this.databaseRepo.isWorkspaceMember(value[0], resolved.form.source.workspaceId))
-        ) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        scalarValues.push({ propertyId, value: value[0] })
-        continue
-      }
-
-      if (question.property.propertyType === 'PAGE_LINK') {
-        if (
-          question.input.kind !== 'PAGE_LINK' ||
-          typeof value !== 'string' ||
-          resolved.respondentUserId === null
-        ) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        const accessible = await this.pageRepo.findAccessiblePageLinkIds(
-          resolved.respondentUserId,
-          resolved.form.source.workspaceId,
-          [value],
-        )
-        if (!accessible.has(value)) throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        scalarValues.push({ propertyId, value })
-        continue
-      }
-
-      if (question.property.propertyType === 'RELATION') {
-        if (
-          question.input.kind !== 'RELATION' ||
-          !Array.isArray(value) ||
-          !value.every((target): target is string => typeof target === 'string') ||
-          resolved.respondentUserId === null
-        ) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
+        scalarValues.push({ propertyId, value: value as DatabaseCellWriteValue })
+      } else if (
+        question.property.propertyType === 'PERSON' &&
+        question.input.kind === 'PERSON' &&
+        Array.isArray(value) &&
+        value.length === 1 &&
+        typeof value[0] === 'string'
+      ) {
+        personPlans.push({ questionId: question.id, propertyId, userId: value[0] })
+      } else if (
+        question.property.propertyType === 'PAGE_LINK' &&
+        question.input.kind === 'PAGE_LINK' &&
+        typeof value === 'string' &&
+        resolved.respondentUserId !== null
+      ) {
+        pageLinkPlans.push({ questionId: question.id, propertyId, pageId: value })
+      } else if (
+        question.property.propertyType === 'RELATION' &&
+        question.input.kind === 'RELATION' &&
+        Array.isArray(value) &&
+        value.every((target): target is string => typeof target === 'string') &&
+        resolved.respondentUserId !== null
+      ) {
         const targetSourceId = relationTargetSourceId(property)
-        if (targetSourceId === null) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        const targetSource = await this.databaseRepo.findSourceMetaById(targetSourceId)
-        if (
-          targetSource === null ||
-          targetSource.workspaceId !== resolved.form.source.workspaceId
-        ) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        const rows = await this.databaseRepo.findRowsAccessMetaByIds(value)
-        const rowsById = new Map(rows.map((row) => [row.id, row]))
-        if (
-          rowsById.size !== value.length ||
-          value.some((targetRowId) => {
-            const row = rowsById.get(targetRowId)
-            return (
-              row === undefined ||
-              row.sourceId !== targetSourceId ||
-              row.workspaceId !== resolved.form.source.workspaceId
-            )
-          })
-        ) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        const targetPageIds = [
-          targetSource.pageId,
-          ...value.map((targetRowId) => rowsById.get(targetRowId)!.pageId),
-        ]
-        const accessiblePages = await this.pageRepo.findAccessiblePageIds(
-          resolved.respondentUserId,
-          resolved.form.source.workspaceId,
-          targetPageIds,
-        )
-        if (targetPageIds.some((pageId) => !accessiblePages.has(pageId))) {
-          throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-        }
-        const rulesBySource = await this.databaseRepo.findEnabledAccessRulesForSources([
+        if (targetSourceId === null) throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
+        relationPlans.push({
+          questionId: question.id,
+          propertyId,
           targetSourceId,
-        ])
-        const rules = toResolverRules(rulesBySource.get(targetSourceId) ?? [])
-        const [workspaceRole, isSourcePageCreator, shareLevels] = await Promise.all([
-          this.databaseRepo.findWorkspaceRole(
-            resolved.respondentUserId,
-            resolved.form.source.workspaceId,
-          ),
-          this.databaseRepo.isSourcePageCreatedBy(targetSource.pageId, resolved.respondentUserId),
-          this.databaseRepo.findItemPageShareLevels(
-            value.map((targetRowId) => rowsById.get(targetRowId)!.pageId),
-            resolved.respondentUserId,
-          ),
-        ])
-        for (const targetRowId of value) {
-          const row = rowsById.get(targetRowId)!
-          const context: RowAccessContext = {
-            viewerId: resolved.respondentUserId,
-            workspaceRole,
-            isSourcePageCreator,
-            pageShareLevel: shareLevels.get(row.pageId) ?? null,
-          }
-          if (
-            !canViewRow(
-              resolveRowAccess(context, rules, {
-                rowCreatedById: row.createdById,
-                cellsByProperty: row.cellsByProperty,
-              }),
-            )
-          ) {
-            throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
-          }
-        }
-        relationValues.push({ propertyId, targetRowIds: value })
-        continue
+          targetRowIds: value,
+        })
+      } else if (
+        question.property.propertyType === 'FILE' &&
+        question.input.kind === 'FILE' &&
+        Array.isArray(value) &&
+        value.every((token): token is string => typeof token === 'string')
+      ) {
+        filePlans.push({
+          questionId: question.id,
+          propertyId,
+          tokenHashes: value.map((token) => createHash('sha256').update(token).digest('hex')),
+          input: question.input,
+        })
+      } else if (question.property.propertyType === 'FILE') {
+        throw semanticError(question.id, 'FORM_UPLOAD_INVALID')
+      } else if (
+        question.property.propertyType === 'PERSON' ||
+        question.property.propertyType === 'PAGE_LINK' ||
+        question.property.propertyType === 'RELATION'
+      ) {
+        throw semanticError(question.id, 'FORM_TARGET_INACCESSIBLE')
+      } else {
+        throw badRequest('FORM_SEMANTIC_PREPARATION_UNSUPPORTED')
       }
+    }
 
-      if (question.property.propertyType === 'FILE') {
-        const fileInput = question.input
-        if (
-          fileInput.kind !== 'FILE' ||
-          !Array.isArray(value) ||
-          !value.every((token): token is string => typeof token === 'string')
-        ) {
-          throw semanticError(question.id, 'FORM_UPLOAD_INVALID')
-        }
-        const tokenHashes = value.map((token) => createHash('sha256').update(token).digest('hex'))
-        const uploads = await this.formRepo.resolveUploadLeases({
+    const targetSourceIds = sortedUnique(relationPlans.map(({ targetSourceId }) => targetSourceId))
+    const targetRowIds = sortedUnique(relationPlans.flatMap(({ targetRowIds }) => targetRowIds))
+    const actorUserId = resolved.respondentUserId
+    const [activeMemberIds, targetSources, rows, accessiblePageLinkIds, uploads] =
+      await Promise.all([
+        this.databaseRepo.findActiveWorkspaceMemberIds(
+          personPlans.map(({ userId }) => userId),
+          resolved.form.source.workspaceId,
+        ),
+        this.databaseRepo.findSourceMetasByIds(targetSourceIds),
+        this.databaseRepo.findRowsAccessMetaByIds(targetRowIds),
+        actorUserId === null
+          ? Promise.resolve(new Set<string>())
+          : this.pageRepo.findAccessiblePageLinkIds(
+              actorUserId,
+              resolved.form.source.workspaceId,
+              pageLinkPlans.map(({ pageId }) => pageId),
+            ),
+        this.formRepo.resolveUploadLeasesBatch({
           formId: resolved.form.id,
           versionId: version.id,
-          questionId: question.id,
-          tokenHashes,
+          bindings: filePlans.map(({ questionId, tokenHashes }) => ({ questionId, tokenHashes })),
           now: acceptedAt,
-        })
-        const byHash = new Map(uploads.map((upload) => [upload.uploadTokenHash, upload]))
-        const ordered = tokenHashes.map((hash) => byHash.get(hash))
+        }),
+      ])
+    const rowsById = new Map(rows.map((row) => [row.id, row]))
+    const relationPageIds = sortedUnique([
+      ...[...targetSources.values()].map(({ pageId }) => pageId),
+      ...rows.map(({ pageId }) => pageId),
+    ])
+    const [accessibleRelationPageIds, rulesBySource, workspaceRole, creatorPageIds, shareLevels] =
+      await Promise.all([
+        actorUserId === null
+          ? Promise.resolve(new Set<string>())
+          : this.pageRepo.findAccessiblePageIds(
+              actorUserId,
+              resolved.form.source.workspaceId,
+              relationPageIds,
+            ),
+        this.databaseRepo.findEnabledAccessRulesForSources(targetSourceIds),
+        actorUserId === null || relationPlans.length === 0
+          ? Promise.resolve(null)
+          : this.databaseRepo.findWorkspaceRole(actorUserId, resolved.form.source.workspaceId),
+        actorUserId === null
+          ? Promise.resolve(new Set<string>())
+          : this.databaseRepo.findSourcePageIdsCreatedBy(
+              [...targetSources.values()].map(({ pageId }) => pageId),
+              actorUserId,
+            ),
+        actorUserId === null
+          ? Promise.resolve(new Map())
+          : this.databaseRepo.findItemPageShareLevels(
+              rows.map(({ pageId }) => pageId),
+              actorUserId,
+            ),
+      ])
+
+    for (const plan of personPlans) {
+      if (!activeMemberIds.has(plan.userId)) {
+        throw semanticError(plan.questionId, 'FORM_TARGET_INACCESSIBLE')
+      }
+      scalarValues.push({ propertyId: plan.propertyId, value: plan.userId })
+    }
+    for (const plan of pageLinkPlans) {
+      if (!accessiblePageLinkIds.has(plan.pageId)) {
+        throw semanticError(plan.questionId, 'FORM_TARGET_INACCESSIBLE')
+      }
+      scalarValues.push({ propertyId: plan.propertyId, value: plan.pageId })
+    }
+    for (const plan of relationPlans) {
+      const targetSource = targetSources.get(plan.targetSourceId)
+      if (
+        actorUserId === null ||
+        targetSource === undefined ||
+        targetSource.workspaceId !== resolved.form.source.workspaceId
+      ) {
+        throw semanticError(plan.questionId, 'FORM_TARGET_INACCESSIBLE')
+      }
+      const targetPages = [
+        targetSource.pageId,
+        ...plan.targetRowIds.map((rowId) => rowsById.get(rowId)?.pageId ?? ''),
+      ]
+      if (
+        plan.targetRowIds.some((rowId) => {
+          const row = rowsById.get(rowId)
+          return (
+            row === undefined ||
+            row.sourceId !== plan.targetSourceId ||
+            row.workspaceId !== resolved.form.source.workspaceId
+          )
+        }) ||
+        targetPages.some((pageId) => !accessibleRelationPageIds.has(pageId))
+      ) {
+        throw semanticError(plan.questionId, 'FORM_TARGET_INACCESSIBLE')
+      }
+      const rules = toResolverRules(rulesBySource.get(plan.targetSourceId) ?? [])
+      for (const targetRowId of plan.targetRowIds) {
+        const row = rowsById.get(targetRowId)!
+        const accessContext: RowAccessContext = {
+          viewerId: actorUserId,
+          workspaceRole,
+          isSourcePageCreator: creatorPageIds.has(targetSource.pageId),
+          pageShareLevel: shareLevels.get(row.pageId) ?? null,
+        }
         if (
-          uploads.length !== tokenHashes.length ||
-          ordered.some((upload) => upload === undefined) ||
-          ordered.some(
-            (upload) =>
-              upload!.formId !== resolved.form.id ||
-              upload!.versionId !== version.id ||
-              upload!.questionId !== question.id ||
-              upload!.expiresAt.getTime() <= acceptedAt.getTime() ||
-              upload!.consumedAt !== null ||
-              upload!.file.workspaceId !== resolved.form.source.workspaceId ||
-              upload!.file.status !== 'PENDING' ||
-              !fileInput.allowedMimeTypes.includes(upload!.file.mimeType) ||
-              upload!.file.fileSize > BigInt(fileInput.maxBytesPerFile),
+          !canViewRow(
+            resolveRowAccess(accessContext, rules, {
+              rowCreatedById: row.createdById,
+              cellsByProperty: row.cellsByProperty,
+            }),
           )
         ) {
-          throw semanticError(question.id, 'FORM_UPLOAD_INVALID')
+          throw semanticError(plan.questionId, 'FORM_TARGET_INACCESSIBLE')
         }
-        fileValues.push({
-          propertyId,
-          questionId: question.id,
-          uploads: ordered as FormUploadLeaseRecord[],
-        })
-        continue
       }
+      relationValues.push({ propertyId: plan.propertyId, targetRowIds: plan.targetRowIds })
+    }
 
-      throw badRequest('FORM_SEMANTIC_PREPARATION_UNSUPPORTED')
+    const uploadsByBinding = new Map(
+      uploads.map((upload) => [`${upload.questionId}:${upload.uploadTokenHash}`, upload]),
+    )
+    for (const plan of filePlans) {
+      const ordered = plan.tokenHashes.map((hash) =>
+        uploadsByBinding.get(`${plan.questionId}:${hash}`),
+      )
+      if (
+        ordered.some((upload) => upload === undefined) ||
+        ordered.some(
+          (upload) =>
+            upload!.formId !== resolved.form.id ||
+            upload!.versionId !== version.id ||
+            upload!.questionId !== plan.questionId ||
+            upload!.expiresAt.getTime() <= acceptedAt.getTime() ||
+            upload!.consumedAt !== null ||
+            upload!.file.workspaceId !== resolved.form.source.workspaceId ||
+            upload!.file.status !== 'PENDING' ||
+            !plan.input.allowedMimeTypes.includes(upload!.file.mimeType) ||
+            upload!.file.fileSize > BigInt(plan.input.maxBytesPerFile),
+        )
+      ) {
+        throw semanticError(plan.questionId, 'FORM_UPLOAD_INVALID')
+      }
+      fileValues.push({
+        propertyId: plan.propertyId,
+        questionId: plan.questionId,
+        uploads: ordered as FormUploadLeaseRecord[],
+      })
+    }
+
+    const authorities: SubmissionAuthoritySnapshot = {
+      personUserIds: sortedUnique(personPlans.map(({ userId }) => userId)),
+      sourceIds: sortedUnique([resolved.form.sourceId, ...targetSourceIds]),
+      propertyIds: sortedUnique([
+        ...currentProperties.keys(),
+        ...[...rulesBySource.values()].flatMap((rules) =>
+          rules.map(({ propertyId }) => propertyId),
+        ),
+      ]),
+      rowIds: targetRowIds,
+      pageIds: sortedUnique([
+        resolved.form.source.pageId,
+        ...pageLinkPlans.map(({ pageId }) => pageId),
+        ...relationPageIds,
+      ]),
+      uploadIds: sortedUnique(uploads.map(({ id }) => id)),
+      fileIds: sortedUnique(uploads.map(({ fileId }) => fileId)),
     }
 
     return {
@@ -504,6 +594,7 @@ export class FormSubmissionService {
       scalarValues,
       relationValues,
       fileValues,
+      authorities,
       submittedAt: acceptedAt,
     }
   }
@@ -558,11 +649,23 @@ export class FormSubmissionService {
           return toSubmissionResult(replay, replayContext.resolved, false)
         }
 
+        const authoritiesLocked = await this.formRepo.lockFormSubmissionAuthorities({
+          formId: prepared.formId,
+          workspaceId: prepared.workspaceId,
+          formSourceId: prepared.sourceId,
+          actorUserId,
+          ...prepared.authorities,
+        })
+        if (!authoritiesLocked) throw conflict('FORM_NOT_ACCEPTING')
+
         // Everything consumed by writes is authoritatively rebuilt after the
         // workspace-first lock, using the transaction-bound repositories.
         const context = await this.resolveSubmissionContext(actorUserId, input, token)
         this.assertSameFormIdentity(prepared, context.resolved, context.version)
         const effective = await this.prepareSubmission(context, input)
+        if (!sameAuthorities(prepared.authorities, effective.authorities)) {
+          throw conflict('FORM_NOT_ACCEPTING')
+        }
 
         const reserved = await this.formRepo.reserveResponseSlot({
           formId: effective.formId,

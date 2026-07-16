@@ -264,6 +264,18 @@ export class DatabaseRepository {
     })
   }
 
+  async findSourceMetasByIds(
+    sourceIds: readonly string[],
+  ): Promise<Map<string, { id: string; workspaceId: string; pageId: string }>> {
+    const unique = [...new Set(sourceIds)]
+    if (unique.length === 0) return new Map()
+    const sources = await this.uow.client().databaseSource.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, workspaceId: true, pageId: true },
+    })
+    return new Map(sources.map((source) => [source.id, source]))
+  }
+
   /**
    * Reserve the source row for a structure-sensitive transaction. Prisma does
    * not expose `FOR UPDATE`; an idempotent update acquires the same PostgreSQL
@@ -410,9 +422,7 @@ export class DatabaseRepository {
     await this.uow.client().databaseProperty.delete({ where: { id } })
   }
 
-  async findPropertyById(
-    id: string,
-  ): Promise<{
+  async findPropertyById(id: string): Promise<{
     id: string
     sourceId: string
     type: import('@repo/db').DatabasePropertyType
@@ -882,6 +892,26 @@ export class DatabaseRepository {
     return member !== null && block === null
   }
 
+  async findActiveWorkspaceMemberIds(
+    userIds: readonly string[],
+    workspaceId: string,
+  ): Promise<Set<string>> {
+    const unique = [...new Set(userIds)]
+    if (unique.length === 0) return new Set()
+    const [members, blocked] = await Promise.all([
+      this.uow.client().workspaceMember.findMany({
+        where: { workspaceId, userId: { in: unique } },
+        select: { userId: true },
+      }),
+      this.uow.client().workspaceBlockedUser.findMany({
+        where: { workspaceId, userId: { in: unique } },
+        select: { userId: true },
+      }),
+    ])
+    const blockedIds = new Set(blocked.map(({ userId }) => userId))
+    return new Set(members.flatMap(({ userId }) => (blockedIds.has(userId) ? [] : [userId])))
+  }
+
   /**
    * Candidate rows of a RELATION property's target source for the link picker:
    * non-deleted rows of `targetSourceId`, optionally filtered by a case-insensitive
@@ -1014,6 +1044,19 @@ export class DatabaseRepository {
       select: { createdById: true },
     })
     return page?.createdById === userId
+  }
+
+  async findSourcePageIdsCreatedBy(
+    sourcePageIds: readonly string[],
+    userId: string,
+  ): Promise<Set<string>> {
+    const unique = [...new Set(sourcePageIds)]
+    if (unique.length === 0) return new Set()
+    const pages = await this.uow.client().page.findMany({
+      where: { id: { in: unique }, createdById: userId },
+      select: { id: true },
+    })
+    return new Set(pages.map(({ id }) => id))
   }
 
   /**

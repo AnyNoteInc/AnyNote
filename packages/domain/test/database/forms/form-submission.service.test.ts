@@ -285,6 +285,20 @@ function makeValidationHarness(
     ),
     enqueueFormSubmittedEvent: vi.fn(async () => assertInTransaction()),
     resolveUploadLeases: vi.fn(async () => []),
+    resolveUploadLeasesBatch: vi.fn(async (input) => {
+      const resolver = options.formRepo?.resolveUploadLeases
+      if (resolver === undefined) return []
+      const binding = input.bindings[0]
+      if (binding === undefined) return []
+      return resolver({
+        formId: input.formId,
+        versionId: input.versionId,
+        questionId: binding.questionId,
+        tokenHashes: binding.tokenHashes,
+        now: input.now,
+      })
+    }),
+    lockFormSubmissionAuthorities: vi.fn(async () => true),
     consumeUploadLeases: vi.fn(async () => assertInTransaction()),
     ...options.formRepo,
   } as unknown as FormRepositoryContract
@@ -320,6 +334,25 @@ function makeValidationHarness(
       workspaceId: WORKSPACE_ID,
       pageId: TARGET_SOURCE_PAGE_ID,
     })),
+    findSourceMetasByIds: vi.fn(async (sourceIds: string[]) => {
+      const resolver = options.databaseRepo?.findSourceMetaById
+      const sources = await Promise.all(
+        sourceIds.map(async (sourceId) =>
+          resolver === undefined
+            ? { id: sourceId, workspaceId: WORKSPACE_ID, pageId: TARGET_SOURCE_PAGE_ID }
+            : resolver(sourceId),
+        ),
+      )
+      return new Map(sources.flatMap((source) => (source === null ? [] : [[source.id, source]])))
+    }),
+    findActiveWorkspaceMemberIds: vi.fn(async (userIds: string[]) => {
+      const resolver = options.databaseRepo?.isWorkspaceMember
+      if (resolver === undefined) return new Set(userIds)
+      const active = await Promise.all(
+        userIds.map(async (userId) => ((await resolver(userId, WORKSPACE_ID)) ? userId : null)),
+      )
+      return new Set(active.filter((userId): userId is string => userId !== null))
+    }),
     findRowsAccessMetaByIds: vi.fn(async (ids: string[]) =>
       ids.map((id) => ({
         id,
@@ -333,6 +366,14 @@ function makeValidationHarness(
     findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
     findWorkspaceRole: vi.fn(async () => 'VIEWER'),
     isSourcePageCreatedBy: vi.fn(async () => false),
+    findSourcePageIdsCreatedBy: vi.fn(async (pageIds: string[]) => {
+      const resolver = options.databaseRepo?.isSourcePageCreatedBy
+      if (resolver === undefined) return new Set<string>()
+      const created = await Promise.all(
+        pageIds.map(async (pageId) => ((await resolver(pageId, ACTOR_ID)) ? pageId : null)),
+      )
+      return new Set(created.filter((pageId): pageId is string => pageId !== null))
+    }),
     findItemPageShareLevel: vi.fn(async () => null),
     findItemPageShareLevels: vi.fn(async () => new Map()),
     ...options.databaseRepo,
@@ -479,6 +520,20 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       fieldErrors: {
         choice: ['DUPLICATE_OPTION_ANSWER', 'INVALID_OPTION_ID', 'TOO_MANY_SELECTIONS'],
       },
+    })
+  })
+
+  it.each(['constructor', 'prototype'])('maps the inherited-looking %s key safely', async (id) => {
+    const schema = formDocument([
+      textQuestion(id, PROPERTY_ID, { input: { kind: 'TEXT', multiline: false, maxLength: 1 } }),
+    ])
+    const { service } = makeValidationHarness({ storedForm: publicForm(schema) })
+
+    await expect(
+      service.submit(null, submissionInput({ [id]: 'too long' }), tokenContext()),
+    ).rejects.toMatchObject({
+      message: 'FORM_ANSWERS_INVALID',
+      fieldErrors: { [id]: ['DANGEROUS_OBJECT_KEY'] },
     })
   })
 
@@ -1020,7 +1075,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       titleQuestion(),
       propertyQuestion('person', PROPERTY_ID, 'PERSON', { kind: 'PERSON', maxSelections: 1 }),
     ])
-    const { service, databaseRepo } = makeValidationHarness({
+    const { service, databaseRepo, formRepo } = makeValidationHarness({
       storedForm: publicForm(schema, { audience: 'WORKSPACE_MEMBERS_WITH_LINK' }),
       properties: [
         { id: PROPERTY_ID, type: 'PERSON', name: 'Человек', position: 1, settings: null },
@@ -1033,7 +1088,10 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       tokenContext(),
     )
 
-    expect(databaseRepo.isWorkspaceMember).toHaveBeenCalledWith(OWNER_ID, WORKSPACE_ID)
+    expect(databaseRepo.findActiveWorkspaceMemberIds).toHaveBeenCalledWith([OWNER_ID], WORKSPACE_ID)
+    expect(formRepo.lockFormSubmissionAuthorities).toHaveBeenCalledWith(
+      expect.objectContaining({ personUserIds: [OWNER_ID] }),
+    )
     expect(databaseRepo.upsertCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, OWNER_ID)
   })
 
@@ -1174,6 +1232,86 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expect(isSourcePageCreatedBy).toHaveBeenCalledTimes(2)
     expect(findItemPageShareLevels).toHaveBeenCalledTimes(2)
     expect(findItemPageShareLevel).not.toHaveBeenCalled()
+  })
+
+  it('keeps a near-1MiB 500-question RELATION submission at constant authority queries', async () => {
+    const questions = Array.from({ length: 500 }, (_, questionIndex) =>
+      propertyQuestion(`relation-${questionIndex}`, PROPERTY_ID, 'RELATION', {
+        kind: 'RELATION',
+        maxSelections: 4,
+      }),
+    )
+    const answers = Object.fromEntries(
+      questions.map((question, questionIndex) => [
+        question.id,
+        Array.from(
+          { length: 4 },
+          (_, targetIndex) =>
+            `${questionIndex}-${targetIndex}-${'x'.repeat(465 - questionIndex.toString().length)}`,
+        ),
+      ]),
+    )
+    expect(Buffer.byteLength(JSON.stringify({ answers }), 'utf8')).toBeGreaterThan(900_000)
+
+    const findSourceMetaById = vi.fn(async () => ({
+      id: TARGET_SOURCE_ID,
+      workspaceId: WORKSPACE_ID,
+      pageId: TARGET_SOURCE_PAGE_ID,
+    }))
+    const findRowsAccessMetaByIds = vi.fn(async (ids: string[]) =>
+      ids.map((id) => ({
+        id,
+        sourceId: TARGET_SOURCE_ID,
+        workspaceId: WORKSPACE_ID,
+        pageId: TARGET_PAGE_ID,
+        createdById: OWNER_ID,
+        cellsByProperty: new Map<string, unknown>(),
+      })),
+    )
+    const findEnabledAccessRulesForSources = vi.fn(async () => new Map())
+    const findWorkspaceRole = vi.fn(async () => 'VIEWER' as const)
+    const isSourcePageCreatedBy = vi.fn(async () => false)
+    const findItemPageShareLevels = vi.fn(async () => new Map())
+    const findAccessiblePageIds = vi.fn(
+      async (_user: string, _workspace: string, ids: string[]) => new Set(ids),
+    )
+    const { service } = makeValidationHarness({
+      storedForm: publicForm(formDocument(questions), {
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      }),
+      properties: [
+        {
+          id: PROPERTY_ID,
+          type: 'RELATION',
+          name: 'Relation',
+          position: 1,
+          settings: { relation: { targetSourceId: TARGET_SOURCE_ID } },
+        },
+      ],
+      databaseRepo: {
+        findSourceMetaById,
+        findRowsAccessMetaByIds,
+        findEnabledAccessRulesForSources,
+        findWorkspaceRole,
+        isSourcePageCreatedBy,
+        findItemPageShareLevels,
+      },
+      pageRepo: { findAccessiblePageIds },
+    })
+
+    await service.submit(ACTOR_ID, submissionInput(answers), tokenContext())
+
+    for (const query of [
+      findSourceMetaById,
+      findRowsAccessMetaByIds,
+      findEnabledAccessRulesForSources,
+      findWorkspaceRole,
+      isSourcePageCreatedBy,
+      findItemPageShareLevels,
+      findAccessiblePageIds,
+    ]) {
+      expect(query).toHaveBeenCalledTimes(2)
+    }
   })
 
   it.each([
@@ -1451,6 +1589,79 @@ describe('DatabaseFormRepository submission transaction primitives', () => {
     expect(locks[3]).toContain('pages')
     expect(locks[4]).toContain('database_forms')
     expect(locks.slice(1).every((sql) => sql.includes('FOR UPDATE'))).toBe(true)
+  })
+
+  it('locks submission authorities in a deterministic table and sorted-id order', async () => {
+    const client = {
+      $queryRaw: vi.fn(async (query: { strings: readonly string[] }) => {
+        const sql = query.strings.join('')
+        if (sql.includes('workspace_members')) {
+          return [{ user_id: ACTOR_ID }, { user_id: OWNER_ID }]
+        }
+        if (sql.includes('database_properties')) {
+          return [{ id: PROPERTY_ID }, { id: THIRD_PROPERTY_ID }]
+        }
+        if (sql.includes('database_sources') && sql.includes(' IN ')) {
+          return [{ id: TARGET_SOURCE_ID }]
+        }
+        if (sql.includes('database_rows')) return [{ id: ROW_ID }, { id: TARGET_ROW_ID }]
+        if (sql.includes('FROM pages')) return [{ id: SOURCE_PAGE_ID }, { id: TARGET_PAGE_ID }]
+        if (sql.includes('database_form_uploads')) return [{ id: UPLOAD_ID }]
+        if (sql.includes('FROM files')) return [{ id: FILE_ID }]
+        return [{ id: FORM_ID }]
+      }),
+    }
+    const repository = new DatabaseFormRepository({
+      client: vi.fn(() => client),
+    } as unknown as UnitOfWork)
+
+    await expect(
+      repository.lockFormSubmissionAuthorities({
+        formId: FORM_ID,
+        workspaceId: WORKSPACE_ID,
+        formSourceId: SOURCE_ID,
+        actorUserId: ACTOR_ID,
+        personUserIds: [OWNER_ID, ACTOR_ID],
+        sourceIds: [TARGET_SOURCE_ID, SOURCE_ID],
+        propertyIds: [THIRD_PROPERTY_ID, PROPERTY_ID],
+        rowIds: [TARGET_ROW_ID, ROW_ID],
+        pageIds: [TARGET_PAGE_ID, SOURCE_PAGE_ID],
+        uploadIds: [UPLOAD_ID],
+        fileIds: [FILE_ID],
+      }),
+    ).resolves.toBe(true)
+
+    const queries = client.$queryRaw.mock.calls.map(
+      ([query]) =>
+        query as {
+          strings: readonly string[]
+          values: unknown[]
+        },
+    )
+    const sql = queries.map(({ strings }) => strings.join('?'))
+    expect(sql.map((query) => /FROM\s+(\w+)/u.exec(query)?.[1])).toEqual([
+      'workspace_members',
+      'workspace_blocked_users',
+      'database_sources',
+      'database_sources',
+      'database_properties',
+      'database_page_access_rules',
+      'database_rows',
+      'database_cell_values',
+      'pages',
+      'collections',
+      'page_shares',
+      'page_share_users',
+      'database_form_uploads',
+      'files',
+    ])
+    expect(sql.every((query) => query.includes('ORDER BY') && query.includes('FOR UPDATE'))).toBe(
+      true,
+    )
+    expect(queries[0]!.values.slice(1)).toEqual([ACTOR_ID, OWNER_ID].sort())
+    expect(queries[3]!.values).toEqual([TARGET_SOURCE_ID])
+    expect(queries[6]!.values).toEqual([ROW_ID, TARGET_ROW_ID].sort())
+    expect(queries[8]!.values).toEqual([SOURCE_PAGE_ID, TARGET_PAGE_ID].sort())
   })
 
   it('reserves a slot with one conditional update covering state, schedule, and the live limit', async () => {
