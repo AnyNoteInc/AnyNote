@@ -693,15 +693,15 @@ describe('DatabaseFormRepository focused reads', () => {
     expectNoRowsInSelection(client.databaseForm.findFirst.mock.calls[0]?.[0])
   })
 
-  it('uses one locator OR for the exact route key or normalized custom slug', async () => {
+  it('uses one normalized locator OR without preloading an arbitrary grace version', async () => {
     const { client, repository } = makeRepository()
 
-    await repository.findByLocator('My-Custom-Slug')
+    await repository.findByLocator('my-custom-slug')
 
     expect(client.databaseForm.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          OR: [{ routeKey: 'My-Custom-Slug' }, { customSlug: 'my-custom-slug' }],
+          OR: [{ routeKey: 'my-custom-slug' }, { customSlug: 'my-custom-slug' }],
         },
       }),
     )
@@ -711,12 +711,6 @@ describe('DatabaseFormRepository focused reads', () => {
       expect.objectContaining({
         select: expect.objectContaining({
           publishedVersion: expect.any(Object),
-          versions: {
-            where: { acceptUntil: { gt: now } },
-            orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
-            take: 1,
-            select: expect.objectContaining({ schema: true, acceptUntil: true }),
-          },
           source: expect.objectContaining({
             select: expect.objectContaining({
               workspace: {
@@ -730,7 +724,7 @@ describe('DatabaseFormRepository focused reads', () => {
         }),
       }),
     )
-    expect(args?.select?.versions?.take).toBe(1)
+    expect(args?.select).not.toHaveProperty('versions')
   })
 
   it('paginates responses by submittedAt and id without selecting page bodies', async () => {

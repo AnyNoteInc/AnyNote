@@ -11,17 +11,22 @@ import type {
 
 const mocks = vi.hoisted(() => ({
   resolvePublished: vi.fn(),
+  resolveVersion: vi.fn(),
   listRows: vi.fn(),
 }))
 
 vi.mock('../src/domain', () => ({
   domain: {
-    formAccess: { resolvePublished: mocks.resolvePublished },
+    formAccess: {
+      resolvePublished: mocks.resolvePublished,
+      resolveVersion: mocks.resolveVersion,
+    },
     database: { listRows: mocks.listRows },
   },
 }))
 
 import { formRouter } from '../src/routers/form'
+import { hashFormLocator, signFormVersionToken } from '../src/helpers/form-version-token'
 import { createCallerFactory } from '../src/trpc'
 
 const NOW = Date.UTC(2026, 6, 16, 8)
@@ -40,6 +45,8 @@ const TARGET_SOURCE_ID = '00000000-0000-7000-8000-00000000000b'
 const TARGET_PAGE_ID = '00000000-0000-7000-8000-00000000000c'
 const ROW_ID = '00000000-0000-7000-8000-00000000000d'
 const LINKED_PAGE_ID = '00000000-0000-7000-8000-00000000000e'
+const CONTINUATION_ROW_ID = '00000000-0000-7000-8000-00000000000f'
+const WRONG_FORM_ID = '00000000-0000-7000-8000-000000000010'
 
 const document: FormVersionDocument = {
   schemaVersion: 1,
@@ -143,19 +150,41 @@ const form = (audience: PublicFormRecord['audience']): PublicFormRecord => ({
     },
   },
   publishedVersion: version,
-  versions: [],
 })
 
 let audience: PublicFormRecord['audience']
 
-function openResolution(actorUserId: string | null): PublishedFormResolution {
+function normalizeTestLocator(locator: string): string {
+  const trimmed = locator.trim()
+  return trimmed.startsWith('anf_') ? trimmed : trimmed.toLowerCase()
+}
+
+function openResolution(
+  actorUserId: string | null,
+  locator = 'anf_public-key',
+): PublishedFormResolution {
   if (audience !== 'ANYONE_WITH_LINK' && actorUserId === null) return { status: 'AUTH_REQUIRED' }
   return {
     status: 'OPEN',
+    locator: normalizeTestLocator(locator),
     form: form(audience),
     version,
     respondentUserId: audience === 'ANYONE_WITH_LINK' ? null : actorUserId,
   }
+}
+
+function tokenFor(storedVersion: FormVersionRecord, locator = 'anf_public-key'): string {
+  return signFormVersionToken(
+    {
+      locatorHash: hashFormLocator(locator),
+      versionNumber: storedVersion.versionNumber,
+      schemaHash: storedVersion.schemaHash,
+      linkRevision: 2,
+      issuedAt: NOW - 1_000,
+      expiresAt: NOW + 60_000,
+    },
+    SECRET,
+  )
 }
 
 function prismaMock() {
@@ -209,8 +238,11 @@ beforeEach(() => {
   vi.stubEnv('FORM_TOKEN_SECRET', SECRET)
   vi.setSystemTime(NOW)
   audience = 'ANYONE_WITH_LINK'
-  mocks.resolvePublished.mockImplementation(async (_locator, actorUserId) =>
-    openResolution(actorUserId),
+  mocks.resolvePublished.mockImplementation(async (locator, actorUserId) =>
+    openResolution(actorUserId, locator),
+  )
+  mocks.resolveVersion.mockImplementation(async (_form, versionNumber) =>
+    versionNumber === version.versionNumber ? version : null,
   )
 })
 
@@ -269,6 +301,65 @@ describe('public database forms router', () => {
     expect(JSON.stringify(unknown)).toBe(JSON.stringify(archived))
     expectNoInternalKeys(unknown)
     expectNoInternalKeys(archived)
+  })
+
+  it('collapses malformed locator strings to the same public unavailable response', async () => {
+    mocks.resolvePublished.mockResolvedValue({ status: 'UNAVAILABLE' })
+    const api = caller(null).api
+
+    const results = await Promise.all([
+      api.getPublished({ locator: '' }),
+      api.getPublished({ locator: 'x'.repeat(65) }),
+      api.getPublished({ locator: 'Not A Valid Slug' }),
+    ])
+
+    expect(results.map(JSON.stringify)).toEqual([
+      JSON.stringify({ status: 'UNAVAILABLE' }),
+      JSON.stringify({ status: 'UNAVAILABLE' }),
+      JSON.stringify({ status: 'UNAVAILABLE' }),
+    ])
+    expect(mocks.resolvePublished).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps malformed picker locators on the uniform unavailable error path', async () => {
+    audience = 'WORKSPACE_MEMBERS_WITH_LINK'
+    mocks.resolvePublished.mockResolvedValue({ status: 'UNAVAILABLE' })
+    const { api, prisma } = caller(USER_ID)
+
+    for (const locator of ['', 'x'.repeat(65), 'Not A Valid Slug']) {
+      await expect(
+        api.listPickerOptions({
+          locator,
+          versionToken: tokenFor(version),
+          questionId: 'person',
+          limit: 10,
+        }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'FORM_PICKER_UNAVAILABLE' })
+    }
+    expect(prisma.databaseProperty.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('uses one normalized custom locator for lookup, token issue and token validation', async () => {
+    audience = 'WORKSPACE_MEMBERS_WITH_LINK'
+    const { api, prisma } = caller(USER_ID)
+    prisma.databaseProperty.findFirst.mockResolvedValue({
+      id: PERSON_PROPERTY_ID,
+      type: 'PERSON',
+      settings: null,
+    })
+    prisma.user.findMany.mockResolvedValue([])
+
+    const published = await api.getPublished({ locator: '  Public-Form  ' })
+    if (published.status !== 'OPEN') throw new Error('expected open form')
+
+    await expect(
+      api.listPickerOptions({
+        locator: 'public-form',
+        versionToken: published.versionToken,
+        questionId: 'person',
+        limit: 10,
+      }),
+    ).resolves.toEqual({ items: [], nextCursor: null })
   })
 
   it('lists active PERSON options with opaque IDs and keyset pagination', async () => {
@@ -360,6 +451,44 @@ describe('public database forms router', () => {
     })
   })
 
+  it('returns one bounded sparse RELATION page and resumes to a later title match', async () => {
+    audience = 'WORKSPACE_MEMBERS_WITH_LINK'
+    const { api, prisma } = caller(USER_ID)
+    prisma.databaseProperty.findFirst.mockResolvedValue({
+      id: RELATION_PROPERTY_ID,
+      type: 'RELATION',
+      settings: { relation: { targetSourceId: TARGET_SOURCE_ID } },
+    })
+    prisma.databaseSource.findFirst.mockResolvedValue({ id: TARGET_SOURCE_ID, pageId: TARGET_PAGE_ID })
+    mocks.listRows
+      .mockResolvedValueOnce({
+        rows: [{ rowId: ROW_ID, pageId: LINKED_PAGE_ID, title: 'No title match', icon: null, position: 1024, cells: {} }],
+        nextCursor: CONTINUATION_ROW_ID,
+      })
+      .mockResolvedValueOnce({
+        rows: [{ rowId: CONTINUATION_ROW_ID, pageId: LINKED_PAGE_ID, title: 'Needle found later', icon: null, position: 2048, cells: {} }],
+        nextCursor: null,
+      })
+    const published = await api.getPublished({ locator: 'anf_public-key' })
+    if (published.status !== 'OPEN') throw new Error('expected open form')
+
+    const sparse = await api.listPickerOptions({
+      locator: 'anf_public-key', versionToken: published.versionToken,
+      questionId: 'relation', query: 'needle', limit: 10,
+    })
+    expect(sparse).toEqual({ items: [], nextCursor: CONTINUATION_ROW_ID })
+    expect(mocks.listRows).toHaveBeenCalledTimes(1)
+
+    const resumed = await api.listPickerOptions({
+      locator: 'anf_public-key', versionToken: published.versionToken,
+      questionId: 'relation', query: 'needle', cursor: sparse.nextCursor ?? undefined, limit: 10,
+    })
+    expect(resumed).toEqual({
+      items: [{ id: CONTINUATION_ROW_ID, label: 'Needle found later' }], nextCursor: null,
+    })
+    expect(mocks.listRows).toHaveBeenCalledTimes(2)
+  })
+
   it('rejects a cross-workspace RELATION target before row lookup', async () => {
     audience = 'WORKSPACE_MEMBERS_WITH_LINK'
     const { api, prisma } = caller(USER_ID)
@@ -383,13 +512,64 @@ describe('public database forms router', () => {
     expect(mocks.listRows).not.toHaveBeenCalled()
     expect(prisma.databaseSource.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
+        where: expect.objectContaining({
           id: TARGET_SOURCE_ID,
           workspaceId: WORKSPACE_ID,
-          page: { archivedAt: null, deletedAt: null },
-        },
+          page: expect.objectContaining({ archivedAt: null, deletedAt: null }),
+        }),
       }),
     )
+  })
+
+  it("rejects a RELATION target in another user's PERSONAL collection before row lookup", async () => {
+    audience = 'WORKSPACE_MEMBERS_WITH_LINK'
+    const { api, prisma } = caller(USER_ID)
+    prisma.databaseProperty.findFirst.mockResolvedValue({
+      id: RELATION_PROPERTY_ID, type: 'RELATION',
+      settings: { relation: { targetSourceId: TARGET_SOURCE_ID } },
+    })
+    prisma.databaseSource.findFirst.mockResolvedValue(null)
+    const published = await api.getPublished({ locator: 'anf_public-key' })
+    if (published.status !== 'OPEN') throw new Error('expected open form')
+
+    await expect(api.listPickerOptions({
+      locator: 'anf_public-key', versionToken: published.versionToken,
+      questionId: 'relation', limit: 10,
+    })).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'FORM_PICKER_UNAVAILABLE' })
+    expect(prisma.databaseSource.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        page: expect.objectContaining({ AND: [{ OR: expect.arrayContaining([
+          { collection: { kind: 'PERSONAL', ownerId: USER_ID } },
+        ]) }] }),
+      }),
+    }))
+    expect(mocks.listRows).not.toHaveBeenCalled()
+  })
+
+  it('accepts every live grace version plus current and uniformly rejects expired or wrong-form versions', async () => {
+    audience = 'WORKSPACE_MEMBERS_WITH_LINK'
+    const graceV1: FormVersionRecord = { ...version, id: '00000000-0000-7000-8000-000000000011', versionNumber: 1, acceptUntil: new Date(NOW + 60_000) }
+    const graceV2: FormVersionRecord = { ...version, id: '00000000-0000-7000-8000-000000000012', versionNumber: 2, acceptUntil: new Date(NOW + 60_000) }
+    const expired: FormVersionRecord = { ...version, id: '00000000-0000-7000-8000-000000000013', versionNumber: 4, acceptUntil: new Date(NOW - 1) }
+    const wrongForm: FormVersionRecord = { ...version, id: '00000000-0000-7000-8000-000000000014', formId: WRONG_FORM_ID, versionNumber: 5, acceptUntil: new Date(NOW + 60_000) }
+    const versions = new Map([graceV1, graceV2, version, expired, wrongForm].map((item) => [item.versionNumber, item]))
+    mocks.resolveVersion.mockImplementation(async (_form, versionNumber) => versions.get(versionNumber) ?? null)
+    const { api, prisma } = caller(USER_ID)
+    prisma.databaseProperty.findFirst.mockResolvedValue({ id: PERSON_PROPERTY_ID, type: 'PERSON', settings: null })
+    prisma.user.findMany.mockResolvedValue([])
+
+    for (const accepted of [graceV1, graceV2, version]) {
+      await expect(api.listPickerOptions({
+        locator: 'anf_public-key', versionToken: tokenFor(accepted), questionId: 'person', limit: 10,
+      })).resolves.toEqual({ items: [], nextCursor: null })
+    }
+    const unavailable = { code: 'NOT_FOUND', message: 'FORM_PICKER_UNAVAILABLE' }
+    await expect(api.listPickerOptions({
+      locator: 'anf_public-key', versionToken: tokenFor(expired), questionId: 'person', limit: 10,
+    })).rejects.toMatchObject(unavailable)
+    await expect(api.listPickerOptions({
+      locator: 'anf_public-key', versionToken: tokenFor(wrongForm), questionId: 'person', limit: 10,
+    })).rejects.toMatchObject(unavailable)
   })
 
   it('applies the normal page visibility predicate to PAGE_LINK options', async () => {

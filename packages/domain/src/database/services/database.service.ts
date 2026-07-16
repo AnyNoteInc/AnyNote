@@ -1484,6 +1484,7 @@ export class DatabaseService {
     const batchTake = hasPostFilters ? Math.min(limit * 5 + 1, 1000) : limit + 1
     // Bound the loop so a pathological filter can't fetch the whole table.
     const MAX_BATCHES = hasPostFilters ? 50 : 1
+    let scanCanContinue = false
     for (let i = 0; i < MAX_BATCHES; i += 1) {
       const fetched = await this.repo.findRowsPaged({
         sourceId: source.id,
@@ -1497,16 +1498,26 @@ export class DatabaseService {
       // AUTHORITATIVE row-access gate — drop rows the viewer can't view.
       const survivors = this.filterViewableRows(accessCtx, rules, afterRelation)
       collected.push(...survivors)
-      if (fetched.length < batchTake) break // DB exhausted
+      if (fetched.length < batchTake) {
+        scanCanContinue = false
+        break // DB exhausted
+      }
+      const scannedThrough = fetched.at(-1)?.id
+      scanCanContinue = scannedThrough !== undefined
       if (collected.length > limit) break // enough survivors for this page + probe
-      cursor = fetched.at(-1)?.id // advance to the next DB batch
+      cursor = scannedThrough // advance to the next DB batch
     }
 
     const hasMore = collected.length > limit
     const pageRows = hasMore ? collected.slice(0, limit) : collected
-    // Keyset cursor = the LAST row of THIS page (`findRowsPaged` re-anchors with
-    // `cursor: { id }, skip: 1`, so the next page starts at the row after it).
-    const nextCursor = hasMore ? (pageRows.at(-1)?.id ?? null) : null
+    // A survivor probe resumes after the last returned row so the hidden survivor
+    // remains reachable. If the safety cap stops a sparse scan first, resume after
+    // the last raw row already examined so callers can continue without rescanning.
+    const nextCursor = hasMore
+      ? (pageRows.at(-1)?.id ?? null)
+      : scanCanContinue
+        ? (cursor ?? null)
+        : null
 
     const rows = await this.augmentRows(actorUserId, fullProperties, pageRows)
     return { rows, nextCursor }

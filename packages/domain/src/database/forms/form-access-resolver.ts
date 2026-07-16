@@ -10,6 +10,7 @@ import type {
 export type PublishedFormResolution =
   | {
       status: 'OPEN'
+      locator: string
       form: PublicFormRecord
       version: FormVersionRecord
       respondentUserId: string | null
@@ -19,12 +20,12 @@ export type PublishedFormResolution =
       status: 'CLOSED' | 'CAPPED' | 'AUTH_REQUIRED' | 'POLICY_DISABLED' | 'UNAVAILABLE'
     }
 
-type PublicFormLookup = Pick<FormRepositoryContract, 'findByLocator'>
+type PublicFormLookup = Pick<FormRepositoryContract, 'findByLocator' | 'findVersion'>
 type ActiveMembershipAuthority = Pick<WorkspaceService, 'assertMembership'>
 
 const GENERATED_LOCATOR = /^anf_[A-Za-z0-9_-]+$/u
 
-function normalizeLocator(raw: string): string | null {
+export function normalizeFormLocator(raw: string): string | null {
   const locator = formLocatorSchema.safeParse(raw)
   if (!locator.success) return null
   if (GENERATED_LOCATOR.test(locator.data)) return locator.data
@@ -61,7 +62,7 @@ export class FormAccessResolver {
     rawLocator: string,
     actorUserId: string | null,
   ): Promise<PublishedFormResolution> {
-    const locator = normalizeLocator(rawLocator)
+    const locator = normalizeFormLocator(rawLocator)
     if (locator === null) return { status: 'UNAVAILABLE' }
 
     const form = await this.repo.findByLocator(locator)
@@ -83,7 +84,7 @@ export class FormAccessResolver {
     }
 
     if (form.audience === 'ANYONE_WITH_LINK') {
-      return { status: 'OPEN', form, version, respondentUserId: null }
+      return { status: 'OPEN', locator, form, version, respondentUserId: null }
     }
     if (actorUserId === null) return { status: 'AUTH_REQUIRED' }
     if (form.audience === 'WORKSPACE_MEMBERS_WITH_LINK') {
@@ -97,9 +98,18 @@ export class FormAccessResolver {
 
     return {
       status: 'OPEN',
+      locator,
       form,
       version,
       respondentUserId: actorUserId,
     }
+  }
+
+  async resolveVersion(
+    form: PublicFormRecord,
+    versionNumber: number,
+  ): Promise<FormVersionRecord | null> {
+    const version = await this.repo.findVersion(form.id, versionNumber)
+    return version?.formId === form.id ? version : null
   }
 }

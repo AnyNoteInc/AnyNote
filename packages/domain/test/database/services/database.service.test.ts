@@ -821,6 +821,50 @@ describe('DatabaseService.listRows', () => {
     const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
     expect(result.rows.map((r) => r.rowId)).toEqual(['r1'])
   })
+
+  it('returns a continuation after a bounded sparse post-filter scan and resumes at later matches', async () => {
+    let batch = 0
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1',
+          type: 'TABLE',
+          title: 'V',
+          position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-multi', operator: 'is_any_of', value: ['wanted'] }],
+            },
+          },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        { id: 'p-multi', type: 'MULTI_SELECT', name: 'M', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async ({ cursor }) => {
+        if (cursor === 'r-299') return [makeRow('later-match', { 'p-multi': ['wanted'] })]
+        const start = batch * 6
+        batch += 1
+        return Array.from({ length: 6 }, (_, offset) =>
+          makeRow(`r-${start + offset}`, { 'p-multi': ['other'] }),
+        )
+      }),
+    })
+    const service = makeService(repo)
+
+    const sparse = await service.listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 1 })
+    const resumed = await service.listRows('u1', {
+      pageId: 'db-page',
+      viewId: 'view1',
+      cursor: sparse.nextCursor ?? undefined,
+      limit: 1,
+    })
+
+    expect(sparse).toEqual({ rows: [], nextCursor: 'r-299' })
+    expect(resumed.rows.map((row) => row.rowId)).toEqual(['later-match'])
+    expect(repo.findRowsPaged).toHaveBeenCalledTimes(51)
+  })
 })
 
 describe('DatabaseService.listGroupedRows', () => {

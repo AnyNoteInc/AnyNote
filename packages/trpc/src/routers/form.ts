@@ -7,7 +7,6 @@ import {
   propertySettingsSchema,
 } from '@repo/domain'
 import {
-  formLocatorSchema,
   parseFormVersionDocument,
   toPublicFormVersion,
 } from '@repo/domain/database/forms'
@@ -22,11 +21,10 @@ import {
 import { publicProcedure, router } from '../trpc'
 
 const FORM_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
-const MAX_RELATION_BATCHES = 50
 const pickerCursorSchema = z.string().uuid()
 
 const listPickerOptionsInput = z.object({
-  locator: formLocatorSchema,
+  locator: z.string(),
   versionToken: z.string().min(1).max(4_096),
   questionId: z.string().min(1).max(64),
   query: z.string().trim().max(200).optional(),
@@ -63,12 +61,11 @@ function signResolvedVersion(
     Awaited<ReturnType<typeof domainSvc.formAccess.resolvePublished>>,
     { status: 'OPEN' }
   >,
-  locator: string,
 ): string {
   const issuedAt = Date.now()
   return signFormVersionToken(
     {
-      locatorHash: hashFormLocator(locator),
+      locatorHash: hashFormLocator(resolved.locator),
       versionNumber: resolved.version.versionNumber,
       schemaHash: resolved.version.schemaHash,
       linkRevision: resolved.form.linkRevision,
@@ -84,34 +81,28 @@ async function listRelationOptions(
   pageId: string,
   input: z.infer<typeof listPickerOptionsInput>,
 ): Promise<PickerPage> {
-  const query = input.query?.toLocaleLowerCase()
+  const query = input.query?.toLowerCase()
   const options: PickerOption[] = []
-  let cursor = input.cursor
   const batchLimit = Math.min(Math.max(input.limit * 5 + 1, 51), 200)
 
-  for (let batch = 0; batch < MAX_RELATION_BATCHES; batch += 1) {
-    const page = await domainSvc.database.listRows(actorUserId, {
-      pageId,
-      ...(cursor === undefined ? {} : { cursor }),
-      limit: batchLimit,
-    })
-    for (const row of page.rows) {
-      const label = displayLabel(row.title)
-      if (query === undefined || label.toLocaleLowerCase().includes(query)) {
-        options.push({ id: row.rowId, label })
-      }
-      if (options.length > input.limit) return pageOf(options, input.limit)
+  const page = await domainSvc.database.listRows(actorUserId, {
+    pageId,
+    ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+    limit: batchLimit,
+  })
+  for (const row of page.rows) {
+    const label = displayLabel(row.title)
+    if (query === undefined || label.toLowerCase().includes(query)) {
+      options.push({ id: row.rowId, label })
     }
-    if (page.nextCursor === null) return pageOf(options, input.limit)
-    cursor = page.nextCursor
   }
-
-  return pageOf(options, input.limit)
+  if (options.length > input.limit) return pageOf(options, input.limit)
+  return { items: options, nextCursor: page.nextCursor }
 }
 
 export const formRouter = router({
   getPublished: publicProcedure
-    .input(z.object({ locator: formLocatorSchema }))
+    .input(z.object({ locator: z.string() }))
     .query(async ({ ctx, input }) => {
       ctx.resHeaders.set('Cache-Control', 'private, no-store')
       const resolved = await domainSvc.formAccess.resolvePublished(
@@ -124,7 +115,7 @@ export const formRouter = router({
         status: 'OPEN' as const,
         version: toPublicFormVersion(parseFormVersionDocument(resolved.version.schema)),
         versionFingerprint: resolved.version.schemaHash,
-        versionToken: signResolvedVersion(resolved, input.locator),
+        versionToken: signResolvedVersion(resolved),
         respondentKind: resolved.respondentUserId
           ? ('authenticated' as const)
           : ('anonymous' as const),
@@ -153,17 +144,17 @@ export const formRouter = router({
         throw pickerUnavailable()
       }
 
-      const storedVersion =
-        token.versionNumber === resolved.version.versionNumber
-          ? resolved.version
-          : resolved.form.versions.find(
-              ({ versionNumber }) => versionNumber === token.versionNumber,
-            )
-      if (storedVersion === undefined) throw pickerUnavailable()
+      const storedVersion = await domainSvc.formAccess.resolveVersion(
+        resolved.form,
+        token.versionNumber,
+      )
+      if (storedVersion === null || storedVersion.formId !== resolved.form.id) {
+        throw pickerUnavailable()
+      }
 
       try {
         assertFormVersionContext(token, {
-          locatorHash: hashFormLocator(input.locator),
+          locatorHash: hashFormLocator(resolved.locator),
           versionNumber: storedVersion.versionNumber,
           schemaHash: storedVersion.schemaHash,
           linkRevision: resolved.form.linkRevision,
@@ -223,7 +214,11 @@ export const formRouter = router({
           where: {
             id: targetSourceId,
             workspaceId: resolved.form.source.workspaceId,
-            page: { archivedAt: null, deletedAt: null },
+            page: {
+              archivedAt: null,
+              deletedAt: null,
+              AND: [buildPageVisibilityWhere(resolved.respondentUserId)],
+            },
           },
           select: { id: true, pageId: true },
         })

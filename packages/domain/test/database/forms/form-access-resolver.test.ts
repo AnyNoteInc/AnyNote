@@ -52,13 +52,6 @@ const publicForm = (overrides: Partial<PublicFormRecord> = {}): PublicFormRecord
       },
     },
     publishedVersion: current,
-    versions: [
-      version({
-        id: '00000000-0000-7000-8000-000000000011',
-        versionNumber: 1,
-        acceptUntil: new Date('2026-07-17T07:00:00.000Z'),
-      }),
-    ],
     ...overrides,
   }
 }
@@ -66,6 +59,9 @@ const publicForm = (overrides: Partial<PublicFormRecord> = {}): PublicFormRecord
 function makeHarness(form: PublicFormRecord | null = publicForm()) {
   const repo = {
     findByLocator: vi.fn(async () => form),
+    findVersion: vi.fn(async (_formId: string, versionNumber: number) =>
+      form?.publishedVersion?.versionNumber === versionNumber ? form.publishedVersion : null,
+    ),
   }
   const workspace = {
     assertMembership: vi.fn(async (userId: string, workspaceId: string) => ({
@@ -75,7 +71,7 @@ function makeHarness(form: PublicFormRecord | null = publicForm()) {
     })),
   }
   const resolver = new FormAccessResolver(
-    repo as Pick<FormRepositoryContract, 'findByLocator'>,
+    repo as Pick<FormRepositoryContract, 'findByLocator' | 'findVersion'>,
     workspace,
     () => NOW,
   )
@@ -114,10 +110,14 @@ describe('FormAccessResolver.resolvePublished', () => {
     })
   })
 
-  it('rejects an invalid locator without querying persistence', async () => {
+  it.each([
+    ['empty locator', ''],
+    ['overlong locator', 'x'.repeat(65)],
+    ['invalid slug', 'Not A Valid Slug'],
+  ])('rejects an %s without querying persistence', async (_label, locator) => {
     const { resolver, repo } = makeHarness()
 
-    await expect(resolver.resolvePublished('Not A Valid Slug', USER_ID)).resolves.toEqual({
+    await expect(resolver.resolvePublished(locator, USER_ID)).resolves.toEqual({
       status: 'UNAVAILABLE',
     })
     expect(repo.findByLocator).not.toHaveBeenCalled()
@@ -126,9 +126,32 @@ describe('FormAccessResolver.resolvePublished', () => {
   it('normalizes a valid custom slug through the shared locator schemas', async () => {
     const { resolver, repo } = makeHarness()
 
-    await resolver.resolvePublished('  Public-Form  ', USER_ID)
+    await expect(resolver.resolvePublished('  Public-Form  ', USER_ID)).resolves.toMatchObject({
+      status: 'OPEN',
+      locator: 'public-form',
+    })
 
     expect(repo.findByLocator).toHaveBeenCalledWith('public-form')
+  })
+
+  it('preserves the exact generated route key during normalization', async () => {
+    const { resolver, repo } = makeHarness()
+
+    await expect(resolver.resolvePublished('  anf_KeyCase  ', USER_ID)).resolves.toMatchObject({
+      status: 'OPEN',
+      locator: 'anf_KeyCase',
+    })
+    expect(repo.findByLocator).toHaveBeenCalledWith('anf_KeyCase')
+  })
+
+  it('loads one requested version through the form-scoped repository lookup', async () => {
+    const requested = version({ versionNumber: 1 })
+    const { resolver, repo } = makeHarness()
+    repo.findVersion.mockResolvedValueOnce(requested)
+
+    await expect(resolver.resolveVersion(publicForm(), 1)).resolves.toEqual(requested)
+
+    expect(repo.findVersion).toHaveBeenCalledWith(publicForm().id, 1)
   })
 
   it('checks the workspace policy before manual state', async () => {
