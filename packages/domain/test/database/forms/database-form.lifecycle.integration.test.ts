@@ -162,6 +162,16 @@ class BlockingPropertyRepository extends DatabaseRepository {
   }
 }
 
+class FailingRenameRepository extends DatabaseRepository {
+  override async updateProperty(
+    id: string,
+    data: Parameters<DatabaseRepository['updateProperty']>[1],
+  ) {
+    await super.updateProperty(id, data)
+    throw new Error('TEST_RENAME_FAILURE')
+  }
+}
+
 beforeAll(async () => {
   const user = await prisma.user.create({
     data: {
@@ -338,6 +348,69 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     await expect(
       prisma.databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } }),
     ).resolves.toMatchObject({ state: 'CLOSED', publishedVersionId: versions[1]!.id })
+  })
+
+  it('does not rename a property when the draft revision CAS conflicts', async () => {
+    const fixture = await createFixture('rename-conflict')
+    const document = documentFor(fixture.property.id)
+    document.questions[0] = {
+      ...document.questions[0]!,
+      label: 'Renamed after CAS',
+      syncWithPropertyName: true,
+    }
+    const service = makeFormService(new PrismaUnitOfWork(prisma))
+
+    await expect(
+      service.updateDraft(userId, {
+        pageId,
+        formId: fixture.form.id,
+        expectedRevision: 99,
+        schema: document,
+        propertyNameIntents: { [fixture.property.id]: 'Renamed after CAS' },
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_DRAFT_CONFLICT' })
+
+    await expect(
+      prisma.databaseProperty.findUniqueOrThrow({ where: { id: fixture.property.id } }),
+    ).resolves.toMatchObject({ name: fixture.property.name })
+    await expect(
+      prisma.databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } }),
+    ).resolves.toMatchObject({ draftRevision: 1 })
+  })
+
+  it('rolls back both draft and property rename when the rename fails', async () => {
+    const fixture = await createFixture('rename-rollback')
+    const document = documentFor(fixture.property.id)
+    document.questions[0] = {
+      ...document.questions[0]!,
+      label: 'Rolled back name',
+      syncWithPropertyName: true,
+    }
+    const uow = new PrismaUnitOfWork(prisma)
+    const service = new DatabaseFormService(
+      new DatabaseFormRepository(uow),
+      new FailingRenameRepository(uow),
+      uow,
+      billing,
+      () => NOW,
+    )
+
+    await expect(
+      service.updateDraft(userId, {
+        pageId,
+        formId: fixture.form.id,
+        expectedRevision: 1,
+        schema: document,
+        propertyNameIntents: { [fixture.property.id]: 'Rolled back name' },
+      }),
+    ).rejects.toThrow('TEST_RENAME_FAILURE')
+
+    await expect(
+      prisma.databaseProperty.findUniqueOrThrow({ where: { id: fixture.property.id } }),
+    ).resolves.toMatchObject({ name: fixture.property.name })
+    const stored = await prisma.databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } })
+    expect(stored.draftRevision).toBe(1)
+    expect((stored.draftSchema as FormVersionDocument).questions[0]!.label).toBe('Name')
   })
 
   it('revalidates the current published schema before changing away from workspace audience', async () => {

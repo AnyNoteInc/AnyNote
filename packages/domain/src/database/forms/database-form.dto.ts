@@ -23,6 +23,7 @@ export type ListFormsInput = z.infer<typeof listFormsInput>
 export const updateFormDraftInput = formIdInput.extend({
   expectedRevision: z.number().int().positive(),
   schema: formVersionDocumentSchema,
+  propertyNameIntents: z.record(uuidSchema, z.string().trim().min(1).max(200)).optional(),
 })
 export type UpdateFormDraftInput = z.infer<typeof updateFormDraftInput>
 

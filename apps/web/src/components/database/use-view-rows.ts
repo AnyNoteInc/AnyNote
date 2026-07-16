@@ -28,8 +28,9 @@ function rowsInput(pageId: string, viewId: string | undefined) {
  * array. `viewId` keys the cache so each view caches independently; switching
  * tabs swaps cache entries rather than refetching the same one.
  */
-export function useViewRows(pageId: string, viewId: string | undefined) {
+export function useViewRows(pageId: string, viewId: string | undefined, enabled = true) {
   const query = trpc.database.listRows.useInfiniteQuery(rowsInput(pageId, viewId), {
+    enabled,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
 

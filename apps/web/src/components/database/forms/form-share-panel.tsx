@@ -33,6 +33,8 @@ interface FormSharePanelProps {
   readonly form: DatabaseManagedForm
   readonly draftDocument: FormVersionDocument
   readonly hideBranding: boolean
+  readonly canEditDraft?: boolean
+  readonly canManageExposure?: boolean
   readonly onClose: () => void
   readonly onChanged: () => Promise<void> | void
   readonly onBrandingChange: (hidden: boolean) => void
@@ -68,6 +70,8 @@ export function FormSharePanel({
   form,
   draftDocument,
   hideBranding,
+  canEditDraft = true,
+  canManageExposure = true,
   onClose,
   onChanged,
   onBrandingChange,
@@ -108,6 +112,7 @@ export function FormSharePanel({
   const reopenForm = trpc.database.reopenForm.useMutation()
 
   async function run(operation: () => Promise<unknown>) {
+    if (!canManageExposure) return
     setError(null)
     try {
       await operation()
@@ -121,7 +126,12 @@ export function FormSharePanel({
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Публикация и доступ</DialogTitle>
       <DialogContent>
-        <Stack spacing={2.25} sx={{ pt: 0.5 }}>
+        <Stack
+          component="fieldset"
+          disabled={!canManageExposure}
+          spacing={2.25}
+          sx={{ pt: 0.5, m: 0, p: 0, border: 0 }}
+        >
           <Alert
             severity={
               form.state === 'DRAFT' ? 'info' : form.state === 'OPEN' ? 'success' : 'warning'
@@ -272,8 +282,12 @@ export function FormSharePanel({
             control={
               <Checkbox
                 checked={hideBranding}
-                disabled={!features.formBrandingRemovalEnabled}
-                onChange={(_, checked) => onBrandingChange(checked)}
+                disabled={
+                  !canManageExposure || !canEditDraft || !features.formBrandingRemovalEnabled
+                }
+                onChange={(_, checked) => {
+                  if (canManageExposure) onBrandingChange(checked)
+                }}
               />
             }
             label="Скрыть брендинг AnyNote"
@@ -305,7 +319,12 @@ export function FormSharePanel({
                 Открыть форму
               </Button>
             ) : null}
-            <Button variant="text" color="warning" onClick={() => setConfirmRotate(true)}>
+            <Button
+              variant="text"
+              color="warning"
+              disabled={!canManageExposure}
+              onClick={() => setConfirmRotate(true)}
+            >
               Сменить секретную ссылку
             </Button>
           </Stack>
@@ -323,6 +342,7 @@ export function FormSharePanel({
           <Button onClick={() => setConfirmRotate(false)}>Отмена</Button>
           <Button
             color="warning"
+            disabled={!canManageExposure}
             onClick={() => {
               setConfirmRotate(false)
               void run(() => rotateKey.mutateAsync({ pageId, formId: form.id }))

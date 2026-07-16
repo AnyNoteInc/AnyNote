@@ -20,21 +20,29 @@ export type FormAnswerValues = { answers: Record<string, unknown> }
 
 interface FormFieldProps {
   readonly question: PublicFormQuestion
+  readonly fieldKey: string
   readonly control: Control<FormAnswerValues>
   readonly register: UseFormRegister<FormAnswerValues>
   readonly errors: FieldErrors<FormAnswerValues>
   readonly disabled?: boolean
 }
 
-function errorFor(errors: FieldErrors<FormAnswerValues>, questionId: string): string | undefined {
-  const issue = errors.answers?.[questionId]
+function errorFor(errors: FieldErrors<FormAnswerValues>, fieldKey: string): string | undefined {
+  const issue = errors.answers?.[fieldKey]
   return typeof issue?.message === 'string' ? issue.message : undefined
 }
 
-export function FormField({ question, control, register, errors, disabled }: FormFieldProps) {
+export function FormField({
+  question,
+  fieldKey,
+  control,
+  register,
+  errors,
+  disabled,
+}: FormFieldProps) {
   const input = question.input
-  const name = `answers.${question.id}` as const
-  const error = errorFor(errors, question.id)
+  const name = `answers.${fieldKey}` as const
+  const error = errorFor(errors, fieldKey)
   const label = `${question.label}${question.required ? ' *' : ''}`
   const helper = error ?? question.description
 

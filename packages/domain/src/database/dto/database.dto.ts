@@ -372,6 +372,8 @@ export interface DatabasePropertyView {
   name: string
   position: number
   settings: PropertySettings | null
+  /** Derived server-side for RELATION properties; null means the target source is missing. */
+  relationTargetWorkspaceId?: string | null
 }
 
 export interface DatabaseRowView {
@@ -426,6 +428,7 @@ export interface AccessRuleView {
 export interface MyDatabaseAccess {
   canEditContent: boolean
   canEditStructure: boolean
+  canManageExposure: boolean
   structureLocked: boolean
 }
 

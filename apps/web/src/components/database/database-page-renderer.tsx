@@ -120,6 +120,7 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
   // content rights (per-row gating is a documented follow-up — see ViewDispatch).
   const canEditContent = editable && schema.myAccess.canEditContent
   const canEditStructure = editable && schema.myAccess.canEditStructure
+  const canManageExposure = editable && schema.myAccess.canManageExposure
 
   return (
     // Provide the active view's id so the shared cell editors patch the right
@@ -141,6 +142,7 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
             view={activeView}
             editable={canEditContent}
             canEditStructure={canEditStructure}
+            canManageExposure={canManageExposure}
           />
         </Stack>
         {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
@@ -162,12 +164,14 @@ function ViewDispatch({
   view,
   editable,
   canEditStructure,
+  canManageExposure,
 }: {
   readonly pageId: string
   readonly schema: DatabaseSchema
   readonly view: DatabaseViewEntry
   readonly editable: boolean
   readonly canEditStructure: boolean
+  readonly canManageExposure: boolean
 }) {
   const props: DatabaseViewProps = {
     pageId,
@@ -181,7 +185,15 @@ function ViewDispatch({
   }
   switch (view.type) {
     case 'FORM':
-      return <FormBuilder pageId={pageId} formViewId={view.id} editable={canEditStructure} />
+      return (
+        <FormBuilder
+          pageId={pageId}
+          formViewId={view.id}
+          canEditStructure={canEditStructure}
+          canManageExposure={canManageExposure}
+          canEditContent={editable}
+        />
+      )
     case 'BOARD':
       return <DatabaseBoardView {...props} />
     case 'CALENDAR':

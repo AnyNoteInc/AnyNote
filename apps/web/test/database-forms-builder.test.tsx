@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   updateProperty: vi.fn(),
   publish: vi.fn(),
   routerReplace: vi.fn(),
+  refetchSchema: vi.fn(async () => ({ data: undefined })),
   currentForm: null as unknown,
 }))
 
@@ -111,7 +112,14 @@ vi.mock('@/trpc/client', () => ({
           refetch: vi.fn(async () => ({ data: mocks.currentForm ?? managedForm })),
         }),
       },
-      getByPage: { useQuery: () => ({ data: undefined, isLoading: false, error: null }) },
+      getByPage: {
+        useQuery: () => ({
+          data: undefined,
+          isLoading: false,
+          error: null,
+          refetch: mocks.refetchSchema,
+        }),
+      },
       createForm: { useMutation: () => ({ mutate: mocks.createForm }) },
       createView: { useMutation: () => ({ mutate: mocks.createView }) },
       updateView: { useMutation: () => ({ mutate: vi.fn() }) },
@@ -175,6 +183,7 @@ describe('database FORM UI', () => {
         myAccess={{
           canEditContent: true,
           canEditStructure: true,
+          canManageExposure: true,
           structureLocked: false,
         }}
       />,
@@ -207,6 +216,64 @@ describe('database FORM UI', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+  })
+
+  it('keeps viewing available while disabling every form mutation without its capability', () => {
+    mocks.currentForm = {
+      ...managedForm,
+      draftSchema: {
+        ...invalidDocument,
+        transitions: [
+          {
+            ...invalidDocument.transitions[0]!,
+            target: { kind: 'ENDING' as const, endingId: 'ending-1' },
+          },
+        ],
+      },
+    }
+
+    render(
+      <FormBuilder
+        pageId="66666666-6666-4666-8666-666666666666"
+        formViewId="33333333-3333-4333-8333-333333333333"
+        canEditStructure={false}
+        canManageExposure={false}
+        canEditContent={false}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Предпросмотр' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Ответы/u })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Поделиться' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Опубликовать' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Добавить раздел' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Добавить завершение' })).toBeDisabled()
+    expect(screen.getByLabelText('Название раздела')).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Название раздела'), {
+      target: { value: 'Unauthorized local edit' },
+    })
+    expect(screen.getByLabelText('Название раздела')).toHaveValue('Вопросы')
+    expect(screen.getByText('Только просмотр')).toBeInTheDocument()
+  })
+
+  it('disables exposure mutations if that capability is revoked while the dialog is open', async () => {
+    const actor = userEvent.setup()
+    const props = {
+      pageId: '66666666-6666-4666-8666-666666666666',
+      formViewId: '33333333-3333-4333-8333-333333333333',
+      canEditStructure: true,
+      canEditContent: true,
+    }
+    const { rerender } = render(<FormBuilder {...props} canManageExposure />)
+
+    await actor.click(screen.getByRole('button', { name: 'Поделиться' }))
+    expect(screen.getByRole('dialog', { name: 'Публикация и доступ' })).toBeInTheDocument()
+
+    rerender(<FormBuilder {...props} canManageExposure={false} />)
+    expect(screen.getByRole('dialog', { name: 'Публикация и доступ' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Сохранить настройки' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Сменить секретную ссылку' })).toBeDisabled()
+    expect(screen.getByLabelText('Свой адрес')).toBeDisabled()
   })
 
   it('stops the 700ms autosave and exposes recovery actions after a stale revision conflict', async () => {
@@ -245,7 +312,7 @@ describe('database FORM UI', () => {
     }
   })
 
-  it('renames a synced property before the draft and retries without reporting a false save', async () => {
+  it('saves synced property rename intents atomically with the draft and retries as one mutation', async () => {
     vi.useFakeTimers()
     const propertyDocument: FormVersionDocument = {
       ...invalidDocument,
@@ -278,10 +345,9 @@ describe('database FORM UI', () => {
       },
     }
     mocks.currentForm = propertyForm
-    mocks.updateProperty
+    mocks.updateDraft
       .mockRejectedValueOnce(new Error('Свойство временно недоступно'))
-      .mockResolvedValueOnce({})
-    mocks.updateDraft.mockResolvedValueOnce({ ...propertyForm, draftRevision: 4 })
+      .mockResolvedValueOnce({ ...propertyForm, draftRevision: 4 })
 
     try {
       render(
@@ -297,10 +363,17 @@ describe('database FORM UI', () => {
 
       await act(async () => vi.advanceTimersByTimeAsync(700))
       expect(screen.getByText('Свойство временно недоступно')).toBeInTheDocument()
-      expect(mocks.updateDraft).not.toHaveBeenCalled()
+      expect(mocks.updateDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          propertyNameIntents: {
+            '77777777-7777-4777-8777-777777777777': 'Как вас зовут?',
+          },
+        }),
+      )
+      expect(mocks.updateProperty).not.toHaveBeenCalled()
 
       await act(async () => vi.advanceTimersByTimeAsync(700))
-      expect(mocks.updateProperty).toHaveBeenCalledTimes(2)
+      expect(mocks.updateDraft).toHaveBeenCalledTimes(2)
       expect(mocks.updateDraft).toHaveBeenCalledWith(
         expect.objectContaining({
           expectedRevision: 3,
@@ -309,10 +382,9 @@ describe('database FORM UI', () => {
           }),
         }),
       )
-      expect(mocks.updateProperty.mock.invocationCallOrder[1]).toBeLessThan(
-        mocks.updateDraft.mock.invocationCallOrder[0]!,
-      )
+      expect(mocks.updateProperty).not.toHaveBeenCalled()
       expect(screen.getByText('Сохранено')).toBeInTheDocument()
+      expect(mocks.refetchSchema).toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
     }

@@ -263,6 +263,7 @@ describe('database access rules + structure lock router (integration)', () => {
     expect(before.myAccess).toEqual({
       canEditContent: true, // a workspace EDITOR with no rules → source-level content edit
       canEditStructure: false, // a plain EDITOR is never a structure editor
+      canManageExposure: false,
       structureLocked: false,
     })
 

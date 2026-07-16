@@ -54,6 +54,7 @@ function validate(
     document,
     properties: [textProperty],
     audience: 'ANYONE_WITH_LINK',
+    sourceWorkspaceId: 'workspace-1',
     customSlug: null,
     features,
     ...overrides,
@@ -269,6 +270,36 @@ describe('validateFormPublishReadiness', () => {
       )
     },
   )
+
+  it.each([
+    { targetWorkspaceId: null, code: 'FORM_RELATION_TARGET_NOT_FOUND' },
+    { targetWorkspaceId: 'workspace-2', code: 'FORM_RELATION_TARGET_WORKSPACE_MISMATCH' },
+  ])('rejects an unavailable relation target: $code', ({ targetWorkspaceId, code }) => {
+    const document: FormVersionDocument = {
+      ...documentFixture(),
+      questions: [
+        {
+          ...documentFixture().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'RELATION' },
+          input: { kind: 'RELATION', maxSelections: 1 },
+        },
+      ],
+    }
+
+    const result = validate(document, {
+      audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      properties: [
+        {
+          id: 'property-1',
+          type: 'RELATION',
+          settings: { relation: { targetSourceId: 'target-1' } },
+          relationTargetWorkspaceId: targetWorkspaceId,
+        },
+      ],
+    })
+
+    expect(result.issues).toContainEqual(expect.objectContaining({ code, entityId: 'question-1' }))
+  })
 
   it('applies the conditional-logic gate to conditional transitions and multiple endings', () => {
     const document: FormVersionDocument = {

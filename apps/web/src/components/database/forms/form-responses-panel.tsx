@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -45,6 +46,7 @@ export function FormResponsesPanel({
     { pageId, formId, limit: 25 },
     {
       enabled: open,
+      retry: 2,
       getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     },
   )
@@ -69,6 +71,15 @@ export function FormResponsesPanel({
           {responses.isLoading ? (
             <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 260 }}>
               <CircularProgress />
+            </Box>
+          ) : responses.error ? (
+            <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 260 }}>
+              <Alert
+                severity="error"
+                action={<Button onClick={() => responses.refetch()}>Повторить</Button>}
+              >
+                Не удалось загрузить ответы
+              </Alert>
             </Box>
           ) : items.length === 0 ? (
             <Box

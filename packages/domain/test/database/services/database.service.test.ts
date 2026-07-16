@@ -74,6 +74,7 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     findLinkableRows: vi.fn(async () => []),
     findUserNames: vi.fn(async () => new Map()),
     findRowWorkspaceIds: vi.fn(async () => new Map()),
+    findSourceWorkspaceIds: vi.fn(async () => new Map()),
     findSourceWorkspaceId: vi.fn(async () => 'w1'),
     // Phase 4C: access-rule + resolver-context surface.
     listAccessRules: vi.fn(async () => []),
@@ -1990,7 +1991,12 @@ describe('DatabaseService.getMyAccess', () => {
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
-    expect(my).toEqual({ canEditContent: true, canEditStructure: true, structureLocked: false })
+    expect(my).toEqual({
+      canEditContent: true,
+      canEditStructure: true,
+      canManageExposure: true,
+      structureLocked: false,
+    })
   })
 
   it('reports content-edit but NOT structure-edit for a non-creator EDITOR', async () => {
@@ -2001,7 +2007,12 @@ describe('DatabaseService.getMyAccess', () => {
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
-    expect(my).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: false })
+    expect(my).toEqual({
+      canEditContent: true,
+      canEditStructure: false,
+      canManageExposure: false,
+      structureLocked: false,
+    })
   })
 
   it('reports structureLocked + no structure-edit for an EDITOR when locked', async () => {
@@ -2012,7 +2023,12 @@ describe('DatabaseService.getMyAccess', () => {
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
-    expect(my).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: true })
+    expect(my).toEqual({
+      canEditContent: true,
+      canEditStructure: false,
+      canManageExposure: false,
+      structureLocked: true,
+    })
   })
 
   it('reports no content-edit for a VIEWER', async () => {
@@ -2023,7 +2039,12 @@ describe('DatabaseService.getMyAccess', () => {
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
-    expect(my).toEqual({ canEditContent: false, canEditStructure: false, structureLocked: false })
+    expect(my).toEqual({
+      canEditContent: false,
+      canEditStructure: false,
+      canManageExposure: false,
+      structureLocked: false,
+    })
   })
 
   it('is surfaced in getByPage.myAccess', async () => {
@@ -2034,7 +2055,47 @@ describe('DatabaseService.getMyAccess', () => {
       })),
     })
     const vm = await makeService(repo).getByPage('u1', 'db-page')
-    expect(vm.myAccess).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: false })
+    expect(vm.myAccess).toEqual({
+      canEditContent: true,
+      canEditStructure: false,
+      canManageExposure: false,
+      structureLocked: false,
+    })
+  })
+})
+
+describe('DatabaseService.getByPage relation workspace metadata', () => {
+  it('derives relation target workspaces in one deduplicated repository lookup', async () => {
+    const repo = makeRepo({
+      findSourceSchemaByPageId: vi.fn(async () => ({
+        source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
+        views: [],
+        properties: [
+          {
+            id: 'relation-1', type: 'RELATION', name: 'Project', position: 0,
+            settings: { relation: { targetSourceId: 'target-1' } },
+          },
+          {
+            id: 'relation-2', type: 'RELATION', name: 'Project copy', position: 1,
+            settings: { relation: { targetSourceId: 'target-1' } },
+          },
+          {
+            id: 'relation-missing', type: 'RELATION', name: 'Missing', position: 2,
+            settings: { relation: { targetSourceId: 'target-missing' } },
+          },
+        ],
+      })),
+      findSourceWorkspaceIds: vi.fn(async () => new Map([['target-1', 'w1']])),
+    })
+
+    const result = await makeService(repo).getByPage('u1', 'db-page')
+
+    expect(repo.findSourceWorkspaceIds).toHaveBeenCalledWith(['target-1', 'target-missing'])
+    expect(result.properties).toEqual([
+      expect.objectContaining({ id: 'relation-1', relationTargetWorkspaceId: 'w1' }),
+      expect.objectContaining({ id: 'relation-2', relationTargetWorkspaceId: 'w1' }),
+      expect.objectContaining({ id: 'relation-missing', relationTargetWorkspaceId: null }),
+    ])
   })
 })
 

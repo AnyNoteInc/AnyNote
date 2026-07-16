@@ -221,12 +221,17 @@ export class DatabaseFormService {
       await this.lockSource(initial.sourceId)
       const form = await this.requireManageableForm(actorUserId, input)
       if (form.state === 'ARCHIVED') throw badRequest('FORM_ARCHIVED')
+      const propertyNameIntents = input.propertyNameIntents ?? {}
+      this.validatePropertyNameIntents(form, document, propertyNameIntents)
       const updated = await this.repo.updateDraftIfRevision({
         formId: form.id,
         expectedRevision: input.expectedRevision,
         draftSchema: input.schema,
       })
       if (updated === null) throw conflict('FORM_DRAFT_CONFLICT')
+      for (const [propertyId, name] of Object.entries(propertyNameIntents)) {
+        await this.databaseRepo.updateProperty(propertyId, { name })
+      }
       let previousBranding: boolean | undefined
       try {
         previousBranding = parseFormVersionDocument(form.draftSchema).presentation
@@ -249,6 +254,26 @@ export class DatabaseFormService {
       }
       return updated
     })
+  }
+
+  private validatePropertyNameIntents(
+    form: ManagedFormRecord,
+    document: FormVersionDocument,
+    intents: Readonly<Record<string, string>>,
+  ): void {
+    const sourcePropertyIds = new Set(form.source.properties.map(({ id }) => id))
+    for (const [propertyId, name] of Object.entries(intents)) {
+      const matchingQuestion = document.questions.some(
+        (question) =>
+          question.property.kind === 'PROPERTY' &&
+          question.property.propertyId === propertyId &&
+          question.syncWithPropertyName &&
+          question.label === name,
+      )
+      if (!sourcePropertyIds.has(propertyId) || !matchingQuestion) {
+        throw badRequest('FORM_PROPERTY_RENAME_INTENT_INVALID')
+      }
+    }
   }
 
   async publish(actorUserId: string, input: PublishFormInput): Promise<PublishedFormResult> {

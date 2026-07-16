@@ -224,6 +224,7 @@ function makeHarness(
     lockSourceForStructureMutation: vi.fn(async () => true),
     findSourceWorkspaceId: vi.fn(async () => null),
     findSourceWorkspaceIds: vi.fn(async () => new Map<string, string>()),
+    updateProperty: vi.fn(async () => ({ id: 'property', name: 'Renamed' })),
     ...options.databaseRepo,
   } as unknown as DatabaseRepository
   const transaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
@@ -311,6 +312,119 @@ describe('DatabaseFormService lifecycle', () => {
         schema: linearDocument(),
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_DRAFT_CONFLICT' })
+  })
+
+  it('updates the draft CAS before applying validated synced property rename intents', async () => {
+    const propertyId = '00000000-0000-7000-8000-000000000070'
+    const document = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId, propertyType: 'TEXT' },
+          label: 'Renamed property',
+          syncWithPropertyName: true,
+        },
+      ],
+    })
+    const form = managedForm({
+      draftSchema: document,
+      source: {
+        ...managedForm().source,
+        properties: [
+          { id: propertyId, type: 'TEXT', name: 'Old property', position: 1024, settings: null },
+        ],
+      },
+    })
+    const { service, formRepo, databaseRepo } = makeHarness({ form })
+
+    await service.updateDraft('00000000-0000-7000-8000-000000000001', {
+      pageId: form.source.pageId,
+      formId: form.id,
+      expectedRevision: 1,
+      schema: document,
+      propertyNameIntents: { [propertyId]: 'Renamed property' },
+    })
+
+    expect(formRepo.updateDraftIfRevision).toHaveBeenCalledOnce()
+    expect(databaseRepo.updateProperty).toHaveBeenCalledWith(propertyId, {
+      name: 'Renamed property',
+    })
+    expect(formRepo.updateDraftIfRevision.mock.invocationCallOrder[0]).toBeLessThan(
+      databaseRepo.updateProperty.mock.invocationCallOrder[0]!,
+    )
+  })
+
+  it('does not rename a property when the draft CAS conflicts', async () => {
+    const propertyId = '00000000-0000-7000-8000-000000000070'
+    const document = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId, propertyType: 'TEXT' },
+          label: 'Renamed property',
+          syncWithPropertyName: true,
+        },
+      ],
+    })
+    const form = managedForm({
+      draftSchema: document,
+      source: {
+        ...managedForm().source,
+        properties: [
+          { id: propertyId, type: 'TEXT', name: 'Old property', position: 1024, settings: null },
+        ],
+      },
+    })
+    const { service, databaseRepo } = makeHarness({
+      form,
+      formRepo: { updateDraftIfRevision: vi.fn(async () => null) },
+    })
+
+    await expect(
+      service.updateDraft('00000000-0000-7000-8000-000000000001', {
+        pageId: form.source.pageId,
+        formId: form.id,
+        expectedRevision: 1,
+        schema: document,
+        propertyNameIntents: { [propertyId]: 'Renamed property' },
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_DRAFT_CONFLICT' })
+    expect(databaseRepo.updateProperty).not.toHaveBeenCalled()
+  })
+
+  it('rejects a rename intent that is not represented by an opted-in matching question', async () => {
+    const propertyId = '00000000-0000-7000-8000-000000000070'
+    const document = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId, propertyType: 'TEXT' },
+          label: 'Question label',
+          syncWithPropertyName: false,
+        },
+      ],
+    })
+    const form = managedForm({
+      source: {
+        ...managedForm().source,
+        properties: [
+          { id: propertyId, type: 'TEXT', name: 'Old property', position: 1024, settings: null },
+        ],
+      },
+    })
+    const { service, formRepo, databaseRepo } = makeHarness({ form })
+
+    await expect(
+      service.updateDraft('00000000-0000-7000-8000-000000000001', {
+        pageId: form.source.pageId,
+        formId: form.id,
+        expectedRevision: 1,
+        schema: document,
+        propertyNameIntents: { [propertyId]: 'Different name' },
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_PROPERTY_RENAME_INTENT_INVALID' })
+    expect(formRepo.updateDraftIfRevision).not.toHaveBeenCalled()
+    expect(databaseRepo.updateProperty).not.toHaveBeenCalled()
   })
 
   it('audits a branding setting change without storing the draft schema or labels', async () => {

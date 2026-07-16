@@ -19,6 +19,7 @@ export interface FormPublishProperty {
   id: string
   type: string
   settings: unknown
+  relationTargetWorkspaceId?: string | null
 }
 
 export interface FormPublishPlanFeatures {
@@ -30,6 +31,7 @@ export interface FormPublishPlanFeatures {
 export interface FormPublishReadinessInput {
   document: unknown
   properties: readonly FormPublishProperty[]
+  sourceWorkspaceId: string
   audience: 'ANYONE_WITH_LINK' | 'SIGNED_IN_WITH_LINK' | 'WORKSPACE_MEMBERS_WITH_LINK'
   customSlug: string | null
   features: FormPublishPlanFeatures
@@ -90,6 +92,7 @@ const includesSnapshotOptionIds = (
 const validateProperties = (
   document: FormVersionDocument,
   properties: readonly FormPublishProperty[],
+  sourceWorkspaceId: string,
 ): FormPublishReadinessIssue[] => {
   const issues: FormPublishReadinessIssue[] = []
   const propertiesById = new Map(properties.map((property) => [property.id, property]))
@@ -119,6 +122,27 @@ const validateProperties = (
         ),
       )
       return
+    }
+    if (property.type === 'RELATION') {
+      if (property.relationTargetWorkspaceId == null) {
+        issues.push(
+          issue(
+            'FORM_RELATION_TARGET_NOT_FOUND',
+            [...path, 'propertyId'],
+            'The relation target database no longer exists.',
+            question.id,
+          ),
+        )
+      } else if (property.relationTargetWorkspaceId !== sourceWorkspaceId) {
+        issues.push(
+          issue(
+            'FORM_RELATION_TARGET_WORKSPACE_MISMATCH',
+            [...path, 'propertyId'],
+            'The relation target database belongs to another workspace.',
+            question.id,
+          ),
+        )
+      }
     }
     if (
       (question.input.kind === 'SINGLE_CHOICE' || question.input.kind === 'MULTI_CHOICE') &&
@@ -211,6 +235,7 @@ const validatePlan = (
 export function validateFormPublishReadiness({
   document: input,
   properties,
+  sourceWorkspaceId,
   audience,
   customSlug,
   features,
@@ -248,7 +273,7 @@ export function validateFormPublishReadiness({
     }
   })
 
-  issues.push(...validateProperties(parsed.data, properties))
+  issues.push(...validateProperties(parsed.data, properties, sourceWorkspaceId))
   issues.push(...validateAudience(parsed.data, audience))
   issues.push(...validatePlan(parsed.data, customSlug, features))
 

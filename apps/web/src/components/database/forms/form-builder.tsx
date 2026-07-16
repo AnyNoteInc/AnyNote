@@ -34,7 +34,9 @@ import { validateFormPublishReadiness } from './form-builder-validation'
 interface FormBuilderProps {
   readonly pageId: string
   readonly formViewId: string
-  readonly editable?: boolean
+  readonly canEditStructure?: boolean
+  readonly canManageExposure?: boolean
+  readonly canEditContent?: boolean
 }
 
 const FORM_LOOKUP_PLACEHOLDER = '00000000-0000-4000-8000-000000000000'
@@ -45,6 +47,12 @@ function isConflict(error: unknown): boolean {
   return candidate.data?.code === 'CONFLICT' || candidate.message === 'FORM_DRAFT_CONFLICT'
 }
 
+function relationTargetWorkspaceIdOf(property: object): string | null | undefined {
+  if (!('relationTargetWorkspaceId' in property)) return undefined
+  const value = property.relationTargetWorkspaceId
+  return typeof value === 'string' || value === null ? value : undefined
+}
+
 function LoadingState() {
   return (
     <Box sx={{ height: '100%', display: 'grid', placeItems: 'center' }}>
@@ -53,7 +61,13 @@ function LoadingState() {
   )
 }
 
-export function FormBuilder({ pageId, formViewId, editable = true }: FormBuilderProps) {
+export function FormBuilder({
+  pageId,
+  formViewId,
+  canEditStructure = true,
+  canManageExposure = true,
+  canEditContent = true,
+}: FormBuilderProps) {
   const forms = trpc.database.listForms.useQuery({ pageId })
   const formEntries = forms.data as readonly { id: string; viewId: string | null }[] | undefined
   const formId = formEntries?.find(({ viewId }) => viewId === formViewId)?.id
@@ -80,8 +94,11 @@ export function FormBuilder({ pageId, formViewId, editable = true }: FormBuilder
         initialForm={form}
         initialDocument={document}
         schema={schema}
-        editable={editable}
+        canEditStructure={canEditStructure}
+        canManageExposure={canManageExposure}
+        canEditContent={canEditContent}
         refetchForm={formQuery.refetch as () => Promise<{ data?: DatabaseManagedForm }>}
+        refetchSchema={schemaQuery.refetch as () => Promise<unknown>}
       />
     )
   } catch {
@@ -95,16 +112,22 @@ function LoadedFormBuilder({
   initialForm,
   initialDocument,
   schema,
-  editable,
+  canEditStructure,
+  canManageExposure,
+  canEditContent,
   refetchForm,
+  refetchSchema,
 }: {
   pageId: string
   formViewId: string
   initialForm: DatabaseManagedForm
   initialDocument: FormVersionDocument
   schema: DatabaseSchema | undefined
-  editable: boolean
+  canEditStructure: boolean
+  canManageExposure: boolean
+  canEditContent: boolean
   refetchForm: () => Promise<{ data?: DatabaseManagedForm }>
+  refetchSchema: () => Promise<unknown>
 }) {
   const theme = useTheme()
   const desktop = !useMediaQuery(theme.breakpoints.down('lg'))
@@ -122,21 +145,31 @@ function LoadedFormBuilder({
 
   const updateDraft = trpc.database.updateFormDraft.useMutation()
   const publish = trpc.database.publishForm.useMutation()
-  const updateProperty = trpc.database.updateProperty.useMutation()
   const readiness = useMemo(
     () =>
       validateFormPublishReadiness({
         document: state.document,
-        properties: form.source.properties.map((property) => ({
+        properties: (schema?.properties ?? form.source.properties).map((property) => ({
           id: property.id,
           type: property.type,
           settings: property.settings ?? null,
+          relationTargetWorkspaceId: relationTargetWorkspaceIdOf(property),
         })),
+        sourceWorkspaceId: form.source.workspaceId ?? schema?.source.workspaceId ?? '',
         audience: form.audience,
         customSlug: form.customSlug,
         features,
       }),
-    [features, form.audience, form.customSlug, form.source.properties, state.document],
+    [
+      features,
+      form.audience,
+      form.customSlug,
+      form.source.properties,
+      form.source.workspaceId,
+      schema?.properties,
+      schema?.source.workspaceId,
+      state.document,
+    ],
   )
 
   useEffect(
@@ -147,7 +180,8 @@ function LoadedFormBuilder({
   )
 
   useEffect(() => {
-    if (!editable || !state.dirty || state.saveState === 'conflict' || inFlightRef.current) return
+    if (!canEditStructure || !state.dirty || state.saveState === 'conflict' || inFlightRef.current)
+      return
     const saveGeneration = state.generation
     const expectedRevision = state.serverRevision
     const document = state.document
@@ -156,24 +190,24 @@ function LoadedFormBuilder({
       dispatch({ type: 'SAVE_STARTED', generation: saveGeneration })
       try {
         const intents = Object.entries(state.propertyNameIntents)
-        for (const [id, name] of intents) {
-          await updateProperty.mutateAsync({ pageId, id, name })
-          if (!mountedRef.current) return
-          dispatch({ type: 'PROPERTY_RENAME_CONFIRMED', propertyId: id, name })
-        }
         const updated = await updateDraft.mutateAsync({
           pageId,
           formId: form.id,
           expectedRevision,
           schema: document,
+          propertyNameIntents: Object.fromEntries(intents),
         })
         if (!mountedRef.current) return
+        for (const [propertyId, name] of intents) {
+          dispatch({ type: 'PROPERTY_RENAME_CONFIRMED', propertyId, name })
+        }
         setForm(updated)
         dispatch({
           type: 'SAVE_CONFIRMED',
           generation: saveGeneration,
           revision: updated.draftRevision,
         })
+        if (intents.length > 0) void refetchSchema()
       } catch (error) {
         if (!mountedRef.current) return
         dispatch(
@@ -190,7 +224,7 @@ function LoadedFormBuilder({
     }, 700)
     return () => window.clearTimeout(timer)
   }, [
-    editable,
+    canEditStructure,
     form.id,
     pageId,
     state.dirty,
@@ -199,13 +233,14 @@ function LoadedFormBuilder({
     state.propertyNameIntents,
     state.saveState,
     state.serverRevision,
+    refetchSchema,
     updateDraft,
-    updateProperty,
   ])
 
   async function refresh() {
     const result = await refetchForm()
     if (result.data) setForm(result.data)
+    void refetchSchema()
   }
 
   async function reloadServer() {
@@ -217,7 +252,7 @@ function LoadedFormBuilder({
   }
 
   async function publishForm() {
-    if (!readiness.ok || state.dirty || state.saveState !== 'idle') return
+    if (!canManageExposure || !readiness.ok || state.dirty || state.saveState !== 'idle') return
     setPublishError(null)
     try {
       const published = await publish.mutateAsync({ pageId, formId: form.id })
@@ -282,16 +317,25 @@ function LoadedFormBuilder({
         <Button onClick={() => setResponsesOpen(true)}>
           Ответы {form.acceptedResponses > 0 ? `· ${form.acceptedResponses}` : ''}
         </Button>
-        <Button onClick={() => setShareOpen(true)}>Поделиться</Button>
+        <Button disabled={!canManageExposure} onClick={() => setShareOpen(true)}>
+          Поделиться
+        </Button>
         <Button
           variant="contained"
           startIcon={<PublishIcon />}
-          disabled={!readiness.ok || state.dirty || state.saveState !== 'idle' || publish.isPending}
+          disabled={
+            !canManageExposure ||
+            !readiness.ok ||
+            state.dirty ||
+            state.saveState !== 'idle' ||
+            publish.isPending
+          }
           onClick={() => void publishForm()}
         >
           Опубликовать
         </Button>
       </Stack>
+      {!canEditStructure ? <Alert severity="info">Только просмотр</Alert> : null}
       {!readiness.ok ? (
         <Alert severity="warning" variant="outlined">
           Публикация недоступна: найдено проблем — {readiness.issues.length}. Они отмечены в
@@ -346,7 +390,10 @@ function LoadedFormBuilder({
           state={state}
           properties={form.source.properties}
           issues={readiness.issues}
-          dispatch={dispatch}
+          editable={canEditStructure}
+          dispatch={(action) => {
+            if (canEditStructure || action.type === 'ITEM_SELECTED') dispatch(action)
+          }}
           onPropertyCreated={refresh}
         />
         <FormPreviewCanvas state={state} dispatch={dispatch} />
@@ -355,7 +402,10 @@ function LoadedFormBuilder({
           issues={readiness.issues}
           properties={form.source.properties}
           conditionalLogicEnabled={features.formConditionalLogicEnabled}
-          dispatch={dispatch}
+          editable={canEditStructure}
+          dispatch={(action) => {
+            if (canEditStructure) dispatch(action)
+          }}
         />
       </Box>
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="lg" fullWidth>
@@ -370,6 +420,8 @@ function LoadedFormBuilder({
         form={form}
         draftDocument={state.document}
         hideBranding={state.document.presentation.hideAnyNoteBranding}
+        canEditDraft={canEditStructure}
+        canManageExposure={canManageExposure}
         onClose={() => setShareOpen(false)}
         onChanged={refresh}
         onBrandingChange={(hidden) =>
@@ -383,7 +435,7 @@ function LoadedFormBuilder({
           formId={form.id}
           formViewId={formViewId}
           schema={schema}
-          editable={editable}
+          editable={canEditContent}
           onClose={() => setResponsesOpen(false)}
         />
       ) : null}

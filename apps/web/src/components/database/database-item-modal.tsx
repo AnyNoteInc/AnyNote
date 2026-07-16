@@ -83,7 +83,7 @@ export function DatabaseItemModal({
 
   // Resolve the row from the active view's listRows cache (the same paginated
   // query the table reads), so the modal and table share one source of truth.
-  const { rows } = useViewRows(pageId, viewId)
+  const { rows } = useViewRows(pageId, viewId, rowOverride === undefined)
   const row = useMemo(() => {
     if (!rowId) return null
     if (rowOverride?.rowId === rowId) return rowOverride

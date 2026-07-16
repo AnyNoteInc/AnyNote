@@ -1,8 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useForm, type Resolver } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm, type FieldErrors, type Resolver } from 'react-hook-form'
 import { Box, Button, Divider, Stack, Typography } from '@repo/ui/components'
 import {
   buildFormAnswerSchema,
@@ -14,6 +13,7 @@ import {
 } from '@repo/domain/database/forms'
 
 import { FormField } from './form-field'
+import { decodeFormFieldKey, encodeFormFieldKey } from './form-field-key'
 import { FormSectionMap } from './form-section-map'
 
 interface FormRendererProps {
@@ -31,6 +31,17 @@ function isStoredVersion(
   return version.questions.some((question) => 'property' in question)
 }
 
+function toOriginalAnswerEnvelope(values: FormAnswerEnvelope): FormAnswerEnvelope {
+  return {
+    answers: Object.fromEntries(
+      Object.entries(values.answers).map(([fieldKey, value]) => [
+        decodeFormFieldKey(fieldKey),
+        value,
+      ]),
+    ),
+  }
+}
+
 export function FormRenderer({
   version,
   mode,
@@ -44,8 +55,33 @@ export function FormRenderer({
     [version],
   )
   const answerSchema = useMemo(() => buildFormAnswerSchema(publicVersion), [publicVersion])
-  const resolver = useMemo(
-    () => zodResolver(answerSchema as never) as Resolver<FormAnswerEnvelope>,
+  const resolver = useMemo<Resolver<FormAnswerEnvelope>>(
+    () => async (values) => {
+      const result = await answerSchema.safeParseAsync(toOriginalAnswerEnvelope(values))
+      if (result.success) return { values, errors: {} }
+
+      const answerErrors: Record<string, { type: string; message: string }> = {}
+      let rootError: { type: string; message: string } | undefined
+      for (const issue of result.error.issues) {
+        const questionId = issue.path[0] === 'answers' ? issue.path[1] : undefined
+        if (typeof questionId === 'string') {
+          answerErrors[encodeFormFieldKey(questionId)] ??= {
+            type: issue.code,
+            message: issue.message,
+          }
+        } else {
+          rootError ??= { type: issue.code, message: issue.message }
+        }
+      }
+
+      return {
+        values: {},
+        errors: {
+          ...(Object.keys(answerErrors).length > 0 ? { answers: answerErrors } : {}),
+          ...(rootError ? { root: rootError } : {}),
+        } as FieldErrors<FormAnswerEnvelope>,
+      }
+    },
     [answerSchema],
   )
   const [internalLocation, setInternalLocation] = useState<{
@@ -64,7 +100,10 @@ export function FormRenderer({
     defaultValues: { answers: {} },
   })
   const watchedAnswers = watch('answers')
-  const answers = useMemo(() => watchedAnswers ?? {}, [watchedAnswers])
+  const answers = useMemo(
+    () => toOriginalAnswerEnvelope({ answers: watchedAnswers ?? {} }).answers,
+    [watchedAnswers],
+  )
   const questionsById = useMemo(
     () => new Map(publicVersion.questions.map((question) => [question.id, question])),
     [publicVersion.questions],
@@ -95,7 +134,7 @@ export function FormRenderer({
   return (
     <Box
       component="form"
-      onSubmit={handleSubmit(async (values) => onSubmit?.(values))}
+      onSubmit={handleSubmit(async (values) => onSubmit?.(toOriginalAnswerEnvelope(values)))}
       noValidate
       sx={{
         width: '100%',
@@ -187,6 +226,7 @@ export function FormRenderer({
                     <FormField
                       key={question.id}
                       question={question}
+                      fieldKey={encodeFormFieldKey(question.id)}
                       control={control}
                       register={register}
                       errors={errors}

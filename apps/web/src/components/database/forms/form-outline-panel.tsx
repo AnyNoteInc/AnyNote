@@ -34,6 +34,7 @@ interface FormOutlinePanelProps {
   readonly state: FormBuilderState
   readonly properties: readonly FormPropertyOption[]
   readonly issues: readonly FormPublishReadinessIssue[]
+  readonly editable: boolean
   readonly dispatch: React.Dispatch<FormBuilderAction>
   readonly onPropertyCreated?: () => Promise<void> | void
 }
@@ -46,6 +47,7 @@ function OutlineItem({
   onUp,
   onDown,
   onDelete,
+  editable,
 }: {
   selected: boolean
   label: string
@@ -54,6 +56,7 @@ function OutlineItem({
   onUp?: () => void
   onDown?: () => void
   onDelete?: () => void
+  editable: boolean
 }) {
   return (
     <Box
@@ -100,17 +103,32 @@ function OutlineItem({
       </Box>
       <Stack direction="row" sx={{ opacity: selected ? 1 : 0.45 }}>
         {onUp ? (
-          <IconButton size="small" aria-label={`Переместить «${label}» выше`} onClick={onUp}>
+          <IconButton
+            disabled={!editable}
+            size="small"
+            aria-label={`Переместить «${label}» выше`}
+            onClick={onUp}
+          >
             <ArrowUpwardIcon sx={{ fontSize: 15 }} />
           </IconButton>
         ) : null}
         {onDown ? (
-          <IconButton size="small" aria-label={`Переместить «${label}» ниже`} onClick={onDown}>
+          <IconButton
+            disabled={!editable}
+            size="small"
+            aria-label={`Переместить «${label}» ниже`}
+            onClick={onDown}
+          >
             <ArrowDownwardIcon sx={{ fontSize: 15 }} />
           </IconButton>
         ) : null}
         {onDelete ? (
-          <IconButton size="small" aria-label={`Удалить «${label}»`} onClick={onDelete}>
+          <IconButton
+            disabled={!editable}
+            size="small"
+            aria-label={`Удалить «${label}»`}
+            onClick={onDelete}
+          >
             <DeleteOutlineIcon sx={{ fontSize: 16 }} />
           </IconButton>
         ) : null}
@@ -130,6 +148,7 @@ export function FormOutlinePanel({
   state,
   properties,
   issues,
+  editable,
   dispatch,
   onPropertyCreated,
 }: FormOutlinePanelProps) {
@@ -165,6 +184,7 @@ export function FormOutlinePanel({
               selected={selected(state, { kind: 'SECTION', id: section.id })}
               label={section.title}
               meta={`${section.questionIds.length} вопросов${issueCount(section.id) ? ` · ошибок: ${issueCount(section.id)}` : ''}`}
+              editable={editable}
               onSelect={() =>
                 dispatch({ type: 'ITEM_SELECTED', selection: { kind: 'SECTION', id: section.id } })
               }
@@ -204,6 +224,7 @@ export function FormOutlinePanel({
                     selected={selected(state, { kind: 'QUESTION', id: question.id })}
                     label={question.label}
                     meta={`${question.required ? 'Обязательный' : 'Необязательный'}${issueCount(question.id) ? ` · ошибок: ${issueCount(question.id)}` : ''}`}
+                    editable={editable}
                     onSelect={() =>
                       dispatch({
                         type: 'ITEM_SELECTED',
@@ -244,6 +265,7 @@ export function FormOutlinePanel({
             <Button
               size="small"
               startIcon={<AddIcon />}
+              disabled={!editable}
               onClick={() => setQuestionSectionId(section.id)}
               sx={{ ml: 3, mt: 0.5, minHeight: 36, textTransform: 'none' }}
             >
@@ -255,6 +277,7 @@ export function FormOutlinePanel({
           fullWidth
           size="small"
           startIcon={<AddIcon />}
+          disabled={!editable}
           onClick={() => dispatch({ type: 'SECTION_ADDED' })}
           sx={{ minHeight: 40, textTransform: 'none' }}
         >
@@ -273,6 +296,7 @@ export function FormOutlinePanel({
             selected={selected(state, { kind: 'ENDING', id: ending.id })}
             label={ending.title}
             meta={issueCount(ending.id) ? `Ошибок: ${issueCount(ending.id)}` : undefined}
+            editable={editable}
             onSelect={() =>
               dispatch({ type: 'ITEM_SELECTED', selection: { kind: 'ENDING', id: ending.id } })
             }
@@ -297,6 +321,7 @@ export function FormOutlinePanel({
           fullWidth
           size="small"
           startIcon={<AddIcon />}
+          disabled={!editable}
           onClick={() => dispatch({ type: 'ENDING_ADDED' })}
           sx={{ minHeight: 40, textTransform: 'none' }}
         >
@@ -304,7 +329,7 @@ export function FormOutlinePanel({
         </Button>
       </Box>
       <FormPropertyPicker
-        open={questionSectionId !== null}
+        open={editable && questionSectionId !== null}
         pageId={pageId}
         workspaceId={workspaceId}
         selfSourceId={selfSourceId}

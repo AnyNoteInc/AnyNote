@@ -394,6 +394,7 @@ export class DatabaseService {
    * The viewer's source-level capabilities, for UI affordances. The authoritative
    * gate is always server-side; this drives disabling only.
    *  - canEditStructure: `assertCanEditStructure` would pass.
+   *  - canManageExposure: publishing and link/access management would pass.
    *  - canEditContent: owner/admin/creator, OR (no rules → a workspace EDITOR+);
    *    when rules exist a plain member's content rights are per-row, so the
    *    source-level flag stays true only for broad-access viewers + EDITOR-by-role
@@ -406,10 +407,16 @@ export class DatabaseService {
 
     const isOwnerAdmin = role === 'OWNER' || role === 'ADMIN'
     const canEditStructure = isOwnerAdmin || (isCreator && !source.structureLocked)
+    const canManageExposure = canEditStructure
     const canEditContent =
       isOwnerAdmin || isCreator || role === 'EDITOR'
 
-    return { canEditContent, canEditStructure, structureLocked: source.structureLocked }
+    return {
+      canEditContent,
+      canEditStructure,
+      canManageExposure,
+      structureLocked: source.structureLocked,
+    }
   }
 
   // ── Seed ──────────────────────────────────────────────────────────────────────
@@ -465,6 +472,17 @@ export class DatabaseService {
     const loaded = await this.repo.findSourceSchemaByPageId(pageId)
     if (!loaded) throw notFound('База данных не найдена для этой страницы')
     const myAccess = await this.getMyAccess(actorUserId, pageId)
+    const relationTargetSourceIdByPropertyId = new Map<string, string>()
+    for (const property of loaded.properties) {
+      if (property.type !== 'RELATION') continue
+      const relation = asSettings(property.settings)?.relation
+      if (typeof relation?.targetSourceId === 'string') {
+        relationTargetSourceIdByPropertyId.set(property.id, relation.targetSourceId)
+      }
+    }
+    const relationTargetWorkspaceIds = await this.repo.findSourceWorkspaceIds([
+      ...new Set(relationTargetSourceIdByPropertyId.values()),
+    ])
     return {
       source: {
         id: loaded.source.id,
@@ -479,13 +497,24 @@ export class DatabaseService {
         position: v.position,
         settings: v.settings,
       })),
-      properties: loaded.properties.map((p) => ({
-        id: p.id,
-        type: p.type,
-        name: p.name,
-        position: p.position,
-        settings: asSettings(p.settings),
-      })),
+      properties: loaded.properties.map((p) => {
+        const targetSourceId = relationTargetSourceIdByPropertyId.get(p.id)
+        return {
+          id: p.id,
+          type: p.type,
+          name: p.name,
+          position: p.position,
+          settings: asSettings(p.settings),
+          ...(p.type === 'RELATION'
+            ? {
+                relationTargetWorkspaceId:
+                  targetSourceId === undefined
+                    ? null
+                    : (relationTargetWorkspaceIds.get(targetSourceId) ?? null),
+              }
+            : {}),
+        }
+      }),
       systemTitleProperty: { key: 'title', name: 'Название' },
       myAccess,
     }

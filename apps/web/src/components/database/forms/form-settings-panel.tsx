@@ -38,6 +38,7 @@ interface FormSettingsPanelProps {
   readonly issues: readonly FormPublishReadinessIssue[]
   readonly properties: ReadonlyArray<{ id: string; settings?: unknown }>
   readonly conditionalLogicEnabled: boolean
+  readonly editable: boolean
   readonly dispatch: React.Dispatch<FormBuilderAction>
 }
 
@@ -73,6 +74,7 @@ export function FormSettingsPanel({
   issues,
   properties,
   conditionalLogicEnabled,
+  editable,
   dispatch,
 }: FormSettingsPanelProps) {
   const selection = state.selection
@@ -111,9 +113,11 @@ export function FormSettingsPanel({
     ({ entityId }) => entityId === undefined || entityId === selection.id,
   )
   const conditionalTransitions = transitions.filter(({ when }) => when !== null)
+  const propertyId =
+    question?.property.kind === 'PROPERTY' ? question.property.propertyId : undefined
   const questionPersistedOptions =
-    question?.property.kind === 'PROPERTY'
-      ? persistedOptions(properties.find(({ id }) => id === question.property.propertyId)?.settings)
+    propertyId !== undefined
+      ? persistedOptions(properties.find(({ id }) => id === propertyId)?.settings)
       : []
 
   return (
@@ -137,7 +141,12 @@ export function FormSettingsPanel({
           {section ? 'Раздел' : question ? 'Вопрос' : 'Завершение'}
         </Typography>
       </Box>
-      <Stack spacing={2} sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+      <Stack
+        component="fieldset"
+        disabled={!editable}
+        spacing={2}
+        sx={{ flex: 1, overflowY: 'auto', p: 2, m: 0, border: 0, opacity: editable ? 1 : 0.65 }}
+      >
         {contextualIssues.length > 0 ? (
           <Alert severity="error" variant="outlined">
             <Typography variant="body2" sx={{ mb: 0.5, fontWeight: 700 }}>
