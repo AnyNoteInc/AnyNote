@@ -33,6 +33,7 @@ const MAX_REQUEST_BYTES = MAX_FORM_FILE_BYTES + MAX_MULTIPART_OVERHEAD_BYTES
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1_000
 const STORAGE_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 120_000 } as const
 const ALLOWED_FIELDS = new Set(['file', 'versionToken', 'questionId'])
+const UNAVAILABLE_FORM_RATE_KEY = 'unavailable'
 
 type UploadPrisma = Pick<
   PrismaClient,
@@ -133,6 +134,9 @@ function exactMultipartEnvelope(formData: FormData): {
   const tokens = formData.getAll('versionToken')
   const questions = formData.getAll('questionId')
   if (
+    // One initiation leases one file. `maxFiles` is a per-response rule and is
+    // enforced authoritatively over that response's lease-token array at submit;
+    // a global live-lease count would let unrelated respondents block each other.
     files.length !== 1 ||
     tokens.length !== 1 ||
     questions.length !== 1 ||
@@ -221,9 +225,15 @@ function declaredMimeMatchesBytes(mimeType: string, bytes: Uint8Array): boolean 
     }
   }
   if (mimeType.startsWith('text/')) return isUtf8Text(bytes)
-  // Unknown configured binary types remain private and auth-gated after
-  // attachment. Known active/signature families above must always be sniffed.
-  return true
+  if (mimeType === 'application/octet-stream') {
+    return (
+      !isUtf8Text(bytes) &&
+      sniffImageMime(bytes) === null &&
+      !startsWith(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d]) &&
+      !startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])
+    )
+  }
+  return false
 }
 
 function normalizedName(file: File): string {
@@ -284,7 +294,12 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
 
       const clientIp = formClientIp(request.headers)
       const now = dependencies.now()
-      if (!dependencies.rateLimiter.consume('upload-ip', `${locator}:${clientIp}`, now.getTime())) {
+      const actorUserId = await dependencies.getActorUserId()
+      const resolved = await dependencies.formAccess.resolvePublished(locator, actorUserId)
+      const rateFormKey = resolved.status === 'OPEN' ? resolved.form.id : UNAVAILABLE_FORM_RATE_KEY
+      if (
+        !dependencies.rateLimiter.consume('upload-ip', `${rateFormKey}:${clientIp}`, now.getTime())
+      ) {
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }
       try {
@@ -297,10 +312,8 @@ export function createFormUploadHandler(overrides: Partial<UploadDependencies> =
         throw new UploadHttpError(403, 'FORM_PROTECTED')
       }
 
-      const envelope = exactMultipartEnvelope(await boundedFormData(request))
-      const actorUserId = await dependencies.getActorUserId()
-      const resolved = await dependencies.formAccess.resolvePublished(locator, actorUserId)
       if (resolved.status !== 'OPEN') throw new UploadHttpError(404, 'FORM_UPLOAD_UNAVAILABLE')
+      const envelope = exactMultipartEnvelope(await boundedFormData(request))
 
       let token
       try {

@@ -18,6 +18,7 @@ describe('FileUploader', () => {
     pageFile: { create: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
     outboxEvent: { create: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
     page: { findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
+    $queryRaw: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
   } as unknown as PrismaClient
   const mockStorage = {
     put: jest.fn<(...a: unknown[]) => Promise<void>>(),
@@ -35,6 +36,7 @@ describe('FileUploader', () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
     ;(mockPrisma.file.aggregate as jest.Mock).mockReset()
     ;(mockPrisma.workspaceLimit.findUnique as jest.Mock).mockReset()
+    ;(mockPrisma.$queryRaw as jest.Mock).mockReset().mockResolvedValue([{ id: 'w1' }] as never)
     ;(mockStorage.put as jest.Mock).mockReset()
     // Quota defaults: nothing used, a roomy limit — individual tests override.
     ;(mockPrisma.file.aggregate as jest.Mock).mockResolvedValue({
@@ -144,6 +146,19 @@ describe('FileUploader', () => {
       expect(mockPrisma.pageFile.create).toHaveBeenCalledWith({
         data: { pageId: 'p1', fileId: 'f9' },
       })
+      expect(mockPrisma.file.aggregate).toHaveBeenCalledWith({
+        where: {
+          workspaceId: 'w1',
+          OR: [{ status: 'ACTIVE' }, { status: 'PENDING', expiresAt: { gt: expect.any(Date) } }],
+        },
+        _sum: { fileSize: true },
+      })
+      expect((mockPrisma.$queryRaw as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+        (mockPrisma.file.aggregate as jest.Mock).mock.invocationCallOrder[0]!,
+      )
+      expect((mockPrisma.file.aggregate as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+        (mockPrisma.file.create as jest.Mock).mock.invocationCallOrder[0]!,
+      )
     })
 
     it('413s with WORKSPACE_STORAGE_LIMIT when the quota would be exceeded', async () => {

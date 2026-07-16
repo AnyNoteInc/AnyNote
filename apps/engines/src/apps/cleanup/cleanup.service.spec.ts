@@ -52,6 +52,7 @@ describe('CleanupService form upload cleanup', () => {
       consumedRaceId?: string
       sharedPaths?: Set<string>
       deleteFailurePath?: string
+      objectCleanupCommitFailureCall?: number
     } = {},
   ) {
     const leases = [
@@ -80,13 +81,19 @@ describe('CleanupService form upload cleanup', () => {
       databaseFormUpload: { deleteMany: leaseDeleteMany },
       file: { deleteMany: fileDeleteMany, count: fileCount },
     }
+    let transactionCall = 0
     const prisma = {
       databaseFormUpload: {
         findMany: jest.fn(async () => leases),
       },
-      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) =>
-        callback(tx),
-      ),
+      $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => {
+        transactionCall += 1
+        const result = await callback(tx)
+        if (transactionCall === options.objectCleanupCommitFailureCall) {
+          throw new Error('object cleanup commit failed')
+        }
+        return result
+      }),
     }
     const storage = {
       delete: jest.fn(async (path: string) => {
@@ -120,7 +127,7 @@ describe('CleanupService form upload cleanup', () => {
     expect(leaseDeleteMany).toHaveBeenCalledTimes(2)
     expect(fileDeleteMany).toHaveBeenCalledTimes(2)
     expect(storage.delete).toHaveBeenCalledTimes(2)
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(4)
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(6)
     expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
       storage.delete.mock.invocationCallOrder[0]!,
     )
@@ -137,9 +144,21 @@ describe('CleanupService form upload cleanup', () => {
     expect(shared.storage.delete).toHaveBeenCalledWith('forms/b/hash.bin')
 
     const objectFailure = harness({ deleteFailurePath: 'forms/a/hash.bin' })
-    await expect(objectFailure.service.purgeExpiredFormUploads(NOW)).resolves.toBe(1)
+    await expect(objectFailure.service.purgeExpiredFormUploads(NOW)).resolves.toBe(2)
     expect(objectFailure.storage.delete).toHaveBeenCalledWith('forms/a/hash.bin')
     expect(objectFailure.storage.delete).toHaveBeenCalledWith('forms/b/hash.bin')
+  })
+
+  it('does not restore deleted rows when object-cleanup commit fails', async () => {
+    const { service, storage, leaseDeleteMany, fileDeleteMany } = harness({
+      objectCleanupCommitFailureCall: 2,
+    })
+
+    await expect(service.purgeExpiredFormUploads(NOW)).resolves.toBe(2)
+    expect(leaseDeleteMany).toHaveBeenCalledTimes(2)
+    expect(fileDeleteMany).toHaveBeenCalledTimes(2)
+    expect(storage.delete).toHaveBeenCalledWith('forms/a/hash.bin')
+    expect(storage.delete).toHaveBeenCalledWith('forms/b/hash.bin')
   })
 
   it('skips the file and object when the lease is consumed after the scan', async () => {

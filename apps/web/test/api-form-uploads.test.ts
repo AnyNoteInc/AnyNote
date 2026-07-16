@@ -267,7 +267,7 @@ describe('public database form upload route', () => {
     })
     expect(harness.consume).toHaveBeenCalledWith(
       'upload-ip',
-      `${LOCATOR}:203.0.113.7`,
+      `${FORM_ID}:203.0.113.7`,
       NOW.getTime(),
     )
     expect(harness.storage.put).toHaveBeenCalledWith(
@@ -330,6 +330,43 @@ describe('public database form upload route', () => {
     const harness = makeHarness(resolved ? { resolved } : {})
     const response = await harness.call(uploadRequest(), locator)
     expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(harness.storage.put).not.toHaveBeenCalled()
+  })
+
+  it('uses one bounded unavailable bucket for different unknown locators', async () => {
+    const harness = makeHarness({ resolved: { status: 'UNAVAILABLE' } })
+    await harness.call(uploadRequest(), 'anf_missing_one')
+    await harness.call(uploadRequest(), 'anf_missing_two')
+    expect(harness.consume).toHaveBeenNthCalledWith(
+      1,
+      'upload-ip',
+      'unavailable:203.0.113.7',
+      NOW.getTime(),
+    )
+    expect(harness.consume).toHaveBeenNthCalledWith(
+      2,
+      'upload-ip',
+      'unavailable:203.0.113.7',
+      NOW.getTime(),
+    )
+  })
+
+  it('accepts exactly one file and leaves per-response maxFiles to final submit', async () => {
+    const data = new FormData()
+    data.set('versionToken', tokenFor())
+    data.set('questionId', QUESTION_ID)
+    data.append('file', new File([PNG], 'one.png', { type: 'image/png' }))
+    data.append('file', new File([PNG], 'two.png', { type: 'image/png' }))
+    const request = new Request(`http://localhost/api/forms/${LOCATOR}/uploads`, {
+      method: 'POST',
+      headers: {
+        'x-captcha-response': 'captcha-token',
+        'x-forwarded-for': '203.0.113.7',
+      },
+      body: data,
+    })
+    const harness = makeHarness()
+    expect((await harness.call(request)).status).toBe(400)
     expect(harness.storage.put).not.toHaveBeenCalled()
   })
 
@@ -398,16 +435,16 @@ describe('public database form upload route', () => {
     expect(harness.fileCreate).not.toHaveBeenCalled()
   })
 
-  it('rejects rate limited and CAPTCHA-failed requests before access and storage', async () => {
+  it('resolves a canonical form bucket before rate limiting and CAPTCHA', async () => {
     const limited = makeHarness({ limiterAllowed: false })
     expect((await limited.call()).status).toBe(403)
     expect(limited.verifyCaptcha).not.toHaveBeenCalled()
-    expect(limited.formAccess.resolvePublished).not.toHaveBeenCalled()
+    expect(limited.formAccess.resolvePublished).toHaveBeenCalledOnce()
 
     const captcha = makeHarness()
     captcha.verifyCaptcha.mockRejectedValueOnce(new Error('captcha'))
     expect((await captcha.call()).status).toBe(403)
-    expect(captcha.formAccess.resolvePublished).not.toHaveBeenCalled()
+    expect(captcha.formAccess.resolvePublished).toHaveBeenCalledOnce()
     expect(captcha.storage.put).not.toHaveBeenCalled()
   })
 
@@ -433,7 +470,7 @@ describe('public database form upload route', () => {
     expect(quota.storage.put).not.toHaveBeenCalled()
   })
 
-  it('allows a configured unknown private binary MIME while still sniffing known active types', async () => {
+  it('allows only genuinely opaque configured binary bytes', async () => {
     const binaryVersion = version({
       schema: document({ allowedMimeTypes: ['application/octet-stream'] }),
     })
@@ -441,12 +478,24 @@ describe('public database form upload route', () => {
     const response = await harness.call(
       uploadRequest({
         versionToken: tokenFor(binaryVersion),
-        file: new File([Buffer.from([0, 1, 2, 3])], 'blob.bin', {
+        file: new File([Buffer.from([0xff, 0x00, 0x80, 0x81])], 'blob.bin', {
           type: 'application/octet-stream',
         }),
       }),
     )
     expect(response.status).toBe(201)
+
+    const disguised = makeHarness({ storedVersion: binaryVersion })
+    const rejected = await disguised.call(
+      uploadRequest({
+        versionToken: tokenFor(binaryVersion),
+        file: new File([Buffer.from('<html><script>alert(1)</script>')], 'blob.bin', {
+          type: 'application/octet-stream',
+        }),
+      }),
+    )
+    expect(rejected.status).toBe(400)
+    expect(disguised.storage.put).not.toHaveBeenCalled()
   })
 
   it('bounds chunked multipart input even without Content-Length', async () => {

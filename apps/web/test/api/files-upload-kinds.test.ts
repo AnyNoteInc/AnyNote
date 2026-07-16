@@ -21,10 +21,11 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn<() => Promise<unknown>>(),
   getActiveWorkspaceForUser: vi.fn<() => Promise<unknown>>(async () => null),
   workspaceFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
+  txQueryRaw: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => [{ id: 'workspace' }]),
 }))
 
 vi.mock('@repo/db', () => ({
-  FileStatus: { ACTIVE: 'ACTIVE' },
+  FileStatus: { ACTIVE: 'ACTIVE', PENDING: 'PENDING' },
   Prisma: { PrismaClientKnownRequestError: class extends Error {} },
   prisma: {
     file: { findFirst: mocks.fileFindFirst, aggregate: mocks.fileAggregate },
@@ -32,7 +33,12 @@ vi.mock('@repo/db', () => ({
     workspaceLimit: { findUnique: mocks.limitFindUnique },
     user: { update: mocks.userUpdate },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({ file: { create: mocks.txFileCreate }, user: { update: mocks.txUserUpdate } }),
+      fn({
+        $queryRaw: mocks.txQueryRaw,
+        file: { create: mocks.txFileCreate, aggregate: mocks.fileAggregate },
+        workspaceLimit: { findUnique: mocks.limitFindUnique },
+        user: { update: mocks.txUserUpdate },
+      }),
   },
 }))
 
@@ -94,10 +100,16 @@ const ascii = (s: string) => Array.from(s, (c) => c.charCodeAt(0))
 
 /** An `ftyp` box with the given 4-char major brand (offset 4 = "ftyp"). */
 const ftypBytes = (brand: string): number[] => [
-  0x00, 0x00, 0x00, 0x20, // box size
+  0x00,
+  0x00,
+  0x00,
+  0x20, // box size
   ...ascii('ftyp'),
   ...ascii(brand), // major brand at offset 8
-  0x00, 0x00, 0x00, 0x00, // minor version
+  0x00,
+  0x00,
+  0x00,
+  0x00, // minor version
 ]
 
 // video/mp4 → isom brand; video/quicktime → "qt  " brand; audio/mp4 → "M4A "
@@ -134,6 +146,7 @@ beforeEach(() => {
   mocks.getSession.mockReset().mockResolvedValue({ user: { id: USER_ID } })
   mocks.getActiveWorkspaceForUser.mockReset().mockResolvedValue(null)
   mocks.workspaceFindFirst.mockReset().mockResolvedValue(null)
+  mocks.txQueryRaw.mockReset().mockResolvedValue([{ id: 'workspace' }])
 })
 
 // ── validateUpload: the new kinds ────────────────────────────────────────────
@@ -504,7 +517,9 @@ describe('POST /api/files/upload — media kind (workspace-quota, auth-gated)', 
     mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
     mocks.fileAggregate.mockResolvedValue({ _sum: { fileSize: BigInt(100 * MB) } })
     mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
-    const res = await POST(makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')))
+    const res = await POST(
+      makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')),
+    )
     expect(res.status).toBe(413)
     expect(mocks.fileAggregate).toHaveBeenCalledTimes(1)
     const body = (await res.json()) as { error: string }
@@ -514,7 +529,9 @@ describe('POST /api/files/upload — media kind (workspace-quota, auth-gated)', 
 
   it('400s when there is no active workspace', async () => {
     mocks.getActiveWorkspaceForUser.mockResolvedValue(null)
-    const res = await POST(makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')))
+    const res = await POST(
+      makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')),
+    )
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error: string }
     expect(body.error).toBe('No active workspace')
@@ -546,6 +563,20 @@ describe('POST /api/files/upload — explicit workspaceId (chat context pinning)
     expect(mocks.getActiveWorkspaceForUser).not.toHaveBeenCalled()
     expect(mocks.txFileCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ workspaceId: WS_ID }) }),
+    )
+    expect(mocks.fileAggregate).toHaveBeenCalledTimes(2)
+    expect(mocks.fileAggregate).toHaveBeenLastCalledWith({
+      where: {
+        workspaceId: WS_ID,
+        OR: [{ status: 'ACTIVE' }, { status: 'PENDING', expiresAt: { gt: expect.any(Date) } }],
+      },
+      _sum: { fileSize: true },
+    })
+    expect(mocks.txQueryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.fileAggregate.mock.invocationCallOrder[1]!,
+    )
+    expect(mocks.fileAggregate.mock.invocationCallOrder[1]).toBeLessThan(
+      mocks.txFileCreate.mock.invocationCallOrder[0]!,
     )
   })
 

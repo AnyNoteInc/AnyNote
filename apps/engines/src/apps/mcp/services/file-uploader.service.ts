@@ -79,6 +79,12 @@ export class FileUploader {
 
   private persistFileOnPage(input: UploadGeneratedInput): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
+      const workspaces = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM workspaces
+        WHERE id = ${input.workspaceId}::uuid
+        FOR UPDATE
+      `
+      if (workspaces.length !== 1) throw new PageNotFoundError(input.pageId)
       const page = await tx.page.findUnique({
         where: { id: input.pageId },
         select: { id: true, workspaceId: true },
@@ -90,13 +96,16 @@ export class FileUploader {
       // Plan storage quota — mirrors /api/files/upload (the web route sums
       // ACTIVE file sizes against WorkspaceLimit.maxFileBytes and 413s):
       // MCP-created files count toward the same quota and must not bypass it.
-      const [usage, limits] = await Promise.all([
-        tx.file.aggregate({
-          where: { workspaceId: input.workspaceId, status: 'ACTIVE' },
-          _sum: { fileSize: true },
-        }),
-        tx.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
-      ])
+      const usage = await tx.file.aggregate({
+        where: {
+          workspaceId: input.workspaceId,
+          OR: [{ status: 'ACTIVE' }, { status: 'PENDING', expiresAt: { gt: new Date() } }],
+        },
+        _sum: { fileSize: true },
+      })
+      const limits = await tx.workspaceLimit.findUnique({
+        where: { workspaceId: input.workspaceId },
+      })
       const used = usage._sum.fileSize ?? 0n
       if (limits && used + BigInt(input.buffer.length) > limits.maxFileBytes) {
         throw new WorkspaceStorageLimitError(limits.maxFileBytes)

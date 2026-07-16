@@ -18,6 +18,47 @@ import {
 
 export const runtime = 'nodejs'
 
+class WorkspaceLimitMissingError extends Error {}
+
+class WorkspaceStorageLimitError extends Error {
+  constructor(readonly maxBytes: bigint) {
+    super('WORKSPACE_STORAGE_LIMIT')
+  }
+}
+
+async function assertWorkspaceStorageCapacity(
+  client: Pick<Prisma.TransactionClient, 'file' | 'workspaceLimit'>,
+  workspaceId: string,
+  newBytes: number,
+  now = new Date(),
+): Promise<void> {
+  const usage = await client.file.aggregate({
+    where: {
+      workspaceId,
+      OR: [{ status: FileStatus.ACTIVE }, { status: FileStatus.PENDING, expiresAt: { gt: now } }],
+    },
+    _sum: { fileSize: true },
+  })
+  const limits = await client.workspaceLimit.findUnique({ where: { workspaceId } })
+  if (!limits) throw new WorkspaceLimitMissingError('WORKSPACE_LIMIT_MISSING')
+  if ((usage._sum.fileSize ?? 0n) + BigInt(newBytes) > limits.maxFileBytes) {
+    throw new WorkspaceStorageLimitError(limits.maxFileBytes)
+  }
+}
+
+function workspaceLimitResponse(error: unknown): Response | null {
+  if (error instanceof WorkspaceLimitMissingError) {
+    return Response.json({ error: 'WORKSPACE_LIMIT_MISSING' }, { status: 500 })
+  }
+  if (error instanceof WorkspaceStorageLimitError) {
+    return Response.json(
+      { error: 'WORKSPACE_STORAGE_LIMIT', maxBytes: error.maxBytes.toString() },
+      { status: 413 },
+    )
+  }
+  return null
+}
+
 const setUserAvatar = (userId: string, fileId: string) =>
   prisma.user.update({
     where: { id: userId },
@@ -125,22 +166,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (isWorkspaceKind) {
-    const [usage, limits] = await Promise.all([
-      prisma.file.aggregate({
-        where: { workspaceId: workspaceScopedId, status: FileStatus.ACTIVE },
-        _sum: { fileSize: true },
-      }),
-      prisma.workspaceLimit.findUnique({ where: { workspaceId: workspaceScopedId! } }),
-    ])
-    if (!limits) {
-      return Response.json({ error: 'WORKSPACE_LIMIT_MISSING' }, { status: 500 })
-    }
-    const used = usage._sum.fileSize ?? 0n
-    if (used + BigInt(bytes.length) > limits.maxFileBytes) {
-      return Response.json(
-        { error: 'WORKSPACE_STORAGE_LIMIT', maxBytes: limits.maxFileBytes.toString() },
-        { status: 413 },
-      )
+    try {
+      await assertWorkspaceStorageCapacity(prisma, workspaceScopedId!, bytes.length)
+    } catch (error) {
+      const response = workspaceLimitResponse(error)
+      if (response) return response
+      throw error
     }
   }
 
@@ -165,6 +196,15 @@ export async function POST(request: NextRequest) {
 
     try {
       fileRow = await prisma.$transaction(async (tx) => {
+        if (workspaceId !== null) {
+          const workspaces = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM workspaces
+            WHERE id = ${workspaceId}::uuid
+            FOR UPDATE
+          `
+          if (workspaces.length !== 1) throw new WorkspaceLimitMissingError()
+          await assertWorkspaceStorageCapacity(tx, workspaceId, bytes.length)
+        }
         const created = await tx.file.create({
           data: {
             userId: session.user.id,
@@ -205,6 +245,8 @@ export async function POST(request: NextRequest) {
           await setUserAvatar(session.user.id, fileRow.id)
         }
       } else {
+        const response = workspaceLimitResponse(err)
+        if (response) return response
         throw err
       }
     }

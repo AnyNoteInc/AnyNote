@@ -87,8 +87,6 @@ export class CleanupService {
             },
           })
           if (fileDelete.count !== 1) throw new Error('FORM_UPLOAD_FILE_NOT_DELETED')
-          const references = await tx.file.count({ where: { path: lease.file.path } })
-          if (references === 0) await this.storage.delete(lease.file.path)
           return true
         })
       } catch (err) {
@@ -101,6 +99,27 @@ export class CleanupService {
 
       if (!removed) continue
       deleted += 1
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          if (lease.file.workspaceId === null) return
+          const workspace = await tx.$queryRaw<{ id: string }[]>`
+            SELECT id FROM workspaces
+            WHERE id = ${lease.file.workspaceId}::uuid
+            FOR UPDATE
+          `
+          if (workspace.length !== 1) return
+          const references = await tx.file.count({ where: { path: lease.file.path } })
+          if (references === 0) await this.storage.delete(lease.file.path)
+        })
+      } catch (err) {
+        this.log.error(
+          `expired form upload object cleanup failed for ${lease.file.path}`,
+          err as Error,
+        )
+        Sentry.captureException(err, {
+          tags: { service: 'engines', worker: 'cleanup', job: 'form-upload-object' },
+        })
+      }
     }
     return deleted
   }
