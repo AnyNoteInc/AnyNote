@@ -36,6 +36,7 @@ import { FORM_AUDIT, writeFormAudit } from './form-audit.ts'
 
 const POSITION_GAP = 1024
 const VERSION_GRACE_MS = 24 * 60 * 60 * 1000
+const FORM_VERSION_SCAN_BATCH_SIZE = 100
 const INTERNAL_PROPERTY_TYPES = new Set(['PERSON', 'RELATION', 'PAGE_LINK'])
 const RESERVED_SLUGS = new Set([
   'app',
@@ -83,8 +84,18 @@ function emptyFormDocument(title: string): FormVersionDocument {
       submitButtonText: 'Отправить',
       hideAnyNoteBranding: false,
     },
-    sections: [{ id: 'section-1', title: 'Вопросы', questionIds: [] }],
-    questions: [],
+    sections: [{ id: 'section-1', title: 'Вопросы', questionIds: ['question-title'] }],
+    questions: [
+      {
+        id: 'question-title',
+        sectionId: 'section-1',
+        property: { kind: 'TITLE' },
+        label: 'Название',
+        required: true,
+        syncWithPropertyName: false,
+        input: { kind: 'TEXT', multiline: false, maxLength: 200 },
+      },
+    ],
     transitions: [
       {
         id: 'transition-1',
@@ -596,6 +607,7 @@ export class DatabaseFormService {
     document: FormVersionDocument,
   ): Promise<void> {
     const properties = new Map(form.source.properties.map((property) => [property.id, property]))
+    const relationTargetSourceIds = new Set<string>()
     for (const question of document.questions) {
       if (question.property.kind === 'TITLE') continue
       const property = properties.get(question.property.propertyId)
@@ -614,11 +626,18 @@ export class DatabaseFormService {
             ? (property.settings as { relation?: { targetSourceId?: unknown } }).relation
             : undefined
         if (typeof relation?.targetSourceId !== 'string') throw badRequest('FORM_PROPERTY_INVALID')
-        const targetWorkspace = await this.databaseRepo.findSourceWorkspaceId(
-          relation.targetSourceId,
-        )
-        if (targetWorkspace !== form.source.workspaceId) throw badRequest('FORM_PROPERTY_INVALID')
+        relationTargetSourceIds.add(relation.targetSourceId)
       }
+    }
+    if (relationTargetSourceIds.size === 0) return
+    const targetSourceIds = [...relationTargetSourceIds]
+    const targetWorkspaceIds = await this.databaseRepo.findSourceWorkspaceIds(targetSourceIds)
+    if (
+      targetSourceIds.some(
+        (sourceId) => targetWorkspaceIds.get(sourceId) !== form.source.workspaceId,
+      )
+    ) {
+      throw badRequest('FORM_PROPERTY_INVALID')
     }
   }
 
@@ -642,16 +661,7 @@ export class DatabaseFormService {
     form: ManagedFormRecord,
     audience: DatabaseFormAudience,
   ): Promise<void> {
-    const acceptedVersions = new Map<string, FormVersionRecord>()
-    if (form.publishedVersion !== null) {
-      acceptedVersions.set(form.publishedVersion.id, form.publishedVersion)
-    }
-
-    const acceptedAt = this.now()
-    const repositoryVersions = await this.repo.listVersions(form.id, acceptedAt)
-    for (const version of repositoryVersions) acceptedVersions.set(version.id, version)
-
-    for (const version of acceptedVersions.values()) {
+    const validateVersion = (version: FormVersionRecord): void => {
       let document: FormVersionDocument
       try {
         document = parseFormVersionDocument(version.schema)
@@ -659,6 +669,35 @@ export class DatabaseFormService {
         throw badRequest('FORM_SCHEMA_INVALID')
       }
       this.assertAudienceCompatibility(audience, document)
+    }
+
+    if (form.publishedVersion !== null) {
+      validateVersion(form.publishedVersion)
+    }
+
+    const acceptedAt = this.now()
+    let beforeVersionNumber: number | undefined
+    for (;;) {
+      const versions = await this.repo.listVersions(form.id, {
+        acceptedAt,
+        ...(beforeVersionNumber === undefined ? {} : { beforeVersionNumber }),
+        limit: FORM_VERSION_SCAN_BATCH_SIZE,
+      })
+      const pageVersionIds = new Set<string>()
+      for (const version of versions) {
+        if (version.id === form.publishedVersion?.id || pageVersionIds.has(version.id)) continue
+        pageVersionIds.add(version.id)
+        validateVersion(version)
+      }
+      if (versions.length < FORM_VERSION_SCAN_BATCH_SIZE) return
+      const nextBeforeVersionNumber = versions.at(-1)?.versionNumber
+      if (
+        nextBeforeVersionNumber === undefined ||
+        (beforeVersionNumber !== undefined && nextBeforeVersionNumber >= beforeVersionNumber)
+      ) {
+        throw badRequest('FORM_SCHEMA_INVALID')
+      }
+      beforeVersionNumber = nextBeforeVersionNumber
     }
   }
 

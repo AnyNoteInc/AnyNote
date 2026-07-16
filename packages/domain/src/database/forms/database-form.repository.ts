@@ -258,6 +258,12 @@ export interface FormResponsePage {
   nextCursor: FormResponseCursor | null
 }
 
+export interface ListFormVersionsOptions {
+  acceptedAt?: Date
+  beforeVersionNumber?: number
+  limit?: number
+}
+
 export interface FormRepositoryContract {
   createFormWithView(input: CreateFormRecord): Promise<ManagedFormRecord>
   findManagedForm(pageId: string, formId: string): Promise<ManagedFormRecord | null>
@@ -267,7 +273,7 @@ export interface FormRepositoryContract {
   updateSettings(input: UpdateFormSettingsRecord): Promise<ManagedFormRecord>
   duplicateForm(input: DuplicateFormRecord): Promise<ManagedFormRecord>
   archiveForm(input: ArchiveFormRecord): Promise<void>
-  listVersions(formId: string, acceptedAt?: Date): Promise<FormVersionRecord[]>
+  listVersions(formId: string, options?: ListFormVersionsOptions): Promise<FormVersionRecord[]>
   listResponses(input: ListFormResponsesRecord): Promise<FormResponsePage>
   findByLocator(locator: string): Promise<PublicFormRecord | null>
   findVersion(formId: string, versionNumber: number): Promise<FormVersionRecord | null>
@@ -461,17 +467,27 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     }
   }
 
-  listVersions(formId: string, acceptedAt?: Date): Promise<FormVersionRecord[]> {
+  listVersions(
+    formId: string,
+    options: ListFormVersionsOptions = {},
+  ): Promise<FormVersionRecord[]> {
     return this.uow.client().databaseFormVersion.findMany({
       where: {
         formId,
-        ...(acceptedAt
+        ...(options.acceptedAt
           ? {
-              OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: acceptedAt } }],
+              OR: [
+                { currentForForm: { isNot: null } },
+                { acceptUntil: { gt: options.acceptedAt } },
+              ],
             }
           : {}),
+        ...(options.beforeVersionNumber === undefined
+          ? {}
+          : { versionNumber: { lt: options.beforeVersionNumber } }),
       },
       orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
+      take: options.limit,
       select: versionSelect,
     })
   }
@@ -558,38 +574,51 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     now: Date,
     removedOptionIds?: readonly string[],
   ): Promise<boolean> {
-    const versions = await this.uow.client().databaseFormVersion.findMany({
-      where: {
-        form: {
-          state: { not: 'ARCHIVED' },
-          source: { properties: { some: { id: propertyId } } },
+    const batchSize = 100
+    let beforeId: string | undefined
+    for (;;) {
+      const versions = await this.uow.client().databaseFormVersion.findMany({
+        where: {
+          ...(beforeId === undefined ? {} : { id: { lt: beforeId } }),
+          form: {
+            state: { not: 'ARCHIVED' },
+            source: { properties: { some: { id: propertyId } } },
+          },
+          OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
         },
-        OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
-      },
-      select: { schema: true },
-    })
-    for (const version of versions) {
-      try {
-        const document = parseFormVersionDocument(version.schema)
-        const question = document.questions.find(
-          (candidate) =>
-            candidate.property.kind === 'PROPERTY' && candidate.property.propertyId === propertyId,
-        )
-        if (question === undefined) continue
-        if (removedOptionIds === undefined) return true
-        if (
-          (question.input.kind === 'SINGLE_CHOICE' ||
-            question.input.kind === 'MULTI_CHOICE') &&
-          question.input.options.some(({ id }) => removedOptionIds.includes(id))
-        ) {
+        orderBy: [{ id: 'desc' }],
+        take: batchSize,
+        select: { id: true, schema: true },
+      })
+      for (const version of versions) {
+        try {
+          const document = parseFormVersionDocument(version.schema)
+          const question = document.questions.find(
+            (candidate) =>
+              candidate.property.kind === 'PROPERTY' &&
+              candidate.property.propertyId === propertyId,
+          )
+          if (question === undefined) continue
+          if (removedOptionIds === undefined) return true
+          if (
+            (question.input.kind === 'SINGLE_CHOICE' ||
+              question.input.kind === 'MULTI_CHOICE') &&
+            question.input.options.some(({ id }) => removedOptionIds.includes(id))
+          ) {
+            return true
+          }
+        } catch {
+          // Active malformed data is a migration/drift problem. Prevent a destructive
+          // property edit until an owner can repair or republish the document.
           return true
         }
-      } catch {
-        // Active malformed data is a migration/drift problem. Prevent a destructive
-        // property edit until an owner can repair or republish the document.
+      }
+      if (versions.length < batchSize) return false
+      const nextBeforeId = versions.at(-1)?.id
+      if (nextBeforeId === undefined || (beforeId !== undefined && nextBeforeId >= beforeId)) {
         return true
       }
+      beforeId = nextBeforeId
     }
-    return false
   }
 }

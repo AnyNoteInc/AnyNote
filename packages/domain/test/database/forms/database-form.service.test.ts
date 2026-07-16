@@ -10,9 +10,13 @@ import {
 } from '../../../src/database/forms/database-form.service.ts'
 import type {
   FormRepositoryContract,
+  FormVersionRecord,
   ManagedFormRecord,
 } from '../../../src/database/forms/database-form.repository.ts'
-import type { FormVersionDocument } from '../../../src/database/forms/public.ts'
+import {
+  parseFormVersionDocument,
+  type FormVersionDocument,
+} from '../../../src/database/forms/public.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 
 const NOW = new Date('2026-07-16T00:00:00.000Z')
@@ -97,6 +101,19 @@ const managedForm = (overrides: Partial<ManagedFormRecord> = {}): ManagedFormRec
     ...overrides,
   }) as ManagedFormRecord
 
+const acceptedVersionPage = (newest: FormVersionRecord): FormVersionRecord[] =>
+  Array.from({ length: 100 }, (_, index) => {
+    if (index === 0) return newest
+    const versionNumber = newest.versionNumber - index
+    return {
+      ...newest,
+      id: `accepted-version-${versionNumber}`,
+      versionNumber,
+      schemaHash: versionNumber.toString(16).padStart(64, '0'),
+      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
+    }
+  })
+
 const planFeatures = (overrides: Partial<PlanFeatures> = {}): PlanFeatures => ({
   slug: 'pro',
   name: 'Pro',
@@ -131,7 +148,10 @@ function makeHarness(
 ) {
   let current = options.form ?? managedForm()
   const formRepo = {
-    createFormWithView: vi.fn(async () => current),
+    createFormWithView: vi.fn(async (input) => {
+      current = { ...current, draftSchema: input.draftSchema } as ManagedFormRecord
+      return current
+    }),
     findManagedForm: vi.fn(async () => current),
     listManagedForms: vi.fn(async () => [current]),
     updateDraftIfRevision: vi.fn(async () => ({ ...current, draftRevision: 2 })),
@@ -193,6 +213,8 @@ function makeHarness(
       settings: data.settings ?? null,
     })),
     lockSourceForStructureMutation: vi.fn(async () => true),
+    findSourceWorkspaceId: vi.fn(async () => null),
+    findSourceWorkspaceIds: vi.fn(async () => new Map<string, string>()),
     ...options.databaseRepo,
   } as unknown as DatabaseRepository
   const transaction = vi.fn(async (fn: () => Promise<unknown>) => fn())
@@ -211,11 +233,23 @@ function makeHarness(
 describe('DatabaseFormService lifecycle', () => {
   it('creates a FORM view and form atomically with a server-generated anf_ key and audit', async () => {
     const { service, formRepo, transaction, auditCreate } = makeHarness()
-    await service.create('00000000-0000-7000-8000-000000000001', {
+    const created = await service.create('00000000-0000-7000-8000-000000000001', {
       pageId: '00000000-0000-7000-8000-000000000050',
       title: 'Contact form',
     })
 
+    expect(parseFormVersionDocument(created.draftSchema)).toMatchObject({
+      sections: [{ questionIds: ['question-title'] }],
+      questions: [
+        {
+          id: 'question-title',
+          property: { kind: 'TITLE' },
+          label: 'Название',
+          required: true,
+          input: { kind: 'TEXT', multiline: false, maxLength: 200 },
+        },
+      ],
+    })
     expect(transaction).toHaveBeenCalledOnce()
     expect(formRepo.createFormWithView).toHaveBeenCalledWith(
       expect.objectContaining({ routeKey: expect.stringMatching(/^anf_[A-Za-z0-9_-]{43}$/) }),
@@ -229,6 +263,31 @@ describe('DatabaseFormService lifecycle', () => {
         }),
       }),
     })
+  })
+
+  it('can immediately duplicate and publish a freshly created form', async () => {
+    const { service, formRepo } = makeHarness()
+    const created = await service.create('00000000-0000-7000-8000-000000000001', {
+      pageId: '00000000-0000-7000-8000-000000000050',
+      title: 'Contact form',
+    })
+
+    await expect(
+      service.duplicateByView('00000000-0000-7000-8000-000000000001', {
+        pageId: created.source.pageId,
+        viewId: created.viewId!,
+      }),
+    ).resolves.toMatchObject({ state: 'DRAFT' })
+    expect(formRepo.duplicateForm).toHaveBeenCalledWith(
+      expect.objectContaining({ draftSchema: parseFormVersionDocument(created.draftSchema) }),
+    )
+
+    await expect(
+      service.publish('00000000-0000-7000-8000-000000000001', {
+        pageId: created.source.pageId,
+        formId: created.id,
+      }),
+    ).resolves.toMatchObject({ state: 'OPEN', versionNumber: 1 })
   })
 
   it('returns a typed conflict when optimistic draft revision is stale', async () => {
@@ -415,6 +474,128 @@ describe('DatabaseFormService lifecycle', () => {
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'PLAN_UPGRADE_REQUIRED' })
     expect(planHarness.formRepo.publishVersion).not.toHaveBeenCalled()
+  })
+
+  it('batch-validates unique relation targets once in each publication validation pass', async () => {
+    const questions: FormVersionDocument['questions'] = [
+      ['question-1', 'relation-1'],
+      ['question-2', 'relation-2'],
+      ['question-3', 'relation-3'],
+    ].map(([id, propertyId]) => ({
+      id: id!,
+      sectionId: 'section-1',
+      property: { kind: 'PROPERTY', propertyId: propertyId!, propertyType: 'RELATION' },
+      label: id!,
+      required: false,
+      syncWithPropertyName: false,
+      input: { kind: 'RELATION', maxSelections: 1 },
+    }))
+    const document = linearDocument({
+      sections: [
+        { id: 'section-1', title: 'Questions', questionIds: questions.map(({ id }) => id) },
+      ],
+      questions,
+    })
+    const source = {
+      ...managedForm().source,
+      properties: [
+        {
+          id: 'relation-1',
+          type: 'RELATION' as const,
+          name: 'First',
+          position: 1,
+          settings: { relation: { targetSourceId: 'target-a' } },
+        },
+        {
+          id: 'relation-2',
+          type: 'RELATION' as const,
+          name: 'Duplicate target',
+          position: 2,
+          settings: { relation: { targetSourceId: 'target-a' } },
+        },
+        {
+          id: 'relation-3',
+          type: 'RELATION' as const,
+          name: 'Second',
+          position: 3,
+          settings: { relation: { targetSourceId: 'target-b' } },
+        },
+      ],
+    }
+    const lookup = vi.fn(
+      async () =>
+        new Map([
+          ['target-a', source.workspaceId],
+          ['target-b', source.workspaceId],
+        ]),
+    )
+    const { service, databaseRepo } = makeHarness({
+      form: managedForm({
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        draftSchema: document,
+        source,
+      }),
+      databaseRepo: { findSourceWorkspaceIds: lookup },
+    })
+
+    await service.publish('00000000-0000-7000-8000-000000000001', {
+      pageId: source.pageId,
+      formId: '00000000-0000-7000-8000-000000000010',
+    })
+
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(lookup).toHaveBeenNthCalledWith(1, ['target-a', 'target-b'])
+    expect(lookup).toHaveBeenNthCalledWith(2, ['target-a', 'target-b'])
+    expect(databaseRepo.findSourceWorkspaceId).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['missing', new Map<string, string>()],
+    ['wrong workspace', new Map([['target-a', 'other-workspace']])],
+  ])('rejects a relation target that is %s in the batch lookup', async (_case, targets) => {
+    const document = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: {
+            kind: 'PROPERTY',
+            propertyId: 'relation-1',
+            propertyType: 'RELATION',
+          },
+          input: { kind: 'RELATION', maxSelections: 1 },
+        },
+      ],
+    })
+    const source = {
+      ...managedForm().source,
+      properties: [
+        {
+          id: 'relation-1',
+          type: 'RELATION' as const,
+          name: 'Relation',
+          position: 1,
+          settings: { relation: { targetSourceId: 'target-a' } },
+        },
+      ],
+    }
+    const lookup = vi.fn(async () => targets)
+    const { service, formRepo } = makeHarness({
+      form: managedForm({
+        audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+        draftSchema: document,
+        source,
+      }),
+      databaseRepo: { findSourceWorkspaceIds: lookup },
+    })
+
+    await expect(
+      service.publish('00000000-0000-7000-8000-000000000001', {
+        pageId: source.pageId,
+        formId: '00000000-0000-7000-8000-000000000010',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_PROPERTY_INVALID' })
+    expect(lookup).toHaveBeenCalledOnce()
+    expect(formRepo.publishVersion).not.toHaveBeenCalled()
   })
 
   it('normalizes slugs, rejects reserved routes, and increments linkRevision only on change', async () => {
@@ -664,7 +845,7 @@ describe('DatabaseFormService lifecycle', () => {
     const safeCurrent = {
       id: '00000000-0000-7000-8000-000000000063',
       formId: '00000000-0000-7000-8000-000000000010',
-      versionNumber: 3,
+      versionNumber: 201,
       schemaVersion: 1,
       schema: linearDocument(),
       schemaHash: 'c'.repeat(64),
@@ -672,13 +853,7 @@ describe('DatabaseFormService lifecycle', () => {
       publishedAt: NOW,
       acceptUntil: null,
     }
-    const safeGrace = {
-      ...safeCurrent,
-      id: '00000000-0000-7000-8000-000000000062',
-      versionNumber: 2,
-      schemaHash: 'b'.repeat(64),
-      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
-    }
+    const safePage = acceptedVersionPage(safeCurrent)
     const internalGraceDocument = linearDocument({
       questions: [
         {
@@ -695,7 +870,7 @@ describe('DatabaseFormService lifecycle', () => {
     const internalGrace = {
       ...safeCurrent,
       id: '00000000-0000-7000-8000-000000000061',
-      versionNumber: 1,
+      versionNumber: 101,
       schema: internalGraceDocument,
       schemaHash: 'a'.repeat(64),
       acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
@@ -709,7 +884,9 @@ describe('DatabaseFormService lifecycle', () => {
     const { service, formRepo } = makeHarness({
       form,
       formRepo: {
-        listVersions: vi.fn(async () => [safeCurrent, safeGrace, internalGrace]),
+        listVersions: vi.fn(async (_formId, options) =>
+          options?.beforeVersionNumber === undefined ? safePage : [internalGrace],
+        ),
       },
     })
 
@@ -727,7 +904,15 @@ describe('DatabaseFormService lifecycle', () => {
         }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_AUDIENCE_INCOMPATIBLE' })
     }
-    expect(formRepo.listVersions).toHaveBeenCalledWith(form.id, NOW)
+    expect(formRepo.listVersions).toHaveBeenCalledWith(form.id, {
+      acceptedAt: NOW,
+      limit: 100,
+    })
+    expect(formRepo.listVersions).toHaveBeenCalledWith(form.id, {
+      acceptedAt: NOW,
+      beforeVersionNumber: 102,
+      limit: 100,
+    })
     expect(formRepo.updateSettings).not.toHaveBeenCalled()
   })
 
@@ -735,7 +920,7 @@ describe('DatabaseFormService lifecycle', () => {
     const current = {
       id: '00000000-0000-7000-8000-000000000063',
       formId: '00000000-0000-7000-8000-000000000010',
-      versionNumber: 3,
+      versionNumber: 201,
       schemaVersion: 1,
       schema: linearDocument(),
       schemaHash: 'c'.repeat(64),
@@ -743,17 +928,11 @@ describe('DatabaseFormService lifecycle', () => {
       publishedAt: NOW,
       acceptUntil: null,
     }
-    const newestGrace = {
-      ...current,
-      id: '00000000-0000-7000-8000-000000000062',
-      versionNumber: 2,
-      schemaHash: 'b'.repeat(64),
-      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
-    }
+    const safePage = acceptedVersionPage(current)
     const oldestGrace = {
       ...current,
       id: '00000000-0000-7000-8000-000000000061',
-      versionNumber: 1,
+      versionNumber: 101,
       schemaHash: 'a'.repeat(64),
       acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
     }
@@ -766,7 +945,9 @@ describe('DatabaseFormService lifecycle', () => {
     const { service, formRepo } = makeHarness({
       form,
       formRepo: {
-        listVersions: vi.fn(async () => [current, newestGrace, oldestGrace]),
+        listVersions: vi.fn(async (_formId, options) =>
+          options?.beforeVersionNumber === undefined ? safePage : [oldestGrace],
+        ),
       },
     })
 
@@ -780,7 +961,7 @@ describe('DatabaseFormService lifecycle', () => {
       responseLimit: null,
       notifyOwners: true,
     })
-    expect(formRepo.listVersions).toHaveBeenCalledWith(form.id, NOW)
+    expect(formRepo.listVersions).toHaveBeenCalledTimes(2)
     expect(formRepo.updateSettings).toHaveBeenCalled()
   })
 
@@ -788,7 +969,7 @@ describe('DatabaseFormService lifecycle', () => {
     const current = {
       id: '00000000-0000-7000-8000-000000000063',
       formId: '00000000-0000-7000-8000-000000000010',
-      versionNumber: 3,
+      versionNumber: 201,
       schemaVersion: 1,
       schema: linearDocument(),
       schemaHash: 'c'.repeat(64),
@@ -796,17 +977,11 @@ describe('DatabaseFormService lifecycle', () => {
       publishedAt: NOW,
       acceptUntil: null,
     }
-    const safeGrace = {
-      ...current,
-      id: '00000000-0000-7000-8000-000000000062',
-      versionNumber: 2,
-      schemaHash: 'b'.repeat(64),
-      acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
-    }
+    const safePage = acceptedVersionPage(current)
     const malformedGrace = {
       ...current,
       id: '00000000-0000-7000-8000-000000000061',
-      versionNumber: 1,
+      versionNumber: 101,
       schema: { malformed: true },
       schemaHash: 'a'.repeat(64),
       acceptUntil: new Date('2026-07-17T00:00:00.000Z'),
@@ -820,7 +995,9 @@ describe('DatabaseFormService lifecycle', () => {
     const { service, formRepo } = makeHarness({
       form,
       formRepo: {
-        listVersions: vi.fn(async () => [current, safeGrace, malformedGrace]),
+        listVersions: vi.fn(async (_formId, options) =>
+          options?.beforeVersionNumber === undefined ? safePage : [malformedGrace],
+        ),
       },
     })
 
@@ -836,8 +1013,47 @@ describe('DatabaseFormService lifecycle', () => {
         notifyOwners: true,
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SCHEMA_INVALID' })
-    expect(formRepo.listVersions).toHaveBeenCalledWith(form.id, NOW)
+    expect(formRepo.listVersions).toHaveBeenCalledTimes(2)
     expect(formRepo.updateSettings).not.toHaveBeenCalled()
+  })
+
+  it('fails closed instead of looping when an accepted-version page does not advance', async () => {
+    const current = {
+      id: '00000000-0000-7000-8000-000000000063',
+      formId: '00000000-0000-7000-8000-000000000010',
+      versionNumber: 201,
+      schemaVersion: 1,
+      schema: linearDocument(),
+      schemaHash: 'c'.repeat(64),
+      publishedById: '00000000-0000-7000-8000-000000000001',
+      publishedAt: NOW,
+      acceptUntil: null,
+    }
+    const repeatedPage = acceptedVersionPage(current)
+    const form = managedForm({
+      state: 'OPEN',
+      audience: 'WORKSPACE_MEMBERS_WITH_LINK',
+      publishedVersionId: current.id,
+      publishedVersion: current,
+    })
+    const { service, formRepo } = makeHarness({
+      form,
+      formRepo: { listVersions: vi.fn(async () => repeatedPage) },
+    })
+
+    await expect(
+      service.updateSettings('00000000-0000-7000-8000-000000000001', {
+        pageId: form.source.pageId,
+        formId: form.id,
+        audience: 'ANYONE_WITH_LINK',
+        respondentAccess: 'NONE',
+        opensAt: null,
+        closesAt: null,
+        responseLimit: null,
+        notifyOwners: true,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'FORM_SCHEMA_INVALID' })
+    expect(formRepo.listVersions).toHaveBeenCalledTimes(2)
   })
 
   it('duplicates by FORM view as a fresh audited draft without publication, slug, or accepted count', async () => {

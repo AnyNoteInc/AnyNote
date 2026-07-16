@@ -177,6 +177,7 @@ function expectNoRowsInSelection(args: unknown) {
 }
 
 interface StoredVersionFixture {
+  id?: string
   sourceId: string
   current: boolean
   acceptUntil: Date | null
@@ -205,7 +206,7 @@ function mockActiveVersionQuery(
           (fixture.current ||
             (fixture.acceptUntil !== null && fixture.acceptUntil.getTime() > graceAfter.getTime())),
       )
-      .map(({ schema }) => ({ schema }))
+      .map(({ id, schema }, index) => ({ id: id ?? `version-${index}`, schema }))
   })
 }
 
@@ -784,22 +785,27 @@ describe('DatabaseFormRepository focused reads', () => {
     )
   })
 
-  it('loads every currently accepted version without expired history or a result cap', async () => {
+  it('loads a bounded keyset page of currently accepted versions without expired history', async () => {
     const { client, repository } = makeRepository()
     const acceptedAt = new Date('2026-07-16T00:00:00.000Z')
 
-    await repository.listVersions('form-1', acceptedAt)
+    await repository.listVersions('form-1', {
+      acceptedAt,
+      beforeVersionNumber: 42,
+      limit: 25,
+    })
 
     expect(client.databaseFormVersion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           formId: 'form-1',
           OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: acceptedAt } }],
+          versionNumber: { lt: 42 },
         },
         orderBy: [{ versionNumber: 'desc' }, { id: 'desc' }],
+        take: 25,
       }),
     )
-    expect(client.databaseFormVersion.findMany.mock.calls[0]?.[0]).not.toHaveProperty('take')
   })
 
   it('uses focused unique lookups for version and submission provenance', async () => {
@@ -860,7 +866,9 @@ describe('DatabaseFormRepository protected property dependencies', () => {
         },
         OR: [{ currentForForm: { isNot: null } }, { acceptUntil: { gt: now } }],
       },
-      select: { schema: true },
+      orderBy: [{ id: 'desc' }],
+      take: 100,
+      select: { id: true, schema: true },
     })
   })
 
@@ -997,6 +1005,64 @@ describe('DatabaseFormRepository protected property dependencies', () => {
         }),
       }),
     )
+  })
+
+  it('detects a protected dependency in a later active-version batch', async () => {
+    const client = makeClient()
+    const firstBatch = Array.from({ length: 100 }, (_, index) => ({
+      id: `version-${(200 - index).toString().padStart(3, '0')}`,
+      schema: documentFor('other-property'),
+    }))
+    client.databaseFormVersion.findMany
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce([{ id: 'version-100', schema: documentFor('property-protected') }])
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.hasProtectedPropertyDependency('property-protected', now),
+    ).resolves.toBe(true)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledTimes(2)
+    expect(client.databaseFormVersion.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { lt: 'version-101' } }),
+        orderBy: [{ id: 'desc' }],
+        take: 100,
+        select: { id: true, schema: true },
+      }),
+    )
+  })
+
+  it('fails closed for a malformed active schema in a later batch', async () => {
+    const client = makeClient()
+    const firstBatch = Array.from({ length: 100 }, (_, index) => ({
+      id: `version-${(200 - index).toString().padStart(3, '0')}`,
+      schema: documentFor('other-property'),
+    }))
+    client.databaseFormVersion.findMany
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce([{ id: 'version-100', schema: { malformed: true } }])
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.hasProtectedPropertyDependency('property-protected', now),
+    ).resolves.toBe(true)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails closed without looping when an active-version batch does not advance', async () => {
+    const client = makeClient()
+    const repeatedBatch = Array.from({ length: 100 }, (_, index) => ({
+      id: `version-${(200 - index).toString().padStart(3, '0')}`,
+      schema: documentFor('other-property'),
+    }))
+    client.databaseFormVersion.findMany.mockResolvedValue(repeatedBatch)
+    const { repository } = makeRepository(client)
+
+    await expect(
+      repository.hasProtectedPropertyDependency('property-protected', now),
+    ).resolves.toBe(true)
+    expect(client.databaseFormVersion.findMany).toHaveBeenCalledTimes(2)
   })
 
   it.each([

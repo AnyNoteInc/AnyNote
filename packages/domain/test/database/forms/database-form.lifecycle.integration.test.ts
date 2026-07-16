@@ -12,7 +12,10 @@ import {
   type PublishFormVersionRecord,
 } from '../../../src/database/forms/database-form.repository.ts'
 import { DatabaseFormService } from '../../../src/database/forms/database-form.service.ts'
-import type { FormVersionDocument } from '../../../src/database/forms/public.ts'
+import {
+  parseFormVersionDocument,
+  type FormVersionDocument,
+} from '../../../src/database/forms/public.ts'
 import { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
 import { DatabaseService } from '../../../src/database/services/database.service.ts'
 import { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
@@ -220,6 +223,30 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
       expect(Object.keys((audit.metadata ?? {}) as object).sort()).toEqual(['formId', 'viewId'])
       expect(JSON.stringify(audit.metadata)).not.toContain('anf_')
     }
+  })
+
+  it('batch-resolves unique source workspace ids and omits missing sources', async () => {
+    const repository = new DatabaseRepository(new PrismaUnitOfWork(prisma))
+
+    await expect(
+      repository.findSourceWorkspaceIds([sourceId, sourceId, randomUUID()]),
+    ).resolves.toEqual(new Map([[sourceId, workspaceId]]))
+  })
+
+  it('creates a strict draft that can be duplicated and published immediately', async () => {
+    const service = makeFormService(new PrismaUnitOfWork(prisma))
+    const created = await service.create(userId, { pageId, title: 'Ready immediately' })
+
+    expect(parseFormVersionDocument(created.draftSchema).questions).toMatchObject([
+      { id: 'question-title', property: { kind: 'TITLE' }, required: true },
+    ])
+    await expect(
+      service.duplicateByView(userId, { pageId, viewId: created.viewId! }),
+    ).resolves.toMatchObject({ state: 'DRAFT', publishedVersionId: null })
+    await expect(service.publish(userId, { pageId, formId: created.id })).resolves.toMatchObject({
+      state: 'OPEN',
+      versionNumber: 1,
+    })
   })
 
   it('keeps published JSON append-only across republish and gives only v1 the exact 24h grace', async () => {

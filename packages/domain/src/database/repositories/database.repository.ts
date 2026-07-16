@@ -808,6 +808,19 @@ export class DatabaseRepository {
     return out
   }
 
+  /** Resolve source ids to their owning workspace ids in one focused query. */
+  async findSourceWorkspaceIds(sourceIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>()
+    const ids = [...new Set(sourceIds)]
+    if (ids.length === 0) return out
+    const sources = await this.uow.client().databaseSource.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, workspaceId: true },
+    })
+    for (const source of sources) out.set(source.id, source.workspaceId)
+    return out
+  }
+
   /** Resolve a source's workspace id (RELATION targetSourceId validation). */
   async findSourceWorkspaceId(sourceId: string): Promise<string | null> {
     const src = await this.uow.client().databaseSource.findUnique({
