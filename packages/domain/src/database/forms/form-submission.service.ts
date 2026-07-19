@@ -869,9 +869,9 @@ export class FormSubmissionService {
             available: !unavailableQuestionIds.has(question.id),
           })),
         },
-        answers,
-        files,
-        selectedOptions,
+        answers: Object.fromEntries(Object.entries(answers)),
+        files: Object.fromEntries(Object.entries(files)),
+        selectedOptions: Object.fromEntries(Object.entries(selectedOptions)),
       },
     }
   }

@@ -172,12 +172,12 @@ function LoadedFormBuilder({
     ],
   )
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
       mountedRef.current = false
-    },
-    [],
-  )
+    }
+  }, [])
 
   useEffect(() => {
     if (!canEditStructure || !state.dirty || state.saveState === 'conflict' || inFlightRef.current)

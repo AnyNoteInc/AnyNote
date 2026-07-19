@@ -47,6 +47,8 @@ const TARGET_ROW_ID = '00000000-0000-7000-8000-000000000023'
 const TARGET_PAGE_ID = '00000000-0000-7000-8000-000000000024'
 const UPLOAD_ID = '00000000-0000-7000-8000-000000000025'
 const FILE_ID = '00000000-0000-7000-8000-000000000026'
+const SECOND_UPLOAD_ID = '00000000-0000-7000-8000-000000000029'
+const SECOND_FILE_ID = '00000000-0000-7000-8000-000000000030'
 const COLLECTION_ID = '00000000-0000-7000-8000-000000000027'
 const PARENT_PAGE_ID = '00000000-0000-7000-8000-000000000028'
 const LOCATOR_HASH = createHash('sha256').update('anf_public').digest('hex')
@@ -407,6 +409,40 @@ function makeValidationHarness(
 }
 
 describe('FormSubmissionService server-authoritative scalar preparation', () => {
+  it('returns plain own-response records that can cross an RSC boundary', async () => {
+    const schema = formDocument()
+    const currentVersion = formVersion(schema)
+    const { service } = makeValidationHarness({
+      storedForm: publicForm(schema, { respondentAccess: 'EDIT' }),
+      formRepo: {
+        findOwnResponseSubmission: vi.fn(
+          async () =>
+            ({
+              ...submission(),
+              version: currentVersion,
+              row: {
+                pageId: ITEM_PAGE_ID,
+                deletedAt: null,
+                updatedAt: NOW,
+                page: { title: 'Ответ', files: [] },
+                cells: [{ propertyId: PROPERTY_ID, value: 'Значение' }],
+                relationLinks: [],
+              },
+            }) as never,
+        ),
+      },
+    })
+
+    const dto = await service.getOwnResponse(ACTOR_ID, {
+      locator: 'anf_public',
+      submissionId: SUBMISSION_ID,
+    })
+
+    expect(Object.getPrototypeOf(dto.answers)).toBe(Object.prototype)
+    expect(Object.getPrototypeOf(dto.files)).toBe(Object.prototype)
+    expect(Object.getPrototypeOf(dto.selectedOptions)).toBe(Object.prototype)
+  })
+
   it('exposes an early replay only after revalidating stored access and version context', async () => {
     const replay = submission({ respondentUserId: null })
     const { service, formRepo } = makeValidationHarness({
@@ -1505,8 +1541,8 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
     expect(uow.transaction).not.toHaveBeenCalled()
   })
 
-  it('hashes and resolves bound FILE leases without consuming them before the response transaction', async () => {
-    const leaseToken = 'lease-token-secret'
+  it('hashes, resolves and atomically attaches multiple FILE leases', async () => {
+    const leaseTokens = ['lease-token-secret', 'second-lease-token-secret']
     const schema = formDocument([
       titleQuestion(),
       propertyQuestion('files', PROPERTY_ID, 'FILE', {
@@ -1516,16 +1552,23 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
         maxFiles: 2,
       }),
     ])
-    const lease = uploadLease()
+    const leases = [
+      uploadLease(),
+      uploadLease({
+        id: SECOND_UPLOAD_ID,
+        fileId: SECOND_FILE_ID,
+        uploadTokenHash: createHash('sha256').update(leaseTokens[1]!).digest('hex'),
+      }),
+    ]
     const { service, formRepo, databaseRepo } = makeValidationHarness({
       storedForm: publicForm(schema),
       properties: [{ id: PROPERTY_ID, type: 'FILE', name: 'Файлы', position: 1, settings: null }],
-      formRepo: { resolveUploadLeases: vi.fn(async () => [lease]) },
+      formRepo: { resolveUploadLeases: vi.fn(async () => leases) },
     })
 
     await service.submit(
       null,
-      submissionInput({ title: 'Ответ', files: [leaseToken] }),
+      submissionInput({ title: 'Ответ', files: leaseTokens }),
       tokenContext(),
     )
 
@@ -1533,7 +1576,7 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       formId: FORM_ID,
       versionId: VERSION_ID,
       questionId: 'files',
-      tokenHashes: [createHash('sha256').update(leaseToken).digest('hex')],
+      tokenHashes: leaseTokens.map((token) => createHash('sha256').update(token).digest('hex')),
       now: NOW,
     })
     expect(formRepo.consumeUploadLeases).toHaveBeenCalledWith({
@@ -1541,11 +1584,14 @@ describe('FormSubmissionService server-authoritative scalar preparation', () => 
       versionId: VERSION_ID,
       questionId: 'files',
       workspaceId: WORKSPACE_ID,
-      uploads: [lease],
+      uploads: leases,
       pageId: ITEM_PAGE_ID,
       consumedAt: NOW,
     })
-    expect(databaseRepo.upsertFileCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, [FILE_ID])
+    expect(databaseRepo.upsertFileCellValue).toHaveBeenCalledWith(ROW_ID, PROPERTY_ID, [
+      FILE_ID,
+      SECOND_FILE_ID,
+    ])
   })
 
   it.each([

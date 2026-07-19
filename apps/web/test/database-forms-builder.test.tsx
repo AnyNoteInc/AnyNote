@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react'
+
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -307,6 +309,32 @@ describe('database FORM UI', () => {
       expect(mocks.updateDraft).toHaveBeenCalledWith(
         expect.objectContaining({ expectedRevision: 3 }),
       )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('confirms autosave after the StrictMode effect remount', async () => {
+    vi.useFakeTimers()
+    mocks.updateDraft.mockResolvedValue({ ...managedForm, draftRevision: 4 })
+    try {
+      render(
+        <StrictMode>
+          <FormBuilder
+            pageId="66666666-6666-4666-8666-666666666666"
+            formViewId="33333333-3333-4333-8333-333333333333"
+          />
+        </StrictMode>,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Ваше имя/u }))
+      fireEvent.change(screen.getByLabelText('Текст вопроса'), {
+        target: { value: 'Как вас зовут?' },
+      })
+      await act(async () => vi.advanceTimersByTimeAsync(700))
+
+      expect(mocks.updateDraft).toHaveBeenCalledTimes(1)
+      expect(screen.getByText('Сохранено')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

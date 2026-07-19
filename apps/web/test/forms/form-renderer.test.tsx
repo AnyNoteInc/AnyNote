@@ -163,6 +163,52 @@ describe('public FormRenderer', () => {
     )
   })
 
+  it('navigates a multi-section editable response after changing an initial answer', async () => {
+    const actor = userEvent.setup()
+    const editableVersion: PublicFormVersion = {
+      ...version,
+      sections: [
+        { id: 'intro', title: 'Вопросы', questionIds: ['name'] },
+        { id: 'details', title: 'Новый раздел', questionIds: [] },
+      ],
+      questions: version.questions.filter(({ id }) => id === 'name'),
+      transitions: [
+        {
+          id: 'to-details',
+          fromSectionId: 'intro',
+          priority: 0,
+          when: null,
+          target: { kind: 'SECTION', sectionId: 'details' },
+        },
+        {
+          id: 'details-done',
+          fromSectionId: 'details',
+          priority: 0,
+          when: null,
+          target: { kind: 'ENDING', endingId: 'done' },
+        },
+      ],
+    }
+    render(
+      <FormRenderer
+        version={editableVersion}
+        mode="public"
+        initialAnswers={{ name: 'Старый ответ' }}
+        onAnswersChange={vi.fn()}
+        onSubmit={vi.fn()}
+        submitButtonText="Сохранить изменения"
+      />,
+    )
+
+    const name = screen.getByRole('textbox', { name: 'Имя *' })
+    await actor.clear(name)
+    await actor.type(name, 'Новый ответ')
+    await actor.click(screen.getByRole('button', { name: 'Далее' }))
+
+    expect(await screen.findByRole('heading', { name: 'Новый раздел' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Сохранить изменения' })).toBeInTheDocument()
+  })
+
   it('maps server field errors to their section and focuses the first field', async () => {
     render(
       <FormRenderer
@@ -204,6 +250,28 @@ describe('public FormRenderer', () => {
     expect(screen.getByText('Раздел 1 из 1')).toBeInTheDocument()
     expect(screen.getByText('Создано в AnyNote')).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Разделы формы' })).toBeInTheDocument()
+  })
+
+  it('keeps the desktop section map and compact progress in sync across a branched route', async () => {
+    const actor = userEvent.setup()
+    render(
+      <FormRenderer
+        version={version}
+        mode="public"
+        initialAnswers={{ name: 'Виктор', 'details-toggle': true }}
+      />,
+    )
+
+    const sectionMap = screen.getByRole('navigation', { name: 'Разделы формы' })
+    expect(sectionMap).toHaveTextContent('О вас')
+    expect(sectionMap).toHaveTextContent('Контакты')
+    expect(screen.getByRole('button', { name: 'О вас' })).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('progressbar', { name: 'Прогресс формы: 50%' })).toBeInTheDocument()
+
+    await actor.click(screen.getByRole('button', { name: 'Далее' }))
+
+    expect(screen.getByRole('button', { name: 'Контакты' })).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByRole('progressbar', { name: 'Прогресс формы: 100%' })).toBeInTheDocument()
   })
 
   it('renders only an AnyNote-hosted cover without disclosing the form URL as a referrer', () => {

@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { defineConfig } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test'
 
 // Load the root .env so DATABASE_URL and other required vars are available
 // when Playwright spawns the Next.js webServer child process.
@@ -27,6 +27,7 @@ export default defineConfig({
   testDir: './apps/e2e',
   timeout: 60_000,
   reporter: 'list',
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
       command: 'pnpm --filter web exec next dev --turbo --port 3100',
@@ -38,6 +39,8 @@ export default defineConfig({
         ...dotEnv,
         BETTER_AUTH_URL: 'http://localhost:3100',
         NEXT_PUBLIC_BASE_URL: 'http://localhost:3100',
+        RECAPTCHA_SECRET_KEY: '',
+        FORM_TOKEN_SECRET: 'e2e-form-token-secret-at-least-thirty-two-characters',
         PLAYWRIGHT: 'true',
         YOOKASSA_MOCK_ENABLED: 'true',
         YOOKASSA_RETURN_URL_BASE: 'http://localhost:3100',

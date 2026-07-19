@@ -9,7 +9,10 @@ export { NOINDEX_METADATA as metadata } from '@/lib/seo/build-metadata'
 
 export default function FormLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <RecaptchaProvider siteKey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}>
+    <RecaptchaProvider
+      siteKey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+      testMode={process.env.NODE_ENV !== 'production' && process.env.PLAYWRIGHT === 'true'}
+    >
       <TRPCReactProvider>
         <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary' }}>
           {children}

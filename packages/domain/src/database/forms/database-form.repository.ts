@@ -1080,7 +1080,10 @@ export class DatabaseFormRepository implements FormRepositoryContract {
     const reserved = await this.uow.client().$queryRaw<{ id: string }[]>(Prisma.sql`
       UPDATE database_forms
       SET accepted_responses = accepted_responses + 1,
-          updated_at = now()
+          updated_at = GREATEST(
+            date_trunc('milliseconds', statement_timestamp()),
+            updated_at + interval '1 millisecond'
+          )
       WHERE id = ${input.formId}::uuid
         AND state = ${DatabaseFormState.OPEN}::"DatabaseFormState"
         AND link_revision = ${input.expectedLinkRevision}

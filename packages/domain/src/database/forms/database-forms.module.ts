@@ -5,7 +5,6 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import { BILLING } from '../../billing/billing.tokens.ts'
 import type { BillingService } from '../../billing/services/billing.service.ts'
 import { WORKSPACE } from '../../workspace/workspace.tokens.ts'
-import type { WorkspaceService } from '../../workspace/services/workspace.service.ts'
 import { PAGES } from '../../pages/pages.tokens.ts'
 import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
 import { DATABASE } from '../database.tokens.ts'
@@ -13,7 +12,7 @@ import type { DatabaseRepository } from '../repositories/database.repository.ts'
 import { DatabaseFormRepository } from './database-form.repository.ts'
 import { DatabaseFormService } from './database-form.service.ts'
 import { DATABASE_FORMS } from './database-forms.tokens.ts'
-import { FormAccessResolver } from './form-access-resolver.ts'
+import { FormAccessResolver, type ActiveMembershipAuthority } from './form-access-resolver.ts'
 import { FormSubmissionService } from './form-submission.service.ts'
 
 export const databaseFormsModule = new ContainerModule(({ bind }) => {
@@ -33,7 +32,10 @@ export const databaseFormsModule = new ContainerModule(({ bind }) => {
   )
   bind(DATABASE_FORMS.AccessResolver).toResolvedValue(
     (repo, workspace) =>
-      new FormAccessResolver(repo as DatabaseFormRepository, workspace as WorkspaceService),
+      new FormAccessResolver(
+        repo as DatabaseFormRepository,
+        workspace as ActiveMembershipAuthority,
+      ),
     [DATABASE_FORMS.Repository, WORKSPACE.Service],
   )
   bind(DATABASE_FORMS.SubmissionService).toResolvedValue(

@@ -1,4 +1,3 @@
-import type { WorkspaceService } from '../../workspace/services/workspace.service.ts'
 import { isDomainError } from '../../shared/errors.ts'
 import { normalizeFormLocator } from './database-form.dto.ts'
 import type {
@@ -48,7 +47,10 @@ type PublicFormLookup = Pick<
   FormRepositoryContract,
   'findByLocator' | 'findVersion' | 'findOwnResponseSubmission'
 >
-type ActiveMembershipAuthority = Pick<WorkspaceService, 'assertMembership'>
+/** Narrow port keeps public form access independent from the workspace module graph. */
+export interface ActiveMembershipAuthority {
+  assertMembership(actorUserId: string, workspaceId: string): Promise<unknown>
+}
 
 function isUnavailable(form: PublicFormRecord): boolean {
   return (

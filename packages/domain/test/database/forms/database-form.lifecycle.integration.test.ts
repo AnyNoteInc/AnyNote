@@ -658,6 +658,68 @@ describe('database form lifecycle real PostgreSQL concurrency', () => {
     ).resolves.toMatchObject({ state: 'ARCHIVED', viewId: null })
   })
 
+  it('keeps settings CAS usable after reserving a response slot', async () => {
+    const fixture = await createFixture('response-slot-settings')
+    const uow = new PrismaUnitOfWork(prisma)
+    const repo = new DatabaseFormRepository(uow)
+    const service = makeFormService(uow, repo)
+    const published = await service.publish(userId, { pageId, formId: fixture.form.id })
+
+    await expect(
+      uow.transaction(() =>
+        repo.reserveResponseSlot({
+          formId: fixture.form.id,
+          expectedLinkRevision: published.linkRevision,
+          expectedAudience: published.audience,
+          now: NOW,
+        }),
+      ),
+    ).resolves.toBe(true)
+
+    await expect(
+      service.setSlug(userId, {
+        pageId,
+        formId: fixture.form.id,
+        slug: `response-slot-${RUN}`,
+      }),
+    ).resolves.toMatchObject({ customSlug: `response-slot-${RUN}` })
+  })
+
+  it('advances the form revision monotonically for same-millisecond and future timestamps', async () => {
+    const fixture = await createFixture('response-slot-monotonic')
+    const uow = new PrismaUnitOfWork(prisma)
+    const repo = new DatabaseFormRepository(uow)
+    const service = makeFormService(uow, repo)
+    const published = await service.publish(userId, { pageId, formId: fixture.form.id })
+    const future = new Date('2099-01-01T00:00:00.000Z')
+    await prisma.databaseForm.update({
+      where: { id: fixture.form.id },
+      data: { updatedAt: future },
+    })
+
+    const [first, second] = await uow.transaction(async () => {
+      const reserve = () =>
+        repo.reserveResponseSlot({
+          formId: fixture.form.id,
+          expectedLinkRevision: published.linkRevision,
+          expectedAudience: published.audience,
+          now: NOW,
+        })
+      await expect(reserve()).resolves.toBe(true)
+      const firstUpdatedAt = (
+        await uow.client().databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } })
+      ).updatedAt
+      await expect(reserve()).resolves.toBe(true)
+      const secondUpdatedAt = (
+        await uow.client().databaseForm.findUniqueOrThrow({ where: { id: fixture.form.id } })
+      ).updatedAt
+      return [firstUpdatedAt, secondUpdatedAt]
+    })
+
+    expect(first.getTime()).toBe(future.getTime() + 1)
+    expect(second.getTime()).toBe(first.getTime() + 1)
+  })
+
   it('archives the form/view but preserves accepted row provenance and historical response count', async () => {
     const fixture = await createFixture('archive-preserves')
     const uow = new PrismaUnitOfWork(prisma)
