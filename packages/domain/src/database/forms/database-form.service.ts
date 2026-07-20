@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 
-import type { DatabaseFormAudience, DatabaseFormRespondentAccess } from '@repo/db'
+import type { DatabaseFormAudience, DatabaseFormRespondentAccess, Prisma } from '@repo/db'
 
 import type { BillingService } from '../../billing/services/billing.service.ts'
 import {
@@ -141,6 +141,10 @@ function sameDate(left: Date | null, right: Date | null): boolean {
   return left?.getTime() === right?.getTime()
 }
 
+function toInputJsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
+}
+
 function optionIds(settings: unknown): Set<string> {
   if (settings === null || typeof settings !== 'object') return new Set()
   const options = (settings as { options?: unknown }).options
@@ -192,7 +196,7 @@ export class DatabaseFormService {
         title: input.title.trim(),
         position: (views.at(-1)?.position ?? 0) + POSITION_GAP,
         routeKey: newFormRouteKey(),
-        draftSchema: emptyFormDocument(input.title.trim()),
+        draftSchema: toInputJsonValue(emptyFormDocument(input.title.trim())),
         createdById: actorUserId,
       })
       await writeFormAudit(this.uow, {
@@ -227,7 +231,7 @@ export class DatabaseFormService {
       const updated = await this.repo.updateDraftIfRevision({
         formId: form.id,
         expectedRevision: input.expectedRevision,
-        draftSchema: input.schema,
+        draftSchema: toInputJsonValue(input.schema),
       })
       if (updated === null) throw conflict('FORM_DRAFT_CONFLICT')
       for (const [propertyId, name] of Object.entries(propertyNameIntents)) {
@@ -298,7 +302,7 @@ export class DatabaseFormService {
             : new Date(publishedAt.getTime() + VERSION_GRACE_MS),
         versionNumber,
         schemaVersion: document.schemaVersion,
-        schema: document,
+        schema: toInputJsonValue(document),
         schemaHash: canonicalFormSchemaHash(document),
         publishedById: actorUserId,
         publishedAt,
@@ -486,7 +490,7 @@ export class DatabaseFormService {
         title: `${form.view?.title ?? 'Форма'} (копия)`,
         position: (views.at(-1)?.position ?? 0) + POSITION_GAP,
         routeKey: newFormRouteKey(),
-        draftSchema: parseFormVersionDocument(form.draftSchema),
+        draftSchema: toInputJsonValue(parseFormVersionDocument(form.draftSchema)),
         createdById: actorUserId,
         audience: form.audience,
         respondentAccess: form.respondentAccess,
