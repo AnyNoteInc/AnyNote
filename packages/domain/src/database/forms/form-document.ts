@@ -91,7 +91,7 @@ export type FormCover = z.infer<typeof formCoverSchema>
 
 export const formPresentationSchema = z
   .object({
-    title: z.string().min(1).max(200),
+    title: z.string().max(200),
     description: descriptionSchema.optional(),
     icon: z.string().min(1).max(256).optional(),
     cover: formCoverSchema.optional(),

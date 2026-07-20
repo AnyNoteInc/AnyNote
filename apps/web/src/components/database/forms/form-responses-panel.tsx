@@ -159,6 +159,7 @@ export function FormResponsesPanel({
           viewId={formViewId}
           schema={schema}
           editable={editable}
+          propertiesTitle="Поля для заполнения"
           rowOverride={selected.row}
         />
       ) : null}

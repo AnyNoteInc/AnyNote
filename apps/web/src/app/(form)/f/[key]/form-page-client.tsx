@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { Alert, Box, Button, LinearProgress } from '@repo/ui/components'
+import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@repo/ui/components'
 
 import type { RouterOutputs } from '@/trpc/client'
 
@@ -64,6 +64,11 @@ function canonicalAnswers(answers: Record<string, unknown>): string {
 
 const CAPTCHA_ERROR = 'Не удалось запустить защиту формы. Обновите страницу и попробуйте снова.'
 
+function qrImageUrl(formUrl: string): string {
+  if (!formUrl) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=1&data=${encodeURIComponent(formUrl)}`
+}
+
 export function FormPageClient({
   locator,
   published,
@@ -79,6 +84,11 @@ export function FormPageClient({
     () => formDraftStorageKey(locator, published.versionFingerprint),
     [locator, published.versionFingerprint],
   )
+  const formUrl = useMemo(
+    () => (typeof window === 'undefined' ? '' : `${window.location.origin}/f/${locator}`),
+    [locator],
+  )
+  const qrUrl = useMemo(() => qrImageUrl(formUrl), [formUrl])
   const [draftReady, setDraftReady] = useState(false)
   const [initialAnswers, setInitialAnswers] = useState<Record<string, unknown>>({})
   const [serverFieldErrors, setServerFieldErrors] = useState<PublicFieldErrors>({})
@@ -290,6 +300,41 @@ export function FormPageClient({
             : `${incompatibleDraft.count} ответа из старой версии несовместимы и пока сохранены только в этом браузере.`}
         </Alert>
       ) : null}
+      <Box sx={{ px: 2.5, py: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <Stack
+          spacing={1}
+          sx={{
+            p: 1.5,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 2,
+            alignItems: 'center',
+            backgroundColor: 'background.paper',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            QR-код формы
+          </Typography>
+          {qrUrl ? (
+            <Box
+              component="img"
+              src={qrUrl}
+              alt="QR-код для открытия формы"
+              width={96}
+              height={96}
+              loading="lazy"
+              sx={{ borderRadius: 1 }}
+            />
+          ) : null}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigator.clipboard.writeText(formUrl)}
+          >
+            Копировать ссылку
+          </Button>
+        </Stack>
+      </Box>
       <FormRenderer
         version={published.version}
         mode="public"

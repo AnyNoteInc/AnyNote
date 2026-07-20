@@ -167,6 +167,17 @@ describe('database form document', () => {
     expect(formVersionDocumentSchema.safeParse(longTitle).success).toBe(false)
   })
 
+  it('allows an empty form title while still enforcing max length', () => {
+    const emptyTitle = makeDocument()
+    emptyTitle.presentation.title = ''
+
+    const safeLongTitle = makeDocument()
+    safeLongTitle.presentation.title = ' '.repeat(200)
+
+    expect(formVersionDocumentSchema.safeParse(emptyTitle).success).toBe(true)
+    expect(formVersionDocumentSchema.safeParse(safeLongTitle).success).toBe(true)
+  })
+
   it('accepts safe form covers and rejects network-capable CSS or unsafe image URLs', () => {
     for (const cover of [
       { kind: 'color', value: '#6366f1' },

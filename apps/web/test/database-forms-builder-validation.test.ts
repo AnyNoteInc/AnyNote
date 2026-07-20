@@ -271,6 +271,30 @@ describe('validateFormPublishReadiness', () => {
     },
   )
 
+  it.each(['ANYONE_WITH_LINK', 'SIGNED_IN_WITH_LINK'] as const)(
+    'allows page-link questions for %s',
+    (audience) => {
+      const document: FormVersionDocument = {
+        ...documentFixture(),
+        questions: [
+          {
+            ...documentFixture().questions[0]!,
+            property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'PAGE_LINK' },
+            input: { kind: 'PAGE_LINK' },
+          },
+        ],
+      }
+
+      const result = validate(document, {
+        audience,
+        properties: [{ id: 'property-1', type: 'PAGE_LINK', settings: null }],
+      })
+
+      expect(result.ok).toBe(true)
+      expect(result.issues).toEqual([])
+    },
+  )
+
   it.each([
     { targetWorkspaceId: null, code: 'FORM_RELATION_TARGET_NOT_FOUND' },
     { targetWorkspaceId: 'workspace-2', code: 'FORM_RELATION_TARGET_WORKSPACE_MISMATCH' },

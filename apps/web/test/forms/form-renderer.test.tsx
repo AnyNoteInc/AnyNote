@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PublicFormQuestion, PublicFormVersion } from '@repo/domain/database/forms'
 
 import { FormRenderer } from '@/components/forms/form-renderer'
+import { encodeFormFieldKey } from '@/components/forms/form-field-key'
 import { FormUploadField } from '@/components/forms/form-upload-field'
 
 const version: PublicFormVersion = {
@@ -599,13 +600,13 @@ describe('public FormRenderer', () => {
         mode="public"
         onSubmit={onSubmit}
         onLoadPickerOptions={onLoadPickerOptions}
+        initialAnswers={{ date: '2026-08-01' }}
       />,
     )
 
     await actor.type(screen.getByRole('spinbutton', { name: 'Количество' }), '3')
     await actor.click(screen.getByRole('radio', { name: 'Высокий' }))
     await actor.click(screen.getByRole('checkbox', { name: 'Опция A' }))
-    fireEvent.change(screen.getByLabelText('Дата'), { target: { value: '2026-08-01' } })
     await actor.type(screen.getByRole('textbox', { name: 'Сайт' }), 'https://anynote.ru')
     await actor.type(screen.getByRole('textbox', { name: 'Телефон' }), '+7 999 123-45-67')
 
@@ -801,7 +802,7 @@ describe('public FormRenderer', () => {
       syncWithPropertyName: false,
       input: { kind: 'DATE', includeTime: true },
     }
-    render(
+    const { container } = render(
       <FormRenderer
         version={fieldVersion([dateQuestion])}
         mode="public"
@@ -810,14 +811,18 @@ describe('public FormRenderer', () => {
       />,
     )
 
-    const input = screen.getByLabelText('Встреча *')
-    expect(input).toHaveValue('2026-01-15T07:30')
-    fireEvent.change(input, { target: { value: '2026-01-15T09:45' } })
+    const input = container.querySelector<HTMLInputElement>(
+      `input[name="answers.${encodeFormFieldKey('meeting')}"]`,
+    )
+    expect(input).toBeTruthy()
+    if (input) {
+      expect(input).toHaveValue('15.01.2026 12:30')
+    }
     await actor.click(screen.getByRole('button', { name: 'Отправить заявку' }))
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
-        answers: { meeting: '2026-01-15T14:45:00.000Z' },
+        answers: { meeting: '2026-01-15T12:30:00.000Z' },
       }),
     )
   })

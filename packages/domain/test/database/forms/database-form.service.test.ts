@@ -668,6 +668,45 @@ describe('DatabaseFormService lifecycle', () => {
     expect(planHarness.formRepo.publishVersion).not.toHaveBeenCalled()
   })
 
+  it('allows a PAGE_LINK question when audience is public', async () => {
+    const pageLinkDocument = linearDocument({
+      questions: [
+        {
+          ...linearDocument().questions[0]!,
+          property: { kind: 'PROPERTY', propertyId: 'property-1', propertyType: 'PAGE_LINK' },
+          input: { kind: 'PAGE_LINK' },
+        },
+      ],
+    })
+
+    const { service, formRepo } = makeHarness({
+      form: managedForm({
+        audience: 'ANYONE_WITH_LINK',
+        draftSchema: pageLinkDocument,
+        source: {
+          ...managedForm().source,
+          properties: [
+            {
+              id: 'property-1',
+              type: 'PAGE_LINK',
+              name: 'Landing page',
+              position: 1,
+              settings: null,
+            },
+          ],
+        },
+      }),
+    })
+
+    await expect(
+      service.publish('00000000-0000-7000-8000-000000000001', {
+        pageId: '00000000-0000-7000-8000-000000000050',
+        formId: '00000000-0000-7000-8000-000000000010',
+      }),
+    ).resolves.toMatchObject({ id: '00000000-0000-7000-8000-000000000010' })
+    expect(formRepo.publishVersion).toHaveBeenCalled()
+  })
+
   it('rejects publishing a PERSON question with maxSelections other than one', async () => {
     const document = linearDocument({
       questions: [

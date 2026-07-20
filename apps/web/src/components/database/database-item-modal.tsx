@@ -57,6 +57,7 @@ interface DatabaseItemModalProps {
   /** The loaded database schema, so we can resolve the property list. */
   readonly schema: DatabaseSchema
   readonly editable?: boolean
+  readonly propertiesTitle?: string
   /**
    * A response row may live beyond the active view's first listRows page. When
    * supplied it is the authoritative row for this modal; regular view callers
@@ -75,6 +76,7 @@ export function DatabaseItemModal({
   viewId,
   schema,
   editable = true,
+  propertiesTitle = 'Свойства',
   rowOverride,
 }: DatabaseItemModalProps) {
   const router = useRouter()
@@ -125,6 +127,7 @@ export function DatabaseItemModal({
         schema={schema}
         row={row}
         editable={editable}
+        propertiesTitle={propertiesTitle}
         onClose={close}
       />
     </Dialog>
@@ -137,6 +140,7 @@ function ItemModalContent({
   schema,
   row,
   editable,
+  propertiesTitle,
   onClose,
 }: {
   pageId: string
@@ -144,6 +148,7 @@ function ItemModalContent({
   schema: DatabaseSchema
   row: DatabaseRowView
   editable: boolean
+  propertiesTitle: string
   onClose: () => void
 }) {
   const properties = useMemo(
@@ -229,7 +234,7 @@ function ItemModalContent({
           }}
         >
           <Typography variant="overline" color="text.secondary">
-            Свойства
+            {propertiesTitle}
           </Typography>
           <Divider sx={{ my: 1 }} />
           {properties.length === 0 ? (

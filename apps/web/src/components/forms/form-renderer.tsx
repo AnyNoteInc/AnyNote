@@ -109,6 +109,54 @@ function emptyEncodedAnswers(version: PublicFormVersion): Record<string, unknown
   )
 }
 
+interface ValidationResult {
+  ok: boolean
+  invalidQuestionIds: readonly string[]
+}
+
+function validateAnswersWithDefaults(
+  resolverSchema: ReturnType<typeof zodResolver>,
+  answerValues: Record<string, unknown>,
+  questionIds: readonly string[],
+  clearErrors: (names: string[]) => void,
+  setError: (name: `answers.${string}`, options: { message: string; type: string }) => void,
+): ValidationResult {
+  const invalidByQuestion = new Set<string>()
+  const messageByQuestion = new Map<string, string>()
+  const checks = new Set(questionIds)
+  const encodedAnswers = encodeAnswers(answerValues, checks)
+  const errors = resolverSchema({ answers: encodedAnswers }, {}, {}).error
+
+  if (Array.isArray(errors)) {
+    for (const issue of errors) {
+      const path = Array.isArray(issue.path) ? issue.path : []
+      if (path.length < 2 || path[0] !== 'answers' || typeof path[1] !== 'string') continue
+      const encodedQuestionId = path[1]
+      let questionId: string
+      try {
+        questionId = decodeFormFieldKey(encodedQuestionId)
+      } catch {
+        continue
+      }
+      if (!checks.has(questionId) || messageByQuestion.has(questionId)) continue
+      const message = typeof issue.message === 'string' ? issue.message : 'Ошибка валидации ответа'
+      invalidByQuestion.add(questionId)
+      messageByQuestion.set(questionId, message)
+    }
+  }
+
+  clearErrors(Array.from(checks, (questionId) => `answers.${encodeFormFieldKey(questionId)}`))
+
+  for (const [questionId, message] of messageByQuestion) {
+    setError(`answers.${encodeFormFieldKey(questionId)}` as `answers.${string}`, {
+      type: 'schema',
+      message,
+    })
+  }
+
+  return { ok: invalidByQuestion.size === 0, invalidQuestionIds: [...invalidByQuestion] }
+}
+
 export function FormRenderer({
   version,
   mode,
@@ -158,7 +206,7 @@ export function FormRenderer({
     [answerSchema],
   )
   const encodedInitialAnswers = useMemo(
-    () => encodeAnswers(applyDefaultAnswers(publicVersion, initialAnswers), questionIds),
+    () => encodeAnswers(initialAnswers, questionIds),
     // Initial answers are intentionally read once. Parent rerenders must not erase in-progress input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -179,7 +227,6 @@ export function FormRenderer({
     register,
     trigger,
     reset,
-    setValue,
     setError,
     setFocus,
     clearErrors,
@@ -212,7 +259,7 @@ export function FormRenderer({
         endingId: publicVersion.endings[0]?.id ?? '',
       }
     }
-  }, [answers, publicVersion])
+  }, [answersWithDefaults, publicVersion])
   const visibleIds = useMemo(() => new Set(path.visibleQuestionIds), [path.visibleQuestionIds])
   const navigableSections = useMemo(() => {
     if (mode === 'preview') return publicVersion.sections
@@ -307,7 +354,20 @@ export function FormRenderer({
   async function goNext() {
     if (uploadsPending) return
     const projected = projectReachableAnswers(publicVersion, answersWithDefaults)
-    setValue('answers', encodeAnswers(projected, questionIds), { shouldDirty: true })
+    const { ok, invalidQuestionIds } = validateAnswersWithDefaults(
+      resolver,
+      projected,
+      activeVisibleQuestionIds,
+      (names) => clearErrors(names),
+      (name, options) => setError(name, options),
+    )
+
+    if (!ok) {
+      const questionId = activeVisibleQuestionIds.find((id) => invalidQuestionIds.includes(id))
+      if (questionId) focusQuestion(questionId)
+      return
+    }
+
     const paths = activeVisibleQuestionIds.map(
       (questionId) => `answers.${encodeFormFieldKey(questionId)}` as const,
     )
@@ -324,13 +384,26 @@ export function FormRenderer({
 
   async function submitReachableAnswers() {
     if (uploadsPending) return
-    const projected = Object.fromEntries(
-      Object.entries(projectReachableAnswers(publicVersion, answers)).filter(
-        ([questionId]) => !unavailableIds.has(questionId),
-      ),
+    const projected = projectReachableAnswers(publicVersion, answersWithDefaults)
+    const { ok, invalidQuestionIds } = validateAnswersWithDefaults(
+      resolver,
+      projected,
+      path.visibleQuestionIds,
+      (names) => clearErrors(names),
+      (name, options) => setError(name, options),
     )
-    setValue('answers', encodeAnswers(projected, questionIds), { shouldDirty: true })
-    const valid = await trigger(undefined, { shouldFocus: true })
+    if (!ok) {
+      const questionId = path.visibleQuestionIds.find((id) => invalidQuestionIds.includes(id))
+      if (questionId) focusQuestion(questionId)
+      return
+    }
+    const submitPaths = path.visibleQuestionIds.map(
+      (questionId) => `answers.${encodeFormFieldKey(questionId)}` as const,
+    )
+    const filtered = Object.fromEntries(
+      Object.entries(projected).filter(([questionId]) => !unavailableIds.has(questionId)),
+    )
+    const valid = await trigger(submitPaths, { shouldFocus: true })
     if (!valid) {
       const questionId = path.visibleQuestionIds.find(
         (id) => getFieldState(`answers.${encodeFormFieldKey(id)}`).invalid,
@@ -340,7 +413,7 @@ export function FormRenderer({
     }
     setSubmitting(true)
     try {
-      await onSubmit?.({ answers: projected })
+      await onSubmit?.({ answers: filtered })
     } catch {
       // The page-level owner maps transport/domain errors back through serverFieldErrors.
     } finally {
@@ -404,7 +477,6 @@ export function FormRenderer({
           <Stack
             sx={{
               width: '100%',
-              maxWidth: 840,
               px: { xs: 2.5, sm: 5, lg: 8 },
               py: { xs: 3, md: 6 },
             }}

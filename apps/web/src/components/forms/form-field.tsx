@@ -8,6 +8,10 @@ import {
   FormControl,
   FormControlLabel,
   FormHelperText,
+  AdapterDateFns,
+  DatePicker,
+  DateTimePicker,
+  LocalizationProvider,
   FormLabel,
   InputLabel,
   MenuItem,
@@ -17,6 +21,7 @@ import {
   Stack,
   TextField,
   Typography,
+  dateFnsRu,
 } from '@repo/ui/components'
 import type { PublicFormQuestion } from '@repo/domain/database/forms'
 
@@ -63,30 +68,52 @@ export function publicFormValidationMessage(code: string): string {
 
 const padDatePart = (value: number): string => value.toString().padStart(2, '0')
 
-const localDateInputToIso = (value: string): string | undefined => {
-  if (value === '') return undefined
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined
-  const date = new Date(`${value}T00:00:00.000Z`)
-  return Number.isFinite(date.getTime()) ? value : undefined
+function parseDateInput(value: unknown): Date | null {
+  if (typeof value !== 'string') return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (match === null) return null
+  const [, year, month, day] = match
+  const next = new Date(Number(year), Number(month) - 1, Number(day))
+  return Number.isFinite(next.getTime()) ? next : null
 }
 
-const isoToLocalDateInput = (value: unknown): string => {
-  if (typeof value !== 'string' || value === '') return ''
-  const normalized = value.slice(0, 10)
-  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+function parseDateTimeInput(value: unknown): Date | null {
+  if (typeof value !== 'string') return null
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})/.exec(value)
+  if (match === null) return null
+  const [, year, month, day, hour, minute] = match
+  const next = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    0,
+    0,
+  )
+  return Number.isFinite(next.getTime()) ? next : null
 }
 
-export function isoToLocalDateTimeInput(value: unknown): string {
-  if (typeof value !== 'string' || value === '') return ''
-  const date = new Date(value)
-  if (!Number.isFinite(date.getTime())) return ''
-  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`
+function formatOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? '+' : '-'
+  const normalized = Math.abs(offsetMinutes)
+  const hours = String(Math.floor(normalized / 60)).padStart(2, '0')
+  const minutes = String(normalized % 60).padStart(2, '0')
+  return `${sign}${hours}:${minutes}`
 }
 
-export function localDateTimeInputToIso(value: string): string | undefined {
-  if (value === '') return undefined
-  const date = new Date(value)
-  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined
+function dateInputToIso(value: Date | null): string | undefined {
+  if (value === null || !Number.isFinite(value.getTime())) return undefined
+  return `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(value.getDate())}`
+}
+
+function dateTimeInputToIso(value: Date | null): string | undefined {
+  if (value === null || !Number.isFinite(value.getTime())) return undefined
+  return `${value.getFullYear()}-${padDatePart(value.getMonth() + 1)}-${padDatePart(
+    value.getDate(),
+  )}T${padDatePart(value.getHours())}:${padDatePart(value.getMinutes())}:00${formatOffset(
+    -value.getTimezoneOffset(),
+  )}`
 }
 
 type ChoiceOption = { id: string; label: string }
@@ -586,23 +613,34 @@ export function FormField({
         name={name}
         control={control}
         render={({ field }) => {
-          const localValue = isoToLocalDateTimeInput(field.value)
           return (
-            <TextField
-              inputRef={field.ref}
-              name={field.name}
-              value={localValue}
-              onBlur={field.onBlur}
-              onChange={(event) => field.onChange(localDateTimeInputToIso(event.target.value))}
-              label={label}
-              type="datetime-local"
-              disabled={disabled}
-              error={Boolean(error)}
-              helperText={helper}
-              fullWidth
-              size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
+              <DateTimePicker
+                value={parseDateTimeInput(field.value)}
+                onChange={(value) => field.onChange(dateTimeInputToIso(value ?? null))}
+                label={label}
+                disabled={disabled}
+                slotProps={{
+                  textField: {
+                    name: field.name,
+                    error: Boolean(error),
+                    helperText: helper,
+                    fullWidth: true,
+                    size: 'small',
+                    onBlur: field.onBlur,
+                    slotProps: {
+                      input: { ref: field.ref, 'aria-describedby': helper ? helperId : undefined },
+                    },
+                  },
+                  actionBar: { actions: ['clear', 'cancel', 'accept'] },
+                }}
+                localeText={{
+                  cancelButtonLabel: 'Отмена',
+                  okButtonLabel: 'Выбрать',
+                  clearButtonLabel: 'Очистить',
+                }}
+              />
+            </LocalizationProvider>
           )
         }}
       />
@@ -615,23 +653,34 @@ export function FormField({
         name={name}
         control={control}
         render={({ field }) => {
-          const localValue = isoToLocalDateInput(field.value)
           return (
-            <TextField
-              inputRef={field.ref}
-              name={field.name}
-              value={localValue}
-              onBlur={field.onBlur}
-              onChange={(event) => field.onChange(localDateInputToIso(event.target.value))}
-              label={label}
-              type="date"
-              disabled={disabled}
-              error={Boolean(error)}
-              helperText={helper}
-              fullWidth
-              size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
+              <DatePicker
+                value={parseDateInput(field.value)}
+                onChange={(value) => field.onChange(dateInputToIso(value ?? null))}
+                label={label}
+                disabled={disabled}
+                slotProps={{
+                  textField: {
+                    name: field.name,
+                    error: Boolean(error),
+                    helperText: helper,
+                    fullWidth: true,
+                    size: 'small',
+                    onBlur: field.onBlur,
+                    slotProps: {
+                      input: { ref: field.ref, 'aria-describedby': helper ? helperId : undefined },
+                    },
+                  },
+                  actionBar: { actions: ['clear', 'cancel', 'accept'] },
+                }}
+                localeText={{
+                  cancelButtonLabel: 'Отмена',
+                  okButtonLabel: 'Выбрать',
+                  clearButtonLabel: 'Очистить',
+                }}
+              />
+            </LocalizationProvider>
           )
         }}
       />
@@ -641,15 +690,13 @@ export function FormField({
   const isNumber = input.kind === 'NUMBER'
   const type = isNumber
     ? 'number'
-    : input.kind === 'DATE'
-      ? 'date'
-      : input.kind === 'EMAIL'
-        ? 'email'
-        : input.kind === 'PHONE'
-          ? 'tel'
-          : input.kind === 'URL'
-            ? 'url'
-            : 'text'
+    : input.kind === 'EMAIL'
+      ? 'email'
+      : input.kind === 'PHONE'
+        ? 'tel'
+        : input.kind === 'URL'
+          ? 'url'
+          : 'text'
 
   return (
     <TextField

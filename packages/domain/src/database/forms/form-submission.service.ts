@@ -22,7 +22,12 @@ import type {
   ReplayFormResolution,
   OwnResponseResolution,
 } from './form-access-resolver.ts'
-import { buildFormAnswerSchema, toPublicFormVersion } from './form-answer-schema.ts'
+import {
+  buildFormAnswerSchema,
+  applyDefaultAnswers,
+  projectReachableAnswers,
+  toPublicFormVersion,
+} from './form-answer-schema.ts'
 import {
   parseFormVersionDocument,
   type FormCondition,
@@ -1296,7 +1301,9 @@ export class FormSubmissionService {
       throw new FormValidationError(fieldErrors)
     }
 
-    const path = evaluateFormPath(validationVersion, answersResult.data.answers)
+    const answersWithDefaults = applyDefaultAnswers(validationVersion, answersResult.data.answers)
+    const reachableAnswers = projectReachableAnswers(validationVersion, answersWithDefaults)
+    const path = evaluateFormPath(validationVersion, answersWithDefaults)
     const visibleQuestionIds = new Set(path.visibleQuestionIds)
     const currentProperties = new Map(
       (await this.databaseRepo.listProperties(resolved.form.sourceId)).map((property) => [
@@ -1343,7 +1350,7 @@ export class FormSubmissionService {
     for (const question of document.questions) {
       if (unavailableQuestionIds.has(question.id)) continue
       if (!visibleQuestionIds.has(question.id)) continue
-      const value = answersResult.data.answers[question.id]
+      const value = reachableAnswers[question.id]
       if (question.property.kind === 'TITLE') {
         if (typeof value === 'string' && value.length > 0) title = value
         continue

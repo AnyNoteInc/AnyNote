@@ -46,20 +46,18 @@ vi.mock('@/trpc/client', () => ({
 vi.mock('@/components/forms/form-renderer', () => ({
   FormRenderer: (props: {
     initialAnswers: Record<string, unknown>
-    onAnswersChange: (answers: Record<string, unknown>) => void
-    onReset: () => void
-    onSubmit: (values: { answers: Record<string, unknown> }) => Promise<void>
-    successEndingId?: string
-    successResponseUrl?: string
-    onUpload: (questionId: string, file: File) => Promise<{ token: string }>
-    onLoadPickerOptions: (questionId: string, query: string) => Promise<{ items: unknown[] }>
-  }) => (
+  onAnswersChange: (answers: Record<string, unknown>) => void
+  onReset: () => void
+  onSubmit: (values: { answers: Record<string, unknown> }) => Promise<void>
+  successEndingId?: string
+  onUpload: (questionId: string, file: File) => Promise<{ token: string }>
+  onLoadPickerOptions: (questionId: string, query: string) => Promise<{ items: unknown[] }>
+}) => (
     <div>
       <span data-testid="initial-name">{String(props.initialAnswers['name'] ?? '')}</span>
       <span data-testid="ending">{props.successEndingId ?? ''}</span>
-      <span data-testid="own-response-url">{props.successResponseUrl ?? ''}</span>
-      <button type="button" onClick={() => props.onAnswersChange({ name: 'Новый ответ' })}>
-        Изменить ответ
+    <button type="button" onClick={() => props.onAnswersChange({ name: 'Новый ответ' })}>
+      Изменить ответ
       </button>
       <button type="button" onClick={props.onReset}>
         Сбросить
@@ -205,7 +203,7 @@ describe('FormPageClient', () => {
     expect(screen.getByTestId('ending')).toHaveTextContent('done')
   })
 
-  it('offers the signed-in respondent a link to the accepted response', async () => {
+  it('shows the final stage after the submission is accepted', async () => {
     const actor = userEvent.setup()
     mocks.mutateAsync.mockResolvedValue({
       endingId: 'done',
@@ -216,9 +214,7 @@ describe('FormPageClient', () => {
 
     await actor.click(screen.getByRole('button', { name: /^Отправить$/ }))
 
-    expect(await screen.findByTestId('own-response-url')).toHaveTextContent(
-      '/f/anf_public/responses/response-id',
-    )
+    expect(await screen.findByTestId('ending')).toHaveTextContent('done')
   })
 
   it('uses the upload CAPTCHA action and public picker API', async () => {
