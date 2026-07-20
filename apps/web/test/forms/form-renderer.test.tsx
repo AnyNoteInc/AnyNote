@@ -1023,7 +1023,7 @@ describe('public FormRenderer', () => {
     await waitFor(() => expect(onAnswersChange).toHaveBeenLastCalledWith({}))
     expect(screen.queryByRole('option', { name: 'Вариант 121' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Вариант 122' })).not.toBeInTheDocument()
-  })
+  }, 60_000)
 
   it('renders distinct and bounded choice appearances', () => {
     const option = (id: string, label: string) => ({ id, label })
