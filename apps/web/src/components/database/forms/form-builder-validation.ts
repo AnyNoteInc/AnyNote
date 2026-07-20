@@ -42,7 +42,7 @@ export interface FormPublishReadinessResult {
   issues: FormPublishReadinessIssue[]
 }
 
-const INTERNAL_PROPERTY_TYPES = new Set(['PERSON', 'RELATION', 'PAGE_LINK'])
+const INTERNAL_PROPERTY_TYPES = new Set(['PERSON', 'RELATION'])
 
 const issue = (
   code: string,

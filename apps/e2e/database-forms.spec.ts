@@ -305,16 +305,16 @@ test('database forms: owner lifecycle, isolated responses, audiences and respons
   const anonymousContext = await browser.newContext({ viewport: { width: 1280, height: 800 } })
   const anonymous = await anonymousContext.newPage()
 
-  await test.step('generated key renders the desktop A2 section map and mobile progress', async () => {
+  await test.step('generated key renders the public form and adaptive progress', async () => {
     await anonymous.goto(`${BASE_URL}/f/${oldGeneratedKey}`)
     await expect(anonymous.getByRole('heading', { name: 'Форма' })).toBeVisible({ timeout: 20_000 })
-    await expect(anonymous.getByText('Маршрут', { exact: true })).toBeVisible()
-    await expect(anonymous.getByRole('button', { name: 'Новый раздел' })).toBeVisible()
+    await expect(anonymous.getByText(/Раздел 1 из/)).toBeVisible()
+    await expect(anonymous.getByRole('button', { name: 'Далее' })).toBeVisible()
 
     await anonymous.setViewportSize({ width: 390, height: 844 })
     await anonymous.goto(`${BASE_URL}/f/${oldGeneratedKey}`)
     await expect(anonymous.getByLabel(/Прогресс формы:/)).toBeVisible()
-    await expect(anonymous.getByText('Маршрут', { exact: true })).toBeHidden()
+    await expect(anonymous.getByText(/Раздел 1 из/)).toBeVisible()
     expect(
       await anonymous.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
     ).toBe(true)
@@ -523,7 +523,7 @@ test('database forms: owner lifecycle, isolated responses, audiences and respons
       title: 'Owner signed-in response',
       endingTitle: primaryEndingTitle,
     })
-    await expect(page.getByRole('link', { name: 'Посмотреть свой ответ' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Заполнить еще раз' })).toBeVisible()
     const ownerSubmission = await prisma.databaseFormSubmission.findFirstOrThrow({
       where: { formId: primaryForm.id, respondentUserId: owner.id },
       orderBy: { submittedAt: 'desc' },
@@ -549,7 +549,7 @@ test('database forms: owner lifecycle, isolated responses, audiences and respons
       title: 'Member workspace response',
       endingTitle: primaryEndingTitle,
     })
-    await expect(memberPage.getByRole('link', { name: 'Посмотреть свой ответ' })).toBeVisible()
+    await expect(memberPage.getByRole('button', { name: 'Заполнить еще раз' })).toBeVisible()
     const memberSubmission = await prisma.databaseFormSubmission.findFirstOrThrow({
       where: { formId: primaryForm.id, respondentUserId: member.id },
       orderBy: { submittedAt: 'desc' },

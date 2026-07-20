@@ -134,7 +134,7 @@ export type FormTransitionTarget = z.infer<typeof formTransitionTargetSchema>
 export const formSectionSchema = z
   .object({
     id: formLocalIdSchema,
-    title: z.string().min(1).max(200),
+    title: z.string().min(0).max(200),
     description: descriptionSchema.optional(),
     questionIds: z.array(formLocalIdSchema).max(MAX_FORM_QUESTIONS),
   })
@@ -265,6 +265,8 @@ export const formInputConfigSchema = formInputConfigBaseSchema.superRefine((inpu
   }
 })
 export type FormInputConfig = z.infer<typeof formInputConfigSchema>
+
+const formQuestionDefaultAnswerSchema = z.unknown().optional()
 
 const conditionBaseShape = { questionId: formLocalIdSchema }
 const conditionTextValueSchema = z.string().max(10_000)
@@ -440,12 +442,14 @@ export const formQuestionSchema = z
     id: formLocalIdSchema,
     sectionId: formLocalIdSchema,
     property: formPropertyRefSchema,
-    label: z.string().min(1).max(500),
+    label: z.string().min(0).max(500),
     description: descriptionSchema.optional(),
     required: z.boolean(),
+    icon: z.string().min(1).max(256).optional(),
     syncWithPropertyName: z.boolean(),
     visibleWhen: formConditionGroupSchema.optional(),
     input: formInputConfigSchema,
+    defaultAnswer: formQuestionDefaultAnswerSchema,
   })
   .strict()
 export type FormQuestion = z.infer<typeof formQuestionSchema>

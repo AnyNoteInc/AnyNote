@@ -51,7 +51,8 @@ type DocumentAction =
       type: 'QUESTION_UPDATED'
       questionId: string
       patch: Partial<
-        Pick<FormQuestion, 'label' | 'description' | 'required' | 'input' | 'visibleWhen'>
+        Pick<FormQuestion, 'label' | 'description' | 'required' | 'input' | 'visibleWhen'> &
+          Pick<FormQuestion, 'icon' | 'defaultAnswer'>
       >
     }
   | { type: 'ENDING_ADDED'; id?: string }

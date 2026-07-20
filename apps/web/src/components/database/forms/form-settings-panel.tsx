@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
+
 import {
   AddIcon,
   Alert,
@@ -32,6 +34,7 @@ import type { FormPublishReadinessIssue } from './form-builder-validation'
 import { FormConditionEditor } from './form-condition-editor'
 import { FormInputConfigEditor } from './form-input-config-editor'
 import { FormPresentationEditor } from './form-presentation-editor'
+import { IconPickerPopover } from '../../page/icon-picker-popover'
 
 interface FormSettingsPanelProps {
   readonly state: FormBuilderState
@@ -67,6 +70,22 @@ function transitionTargetValue(
   return document.endings.some(({ id }) => id === target.endingId)
     ? `ending:${target.endingId}`
     : ''
+}
+
+function defaultAnswerText(value: unknown): string {
+  if (value === undefined) return ''
+  if (typeof value === 'string') return value
+  return JSON.stringify(value, null, 2)
+}
+
+function readDefaultAnswer(raw: string): unknown | undefined {
+  const normalized = raw.trim()
+  if (normalized === '') return undefined
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return raw
+  }
 }
 
 export function FormSettingsPanel({
@@ -119,6 +138,21 @@ export function FormSettingsPanel({
     propertyId !== undefined
       ? persistedOptions(properties.find(({ id }) => id === propertyId)?.settings)
       : []
+  const [questionDefaultAnswerText, setQuestionDefaultAnswerText] = useState('')
+  const [questionIconAnchor, setQuestionIconAnchor] = useState<HTMLElement | null>(null)
+  const contextLabel = useMemo(() => {
+    if (selection.kind === 'SECTION') return 'Раздел'
+    if (selection.kind === 'QUESTION') return 'Вопрос'
+    return 'Завершение'
+  }, [selection.kind])
+
+  useEffect(() => {
+    if (!question) {
+      setQuestionDefaultAnswerText('')
+      return
+    }
+    setQuestionDefaultAnswerText(defaultAnswerText(question.defaultAnswer))
+  }, [question])
 
   return (
     <Stack
@@ -138,7 +172,7 @@ export function FormSettingsPanel({
           Контекст
         </Typography>
         <Typography variant="body2" sx={{ fontWeight: 700 }}>
-          {section ? 'Раздел' : question ? 'Вопрос' : 'Завершение'}
+          {contextLabel}
         </Typography>
       </Box>
       <Stack
@@ -165,8 +199,23 @@ export function FormSettingsPanel({
           </Alert>
         ) : null}
 
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Оформление формы
+          </Typography>
+          <FormPresentationEditor
+            presentation={state.document.presentation}
+            onChange={(presentation) =>
+              dispatch({ type: 'PRESENTATION_UPDATED', patch: presentation })
+            }
+          />
+        </Box>
+
         {section ? (
-          <>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Оформление раздела
+            </Typography>
             <TextField
               label="Название раздела"
               size="small"
@@ -337,11 +386,14 @@ export function FormSettingsPanel({
                 ? 'Условия ветвления доступны для переходов выше fallback.'
                 : 'Условные переходы доступны на старшем плане.'}
             </FormHelperText>
-          </>
+          </Box>
         ) : null}
 
         {question ? (
-          <>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Оформление поля
+            </Typography>
             <TextField
               label="Текст вопроса"
               size="small"
@@ -361,6 +413,52 @@ export function FormSettingsPanel({
                   })
                 }
               }}
+            />
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={(event) => setQuestionIconAnchor(event.currentTarget)}
+              >
+                {question.icon ? `Иконка: ${question.icon}` : 'Добавить иконку'}
+              </Button>
+              {question.icon ? (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() =>
+                    dispatch({
+                      type: 'QUESTION_UPDATED',
+                      questionId: question.id,
+                      patch: { icon: undefined },
+                    })
+                  }
+                >
+                  Удалить иконку
+                </Button>
+              ) : null}
+            </Stack>
+            <IconPickerPopover
+              anchorEl={questionIconAnchor}
+              open={Boolean(questionIconAnchor)}
+              onClose={() => setQuestionIconAnchor(null)}
+              onSelect={(value) =>
+                dispatch({
+                  type: 'QUESTION_UPDATED',
+                  questionId: question.id,
+                  patch: { icon: value },
+                })
+              }
+              onRemove={
+                question.icon
+                  ? () =>
+                      dispatch({
+                        type: 'QUESTION_UPDATED',
+                        questionId: question.id,
+                        patch: { icon: undefined },
+                      })
+                  : undefined
+              }
             />
             <TextField
               label="Подсказка"
@@ -390,6 +488,22 @@ export function FormSettingsPanel({
                 />
               }
               label="Обязательный ответ"
+            />
+            <TextField
+              label="Значение по умолчанию"
+              size="small"
+              multiline
+              minRows={3}
+              value={questionDefaultAnswerText}
+              helperText="Если не заполнено пользователем, это значение будет подставлено автоматически."
+              onChange={(event) => setQuestionDefaultAnswerText(event.target.value)}
+              onBlur={() => {
+                dispatch({
+                  type: 'QUESTION_UPDATED',
+                  questionId: question.id,
+                  patch: { defaultAnswer: readDefaultAnswer(questionDefaultAnswerText) },
+                })
+              }}
             />
             {question.property.kind === 'PROPERTY' ? (
               <FormControlLabel
@@ -442,11 +556,14 @@ export function FormSettingsPanel({
                 }
               />
             </Box>
-          </>
+          </Box>
         ) : null}
 
         {ending ? (
-          <>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Оформление завершения
+            </Typography>
             <TextField
               label="Заголовок"
               size="small"
@@ -522,16 +639,8 @@ export function FormSettingsPanel({
                 />
               </Stack>
             ) : null}
-          </>
+          </Box>
         ) : null}
-        <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
-          <FormPresentationEditor
-            presentation={state.document.presentation}
-            onChange={(presentation) =>
-              dispatch({ type: 'PRESENTATION_UPDATED', patch: presentation })
-            }
-          />
-        </Box>
       </Stack>
     </Stack>
   )

@@ -275,7 +275,7 @@ export function OwnResponseClient({
         >
           Из-за изменения ветки будут очищены поля:{' '}
           {pendingClear.questionIds
-            .map((questionId) => questionLabels.get(questionId) ?? 'Недоступное поле')
+            .map((questionId) => questionLabels.get(questionId) ?? 'Поле для заполнения')
             .join(', ')}
         </Alert>
       ) : null}

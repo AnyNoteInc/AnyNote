@@ -84,7 +84,6 @@ export function FormPageClient({
   const [serverFieldErrors, setServerFieldErrors] = useState<PublicFieldErrors>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [successEndingId, setSuccessEndingId] = useState<string | undefined>()
-  const [successResponseUrl, setSuccessResponseUrl] = useState<string | undefined>()
   const [incompatibleDraft, setIncompatibleDraft] = useState<{
     sourceKey: string
     count: number
@@ -170,7 +169,6 @@ export function FormPageClient({
         }
         idempotentAttempt.current = null
         setSuccessEndingId(result.endingId)
-        setSuccessResponseUrl(result.ownResponseUrl ?? undefined)
       } catch (error) {
         const fieldErrors = extractFieldErrors(error)
         const domainMessage = errorMessage(error)
@@ -301,7 +299,8 @@ export function FormPageClient({
         onSubmit={handleSubmit}
         serverFieldErrors={serverFieldErrors}
         successEndingId={successEndingId}
-        successResponseUrl={successResponseUrl}
+        submitAgainPath={`/f/${locator}`}
+        homePath="/"
         onUpload={handleUpload}
         onLoadPickerOptions={handleLoadPickerOptions}
       />

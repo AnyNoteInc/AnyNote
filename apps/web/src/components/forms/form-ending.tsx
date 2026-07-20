@@ -6,11 +6,13 @@ import type { FormEnding } from '@repo/domain/database/forms'
 export function FormEnding({
   ending,
   preview = false,
-  ownResponseUrl,
+  submitAgainPath,
+  homePath = '/',
 }: {
   ending: FormEnding
   preview?: boolean
-  ownResponseUrl?: string
+  submitAgainPath?: string
+  homePath?: string
 }) {
   return (
     <Stack spacing={2} sx={{ py: { xs: 5, md: 8 }, alignItems: 'flex-start' }}>
@@ -31,22 +33,27 @@ export function FormEnding({
           {ending.body}
         </Typography>
       ) : null}
-      {ending.button ? (
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         <Button
           component="a"
-          href={ending.button.href}
+          href={homePath}
           variant="outlined"
           tabIndex={preview ? -1 : 0}
           rel="noopener noreferrer"
         >
-          {ending.button.label}
+          На главную
         </Button>
-      ) : null}
-      {ownResponseUrl ? (
-        <Button component="a" href={ownResponseUrl} variant="contained">
-          Посмотреть свой ответ
+        <Button
+          variant="contained"
+          tabIndex={preview ? -1 : 0}
+          onClick={() => {
+            if (submitAgainPath === undefined) return
+            window.location.href = submitAgainPath
+          }}
+        >
+          Заполнить еще раз
         </Button>
-      ) : null}
+      </Stack>
     </Stack>
   )
 }

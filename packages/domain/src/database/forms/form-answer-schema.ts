@@ -282,7 +282,10 @@ const validateNonEmptyAnswer = (
   }
 }
 
-export const buildQuestionValueSchema = (question: PublicFormQuestion): z.ZodType<unknown> =>
+const buildQuestionValueSchemaWithRequired = (
+  question: PublicFormQuestion,
+  required: boolean,
+): z.ZodType<unknown> =>
   z.unknown().superRefine((value, context) => {
     if (!isFormQuestionInputCompatible(question)) {
       addInvalidIssue(context, 'QUESTION_INPUT_TYPE_MISMATCH')
@@ -290,12 +293,40 @@ export const buildQuestionValueSchema = (question: PublicFormQuestion): z.ZodTyp
     }
 
     if (isSupportedEmptyAnswer(question, value)) {
-      if (question.required) addInvalidIssue(context, 'REQUIRED_ANSWER')
+      if (required) addInvalidIssue(context, 'REQUIRED_ANSWER')
       return
     }
 
     validateNonEmptyAnswer(question, value, context)
   })
+
+export const buildQuestionValueSchema = (
+  question: PublicFormQuestion,
+  options?: { required?: boolean },
+): z.ZodType<unknown> =>
+  buildQuestionValueSchemaWithRequired(question, options?.required ?? question.required)
+
+const normalizeDefaultAnswer = (question: PublicFormQuestion): unknown | undefined =>
+  question.defaultAnswer === undefined || isSupportedEmptyAnswer(question, question.defaultAnswer)
+    ? undefined
+    : buildQuestionValueSchemaWithRequired(question, false).safeParse(question.defaultAnswer)
+          .success
+      ? question.defaultAnswer
+      : undefined
+
+export const applyDefaultAnswers = (
+  version: PublicFormVersion,
+  answers: Record<string, unknown>,
+): Record<string, unknown> => {
+  const projected: Record<string, unknown> = { ...answers }
+  for (const question of version.questions) {
+    const current = projected[question.id]
+    if (!isSupportedEmptyAnswer(question, current)) continue
+    const next = normalizeDefaultAnswer(question)
+    if (next !== undefined) projected[question.id] = next
+  }
+  return projected
+}
 
 type StabilizedFormAnswers = {
   answers: Record<string, unknown>
@@ -360,7 +391,8 @@ export const buildFormAnswerSchema = (version: PublicFormVersion): z.ZodType<For
       .object({ answers: z.record(z.string(), z.unknown()) })
       .strict()
       .superRefine(({ answers }, context) => {
-        const stabilized = stabilizeReachableAnswers(version, answers)
+        const answersWithDefaults = applyDefaultAnswers(version, answers)
+        const stabilized = stabilizeReachableAnswers(version, answersWithDefaults)
         const { path } = stabilized
         const visibleQuestionIds = new Set(path.visibleQuestionIds)
         const questionsById = new Map(version.questions.map((question) => [question.id, question]))
@@ -409,5 +441,5 @@ export const projectReachableAnswers = (
   version: PublicFormVersion,
   answers: Record<string, unknown>,
 ): Record<string, unknown> => {
-  return stabilizeReachableAnswers(version, answers).answers
+  return stabilizeReachableAnswers(version, applyDefaultAnswers(version, answers)).answers
 }

@@ -63,6 +63,19 @@ export function publicFormValidationMessage(code: string): string {
 
 const padDatePart = (value: number): string => value.toString().padStart(2, '0')
 
+const localDateInputToIso = (value: string): string | undefined => {
+  if (value === '') return undefined
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(date.getTime()) ? value : undefined
+}
+
+const isoToLocalDateInput = (value: unknown): string => {
+  if (typeof value !== 'string' || value === '') return ''
+  const normalized = value.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : ''
+}
+
 export function isoToLocalDateTimeInput(value: unknown): string {
   if (typeof value !== 'string' || value === '') return ''
   const date = new Date(value)
@@ -315,7 +328,9 @@ export function FormField({
   const input = question.input
   const name = `answers.${fieldKey}` as const
   const error = formFieldError(errors, fieldKey)
-  const label = `${question.label}${question.required ? ' *' : ''}`
+  const label = `${question.icon ? `${question.icon} ` : ''}${question.label}${
+    question.required ? ' *' : ''
+  }`
   const helper = error ?? question.description
   const helperId = helper ? `form-field-${fieldKey}-helper` : undefined
 
@@ -581,6 +596,35 @@ export function FormField({
               onChange={(event) => field.onChange(localDateTimeInputToIso(event.target.value))}
               label={label}
               type="datetime-local"
+              disabled={disabled}
+              error={Boolean(error)}
+              helperText={helper}
+              fullWidth
+              size="small"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          )
+        }}
+      />
+    )
+  }
+
+  if (input.kind === 'DATE') {
+    return (
+      <Controller
+        name={name}
+        control={control}
+        render={({ field }) => {
+          const localValue = isoToLocalDateInput(field.value)
+          return (
+            <TextField
+              inputRef={field.ref}
+              name={field.name}
+              value={localValue}
+              onBlur={field.onBlur}
+              onChange={(event) => field.onChange(localDateInputToIso(event.target.value))}
+              label={label}
+              type="date"
               disabled={disabled}
               error={Boolean(error)}
               helperText={helper}

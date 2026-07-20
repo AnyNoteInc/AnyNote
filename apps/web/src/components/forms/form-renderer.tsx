@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Box, Button, Divider, LinearProgress, Stack, Typography } from '@repo/ui/components'
 import {
   buildFormAnswerSchema,
+  applyDefaultAnswers,
   evaluateFormPath,
   projectReachableAnswers,
   toPublicFormVersion,
@@ -38,7 +39,6 @@ export interface FormRendererProps {
   readonly onAnswersChange?: (answers: Record<string, unknown>) => void
   readonly serverFieldErrors?: Record<string, readonly string[]>
   readonly successEndingId?: string
-  readonly successResponseUrl?: string
   readonly onReset?: () => void
   readonly onUpload?: FormUploadHandler
   readonly onLoadPickerOptions?: FormPickerLoader
@@ -49,6 +49,8 @@ export interface FormRendererProps {
   readonly unavailableQuestionIds?: readonly string[]
   readonly initialFileNames?: Readonly<Record<string, string>>
   readonly initialPickerOptions?: Readonly<Record<string, readonly FormPickerOption[]>>
+  readonly submitAgainPath?: string
+  readonly homePath?: string
 }
 
 function isStoredVersion(
@@ -118,7 +120,6 @@ export function FormRenderer({
   onAnswersChange,
   serverFieldErrors,
   successEndingId,
-  successResponseUrl,
   onReset,
   onUpload,
   onLoadPickerOptions,
@@ -129,6 +130,8 @@ export function FormRenderer({
   unavailableQuestionIds = NO_UNAVAILABLE_QUESTIONS,
   initialFileNames,
   initialPickerOptions,
+  submitAgainPath,
+  homePath,
 }: FormRendererProps) {
   const publicVersion = useMemo(
     () => (isStoredVersion(version) ? toPublicFormVersion(version) : version),
@@ -155,7 +158,7 @@ export function FormRenderer({
     [answerSchema],
   )
   const encodedInitialAnswers = useMemo(
-    () => encodeAnswers(initialAnswers, questionIds),
+    () => encodeAnswers(applyDefaultAnswers(publicVersion, initialAnswers), questionIds),
     // Initial answers are intentionally read once. Parent rerenders must not erase in-progress input.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -191,13 +194,17 @@ export function FormRenderer({
   })
   const watchedAnswers = useWatch({ control, name: 'answers' })
   const answers = useMemo(() => decodeAnswers(watchedAnswers), [watchedAnswers])
+  const answersWithDefaults = useMemo(
+    () => applyDefaultAnswers(publicVersion, answers),
+    [answers, publicVersion],
+  )
   const questionsById = useMemo(
     () => new Map(publicVersion.questions.map((question) => [question.id, question])),
     [publicVersion.questions],
   )
   const path = useMemo(() => {
     try {
-      return evaluateFormPath(publicVersion, answers)
+      return evaluateFormPath(publicVersion, answersWithDefaults)
     } catch {
       return {
         sectionIds: publicVersion.sections.map((section) => section.id),
@@ -299,6 +306,8 @@ export function FormRenderer({
 
   async function goNext() {
     if (uploadsPending) return
+    const projected = projectReachableAnswers(publicVersion, answersWithDefaults)
+    setValue('answers', encodeAnswers(projected, questionIds), { shouldDirty: true })
     const paths = activeVisibleQuestionIds.map(
       (questionId) => `answers.${encodeFormFieldKey(questionId)}` as const,
     )
@@ -354,24 +363,74 @@ export function FormRenderer({
     ? ((currentProgress + 1) / navigableSections.length) * 100
     : 100
 
+  if (activeEnding) {
+    return (
+      <Box
+        component="form"
+        onSubmit={(event) => event.preventDefault()}
+        noValidate
+        sx={{ width: '100%', minHeight: '100vh', bgcolor: 'background.default' }}
+      >
+        {cover ? (
+          cover.kind === 'image' ? (
+            <Box
+              component="img"
+              src={cover.value}
+              alt=""
+              referrerPolicy="no-referrer"
+              sx={{
+                display: 'block',
+                width: '100%',
+                height: { xs: 128, md: 210 },
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <Box
+              aria-hidden
+              sx={{ width: '100%', height: { xs: 128, md: 210 }, ...coverStyles(cover) }}
+            />
+          )
+        ) : null}
+        <Box
+          sx={{
+            minHeight: cover ? 'calc(100vh - 128px)' : '100vh',
+            display: 'grid',
+            background: (theme) =>
+              `linear-gradient(112deg, ${theme.palette.action.hover} 0%, transparent 38%)`,
+            justifyItems: 'center',
+          }}
+        >
+          <Stack
+            sx={{
+              width: '100%',
+              maxWidth: 840,
+              px: { xs: 2.5, sm: 5, lg: 8 },
+              py: { xs: 3, md: 6 },
+            }}
+          >
+            <FormEnding
+              ending={activeEnding}
+              preview={mode === 'preview'}
+              submitAgainPath={submitAgainPath}
+              homePath={homePath}
+            />
+          </Stack>
+        </Box>
+      </Box>
+    )
+  }
+
   return (
     <Box
       component="form"
       onKeyDown={(event) => {
-        if (
-          event.key !== 'Enter' ||
-          !nextSectionId ||
-          submissionDisabled ||
-          activeEnding ||
-          uploadsPending
-        ) {
+        if (event.key !== 'Enter' || !nextSectionId || submissionDisabled || uploadsPending) {
           return
         }
         const target = event.target
         if (!(target instanceof HTMLInputElement)) return
-        if (
-          !['text', 'email', 'tel', 'url', 'number', 'date', 'datetime-local'].includes(target.type)
-        ) {
+        if (!['text', 'email', 'tel', 'url', 'number'].includes(target.type)) {
           return
         }
         if (target.dataset.formPickerSearch === 'true') return
@@ -380,12 +439,12 @@ export function FormRenderer({
       }}
       onSubmit={(event) => {
         event.preventDefault()
-        if (submissionDisabled || readOnly || activeEnding || uploadsPending) return
+        if (submissionDisabled || readOnly || uploadsPending) return
         if (nextSectionId) void goNext()
         else void submitReachableAnswers()
       }}
       noValidate
-      sx={{ width: '100%', minHeight: '100%', bgcolor: 'background.default' }}
+      sx={{ width: '100%', minHeight: '100vh', bgcolor: 'background.default' }}
     >
       {cover ? (
         cover.kind === 'image' ? (
@@ -413,36 +472,41 @@ export function FormRenderer({
         sx={{
           minHeight: cover ? 'auto' : '100%',
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'minmax(190px, 0.34fr) minmax(0, 1fr)' },
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: mode === 'preview' ? 'minmax(190px, 0.34fr) minmax(0, 1fr)' : '1fr',
+          },
           background: (theme) =>
             `linear-gradient(112deg, ${theme.palette.action.hover} 0%, transparent 38%)`,
         }}
       >
-        <Box
-          component="aside"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            px: 2.5,
-            py: 5,
-            borderRight: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <Typography variant="overline" color="text.secondary">
-            Маршрут
-          </Typography>
-          <FormSectionMap
-            sections={navigableSections}
-            activeSectionId={activeEnding ? undefined : activeSection.id}
-            onSelect={(sectionId) => {
-              const targetIndex = path.sectionIds.indexOf(sectionId)
-              if (mode === 'preview' || targetIndex <= activePathIndex) selectSection(sectionId)
+        {mode === 'preview' ? (
+          <Box
+            component="aside"
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              px: 2.5,
+              py: 5,
+              borderRight: 1,
+              borderColor: 'divider',
             }}
-          />
-        </Box>
+          >
+            <Typography variant="overline" color="text.secondary">
+              Маршрут
+            </Typography>
+            <FormSectionMap
+              sections={navigableSections}
+              activeSectionId={activeEnding ? undefined : activeSection.id}
+              onSelect={(sectionId) => {
+                const targetIndex = path.sectionIds.indexOf(sectionId)
+                if (mode === 'preview' || targetIndex <= activePathIndex) selectSection(sectionId)
+              }}
+            />
+          </Box>
+        ) : null}
 
         <Stack sx={{ px: { xs: 2.5, sm: 5, lg: 8 }, py: { xs: 3, md: 6 }, minWidth: 0 }}>
-          <Box sx={{ maxWidth: 720, width: '100%', mx: 'auto' }}>
+          <Box sx={{ width: '100%', mx: 'auto' }}>
             <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
               {publicVersion.presentation.icon ? (
                 <Typography aria-hidden sx={{ fontSize: 28 }}>
@@ -470,11 +534,7 @@ export function FormRenderer({
             <Divider sx={{ my: 3 }} />
 
             {activeEnding ? (
-              <FormEnding
-                ending={activeEnding}
-                preview={mode === 'preview'}
-                ownResponseUrl={successResponseUrl}
-              />
+              <FormEnding ending={activeEnding} preview={mode === 'preview'} />
             ) : (
               <>
                 <Stack spacing={0.75} sx={{ display: { xs: 'flex', md: 'none' }, mb: 2.5 }}>

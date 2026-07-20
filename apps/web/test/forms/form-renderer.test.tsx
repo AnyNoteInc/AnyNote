@@ -249,7 +249,7 @@ describe('public FormRenderer', () => {
     expect(screen.getByText('Команда AnyNote')).toBeInTheDocument()
     expect(screen.getByText('Раздел 1 из 1')).toBeInTheDocument()
     expect(screen.getByText('Создано в AnyNote')).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: 'Разделы формы' })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'Прогресс формы: 100%' })).toBeInTheDocument()
   })
 
   it('keeps the desktop section map and compact progress in sync across a branched route', async () => {
@@ -262,16 +262,14 @@ describe('public FormRenderer', () => {
       />,
     )
 
-    const sectionMap = screen.getByRole('navigation', { name: 'Разделы формы' })
-    expect(sectionMap).toHaveTextContent('О вас')
-    expect(sectionMap).toHaveTextContent('Контакты')
-    expect(screen.getByRole('button', { name: 'О вас' })).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByText('О вас')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Далее' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Прогресс формы: 50%' })).toBeInTheDocument()
 
     await actor.click(screen.getByRole('button', { name: 'Далее' }))
 
-    expect(screen.getByRole('button', { name: 'Контакты' })).toHaveAttribute('aria-current', 'step')
     expect(screen.getByRole('progressbar', { name: 'Прогресс формы: 100%' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Контакты' })).toBeInTheDocument()
   })
 
   it('renders only an AnyNote-hosted cover without disclosing the form URL as a referrer', () => {
@@ -312,9 +310,11 @@ describe('public FormRenderer', () => {
     expect(screen.getByRole('heading', { name: 'Спасибо' })).toBeInTheDocument()
     expect(screen.getByText('Ответ принят')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Отправить заявку' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'На главную' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Заполнить еще раз' })).toBeInTheDocument()
   })
 
-  it('links a signed-in respondent to their accepted response from the ending', () => {
+  it('does not expose a direct response link from the configured ending', () => {
     render(
       <FormRenderer
         version={version}
@@ -324,10 +324,7 @@ describe('public FormRenderer', () => {
       />,
     )
 
-    expect(screen.getByRole('link', { name: 'Посмотреть свой ответ' })).toHaveAttribute(
-      'href',
-      '/f/anf_public/responses/response-id',
-    )
+    expect(screen.queryByRole('link', { name: 'Посмотреть свой ответ' })).not.toBeInTheDocument()
   })
 
   it('keeps section navigation available in read-only response mode', async () => {

@@ -21,6 +21,7 @@ import { parseFormVersionDocument, type FormVersionDocument } from '@repo/domain
 import { trpc } from '@/trpc/client'
 import { usePlanFeatures } from '@/components/workspace/plan-features-context'
 import { FormRenderer } from '@/components/forms/form-renderer'
+import { PanelResizeHandle } from '@/components/workspace/panel-resize-handle'
 
 import type { DatabaseManagedForm, DatabaseSchema } from '../types'
 import { FormOutlinePanel } from './form-outline-panel'
@@ -140,6 +141,8 @@ function LoadedFormBuilder({
   const [responsesOpen, setResponsesOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
+  const [showSettingsPanel, setShowSettingsPanel] = useState(true)
+  const [settingsPanelWidth, setSettingsPanelWidth] = useState(360)
   const mountedRef = useRef(true)
   const inFlightRef = useRef(false)
 
@@ -320,22 +323,41 @@ function LoadedFormBuilder({
         <Button disabled={!canManageExposure} onClick={() => setShareOpen(true)}>
           Поделиться
         </Button>
-        <Button
-          variant="contained"
-          startIcon={<PublishIcon />}
-          disabled={
-            !canManageExposure ||
-            !readiness.ok ||
-            state.dirty ||
-            state.saveState !== 'idle' ||
-            publish.isPending
-          }
-          onClick={() => void publishForm()}
-        >
-          Опубликовать
+        <Button onClick={() => setShowSettingsPanel((value) => !value)}>
+          {showSettingsPanel ? 'Скрыть настройки' : 'Показать настройки'}
         </Button>
+        {form.state === 'DRAFT' ? (
+          <Button
+            variant="contained"
+            startIcon={<PublishIcon />}
+            disabled={
+              !canManageExposure ||
+              !readiness.ok ||
+              state.dirty ||
+              state.saveState !== 'idle' ||
+              publish.isPending
+            }
+            onClick={() => void publishForm()}
+          >
+            Опубликовать
+          </Button>
+        ) : (
+          <Typography
+            variant="body2"
+            color="success.main"
+            sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
+          >
+            Опубликована
+            {form.publishedVersion ? ` · версия ${form.publishedVersion.versionNumber}` : ''}
+          </Typography>
+        )}
       </Stack>
       {!canEditStructure ? <Alert severity="info">Только просмотр</Alert> : null}
+      {form.state === 'OPEN' || form.state === 'CLOSED' ? (
+        <Alert severity="success">
+          Форма уже опубликована: {form.state === 'OPEN' ? 'Открыта' : 'Закрыта'}.
+        </Alert>
+      ) : null}
       {!readiness.ok ? (
         <Alert severity="warning" variant="outlined">
           Публикация недоступна: найдено проблем — {readiness.issues.length}. Они отмечены в
@@ -380,7 +402,9 @@ function LoadedFormBuilder({
           flex: 1,
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: '280px minmax(460px, 1fr) 320px',
+          gridTemplateColumns: showSettingsPanel
+            ? `280px minmax(460px, 1fr) ${settingsPanelWidth}px`
+            : '280px minmax(460px, 1fr)',
         }}
       >
         <FormOutlinePanel
@@ -397,16 +421,29 @@ function LoadedFormBuilder({
           onPropertyCreated={refresh}
         />
         <FormPreviewCanvas state={state} dispatch={dispatch} />
-        <FormSettingsPanel
-          state={state}
-          issues={readiness.issues}
-          properties={form.source.properties}
-          conditionalLogicEnabled={features.formConditionalLogicEnabled}
-          editable={canEditStructure}
-          dispatch={(action) => {
-            if (canEditStructure) dispatch(action)
-          }}
-        />
+        {showSettingsPanel ? (
+          <Box sx={{ minWidth: 0, position: 'relative' }}>
+            <FormSettingsPanel
+              state={state}
+              issues={readiness.issues}
+              properties={form.source.properties}
+              conditionalLogicEnabled={features.formConditionalLogicEnabled}
+              editable={canEditStructure}
+              dispatch={(action) => {
+                if (canEditStructure) dispatch(action)
+              }}
+            />
+            <PanelResizeHandle
+              edge="left"
+              width={settingsPanelWidth}
+              min={260}
+              max={520}
+              onWidth={(next) => setSettingsPanelWidth(next)}
+              onCommit={(next) => setSettingsPanelWidth(next)}
+              ariaLabel="Изменить ширину блока настроек"
+            />
+          </Box>
+        ) : null}
       </Box>
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle>Предпросмотр</DialogTitle>

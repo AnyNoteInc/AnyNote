@@ -49,7 +49,7 @@ import {
 const POSITION_GAP = 1024
 const VERSION_GRACE_MS = 24 * 60 * 60 * 1000
 const FORM_VERSION_SCAN_BATCH_SIZE = 100
-const INTERNAL_PROPERTY_TYPES = new Set(['PERSON', 'RELATION', 'PAGE_LINK'])
+const INTERNAL_PROPERTY_TYPES = new Set(['PERSON', 'RELATION'])
 const RESERVED_SLUGS = new Set([
   'app',
   'api',

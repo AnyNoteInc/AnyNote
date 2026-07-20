@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
+  Box,
   Button,
   Checkbox,
   ContentCopyIcon,
@@ -53,6 +54,11 @@ function formUrl(form: DatabaseManagedForm): string {
   return `${origin}/f/${locator}`
 }
 
+function qrImageUrl(formUrl: string): string {
+  if (!formUrl) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=1&data=${encodeURIComponent(formUrl)}`
+}
+
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
   if (value !== null && typeof value === 'object') {
@@ -88,6 +94,7 @@ export function FormSharePanel({
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const url = useMemo(() => formUrl(form), [form])
+  const qrUrl = useMemo(() => qrImageUrl(url), [url])
   const hasUnpublishedChanges = useMemo(
     () =>
       form.publishedVersion !== null &&
@@ -171,6 +178,65 @@ export function FormSharePanel({
               {copied ? 'Скопировано' : 'Копировать'}
             </Button>
           </Stack>
+          <Box
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 1.5,
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              QR-код для формы
+            </Typography>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{ alignItems: { xs: 'stretch', sm: 'center' }, mb: 1.5 }}
+            >
+              <TextField
+                label="Ссылка для QR"
+                value={qrUrl}
+                size="small"
+                fullWidth
+                slotProps={{ htmlInput: { readOnly: true } }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(qrUrl)
+                }}
+              >
+                Копировать
+              </Button>
+              <Button
+                component="a"
+                variant="text"
+                size="small"
+                href={qrUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Открыть
+              </Button>
+            </Stack>
+            {qrUrl ? (
+              <Box
+                component="img"
+                src={qrUrl}
+                alt={`QR-код формы ${form.title}`}
+                width={168}
+                height={168}
+                loading="lazy"
+                sx={{
+                  borderRadius: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                }}
+              />
+            ) : null}
+          </Box>
           <Stack direction="row" spacing={1}>
             <TextField
               label="Свой адрес"
