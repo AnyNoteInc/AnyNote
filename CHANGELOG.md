@@ -1,3 +1,14 @@
+## [1.39.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.0...v1.39.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **forms:** finalize dynamic form editing and public submission experience ([cb9adb9](https://github.com/AnyNoteInc/AnyNote/commit/cb9adb99dc5ab691aebae3ae503cac6b765e4178))
+* **forms:** make form JSON schemas Prisma-compatible ([47c8cae](https://github.com/AnyNoteInc/AnyNote/commit/47c8cae043a81fd0746d730a58fb9ca75f3b540c))
+* **forms:** polish published form UX and submission UX ([a7788e0](https://github.com/AnyNoteInc/AnyNote/commit/a7788e0c85faf62e0f552390b15cb7cc62aa5e8c))
+* **forms:** resolve resolver typing and restore release-grade checks ([8415472](https://github.com/AnyNoteInc/AnyNote/commit/84154727b76f15a8513a7647ff8f2f7853a34b66))
+* **forms:** show ending only in public mode ([a0b314b](https://github.com/AnyNoteInc/AnyNote/commit/a0b314bb19543291c95d1ef66a2d6e7e22c3a491))
+
 # [1.39.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.38.1...v1.39.0) (2026-07-19)
 
 
