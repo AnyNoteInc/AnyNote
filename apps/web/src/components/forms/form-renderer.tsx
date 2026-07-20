@@ -436,7 +436,7 @@ export function FormRenderer({
     ? ((currentProgress + 1) / navigableSections.length) * 100
     : 100
 
-  if (activeEnding) {
+  if (activeEnding && mode === 'public') {
     return (
       <Box
         component="form"
@@ -483,7 +483,6 @@ export function FormRenderer({
           >
             <FormEnding
               ending={activeEnding}
-              preview={mode === 'preview'}
               submitAgainPath={submitAgainPath}
               homePath={homePath}
             />
