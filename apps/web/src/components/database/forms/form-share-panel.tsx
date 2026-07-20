@@ -225,7 +225,7 @@ export function FormSharePanel({
               <Box
                 component="img"
                 src={qrUrl}
-                alt={`QR-код формы ${form.title}`}
+                alt={`QR-код формы ${form.customSlug ?? form.routeKey}`}
                 width={168}
                 height={168}
                 loading="lazy"

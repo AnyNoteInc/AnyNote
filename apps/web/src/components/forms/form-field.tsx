@@ -717,7 +717,6 @@ export function FormField({
       fullWidth
       size="small"
       slotProps={{
-        ...(input.kind === 'DATE' ? { inputLabel: { shrink: true } } : {}),
         htmlInput:
           input.kind === 'TEXT'
             ? { maxLength: input.maxLength }

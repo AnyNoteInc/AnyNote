@@ -321,7 +321,6 @@ describe('public FormRenderer', () => {
         version={version}
         mode="public"
         successEndingId="done"
-        successResponseUrl="/f/anf_public/responses/response-id"
       />,
     )
 

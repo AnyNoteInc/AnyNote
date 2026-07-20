@@ -10,13 +10,12 @@ import {
   evaluateFormPath,
   projectReachableAnswers,
   toPublicFormVersion,
-  type FormAnswerEnvelope,
   type FormVersionDocument,
   type PublicFormVersion,
 } from '@repo/domain/database/forms'
 
 import { FormEnding } from './form-ending'
-import { FormField, formFieldError } from './form-field'
+import { FormField, formFieldError, type FormAnswerValues } from './form-field'
 import type { FormPickerLoader, FormPickerOption } from './form-internal-picker'
 import {
   decodeFormFieldKey,
@@ -32,7 +31,7 @@ export interface FormRendererProps {
   readonly version: FormVersionDocument | PublicFormVersion
   readonly mode: 'preview' | 'public'
   readonly submissionDisabled?: boolean
-  readonly onSubmit?: (values: FormAnswerEnvelope) => Promise<void> | void
+  readonly onSubmit?: (values: FormAnswerValues) => Promise<void> | void
   readonly previewLocation?: { kind: 'SECTION' | 'ENDING'; id: string }
   readonly onPreviewLocationChange?: (location: { kind: 'SECTION'; id: string }) => void
   readonly initialAnswers?: Record<string, unknown>
@@ -115,20 +114,21 @@ interface ValidationResult {
 }
 
 function validateAnswersWithDefaults(
-  resolverSchema: ReturnType<typeof zodResolver>,
+  answerSchema: ReturnType<typeof buildFormAnswerSchema>,
   answerValues: Record<string, unknown>,
   questionIds: readonly string[],
-  clearErrors: (names: string[]) => void,
+  clearErrors: (names: ReadonlyArray<`answers.${string}`>) => void,
   setError: (name: `answers.${string}`, options: { message: string; type: string }) => void,
 ): ValidationResult {
   const invalidByQuestion = new Set<string>()
   const messageByQuestion = new Map<string, string>()
   const checks = new Set(questionIds)
   const encodedAnswers = encodeAnswers(answerValues, checks)
-  const errors = resolverSchema({ answers: encodedAnswers }, {}, {}).error
+  const parsed = answerSchema.safeParse({ answers: encodedAnswers })
+  const issues = parsed.success ? [] : parsed.error.issues
 
-  if (Array.isArray(errors)) {
-    for (const issue of errors) {
+  if (issues.length > 0) {
+    for (const issue of issues) {
       const path = Array.isArray(issue.path) ? issue.path : []
       if (path.length < 2 || path[0] !== 'answers' || typeof path[1] !== 'string') continue
       const encodedQuestionId = path[1]
@@ -145,7 +145,7 @@ function validateAnswersWithDefaults(
     }
   }
 
-  clearErrors(Array.from(checks, (questionId) => `answers.${encodeFormFieldKey(questionId)}`))
+  clearErrors(Array.from(checks, (questionId): `answers.${string}` => `answers.${encodeFormFieldKey(questionId)}`))
 
   for (const [questionId, message] of messageByQuestion) {
     setError(`answers.${encodeFormFieldKey(questionId)}` as `answers.${string}`, {
@@ -202,7 +202,7 @@ export function FormRenderer({
   const encodedVersion = useMemo(() => encodeFormVersionQuestionIds(clientVersion), [clientVersion])
   const answerSchema = useMemo(() => buildFormAnswerSchema(encodedVersion), [encodedVersion])
   const resolver = useMemo(
-    () => zodResolver(answerSchema as never) as Resolver<FormAnswerEnvelope>,
+    () => zodResolver(answerSchema as never) as Resolver<FormAnswerValues>,
     [answerSchema],
   )
   const encodedInitialAnswers = useMemo(
@@ -232,7 +232,7 @@ export function FormRenderer({
     clearErrors,
     getFieldState,
     formState: { dirtyFields, errors },
-  } = useForm<FormAnswerEnvelope>({
+  } = useForm<FormAnswerValues>({
     resolver,
     criteriaMode: 'all',
     mode: 'onBlur',
@@ -355,7 +355,7 @@ export function FormRenderer({
     if (uploadsPending) return
     const projected = projectReachableAnswers(publicVersion, answersWithDefaults)
     const { ok, invalidQuestionIds } = validateAnswersWithDefaults(
-      resolver,
+      answerSchema,
       projected,
       activeVisibleQuestionIds,
       (names) => clearErrors(names),
@@ -369,7 +369,7 @@ export function FormRenderer({
     }
 
     const paths = activeVisibleQuestionIds.map(
-      (questionId) => `answers.${encodeFormFieldKey(questionId)}` as const,
+      (questionId): `answers.${string}` => `answers.${encodeFormFieldKey(questionId)}`,
     )
     const valid = await trigger(paths, { shouldFocus: true })
     if (!valid) {
@@ -386,7 +386,7 @@ export function FormRenderer({
     if (uploadsPending) return
     const projected = projectReachableAnswers(publicVersion, answersWithDefaults)
     const { ok, invalidQuestionIds } = validateAnswersWithDefaults(
-      resolver,
+      answerSchema,
       projected,
       path.visibleQuestionIds,
       (names) => clearErrors(names),
@@ -398,7 +398,7 @@ export function FormRenderer({
       return
     }
     const submitPaths = path.visibleQuestionIds.map(
-      (questionId) => `answers.${encodeFormFieldKey(questionId)}` as const,
+      (questionId): `answers.${string}` => `answers.${encodeFormFieldKey(questionId)}`,
     )
     const filtered = Object.fromEntries(
       Object.entries(projected).filter(([questionId]) => !unavailableIds.has(questionId)),
