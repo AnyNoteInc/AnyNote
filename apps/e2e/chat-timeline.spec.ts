@@ -148,7 +148,20 @@ test('assistant timeline renders interleaved parts in order with state-coloured 
   expect(toolBeforeText).toBe(true)
 
   // (1) Rendered inside a single MUI Timeline.
-  await expect(page.locator('.MuiTimeline-root').first()).toBeVisible()
+  const assistantTimeline = page.locator('.MuiTimeline-root').first()
+  await expect(assistantTimeline).toBeVisible()
+
+  // (1a) MUI 9 must not reserve its empty opposite-content lane: that lane
+  // pushes every assistant part to the middle of the chat while timestamps
+  // remain at the left edge. Keep the first text close to the timeline's rail.
+  const firstAssistantText = page.getByText('Сейчас поищу в рабочем пространстве.')
+  const [timelineBox, firstTextBox] = await Promise.all([
+    assistantTimeline.boundingBox(),
+    firstAssistantText.boundingBox(),
+  ])
+  expect(timelineBox).not.toBeNull()
+  expect(firstTextBox).not.toBeNull()
+  expect(firstTextBox!.x - timelineBox!.x).toBeLessThan(96)
 
   // (3) Dot colour encodes tool state. Tool dots are filled, so MUI emits
   // `MuiTimelineDot-filled{Color}`: the done tool → filledPrimary, the error

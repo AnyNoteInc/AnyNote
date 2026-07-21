@@ -192,6 +192,33 @@ describe('ChatMessageContent', () => {
     expect(getComputedStyle(item).minHeight).toBe('32px')
   })
 
+  it('removes the unused opposite lane so assistant content starts at the left rail', () => {
+    const { container } = render(
+      <ChatMessageContent parts={[{ type: 'text', text: 'Ответ у левого края' }]} />,
+    )
+    const item = container.querySelector('.MuiTimelineItem-root') as HTMLElement
+    expect(item).toBeTruthy()
+
+    const generatedClasses = Array.from(item.classList).filter((className) =>
+      className.startsWith('css-'),
+    )
+    const hidesOppositeLane = Array.from(document.styleSheets).some((sheet) => {
+      try {
+        return Array.from(sheet.cssRules).some((rule) => {
+          if (!(rule instanceof CSSStyleRule) || rule.style.display !== 'none') return false
+          return (
+            rule.selectorText.includes('::before') &&
+            generatedClasses.some((className) => rule.selectorText.includes(`.${className}`))
+          )
+        })
+      } catch {
+        return false
+      }
+    })
+
+    expect(hidesOppositeLane).toBe(true)
+  })
+
   it('gives timeline connectors a minimum height so the lines stay visible', () => {
     const { container } = render(
       <ChatMessageContent

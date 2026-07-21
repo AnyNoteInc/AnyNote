@@ -191,7 +191,16 @@ export function ChatMessageContent({
       {parts.map((part, index) => {
         const isLast = index === parts.length - 1
         return (
-          <TimelineItem key={keyFor(part, index)} sx={{ minHeight: 32, minWidth: 0 }}>
+          <TimelineItem
+            key={keyFor(part, index)}
+            sx={{
+              minHeight: 32,
+              minWidth: 0,
+              // MUI 9 reserves a flexing ::before lane when no opposite content
+              // exists. Hide that empty lane so the assistant rail stays left.
+              '&::before': { display: 'none' },
+            }}
+          >
             <TimelineSeparator>
               <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
