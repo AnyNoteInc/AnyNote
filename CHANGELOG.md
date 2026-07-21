@@ -1,3 +1,10 @@
+## [1.39.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.1...v1.39.2) (2026-07-21)
+
+
+### Bug Fixes
+
+* **chat:** keep assistant responses aligned left ([9e340c4](https://github.com/AnyNoteInc/AnyNote/commit/9e340c4e30bc3cf4c1f9ca05c44898cd10a271d0))
+
 ## [1.39.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.0...v1.39.1) (2026-07-20)
 
 
