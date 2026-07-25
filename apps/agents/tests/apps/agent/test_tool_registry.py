@@ -54,6 +54,14 @@ def test_engines_read_only_tools_do_not_require_confirmation() -> None:
     assert meta.required_scope == 'pages:read'
 
 
+def test_database_read_tools_are_page_bound_and_do_not_require_confirmation() -> None:
+    for name in ('getDatabaseSchema', 'queryDatabaseRecords'):
+        meta = DEFAULT_ENGINES_TOOLS[name]
+        assert meta.required_scope == 'pages:read'
+        assert meta.requires_confirmation is False
+        assert meta.page_arg == 'pageId'
+
+
 def test_engines_destructive_tools_require_confirmation() -> None:
     registry = build_registry_for_servers()
     meta = registry['anynote__createPage']

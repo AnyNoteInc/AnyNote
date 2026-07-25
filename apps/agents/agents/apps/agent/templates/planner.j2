@@ -39,6 +39,8 @@ such a step makes the executor call the previous tool a second time and
 triggers a duplicate confirmation. Plan only the actual work; the response
 is implicit.
 
+{% include "_database_query_rules.j2" %}
+
 Do NOT execute anything. Do NOT call tools. Just output the plan.
 
 If the user's request is unclear, output a single step:

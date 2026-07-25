@@ -68,6 +68,40 @@ def test_critic_template_includes_revision_count() -> None:
     assert '1 / 2' in out
 
 
+def test_database_query_rules_render_in_every_agent_stage() -> None:
+    renderer = AgentJinjaRenderer(settings)
+    rendered = (
+        renderer.render_planner(
+            user_message='Посчитай сумму',
+            chat_history=[],
+            long_term_memories=[],
+            rag_documents=[],
+            mcp_servers=[],
+            agent_system_prompt=None,
+            last_critic_feedback=None,
+        ),
+        renderer.render_executor(
+            current_step={'id': '1', 'title': 'Посчитать сумму'},
+            plan=[{'id': '1', 'status': 'running', 'title': 'Посчитать сумму'}],
+            long_term_memories=[],
+        ),
+        renderer.render_critic(
+            user_message='Посчитай сумму',
+            plan=[],
+            draft_answer='За какой период посчитать?',  # noqa: RUF001
+            revision_count=0,
+        ),
+    )
+    for stage in rendered:
+        assert 'getDatabaseSchema' in stage
+        assert 'За какой период посчитать?' in stage  # noqa: RUF001
+        assert 'nextCursor' in stage
+        assert 'kopecks' in stage
+        assert 'rubles' in stage
+        assert 'date condition' in stage
+        assert 'specifies a period' in stage
+
+
 def test_planner_renders_attachments_block() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_planner(

@@ -11,6 +11,7 @@ plain text only (no tool calls). If you discover the step is impossible or
 wrong, say so in plain text — the critic will decide what to do next.
 
 Rules:
+{% include "_database_query_rules.j2" %}
 - Prefer reading before writing. Always read the full page before rewriting.
 - For destructive operations (delete, mass-update), the tool layer will pause
   and ask the user for confirmation. You do not need to ask first.

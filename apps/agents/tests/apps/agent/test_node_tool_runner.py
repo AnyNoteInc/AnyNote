@@ -292,6 +292,71 @@ async def test_tool_runner_allows_read_tool_in_page_bound_chat() -> None:
     assert 'page text' in str(last.content)
 
 
+def _database_read_meta(name: str) -> ToolMeta:
+    return ToolMeta(
+        name=name,
+        required_scope='pages:read',
+        requires_confirmation=False,
+        summarize=lambda args: f'Read database schema for {args.get("pageId")}',
+        preview=lambda args: args,
+        page_arg='pageId',
+    )
+
+
+@pytest.mark.asyncio
+async def test_tool_runner_allows_database_read_targeting_bound_page() -> None:
+    bound = uuid4()
+    calls: list[dict[str, str]] = []
+
+    async def _get_schema(**kwargs):
+        calls.append(kwargs)
+        return 'schema'
+
+    state = make_state(
+        context=make_context(page_id=bound),
+        pending_tool_calls=[
+            {'name': 'anynote__getDatabaseSchema', 'args': {'pageId': str(bound)}, 'id': 'call-1'},
+        ],
+    )
+    out = await tool_runner_node(
+        state,
+        tools=[_page_write_tool('anynote__getDatabaseSchema', _get_schema)],
+        tool_registry={'anynote__getDatabaseSchema': _database_read_meta('getDatabaseSchema')},
+    )
+
+    assert calls == [{'pageId': str(bound)}]
+    assert 'schema' in str(out.messages[-1].content)
+
+
+@pytest.mark.asyncio
+async def test_tool_runner_denies_database_read_targeting_other_page_before_mcp() -> None:
+    bound = uuid4()
+    calls: list[dict[str, str]] = []
+
+    async def _query_records(**kwargs):
+        calls.append(kwargs)
+        return 'records'
+
+    state = make_state(
+        context=make_context(page_id=bound),
+        pending_tool_calls=[
+            {
+                'name': 'anynote__queryDatabaseRecords',
+                'args': {'pageId': str(uuid4())},
+                'id': 'call-1',
+            },
+        ],
+    )
+    out = await tool_runner_node(
+        state,
+        tools=[_page_write_tool('anynote__queryDatabaseRecords', _query_records)],
+        tool_registry={'anynote__queryDatabaseRecords': _database_read_meta('queryDatabaseRecords')},
+    )
+
+    assert calls == []
+    assert 'Permission denied' in str(out.messages[-1].content)
+
+
 @pytest.mark.asyncio
 async def test_tool_runner_denies_delete_file_in_page_bound_chat() -> None:
     bound = uuid4()
