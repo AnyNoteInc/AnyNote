@@ -1,3 +1,11 @@
+# [1.40.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.2...v1.40.0) (2026-07-25)
+
+
+### Features
+
+* **database:** resizable table columns and MONEY property type ([b96d8ff](https://github.com/AnyNoteInc/AnyNote/commit/b96d8ff2d8d8dde94ee85aced13def890201ce16))
+* **forms:** icon toolbar, scoped settings panel, republish button ([7dc8f65](https://github.com/AnyNoteInc/AnyNote/commit/7dc8f65b01bb7836ff8b1568a338ff008a86d5f5))
+
 ## [1.39.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.1...v1.39.2) (2026-07-21)
 
 
