@@ -1,4 +1,4 @@
-import { badRequest, conflict, forbidden, notFound } from '../../shared/errors.ts'
+import { badRequest, conflict, DomainError, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
 // Enum values are re-exported through the dto barrel so the service never
@@ -23,6 +23,7 @@ import type {
   MyDatabaseAccess,
   PropertyIdInput,
   PropertySettings,
+  QueryRowsInput,
   RelationChip,
   ReorderPropertiesInput,
   ReorderRowsInput,
@@ -45,6 +46,7 @@ import type {
   EnabledAccessRule,
   PropertyRow,
   RowWithPage,
+  SourceRow,
   SourceWithLock,
 } from '../repositories/database.repository.ts'
 import { EMBEDDED_VIEW_CONFLICT_MESSAGE } from '../repositories/database.repository.ts'
@@ -59,8 +61,7 @@ import type { AccessRule, RowAccessContext, RowAccessRow } from './row-access-re
 // The private methods below delegate to these (the dashboard widget service
 // consumes the same functions through the database barrel — no copy drift).
 import {
-  applyMultiSelectPostFilters as sharedApplyMultiSelectPostFilters,
-  applyRelationPostFilters as sharedApplyRelationPostFilters,
+  applyResidualFilter,
   buildRowAccessContext as sharedBuildRowAccessContext,
   filterViewableRows as sharedFilterViewableRows,
   toAccessRow as sharedToAccessRow,
@@ -74,7 +75,7 @@ import type {
   RowWithCells,
 } from './computed-cells.ts'
 import { buildRowQuery } from './query-planner.ts'
-import type { MultiSelectPostFilter, PropertyMeta, RelationPostFilter } from './query-planner.ts'
+import type { PropertyMeta, RowQueryPlan } from './query-planner.ts'
 import { assertCanEditDatabaseStructure } from './database-structure-access.ts'
 import type { FormRepositoryContract } from '../forms/database-form.repository.ts'
 import type { DatabaseFormService } from '../forms/database-form.service.ts'
@@ -177,9 +178,7 @@ export class DatabaseService {
   }
 
   /** Resolve the source for a DATABASE page, asserting it exists. */
-  private async requireSource(
-    pageId: string,
-  ): Promise<{ id: string; workspaceId: string; pageId: string }> {
+  private async requireSource(pageId: string): Promise<SourceRow> {
     const source = await this.repo.findSourceMetaByPageId(pageId)
     if (!source) throw notFound('База данных не найдена для этой страницы')
     return source
@@ -193,10 +192,7 @@ export class DatabaseService {
   }
 
   /** Resolve a source by page + assert the actor may edit its structure. */
-  private async requireStructureEdit(
-    actorUserId: string,
-    pageId: string,
-  ): Promise<SourceWithLock> {
+  private async requireStructureEdit(actorUserId: string, pageId: string): Promise<SourceWithLock> {
     const source = await this.requireSourceWithLock(pageId)
     await assertCanEditDatabaseStructure(this.repo, actorUserId, source)
     return source
@@ -341,7 +337,12 @@ export class DatabaseService {
       propertyId: input.propertyId,
       accessLevel: input.accessLevel,
     })
-    return { id: rule.id, propertyId: rule.propertyId, accessLevel: rule.accessLevel, enabled: rule.enabled }
+    return {
+      id: rule.id,
+      propertyId: rule.propertyId,
+      accessLevel: rule.accessLevel,
+      enabled: rule.enabled,
+    }
   }
 
   async updateAccessRule(
@@ -357,13 +358,15 @@ export class DatabaseService {
       ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
       ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
     })
-    return { id: rule.id, propertyId: rule.propertyId, accessLevel: rule.accessLevel, enabled: rule.enabled }
+    return {
+      id: rule.id,
+      propertyId: rule.propertyId,
+      accessLevel: rule.accessLevel,
+      enabled: rule.enabled,
+    }
   }
 
-  async deleteAccessRule(
-    actorUserId: string,
-    input: DeleteAccessRuleInput,
-  ): Promise<{ ok: true }> {
+  async deleteAccessRule(actorUserId: string, input: DeleteAccessRuleInput): Promise<{ ok: true }> {
     await this.assertCanEdit(actorUserId, input.pageId)
     const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const existing = await this.repo.findAccessRuleById(input.ruleId)
@@ -408,8 +411,7 @@ export class DatabaseService {
     const isOwnerAdmin = role === 'OWNER' || role === 'ADMIN'
     const canEditStructure = isOwnerAdmin || (isCreator && !source.structureLocked)
     const canManageExposure = canEditStructure
-    const canEditContent =
-      isOwnerAdmin || isCreator || role === 'EDITOR'
+    const canEditContent = isOwnerAdmin || isCreator || role === 'EDITOR'
 
     return {
       canEditContent,
@@ -468,7 +470,10 @@ export class DatabaseService {
   // ── View-model read ─────────────────────────────────────────────────────────
 
   async getByPage(actorUserId: string, pageId: string): Promise<DatabaseGetByPageResult> {
-    await this.assertCanRead(actorUserId, pageId)
+    const page = await this.assertCanRead(actorUserId, pageId)
+    if (page.type !== 'DATABASE') {
+      throw new DomainError('PAGE_IS_NOT_DATABASE', 'Страница не является базой данных', 400)
+    }
     const loaded = await this.repo.findSourceSchemaByPageId(pageId)
     if (!loaded) throw notFound('База данных не найдена для этой страницы')
     const myAccess = await this.getMyAccess(actorUserId, pageId)
@@ -603,7 +608,9 @@ export class DatabaseService {
       title: input.title,
       ...(input.settings === undefined
         ? {}
-        : { settings: input.settings as Parameters<DatabaseRepository['updateView']>[1]['settings'] }),
+        : {
+            settings: input.settings as Parameters<DatabaseRepository['updateView']>[1]['settings'],
+          }),
     })
   }
 
@@ -652,7 +659,9 @@ export class DatabaseService {
       position,
       ...(view.settings == null
         ? {}
-        : { settings: view.settings as Parameters<DatabaseRepository['createView']>[0]['settings'] }),
+        : {
+            settings: view.settings as Parameters<DatabaseRepository['createView']>[0]['settings'],
+          }),
     })
   }
 
@@ -916,9 +925,7 @@ export class DatabaseService {
   private validateFileCellValue(raw: unknown): string[] {
     if (
       !Array.isArray(raw) ||
-      !raw.every(
-        (fileId): fileId is string => typeof fileId === 'string' && fileId.trim() !== '',
-      )
+      !raw.every((fileId): fileId is string => typeof fileId === 'string' && fileId.trim() !== '')
     ) {
       throw badRequest('Ожидался список файлов')
     }
@@ -1061,7 +1068,8 @@ export class DatabaseService {
       for (const id of targetRowIds) {
         const ws = wsByRow.get(id)
         if (ws === undefined) throw badRequest('Связанная строка не найдена')
-        if (ws !== source.workspaceId) throw badRequest('Нельзя связать строку из другого пространства')
+        if (ws !== source.workspaceId)
+          throw badRequest('Нельзя связать строку из другого пространства')
       }
     }
 
@@ -1069,7 +1077,8 @@ export class DatabaseService {
       // Previous forward links (needed to compute back-relation removals).
       const backProp = relation.backRelationPropertyId
       const previousTargets = backProp
-        ? (await this.repo.findRelationLinks(input.propertyId, [input.rowId])).get(input.rowId) ?? []
+        ? ((await this.repo.findRelationLinks(input.propertyId, [input.rowId])).get(input.rowId) ??
+          [])
         : []
 
       await this.repo.replaceRelationLinks({
@@ -1195,38 +1204,15 @@ export class DatabaseService {
     }
   }
 
-  /**
-   * Apply MULTI_SELECT post-filters in JS (Prisma can't express JSON-array
-   * containment portably — the planner returns these instead of a where clause).
-   * `is_any_of` keeps rows whose array intersects the option set; `is_none_of`
-   * keeps rows whose array is disjoint from it.
-   */
-  private applyMultiSelectPostFilters(
-    rows: RowWithPage[],
-    postFilters: MultiSelectPostFilter[],
-  ): RowWithPage[] {
-    return sharedApplyMultiSelectPostFilters(rows, postFilters)
-  }
-
-  /**
-   * Apply RELATION post-filters: a row passes `is_any_of` when its linked target
-   * ids (for the filtered RELATION property) intersect the wanted set, and
-   * `is_none_of` when they are disjoint. The links can't be expressed in the
-   * Prisma `where` (they live in DatabaseRelationLink), so they are resolved in
-   * one batched query per filter for the page of fetched rows (no per-row query).
-   */
-  private async applyRelationPostFilters(
-    rows: RowWithPage[],
-    postFilters: RelationPostFilter[],
-  ): Promise<RowWithPage[]> {
-    return sharedApplyRelationPostFilters(this.repo, rows, postFilters)
-  }
-
   /** Resolve a view's settings + the source's property metas for the planner. */
   private async resolveViewContext(
     sourceId: string,
     viewId: string | undefined,
-  ): Promise<{ settings: ViewSettings; properties: PropertyMeta[]; fullProperties: PropertyRow[] }> {
+  ): Promise<{
+    settings: ViewSettings
+    properties: PropertyMeta[]
+    fullProperties: PropertyRow[]
+  }> {
     const fullProperties = await this.repo.listProperties(sourceId)
     const metas: PropertyMeta[] = fullProperties.map((p) => ({ id: p.id, type: p.type }))
     if (!viewId) return { settings: {}, properties: metas, fullProperties }
@@ -1283,11 +1269,10 @@ export class DatabaseService {
         )
         ctxBySource.set(m.sourceId, ctx)
       }
-      const level = resolveRowAccess(
-        ctx,
-        this.toResolverRules(rules),
-        { rowCreatedById: m.createdById, cellsByProperty: m.cellsByProperty },
-      )
+      const level = resolveRowAccess(ctx, this.toResolverRules(rules), {
+        rowCreatedById: m.createdById,
+        cellsByProperty: m.cellsByProperty,
+      })
       if (!canViewRow(level)) inaccessible.add(m.id)
     }
 
@@ -1296,7 +1281,10 @@ export class DatabaseService {
     if (inaccessible.size === 0) return
     for (const byRow of relationLinksByProp.values()) {
       for (const [rowId, targets] of byRow) {
-        byRow.set(rowId, targets.filter((id) => !inaccessible.has(id)))
+        byRow.set(
+          rowId,
+          targets.filter((id) => !inaccessible.has(id)),
+        )
       }
     }
     for (const id of inaccessible) targetRowIds.delete(id)
@@ -1451,15 +1439,14 @@ export class DatabaseService {
     })
   }
 
-  async listRows(actorUserId: string, input: ListRowsInput): Promise<ListRowsResult> {
-    await this.assertCanRead(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
-    const { settings, properties, fullProperties } = await this.resolveViewContext(
-      source.id,
-      input.viewId,
-    )
-    const plan = buildRowQuery(settings, properties)
-
+  private async executeRowQuery(
+    actorUserId: string,
+    source: SourceRow,
+    fullProperties: PropertyRow[],
+    plan: RowQueryPlan,
+    initialCursor: string | undefined,
+    limit: number,
+  ): Promise<ListRowsResult> {
     // ── Row-access (Phase 4C) ────────────────────────────────────────────────
     // Build the viewer context + enabled rules; the resolver is the authority. The
     // DB `buildRowAccessWhere` is a pre-filter optimization, the post-filter via
@@ -1471,14 +1458,9 @@ export class DatabaseService {
     // ANY enabled rule means a (non-broad) viewer's page may shrink under the
     // authoritative post-filter — treat it like a post-filter for pagination.
     const hasAccessFilter = rules.length > 0
-    const effectiveWhere =
-      accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
+    const effectiveWhere = accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
 
-    const limit = input.limit
-    const hasPostFilters =
-      plan.multiSelectPostFilters.length > 0 ||
-      plan.relationPostFilters.length > 0 ||
-      hasAccessFilter
+    const hasPostFilters = plan.residualFilter !== null || hasAccessFilter
 
     // Without post-filters: a single over-fetch of limit+1 detects the next page
     // exactly. With post-filters (MULTI_SELECT array containment / RELATION link
@@ -1488,7 +1470,7 @@ export class DatabaseService {
     // early and silently drop matching rows. Access-filtered pages may still be
     // short (acceptable, like MULTI_SELECT), but never drop a viewable row.
     const collected: Awaited<ReturnType<DatabaseRepository['findRowsPaged']>> = []
-    let cursor = input.cursor
+    let cursor = initialCursor
     // Batch size: limit+1 normally; larger headroom when post-filtering so we
     // don't loop too many times on sparse matches.
     const batchTake = hasPostFilters ? Math.min(limit * 5 + 1, 1000) : limit + 1
@@ -1503,10 +1485,12 @@ export class DatabaseService {
         take: batchTake,
         cursor,
       })
-      const afterMulti = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
-      const afterRelation = await this.applyRelationPostFilters(afterMulti, plan.relationPostFilters)
+      const afterResidual =
+        plan.residualFilter === null
+          ? fetched
+          : await applyResidualFilter(this.repo, fetched, fullProperties, plan.residualFilter)
       // AUTHORITATIVE row-access gate — drop rows the viewer can't view.
-      const survivors = this.filterViewableRows(accessCtx, rules, afterRelation)
+      const survivors = this.filterViewableRows(accessCtx, rules, afterResidual)
       collected.push(...survivors)
       if (fetched.length < batchTake) {
         scanCanContinue = false
@@ -1531,6 +1515,45 @@ export class DatabaseService {
 
     const rows = await this.augmentRows(actorUserId, fullProperties, pageRows)
     return { rows, nextCursor }
+  }
+
+  async listRows(actorUserId: string, input: ListRowsInput): Promise<ListRowsResult> {
+    await this.assertCanRead(actorUserId, input.pageId)
+    const source = await this.requireSource(input.pageId)
+    const { settings, properties, fullProperties } = await this.resolveViewContext(
+      source.id,
+      input.viewId,
+    )
+    return this.executeRowQuery(
+      actorUserId,
+      source,
+      fullProperties,
+      buildRowQuery(settings, properties),
+      input.cursor,
+      input.limit,
+    )
+  }
+
+  async queryRows(actorUserId: string, input: QueryRowsInput): Promise<ListRowsResult> {
+    const page = await this.assertCanRead(actorUserId, input.pageId)
+    if (page.type !== 'DATABASE') {
+      throw new DomainError('PAGE_IS_NOT_DATABASE', 'Страница не является базой данных', 400)
+    }
+    const source = await this.requireSource(input.pageId)
+    const fullProperties = await this.repo.listProperties(source.id)
+    const properties: PropertyMeta[] = fullProperties.map((property) => ({
+      id: property.id,
+      type: property.type,
+    }))
+    const plan = buildRowQuery({ filters: input.filter, sorts: input.sorts }, properties)
+    return this.executeRowQuery(
+      actorUserId,
+      source,
+      fullProperties,
+      plan,
+      input.cursor,
+      input.limit,
+    )
   }
 
   /**
@@ -1564,8 +1587,7 @@ export class DatabaseService {
     const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
     const accessCtx = await this.buildRowAccessContext(actorUserId, source, null)
     const accessWhere = buildRowAccessWhere(accessCtx, rules)
-    const groupingWhere =
-      accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
+    const groupingWhere = accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
     // Cap the scan: over-fetch by one (MAX_BOARD_ROWS + 1) to detect truncation,
     // then slice to the cap before grouping/augmentRows — mirrors the dashboard
     // widget path (which probes the SAME repo method with MAX_WIDGET_ROWS + 1).
@@ -1612,7 +1634,10 @@ export class DatabaseService {
     return { groups, truncated }
   }
 
-  async createRow(actorUserId: string, input: CreateRowInput): Promise<{ rowId: string; pageId: string }> {
+  async createRow(
+    actorUserId: string,
+    input: CreateRowInput,
+  ): Promise<{ rowId: string; pageId: string }> {
     const page = await this.assertCanEdit(actorUserId, input.pageId)
     const source = await this.requireSource(input.pageId)
     const maxPos = await this.repo.maxRowPosition(source.id)

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { DatabasePropertyType } from '@repo/db'
 
 import { buildRowQuery } from '../../../src/database/services/query-planner.ts'
-import type { ViewSettings } from '../../../src/database/dto/database.dto.ts'
+import type { FilterGroup, ViewSettings } from '../../../src/database/dto/database.dto.ts'
 
 // Property meta the planner needs to choose the right value comparison per type.
 const props = [
@@ -28,7 +28,7 @@ describe('buildRowQuery — empty settings', () => {
     const plan = buildRowQuery({}, props)
     expect(plan.where).toEqual({})
     expect(plan.orderBy).toEqual([{ position: 'asc' }])
-    expect(plan.multiSelectPostFilters).toEqual([])
+    expect(plan.residualFilter).toBeNull()
   })
 })
 
@@ -73,6 +73,50 @@ describe('buildRowQuery — TEXT filters', () => {
       AND: [{ cells: { some: { propertyId: 'p-text', value: { equals: 'bar' } } } }],
     })
   })
+
+  for (const [operator, prismaOperator] of [
+    ['starts_with', 'string_starts_with'],
+    ['ends_with', 'string_ends_with'],
+  ] as const) {
+    it(`${operator} → cells.some with ${prismaOperator}`, () => {
+      const settings: ViewSettings = {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: 'p-text', operator, value: 'foo' }],
+        },
+      }
+      const plan = buildRowQuery(settings, props)
+      expect(plan.where).toEqual({
+        AND: [{ cells: { some: { propertyId: 'p-text', value: { [prismaOperator]: 'foo' } } } }],
+      })
+      expect(plan.residualFilter).toBeNull()
+    })
+  }
+
+  for (const [operator, prismaOperator] of [
+    ['not_starts_with', 'string_starts_with'],
+    ['not_ends_with', 'string_ends_with'],
+  ] as const) {
+    it(`${operator} → NOT around cells.some with ${prismaOperator}`, () => {
+      const settings: ViewSettings = {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: 'p-text', operator, value: 'foo' }],
+        },
+      }
+      const plan = buildRowQuery(settings, props)
+      expect(plan.where).toEqual({
+        AND: [
+          {
+            NOT: {
+              cells: { some: { propertyId: 'p-text', value: { [prismaOperator]: 'foo' } } },
+            },
+          },
+        ],
+      })
+      expect(plan.residualFilter).toBeNull()
+    })
+  }
 })
 
 describe('buildRowQuery — __title__ filters', () => {
@@ -121,6 +165,50 @@ describe('buildRowQuery — __title__ filters', () => {
       ],
     })
   })
+
+  for (const [operator, prismaOperator] of [
+    ['starts_with', 'startsWith'],
+    ['ends_with', 'endsWith'],
+  ] as const) {
+    it(`${operator} → page.is.title ${prismaOperator}`, () => {
+      const settings: ViewSettings = {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: '__title__', operator, value: 'А' }],
+        },
+      }
+      const plan = buildRowQuery(settings, props)
+      expect(plan.where).toEqual({
+        AND: [{ page: { is: { title: { [prismaOperator]: 'А', mode: 'insensitive' } } } }],
+      })
+      expect(plan.residualFilter).toBeNull()
+    })
+  }
+
+  for (const [operator, prismaOperator] of [
+    ['not_starts_with', 'startsWith'],
+    ['not_ends_with', 'endsWith'],
+  ] as const) {
+    it(`${operator} → NOT around page.is.title ${prismaOperator}`, () => {
+      const settings: ViewSettings = {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: '__title__', operator, value: 'А' }],
+        },
+      }
+      const plan = buildRowQuery(settings, props)
+      expect(plan.where).toEqual({
+        AND: [
+          {
+            NOT: {
+              page: { is: { title: { [prismaOperator]: 'А', mode: 'insensitive' } } },
+            },
+          },
+        ],
+      })
+      expect(plan.residualFilter).toBeNull()
+    })
+  }
 })
 
 describe('buildRowQuery — NUMBER filters', () => {
@@ -277,7 +365,7 @@ describe('buildRowQuery — SELECT / STATUS equality', () => {
       },
     }
     const plan = buildRowQuery(settings, props)
-    expect(plan.multiSelectPostFilters).toEqual([])
+    expect(plan.residualFilter).toBeNull()
     expect(plan.where).toEqual({
       AND: [
         {
@@ -300,7 +388,11 @@ describe('buildRowQuery — SELECT / STATUS equality', () => {
     const plan = buildRowQuery(settings, props)
     expect(plan.where).toEqual({
       AND: [
-        { NOT: { OR: [{ cells: { some: { propertyId: 'p-select', value: { equals: 'opt-1' } } } }] } },
+        {
+          NOT: {
+            OR: [{ cells: { some: { propertyId: 'p-select', value: { equals: 'opt-1' } } } }],
+          },
+        },
       ],
     })
   })
@@ -338,8 +430,25 @@ describe('buildRowQuery — nested AND/OR groups', () => {
   })
 })
 
-describe('buildRowQuery — MULTI_SELECT post-filters', () => {
-  it('is_any_of is NOT in where; collected into multiSelectPostFilters', () => {
+describe('buildRowQuery — MULTI_SELECT residual filter', () => {
+  it('preserves the full boolean tree when one branch needs post-filtering', () => {
+    const filters: FilterGroup = {
+      conjunction: 'or',
+      conditions: [
+        { propertyId: '__title__', operator: 'starts_with', value: 'А' },
+        { propertyId: 'p-multi', operator: 'contains_all', value: ['food', 'home'] },
+      ],
+    }
+
+    const plan = buildRowQuery({ filters }, [
+      { id: 'p-multi', type: DatabasePropertyType.MULTI_SELECT },
+    ])
+
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(filters)
+  })
+
+  it('is_any_of keeps the full filter tree out of Prisma', () => {
     const settings: ViewSettings = {
       filters: {
         conjunction: 'and',
@@ -348,13 +457,11 @@ describe('buildRowQuery — MULTI_SELECT post-filters', () => {
     }
     const plan = buildRowQuery(settings, props)
     // No cell predicate emitted for the multi-select condition.
-    expect(plan.where).toEqual({ AND: [] })
-    expect(plan.multiSelectPostFilters).toEqual([
-      { propertyId: 'p-multi', op: 'is_any_of', optionIds: ['a', 'b'] },
-    ])
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(settings.filters)
   })
 
-  it('is_none_of is collected with op is_none_of', () => {
+  it('is_none_of keeps the full filter tree out of Prisma', () => {
     const settings: ViewSettings = {
       filters: {
         conjunction: 'and',
@@ -362,9 +469,8 @@ describe('buildRowQuery — MULTI_SELECT post-filters', () => {
       },
     }
     const plan = buildRowQuery(settings, props)
-    expect(plan.multiSelectPostFilters).toEqual([
-      { propertyId: 'p-multi', op: 'is_none_of', optionIds: ['x'] },
-    ])
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(settings.filters)
   })
 })
 
@@ -393,10 +499,10 @@ describe('buildRowQuery — sorts', () => {
   })
 })
 
-// ── C4: RELATION post-filter + computed columns non-filterable ───────────────
+// ── C4: RELATION residual filter + computed columns non-filterable ───────────
 
-describe('buildRowQuery — RELATION post-filter', () => {
-  it('is_any_of → collected into relationPostFilters, NOT in where', () => {
+describe('buildRowQuery — RELATION residual filter', () => {
+  it('is_any_of keeps the full filter tree out of Prisma', () => {
     const settings: ViewSettings = {
       filters: {
         conjunction: 'and',
@@ -404,15 +510,11 @@ describe('buildRowQuery — RELATION post-filter', () => {
       },
     }
     const plan = buildRowQuery(settings, props)
-    expect(plan.where).toEqual({ AND: [] })
-    expect(plan.relationPostFilters).toEqual([
-      { propertyId: 'p-rel', op: 'is_any_of', targetRowIds: ['t1', 't2'] },
-    ])
-    // It must NOT leak into the multi-select mechanism.
-    expect(plan.multiSelectPostFilters).toEqual([])
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(settings.filters)
   })
 
-  it('is_none_of → collected with op is_none_of', () => {
+  it('is_none_of keeps the full filter tree out of Prisma', () => {
     const settings: ViewSettings = {
       filters: {
         conjunction: 'and',
@@ -420,12 +522,11 @@ describe('buildRowQuery — RELATION post-filter', () => {
       },
     }
     const plan = buildRowQuery(settings, props)
-    expect(plan.relationPostFilters).toEqual([
-      { propertyId: 'p-rel', op: 'is_none_of', targetRowIds: ['t1'] },
-    ])
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(settings.filters)
   })
 
-  it('a non-membership RELATION operator is ignored (not filterable)', () => {
+  it('a non-membership RELATION operator also requires residual evaluation', () => {
     const settings: ViewSettings = {
       filters: {
         conjunction: 'and',
@@ -433,8 +534,8 @@ describe('buildRowQuery — RELATION post-filter', () => {
       },
     }
     const plan = buildRowQuery(settings, props)
-    expect(plan.where).toEqual({ AND: [] })
-    expect(plan.relationPostFilters).toEqual([])
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual(settings.filters)
   })
 })
 
@@ -449,8 +550,7 @@ describe('buildRowQuery — computed columns are not filterable', () => {
       }
       const plan = buildRowQuery(settings, props)
       expect(plan.where).toEqual({ AND: [] })
-      expect(plan.relationPostFilters).toEqual([])
-      expect(plan.multiSelectPostFilters).toEqual([])
+      expect(plan.residualFilter).toBeNull()
     })
   }
 })

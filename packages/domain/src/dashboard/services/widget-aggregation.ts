@@ -21,8 +21,7 @@ import { PrismaUnitOfWork } from '../../shared/unit-of-work.ts'
 // copy drift), the repository, the computed-cells aggregate, and the dto types.
 import {
   aggregate,
-  applyMultiSelectPostFilters,
-  applyRelationPostFilters,
+  applyResidualFilter,
   buildRowAccessContext,
   buildRowAccessWhere,
   buildRowQuery,
@@ -186,15 +185,13 @@ export class WidgetAggregationService {
     const overfetched = fetched.length > MAX_WIDGET_ROWS
     const capped = overfetched ? fetched.slice(0, MAX_WIDGET_ROWS) : fetched
 
-    // Post-filters: MULTI_SELECT containment + RELATION links + the AUTHORITATIVE
+    // Apply the complete residual boolean tree before the AUTHORITATIVE
     // per-viewer row-access gate (the where-clause is only an optimization).
-    const afterMulti = applyMultiSelectPostFilters(capped, plan.multiSelectPostFilters)
-    const afterRelation = await applyRelationPostFilters(
-      this.repo,
-      afterMulti,
-      plan.relationPostFilters,
-    )
-    const rows = filterViewableRows(accessCtx, rules, afterRelation)
+    const afterResidual =
+      plan.residualFilter === null
+        ? capped
+        : await applyResidualFilter(this.repo, capped, metas, plan.residualFilter)
+    const rows = filterViewableRows(accessCtx, rules, afterResidual)
 
     // Truncation is honest: the over-fetch probe tripped (more rows matched than
     // the cap). Post-filtering can only shrink the set, never reveal more.

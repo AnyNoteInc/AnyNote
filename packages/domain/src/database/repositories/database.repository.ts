@@ -9,6 +9,7 @@ export interface AccessiblePage {
   id: string
   workspaceId: string
   createdById: string | null
+  type: import('@repo/db').PageType
 }
 
 export interface SourceRow {
@@ -140,10 +141,15 @@ export class DatabaseRepository {
   async findAccessiblePage(userId: string, pageId: string): Promise<AccessiblePage | null> {
     const row = await this.uow.client().page.findFirst({
       where: { id: pageId, workspace: { members: { some: { userId } } } },
-      select: { id: true, workspaceId: true, createdById: true },
+      select: { id: true, workspaceId: true, createdById: true, type: true },
     })
     if (!row) return null
-    return { id: row.id, workspaceId: row.workspaceId, createdById: row.createdById }
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      createdById: row.createdById,
+      type: row.type,
+    }
   }
 
   async findMembershipRole(userId: string, workspaceId: string): Promise<string | null> {
@@ -245,12 +251,10 @@ export class DatabaseRepository {
     }
   }
 
-  async findSourceMetaByPageId(
-    pageId: string,
-  ): Promise<{ id: string; workspaceId: string; pageId: string } | null> {
+  async findSourceMetaByPageId(pageId: string): Promise<SourceRow | null> {
     return this.uow.client().databaseSource.findUnique({
       where: { pageId },
-      select: { id: true, workspaceId: true, pageId: true },
+      select: { id: true, workspaceId: true, pageId: true, title: true },
     })
   }
 

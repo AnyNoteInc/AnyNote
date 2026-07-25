@@ -25,9 +25,19 @@ const STATUS_OPTIONS = [
 // ── Repo factory — override individual methods per test ───────────────────────
 function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseRepository {
   return {
-    findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'u1' })),
+    findAccessiblePage: vi.fn(async () => ({
+      id: 'db-page',
+      workspaceId: 'w1',
+      createdById: 'u1',
+      type: 'DATABASE',
+    })),
     findMembershipRole: vi.fn(async () => 'OWNER'),
-    createSource: vi.fn(async (d) => ({ id: 'src1', workspaceId: d.workspaceId, pageId: d.pageId, title: d.title })),
+    createSource: vi.fn(async (d) => ({
+      id: 'src1',
+      workspaceId: d.workspaceId,
+      pageId: d.pageId,
+      title: d.title,
+    })),
     findSourceByPageId: vi.fn(async () => null),
     findSourceSchemaByPageId: vi.fn(async () => ({
       source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
@@ -36,24 +46,67 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     })),
     findRowsPaged: vi.fn(async () => []),
     findRowsForGrouping: vi.fn(async () => []),
-    findSourceMetaByPageId: vi.fn(async () => ({ id: 'src1', workspaceId: 'w1', pageId: 'db-page' })),
+    findSourceMetaByPageId: vi.fn(async () => ({
+      id: 'src1',
+      workspaceId: 'w1',
+      pageId: 'db-page',
+    })),
     lockSourceForStructureMutation: vi.fn(async () => true),
     listViews: vi.fn(async () => []),
-    createView: vi.fn(async (d) => ({ id: 'view1', type: d.type, title: d.title, position: d.position, settings: null })),
-    updateView: vi.fn(async (id, d) => ({ id, type: 'TABLE', title: d.title ?? 'V', position: 0, settings: d.settings ?? null })),
+    createView: vi.fn(async (d) => ({
+      id: 'view1',
+      type: d.type,
+      title: d.title,
+      position: d.position,
+      settings: null,
+    })),
+    updateView: vi.fn(async (id, d) => ({
+      id,
+      type: 'TABLE',
+      title: d.title ?? 'V',
+      position: 0,
+      settings: d.settings ?? null,
+    })),
     deleteView: vi.fn(async () => undefined),
     hasEmbeddedViewReference: vi.fn(async () => false),
-    findViewById: vi.fn(async () => ({ id: 'view1', sourceId: 'src1', type: 'TABLE', formId: null })),
+    findViewById: vi.fn(async () => ({
+      id: 'view1',
+      sourceId: 'src1',
+      type: 'TABLE',
+      formId: null,
+    })),
     listProperties: vi.fn(async () => []),
-    createProperty: vi.fn(async (d) => ({ id: 'prop1', type: d.type, name: d.name, position: d.position, settings: d.settings ?? null })),
-    updateProperty: vi.fn(async (id, d) => ({ id, type: d.type ?? 'TEXT', name: d.name ?? 'P', position: 0, settings: d.settings ?? null })),
+    createProperty: vi.fn(async (d) => ({
+      id: 'prop1',
+      type: d.type,
+      name: d.name,
+      position: d.position,
+      settings: d.settings ?? null,
+    })),
+    updateProperty: vi.fn(async (id, d) => ({
+      id,
+      type: d.type ?? 'TEXT',
+      name: d.name ?? 'P',
+      position: 0,
+      settings: d.settings ?? null,
+    })),
     deleteProperty: vi.fn(async () => undefined),
-    findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+    findPropertyById: vi.fn(async () => ({
+      id: 'prop1',
+      sourceId: 'src1',
+      type: 'TEXT',
+      settings: null,
+    })),
     reorderProperties: vi.fn(async () => undefined),
     maxPropertyPosition: vi.fn(async () => 0),
     createRow: vi.fn(async (d) => ({ id: 'row1', pageId: d.pageId, position: d.position })),
     findRowsBySource: vi.fn(async () => []),
-    findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'src1', pageId: 'item-page', deletedAt: null })),
+    findRowById: vi.fn(async () => ({
+      id: 'row1',
+      sourceId: 'src1',
+      pageId: 'item-page',
+      deletedAt: null,
+    })),
     lockRowMutationGraph: vi.fn(async () => true),
     softDeleteRow: vi.fn(async () => undefined),
     restoreRow: vi.fn(async () => undefined),
@@ -80,8 +133,18 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     // Phase 4C: access-rule + resolver-context surface.
     listAccessRules: vi.fn(async () => []),
     findEnabledAccessRules: vi.fn(async () => []),
-    createAccessRule: vi.fn(async (d) => ({ id: 'rule1', propertyId: d.propertyId, accessLevel: d.accessLevel, enabled: true })),
-    updateAccessRule: vi.fn(async (d) => ({ id: d.id, propertyId: 'prop1', accessLevel: d.accessLevel ?? 'CAN_VIEW', enabled: d.enabled ?? true })),
+    createAccessRule: vi.fn(async (d) => ({
+      id: 'rule1',
+      propertyId: d.propertyId,
+      accessLevel: d.accessLevel,
+      enabled: true,
+    })),
+    updateAccessRule: vi.fn(async (d) => ({
+      id: d.id,
+      propertyId: 'prop1',
+      accessLevel: d.accessLevel ?? 'CAN_VIEW',
+      enabled: d.enabled ?? true,
+    })),
     deleteAccessRule: vi.fn(async () => undefined),
     findAccessRuleById: vi.fn(async () => ({ id: 'rule1', sourceId: 'src1' })),
     setStructureLocked: vi.fn(async () => undefined),
@@ -89,10 +152,17 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     isSourcePageCreatedBy: vi.fn(async () => true),
     findItemPageShareLevel: vi.fn(async () => null),
     findSourceWithLockByPageId: vi.fn(async () => ({
-      id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+      id: 'src1',
+      workspaceId: 'w1',
+      pageId: 'db-page',
+      structureLocked: false,
+      pageCreatedById: 'u1',
     })),
     findRowForAccess: vi.fn(async () => ({
-      id: 'row1', sourceId: 'src1', rowCreatedById: 'u1', cellsByProperty: new Map(),
+      id: 'row1',
+      sourceId: 'src1',
+      rowCreatedById: 'u1',
+      cellsByProperty: new Map(),
     })),
     findRowsAccessMetaByIds: vi.fn(async () => []),
     findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
@@ -129,7 +199,11 @@ function makeFormService(overrides: Partial<DatabaseFormService> = {}): Database
     archive: vi.fn(async () => ({ ok: true as const })),
     duplicateByView: vi.fn(async () => ({ id: 'form-copy' })),
     renameByView: vi.fn(async (_actorUserId, input) => ({
-      id: input.viewId, type: 'FORM', title: input.title, position: 1024, settings: null,
+      id: input.viewId,
+      type: 'FORM',
+      title: input.title,
+      position: 1024,
+      settings: null,
     })),
     ...overrides,
   } as unknown as DatabaseFormService
@@ -173,7 +247,9 @@ describe('DatabaseService.createProperty', () => {
   it('creates a property at the next position', async () => {
     const repo = makeRepo({ maxPropertyPosition: vi.fn(async () => 2048) })
     const result = await makeService(repo).createProperty('u1', {
-      pageId: 'db-page', type: 'NUMBER', name: 'Оценка',
+      pageId: 'db-page',
+      type: 'NUMBER',
+      name: 'Оценка',
     })
     expect(result.id).toBe('prop1')
     expect(repo.createProperty).toHaveBeenCalledWith(
@@ -198,7 +274,11 @@ describe('DatabaseService.createProperty', () => {
 
   it('is FORBIDDEN for a VIEWER member who is not the creator', async () => {
     const repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'VIEWER'),
     })
     await expect(
@@ -213,12 +293,20 @@ describe('DatabaseService.updateProperty', () => {
   it('renames a property belonging to the source', async () => {
     const repo = makeRepo()
     await makeService(repo).updateProperty('u1', { pageId: 'db-page', id: 'prop1', name: 'Новое' })
-    expect(repo.updateProperty).toHaveBeenCalledWith('prop1', expect.objectContaining({ name: 'Новое' }))
+    expect(repo.updateProperty).toHaveBeenCalledWith(
+      'prop1',
+      expect.objectContaining({ name: 'Новое' }),
+    )
   })
 
   it('throws NOT_FOUND when the property belongs to another source', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'other-src', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'other-src',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).updateProperty('u1', { pageId: 'db-page', id: 'prop1', name: 'X' }),
@@ -230,7 +318,9 @@ describe('DatabaseService.updateProperty', () => {
     const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
     await expect(
       makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
-        pageId: 'db-page', id: 'prop1', type: 'NUMBER',
+        pageId: 'db-page',
+        id: 'prop1',
+        type: 'NUMBER',
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_PROPERTY_IN_USE' })
     expect(repo.lockSourceForStructureMutation).toHaveBeenCalledWith('src1', expect.any(Date))
@@ -241,14 +331,22 @@ describe('DatabaseService.updateProperty', () => {
   it('allows option additions and label-only renames', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'SELECT',
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'SELECT',
         settings: { options: [{ id: 'one', label: 'Old' }] },
       })),
     })
     const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
     await makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
-      pageId: 'db-page', id: 'prop1',
-      settings: { options: [{ id: 'one', label: 'Renamed' }, { id: 'two', label: 'Added' }] },
+      pageId: 'db-page',
+      id: 'prop1',
+      settings: {
+        options: [
+          { id: 'one', label: 'Renamed' },
+          { id: 'two', label: 'Added' },
+        ],
+      },
     })
     expect(formRepo.hasProtectedPropertyDependency).not.toHaveBeenCalled()
     expect(repo.updateProperty).toHaveBeenCalled()
@@ -257,16 +355,26 @@ describe('DatabaseService.updateProperty', () => {
   it('allows removal of an option not referenced by a current or grace form document', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'SELECT',
-        settings: { options: [{ id: 'used', label: 'Used' }, { id: 'unused', label: 'Unused' }] },
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'SELECT',
+        settings: {
+          options: [
+            { id: 'used', label: 'Used' },
+            { id: 'unused', label: 'Unused' },
+          ],
+        },
       })),
     })
-    const dependency = vi.fn(async (_propertyId, _now, removedOptionIds?: string[]) =>
-      removedOptionIds?.includes('used') ?? true,
+    const dependency = vi.fn(
+      async (_propertyId, _now, removedOptionIds?: string[]) =>
+        removedOptionIds?.includes('used') ?? true,
     )
     const formRepo = makeFormRepo({ hasProtectedPropertyDependency: dependency })
     await makeService(repo, makePageRepo(), makeUow(), formRepo).updateProperty('u1', {
-      pageId: 'db-page', id: 'prop1', settings: { options: [{ id: 'used', label: 'Used' }] },
+      pageId: 'db-page',
+      id: 'prop1',
+      settings: { options: [{ id: 'used', label: 'Used' }] },
     })
     expect(dependency).toHaveBeenCalledWith('prop1', expect.any(Date), ['unused'])
     expect(repo.updateProperty).toHaveBeenCalled()
@@ -275,31 +383,47 @@ describe('DatabaseService.updateProperty', () => {
   it('blocks option removal and relation-target changes used by an active form version', async () => {
     const optionRepo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'SELECT',
-        settings: { options: [{ id: 'one', label: 'One' }, { id: 'two', label: 'Two' }] },
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'SELECT',
+        settings: {
+          options: [
+            { id: 'one', label: 'One' },
+            { id: 'two', label: 'Two' },
+          ],
+        },
       })),
     })
     const optionFormRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
     await expect(
       makeService(optionRepo, makePageRepo(), makeUow(), optionFormRepo).updateProperty('u1', {
-        pageId: 'db-page', id: 'prop1', settings: { options: [{ id: 'one', label: 'One' }] },
+        pageId: 'db-page',
+        id: 'prop1',
+        settings: { options: [{ id: 'one', label: 'One' }] },
       }),
     ).rejects.toMatchObject({ message: 'FORM_PROPERTY_IN_USE' })
     expect(optionFormRepo.hasProtectedPropertyDependency).toHaveBeenCalledWith(
-      'prop1', expect.any(Date), ['two'],
+      'prop1',
+      expect.any(Date),
+      ['two'],
     )
 
     const relationRepo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'RELATION',
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'RELATION',
         settings: { relation: { targetSourceId: '00000000-0000-7000-8000-000000000001' } },
       })),
       findSourceWorkspaceId: vi.fn(async () => 'w1'),
     })
-    const relationFormRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
+    const relationFormRepo = makeFormRepo({
+      hasProtectedPropertyDependency: vi.fn(async () => true),
+    })
     await expect(
       makeService(relationRepo, makePageRepo(), makeUow(), relationFormRepo).updateProperty('u1', {
-        pageId: 'db-page', id: 'prop1',
+        pageId: 'db-page',
+        id: 'prop1',
         settings: { relation: { targetSourceId: '00000000-0000-7000-8000-000000000002' } },
       }),
     ).rejects.toMatchObject({ message: 'FORM_PROPERTY_IN_USE' })
@@ -318,7 +442,12 @@ describe('DatabaseService.deleteProperty', () => {
 
   it('throws NOT_FOUND when the property belongs to another source', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'other-src', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'other-src',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).deleteProperty('u1', { pageId: 'db-page', id: 'prop1' }),
@@ -330,7 +459,8 @@ describe('DatabaseService.deleteProperty', () => {
     const formRepo = makeFormRepo({ hasProtectedPropertyDependency: vi.fn(async () => true) })
     await expect(
       makeService(repo, makePageRepo(), makeUow(), formRepo).deleteProperty('u1', {
-        pageId: 'db-page', id: 'prop1',
+        pageId: 'db-page',
+        id: 'prop1',
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT', message: 'FORM_PROPERTY_IN_USE' })
     expect(repo.lockSourceForStructureMutation).toHaveBeenCalled()
@@ -343,32 +473,56 @@ describe('DatabaseService.updateCellValue type validation', () => {
 
   it('rejects a non-number value for a NUMBER property', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'NUMBER', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'NUMBER',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'not-a-number',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'not-a-number',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
 
   it('accepts a numeric value for a NUMBER property', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'NUMBER', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'NUMBER',
+        settings: null,
+      })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 42,
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 42,
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 42)
   })
 
   it('rejects a non-finite NUMBER (Infinity would JSON-stringify to null = data loss)', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'NUMBER', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'NUMBER',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: Infinity,
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: Infinity,
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -377,12 +531,18 @@ describe('DatabaseService.updateCellValue type validation', () => {
   it('rejects a SELECT option id not in settings.options', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'SELECT', settings: { options: STATUS_OPTIONS },
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'SELECT',
+        settings: { options: STATUS_OPTIONS },
       })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'opt-unknown',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'opt-unknown',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -390,41 +550,71 @@ describe('DatabaseService.updateCellValue type validation', () => {
   it('accepts a SELECT option id present in settings.options', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop1', sourceId: 'src1', type: 'SELECT', settings: { options: STATUS_OPTIONS },
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'SELECT',
+        settings: { options: STATUS_OPTIONS },
       })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'opt-doing',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'opt-doing',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'opt-doing')
   })
 
   it('coerces a CHECKBOX value to a boolean', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'CHECKBOX', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'CHECKBOX',
+        settings: null,
+      })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'truthy',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'truthy',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', true)
   })
 
   it('clears the cell when value is null', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: null,
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: null,
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', null)
   })
 
   it('stores a FILE value as an ordered array of file ids', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'FILE',
+        settings: null,
+      })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: ['file-a', 'file-b'],
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: ['file-a', 'file-b'],
     })
     expect(repo.upsertFileCellValue).toHaveBeenCalledWith('row1', 'prop1', ['file-a', 'file-b'])
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -432,43 +622,62 @@ describe('DatabaseService.updateCellValue type validation', () => {
 
   it('accepts an empty FILE array as the canonical empty value', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'FILE',
+        settings: null,
+      })),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: [],
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: [],
     })
     expect(repo.upsertFileCellValue).toHaveBeenCalledWith('row1', 'prop1', [])
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
   })
 
-  it.each([
-    'legacy-file-id',
-    '',
-    42,
-    null,
-    ['file-a', 42],
-    ['file-a', ''],
-    ['file-a', '   '],
-  ])('rejects a non-array or invalid FILE value %#', async (value) => {
-    const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
-    })
-    await expect(
-      makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value,
-      }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Ожидался список файлов' })
-    expect(repo.upsertCellValue).not.toHaveBeenCalled()
-    expect(repo.upsertFileCellValue).not.toHaveBeenCalled()
-  })
+  it.each(['legacy-file-id', '', 42, null, ['file-a', 42], ['file-a', ''], ['file-a', '   ']])(
+    'rejects a non-array or invalid FILE value %#',
+    async (value) => {
+      const repo = makeRepo({
+        findPropertyById: vi.fn(async () => ({
+          id: 'prop1',
+          sourceId: 'src1',
+          type: 'FILE',
+          settings: null,
+        })),
+      })
+      await expect(
+        makeService(repo).updateCellValue('u1', {
+          pageId: 'db-page',
+          rowId: 'row1',
+          propertyId: 'prop1',
+          value,
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Ожидался список файлов' })
+      expect(repo.upsertCellValue).not.toHaveBeenCalled()
+      expect(repo.upsertFileCellValue).not.toHaveBeenCalled()
+    },
+  )
 
   it('rejects duplicate FILE ids instead of silently deduplicating', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'FILE', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'FILE',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: ['file-a', 'file-a'],
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: ['file-a', 'file-a'],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Файлы не должны повторяться' })
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -477,11 +686,19 @@ describe('DatabaseService.updateCellValue type validation', () => {
 
   it('throws NOT_FOUND when the row belongs to another source', async () => {
     const repo = makeRepo({
-      findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'other-src', pageId: 'item-page', deletedAt: null })),
+      findRowById: vi.fn(async () => ({
+        id: 'row1',
+        sourceId: 'other-src',
+        pageId: 'item-page',
+        deletedAt: null,
+      })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'x',
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
@@ -489,12 +706,18 @@ describe('DatabaseService.updateCellValue type validation', () => {
   it('throws NOT_FOUND when the row is soft-deleted', async () => {
     const repo = makeRepo({
       findRowById: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', pageId: 'item-page', deletedAt: new Date('2026-06-08T00:00:00Z'),
+        id: 'row1',
+        sourceId: 'src1',
+        pageId: 'item-page',
+        deletedAt: new Date('2026-06-08T00:00:00Z'),
       })),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'x',
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -509,7 +732,15 @@ describe('DatabaseService.getByPage', () => {
       findSourceSchemaByPageId: vi.fn(async () => ({
         source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
         views: [{ id: 'view1', type: 'TABLE', title: 'Таблица', position: 0, settings: null }],
-        properties: [{ id: 'prop1', type: 'STATUS', name: 'Статус', position: 0, settings: { options: STATUS_OPTIONS } }],
+        properties: [
+          {
+            id: 'prop1',
+            type: 'STATUS',
+            name: 'Статус',
+            position: 0,
+            settings: { options: STATUS_OPTIONS },
+          },
+        ],
       })),
     })
     const vm = await makeService(repo).getByPage('u1', 'db-page')
@@ -524,7 +755,36 @@ describe('DatabaseService.getByPage', () => {
 
   it('throws NOT_FOUND when the page has no source', async () => {
     const repo = makeRepo({ findSourceSchemaByPageId: vi.fn(async () => null) })
-    await expect(makeService(repo).getByPage('u1', 'db-page')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(makeService(repo).getByPage('u1', 'db-page')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+  })
+
+  it('returns PAGE_IS_NOT_DATABASE only after a visible non-database page passes access', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'text-page',
+        workspaceId: 'w1',
+        createdById: 'u1',
+        type: 'TEXT',
+      })),
+    })
+
+    await expect(makeService(repo).getByPage('u1', 'text-page')).rejects.toMatchObject({
+      code: 'PAGE_IS_NOT_DATABASE',
+      httpStatus: 400,
+    })
+    expect(repo.findSourceSchemaByPageId).not.toHaveBeenCalled()
+  })
+
+  it('keeps an inaccessible page object-hidden as NOT_FOUND', async () => {
+    const repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
+
+    await expect(makeService(repo).getByPage('u1', 'hidden-page')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      httpStatus: 404,
+    })
+    expect(repo.findSourceSchemaByPageId).not.toHaveBeenCalled()
   })
 })
 
@@ -540,10 +800,14 @@ describe('DatabaseService.reorderProperties', () => {
       ]),
     })
     await makeService(repo).reorderProperties('u1', {
-      pageId: 'db-page', orderedIds: ['p-a', 'p-b', 'p-c'],
+      pageId: 'db-page',
+      orderedIds: ['p-a', 'p-b', 'p-c'],
     })
     expect(repo.reorderProperties).toHaveBeenCalledOnce()
-    const arg = (repo.reorderProperties as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { id: string; position: number }[]
+    const arg = (repo.reorderProperties as ReturnType<typeof vi.fn>).mock.calls[0]![0] as {
+      id: string
+      position: number
+    }[]
     expect(arg.map((x) => x.id)).toEqual(['p-a', 'p-b', 'p-c'])
     expect(arg[0]!.position).toBeLessThan(arg[1]!.position)
   })
@@ -561,7 +825,12 @@ describe('DatabaseService.createRow', () => {
 
     expect(pageRepo.createItemPageTx).toHaveBeenCalledWith('db-page', 'w1', 'u1')
     expect(repo.createRow).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceId: 'src1', pageId: 'item-page-9', position: 2048, createdById: 'u1' }),
+      expect.objectContaining({
+        sourceId: 'src1',
+        pageId: 'item-page-9',
+        position: 2048,
+        createdById: 'u1',
+      }),
     )
     expect(result).toEqual({ rowId: 'row1', pageId: 'item-page-9' })
   })
@@ -583,12 +852,16 @@ describe('DatabaseService.createRow', () => {
 
   it('is FORBIDDEN for a VIEWER who is not the creator', async () => {
     const repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'VIEWER'),
     })
-    await expect(
-      makeService(repo).createRow('u1', { pageId: 'db-page' }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(makeService(repo).createRow('u1', { pageId: 'db-page' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 })
 
@@ -597,7 +870,11 @@ describe('DatabaseService.updateRowTitle', () => {
 
   it('writes Page.title for the item page', async () => {
     const repo = makeRepo()
-    await makeService(repo).updateRowTitle('u1', { pageId: 'db-page', rowId: 'row1', title: 'Новый заголовок' })
+    await makeService(repo).updateRowTitle('u1', {
+      pageId: 'db-page',
+      rowId: 'row1',
+      title: 'Новый заголовок',
+    })
     expect(repo.updatePageTitle).toHaveBeenCalledWith('item-page', 'Новый заголовок', 'u1')
   })
 
@@ -609,7 +886,12 @@ describe('DatabaseService.updateRowTitle', () => {
 
   it('throws NOT_FOUND when the row belongs to another source', async () => {
     const repo = makeRepo({
-      findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'other-src', pageId: 'item-page', deletedAt: null })),
+      findRowById: vi.fn(async () => ({
+        id: 'row1',
+        sourceId: 'other-src',
+        pageId: 'item-page',
+        deletedAt: null,
+      })),
     })
     await expect(
       makeService(repo).updateRowTitle('u1', { pageId: 'db-page', rowId: 'row1', title: 'X' }),
@@ -648,7 +930,12 @@ describe('DatabaseService.deleteRow / restoreRow', () => {
 
   it('deleteRow throws NOT_FOUND when the row belongs to another source', async () => {
     const repo = makeRepo({
-      findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'other-src', pageId: 'item-page', deletedAt: null })),
+      findRowById: vi.fn(async () => ({
+        id: 'row1',
+        sourceId: 'other-src',
+        pageId: 'item-page',
+        deletedAt: null,
+      })),
     })
     await expect(
       makeService(repo).deleteRow('u1', { pageId: 'db-page', rowId: 'row1' }),
@@ -769,7 +1056,11 @@ describe('DatabaseService.listRows', () => {
         makeRow('r3', {}),
       ]),
     })
-    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    const result = await makeService(repo).listRows('u1', {
+      pageId: 'db-page',
+      viewId: 'view1',
+      limit: 100,
+    })
     expect(result.rows.map((r) => r.rowId)).toEqual(['r1'])
   })
 
@@ -797,7 +1088,11 @@ describe('DatabaseService.listRows', () => {
         makeRow('r2', { 'p-multi': ['c'] }),
       ]),
     })
-    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    const result = await makeService(repo).listRows('u1', {
+      pageId: 'db-page',
+      viewId: 'view1',
+      limit: 100,
+    })
     expect(result.rows.map((r) => r.rowId)).toEqual(['r2'])
   })
 
@@ -805,7 +1100,10 @@ describe('DatabaseService.listRows', () => {
     const repo = makeRepo({
       listViews: vi.fn(async () => [
         {
-          id: 'view1', type: 'TABLE', title: 'V', position: 0,
+          id: 'view1',
+          type: 'TABLE',
+          title: 'V',
+          position: 0,
           settings: {
             filters: {
               conjunction: 'and',
@@ -815,21 +1113,68 @@ describe('DatabaseService.listRows', () => {
         },
       ]),
       listProperties: vi.fn(async () => [
-        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
+        {
+          id: 'p-rel',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'src-t' } },
+        },
       ]),
       findRowsPaged: vi.fn(async () => [
-        { id: 'r1', pageId: 'p-r1', position: 0, createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1', page: { title: 'R1', icon: null }, cells: [] },
-        { id: 'r2', pageId: 'p-r2', position: 1, createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1', page: { title: 'R2', icon: null }, cells: [] },
+        {
+          id: 'r1',
+          pageId: 'p-r1',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'R1', icon: null },
+          cells: [],
+        },
+        {
+          id: 'r2',
+          pageId: 'p-r2',
+          position: 1,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'R2', icon: null },
+          cells: [],
+        },
       ]),
       // r1 links to t1 (matches); r2 links to t9 (excluded).
-      findRelationLinks: vi.fn(async () => new Map([['r1', ['t1']], ['r2', ['t9']]])),
-      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['r1', ['t1']], ['r2', ['t9']]])]])),
+      findRelationLinks: vi.fn(
+        async () =>
+          new Map([
+            ['r1', ['t1']],
+            ['r2', ['t9']],
+          ]),
+      ),
+      findRelationLinksForProperties: vi.fn(
+        async () =>
+          new Map([
+            [
+              'p-rel',
+              new Map([
+                ['r1', ['t1']],
+                ['r2', ['t9']],
+              ]),
+            ],
+          ]),
+      ),
       findRowsByIds: vi.fn(async () => [
         { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
         { id: 't9', pageId: 'pt9', title: 'T9', icon: null },
       ]),
     })
-    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    const result = await makeService(repo).listRows('u1', {
+      pageId: 'db-page',
+      viewId: 'view1',
+      limit: 100,
+    })
     expect(result.rows.map((r) => r.rowId)).toEqual(['r1'])
   })
 
@@ -878,6 +1223,119 @@ describe('DatabaseService.listRows', () => {
   })
 })
 
+describe('DatabaseService.queryRows', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('uses the transient source-wide filter and never loads persisted views', async () => {
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        { id: 'p-text', type: 'TEXT', name: 'T', position: 0, settings: null },
+      ]),
+      listViews: vi.fn(async () => [
+        {
+          id: 'persisted-view',
+          type: 'TABLE',
+          title: 'Persisted',
+          position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-text', operator: 'contains', value: 'persisted' }],
+            },
+          },
+        },
+      ]),
+      findRowsPaged: vi.fn(async () => []),
+    })
+
+    await makeService(repo).queryRows('u1', {
+      pageId: 'db-page',
+      filter: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-text', operator: 'contains', value: 'direct' }],
+      },
+      limit: 100,
+    })
+
+    expect(repo.listViews).not.toHaveBeenCalled()
+    const arg = (repo.findRowsPaged as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.where).toEqual({
+      AND: [{ cells: { some: { propertyId: 'p-text', value: { string_contains: 'direct' } } } }],
+    })
+  })
+
+  it('without a filter returns every accessible source row and preserves MONEY kopecks', async () => {
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        { id: 'money', type: 'NUMBER', name: 'Цена', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        makeAccessRow('mine', { cells: { money: 12_345 } }),
+        makeAccessRow('also-mine', { cells: { money: 99 } }),
+      ]),
+    })
+
+    const result = await makeService(repo).queryRows('u1', {
+      pageId: 'db-page',
+      limit: 100,
+    })
+
+    expect(result.rows.map((candidate) => candidate.rowId)).toEqual(['mine', 'also-mine'])
+    expect(result.rows[0]!.cells.money).toBe(12_345)
+  })
+
+  it('continues across sparse residual batches instead of silently truncating', async () => {
+    const findRowsPaged = vi.fn(async ({ cursor }: { cursor?: string }) => {
+      if (cursor === 'raw-5') {
+        return [makeAccessRow('match', { cells: { tags: ['food', 'home'] } })]
+      }
+      return Array.from({ length: 6 }, (_, index) =>
+        makeAccessRow(`raw-${index}`, { cells: { tags: ['food'] } }),
+      )
+    })
+    const repo = makeRepo({
+      listProperties: vi.fn(async () => [
+        { id: 'tags', type: 'MULTI_SELECT', name: 'Теги', position: 0, settings: null },
+      ]),
+      findRowsPaged,
+    })
+
+    const result = await makeService(repo).queryRows('u1', {
+      pageId: 'db-page',
+      filter: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'tags', operator: 'contains_all', value: ['food', 'home'] }],
+      },
+      limit: 1,
+    })
+
+    expect(result).toMatchObject({ nextCursor: null })
+    expect(result.rows.map((candidate) => candidate.rowId)).toEqual(['match'])
+    expect(findRowsPaged).toHaveBeenCalledTimes(2)
+    expect(findRowsPaged.mock.calls[1]![0].cursor).toBe('raw-5')
+  })
+
+  it('applies the authoritative row-access gate before returning rows', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      listProperties: vi.fn(async () => [PERSON_PROP]),
+      findRowsPaged: vi.fn(async () => [
+        makeAccessRow('mine', { cells: { 'p-person': 'viewer' } }),
+        makeAccessRow('theirs', { cells: { 'p-person': 'someone-else' } }),
+      ]),
+    })
+
+    const result = await makeService(repo).queryRows('viewer', {
+      pageId: 'db-page',
+      limit: 100,
+    })
+
+    expect(result.rows.map((candidate) => candidate.rowId)).toEqual(['mine'])
+  })
+})
+
 describe('DatabaseService.listGroupedRows', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -907,7 +1365,10 @@ describe('DatabaseService.listGroupedRows', () => {
         makeRow('r3', {}), // no status → empty group
       ]),
     })
-    const result = await makeService(repo).listGroupedRows('u1', { pageId: 'db-page', viewId: 'board1' })
+    const result = await makeService(repo).listGroupedRows('u1', {
+      pageId: 'db-page',
+      viewId: 'board1',
+    })
     const byKey = Object.fromEntries(result.groups.map((g) => [g.key, g]))
     // one bucket per option + a null group
     expect(result.groups.map((g) => g.key)).toEqual(['opt-todo', 'opt-doing', 'opt-done', null])
@@ -1030,13 +1491,20 @@ describe('DatabaseService.createView default settings', () => {
         { id: 'p-date', type: 'DATE', name: 'D', position: 0, settings: null },
       ]),
     })
-    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'CALENDAR', title: 'Календарь' })
+    await makeService(repo).createView('u1', {
+      pageId: 'db-page',
+      type: 'CALENDAR',
+      title: 'Календарь',
+    })
     const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
     expect(arg.settings).toEqual({ layout: { datePropertyId: 'p-date' } })
   })
 
   it('seeds empty settings for a TABLE view', async () => {
-    const repo = makeRepo({ listViews: vi.fn(async () => []), listProperties: vi.fn(async () => []) })
+    const repo = makeRepo({
+      listViews: vi.fn(async () => []),
+      listProperties: vi.fn(async () => []),
+    })
     await makeService(repo).createView('u1', { pageId: 'db-page', type: 'TABLE', title: 'Таблица' })
     const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
     expect(arg.settings).toEqual({})
@@ -1095,7 +1563,11 @@ describe('DatabaseService.duplicateView', () => {
 
   it('is FORBIDDEN for a VIEWER who is not the creator', async () => {
     const repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'VIEWER'),
     })
     await expect(
@@ -1115,7 +1587,8 @@ describe('DatabaseService.duplicateView', () => {
       { pageId: 'db-page', viewId: 'view1' },
     )
     expect(formService.duplicateByView).toHaveBeenCalledWith('u1', {
-      pageId: 'db-page', viewId: 'view1',
+      pageId: 'db-page',
+      viewId: 'view1',
     })
     expect(repo.createView).not.toHaveBeenCalled()
   })
@@ -1125,7 +1598,10 @@ describe('DatabaseService.deleteView FORM delegation', () => {
   it('delegates FORM deletion to archive without generic deletion', async () => {
     const repo = makeRepo({
       findViewById: vi.fn(async () => ({
-        id: 'view1', sourceId: 'src1', type: 'FORM', formId: 'form1',
+        id: 'view1',
+        sourceId: 'src1',
+        type: 'FORM',
+        formId: 'form1',
       })),
     })
     const formService = makeFormService()
@@ -1134,7 +1610,8 @@ describe('DatabaseService.deleteView FORM delegation', () => {
       { pageId: 'db-page', id: 'view1' },
     )
     expect(formService.archive).toHaveBeenCalledWith('u1', {
-      pageId: 'db-page', formId: 'form1',
+      pageId: 'db-page',
+      formId: 'form1',
     })
     expect(repo.deleteView).not.toHaveBeenCalled()
   })
@@ -1142,12 +1619,17 @@ describe('DatabaseService.deleteView FORM delegation', () => {
   it('does not scan embedded pages before final structure authorization', async () => {
     const repo = makeRepo({
       findAccessiblePage: vi.fn(async () => ({
-        id: 'db-page', workspaceId: 'w1', createdById: 'other',
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
       })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false,
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
         pageCreatedById: 'other',
       })),
     })
@@ -1161,7 +1643,10 @@ describe('DatabaseService.deleteView FORM delegation', () => {
   it('blocks an embedded non-FORM view after locking and reauthorizing the source', async () => {
     const repo = makeRepo({
       findViewById: vi.fn(async () => ({
-        id: 'view1', sourceId: 'src1', type: 'TABLE', formId: null,
+        id: 'view1',
+        sourceId: 'src1',
+        type: 'TABLE',
+        formId: null,
       })),
       listViews: vi.fn(async () => [
         { id: 'view1', type: 'TABLE', title: 'A', position: 0, settings: null },
@@ -1186,7 +1671,10 @@ describe('DatabaseService.updateView FORM delegation', () => {
   it('delegates FORM rename through DatabaseFormService and leaves generic update unused', async () => {
     const repo = makeRepo({
       findViewById: vi.fn(async () => ({
-        id: 'view1', sourceId: 'src1', type: 'FORM', formId: 'form1',
+        id: 'view1',
+        sourceId: 'src1',
+        type: 'FORM',
+        formId: 'form1',
       })),
     })
     const formService = makeFormService()
@@ -1195,7 +1683,9 @@ describe('DatabaseService.updateView FORM delegation', () => {
       { pageId: 'db-page', id: 'view1', title: 'Renamed form' },
     )
     expect(formService.renameByView).toHaveBeenCalledWith('u1', {
-      pageId: 'db-page', viewId: 'view1', title: 'Renamed form',
+      pageId: 'db-page',
+      viewId: 'view1',
+      title: 'Renamed form',
     })
     expect(repo.updateView).not.toHaveBeenCalled()
   })
@@ -1206,14 +1696,29 @@ describe('DatabaseService.updateView FORM delegation', () => {
 describe('DatabaseService.updateCellValue — read-only types', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  for (const type of ['FORMULA', 'ROLLUP', 'CREATED_TIME', 'CREATED_BY', 'LAST_EDITED_TIME', 'LAST_EDITED_BY']) {
+  for (const type of [
+    'FORMULA',
+    'ROLLUP',
+    'CREATED_TIME',
+    'CREATED_BY',
+    'LAST_EDITED_TIME',
+    'LAST_EDITED_BY',
+  ]) {
     it(`rejects a write to a ${type} property (read-only)`, async () => {
       const repo = makeRepo({
-        findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type, settings: null })),
+        findPropertyById: vi.fn(async () => ({
+          id: 'prop1',
+          sourceId: 'src1',
+          type,
+          settings: null,
+        })),
       })
       await expect(
         makeService(repo).updateCellValue('u1', {
-          pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+          pageId: 'db-page',
+          rowId: 'row1',
+          propertyId: 'prop1',
+          value: 'x',
         }),
       ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
       expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -1226,11 +1731,19 @@ describe('DatabaseService.updateCellValue — PERSON', () => {
 
   it('accepts a workspace-member userId', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'PERSON', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'PERSON',
+        settings: null,
+      })),
       isWorkspaceMember: vi.fn(async () => true),
     })
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'member-id',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'member-id',
     })
     expect(repo.isWorkspaceMember).toHaveBeenCalledWith('member-id', 'w1')
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'member-id')
@@ -1238,12 +1751,20 @@ describe('DatabaseService.updateCellValue — PERSON', () => {
 
   it('rejects a non-member userId', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'PERSON', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'PERSON',
+        settings: null,
+      })),
       isWorkspaceMember: vi.fn(async () => false),
     })
     await expect(
       makeService(repo).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'stranger',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'stranger',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -1255,14 +1776,22 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
 
   function repoFor(type: string) {
     return makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type, settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type,
+        settings: null,
+      })),
     })
   }
 
   it('accepts a valid URL', async () => {
     const repo = repoFor('URL')
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'https://example.com/x',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'https://example.com/x',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'https://example.com/x')
   })
@@ -1270,7 +1799,10 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('rejects an invalid URL', async () => {
     await expect(
       makeService(repoFor('URL')).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'not a url',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'not a url',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1278,7 +1810,10 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('rejects a javascript: URL (XSS scheme) even though new URL() parses it', async () => {
     await expect(
       makeService(repoFor('URL')).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'javascript:alert(1)',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'javascript:alert(1)',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1286,7 +1821,10 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('rejects a data: URL', async () => {
     await expect(
       makeService(repoFor('URL')).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'data:text/html,<script>1</script>',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'data:text/html,<script>1</script>',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1294,7 +1832,10 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('accepts a valid EMAIL', async () => {
     const repo = repoFor('EMAIL')
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'a@b.co',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'a@b.co',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'a@b.co')
   })
@@ -1302,7 +1843,10 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('rejects an invalid EMAIL', async () => {
     await expect(
       makeService(repoFor('EMAIL')).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'nope',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'nope',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1310,12 +1854,18 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
   it('accepts a valid PHONE and rejects garbage', async () => {
     const repo = repoFor('PHONE')
     await makeService(repo).updateCellValue('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: '+7 (495) 123-45-67',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: '+7 (495) 123-45-67',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', '+7 (495) 123-45-67')
     await expect(
       makeService(repoFor('PHONE')).updateCellValue('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'abc',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'abc',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1331,24 +1881,46 @@ describe('DatabaseService.setRelationLinks', () => {
   it('replaces the link set for same-workspace targets', async () => {
     const repo = makeRepo({
       findPropertyById: relProp(),
-      findRowWorkspaceIds: vi.fn(async () => new Map([['t1', 'w1'], ['t2', 'w1']])),
+      findRowWorkspaceIds: vi.fn(
+        async () =>
+          new Map([
+            ['t1', 'w1'],
+            ['t2', 'w1'],
+          ]),
+      ),
     })
     await makeService(repo).setRelationLinks('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop-rel', targetRowIds: ['t1', 't2'],
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop-rel',
+      targetRowIds: ['t1', 't2'],
     })
     expect(repo.replaceRelationLinks).toHaveBeenCalledWith(
-      expect.objectContaining({ propertyId: 'prop-rel', rowId: 'row1', targetRowIds: ['t1', 't2'] }),
+      expect.objectContaining({
+        propertyId: 'prop-rel',
+        rowId: 'row1',
+        targetRowIds: ['t1', 't2'],
+      }),
     )
   })
 
   it('rejects when a target row is in another workspace', async () => {
     const repo = makeRepo({
       findPropertyById: relProp(),
-      findRowWorkspaceIds: vi.fn(async () => new Map([['t1', 'w1'], ['t2', 'other-ws']])),
+      findRowWorkspaceIds: vi.fn(
+        async () =>
+          new Map([
+            ['t1', 'w1'],
+            ['t2', 'other-ws'],
+          ]),
+      ),
     })
     await expect(
       makeService(repo).setRelationLinks('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop-rel', targetRowIds: ['t1', 't2'],
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop-rel',
+        targetRowIds: ['t1', 't2'],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repo.replaceRelationLinks).not.toHaveBeenCalled()
@@ -1361,31 +1933,47 @@ describe('DatabaseService.setRelationLinks', () => {
     })
     await expect(
       makeService(repo).setRelationLinks('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop-rel', targetRowIds: ['t1', 'ghost'],
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop-rel',
+        targetRowIds: ['t1', 'ghost'],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
 
   it('rejects when the property is not a RELATION', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).setRelationLinks('u1', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', targetRowIds: ['t1'],
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        targetRowIds: ['t1'],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
 
   it('syncs the back-relation mirror on the target rows when configured', async () => {
     const repo = makeRepo({
-      findPropertyById: relProp({ relation: { targetSourceId: 'src-target', backRelationPropertyId: 'prop-back' } }),
+      findPropertyById: relProp({
+        relation: { targetSourceId: 'src-target', backRelationPropertyId: 'prop-back' },
+      }),
       findRowWorkspaceIds: vi.fn(async () => new Map([['t1', 'w1']])),
       // Existing mirror links: t1 already had no mirror; after sync it should include row1.
       findRelationLinks: vi.fn(async () => new Map<string, string[]>()),
     })
     await makeService(repo).setRelationLinks('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop-rel', targetRowIds: ['t1'],
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop-rel',
+      targetRowIds: ['t1'],
     })
     // The forward link set is replaced...
     expect(repo.replaceRelationLinks).toHaveBeenCalledWith(
@@ -1393,13 +1981,19 @@ describe('DatabaseService.setRelationLinks', () => {
     )
     // ...and a mirror link set on the target row (prop-back, t1) is replaced to include row1.
     expect(repo.replaceRelationLinks).toHaveBeenCalledWith(
-      expect.objectContaining({ propertyId: 'prop-back', rowId: 't1', targetRowIds: expect.arrayContaining(['row1']) }),
+      expect.objectContaining({
+        propertyId: 'prop-back',
+        rowId: 't1',
+        targetRowIds: expect.arrayContaining(['row1']),
+      }),
     )
   })
 
   it('removes the row from a target that is no longer linked (back-relation prune)', async () => {
     const repo = makeRepo({
-      findPropertyById: relProp({ relation: { targetSourceId: 'src-target', backRelationPropertyId: 'prop-back' } }),
+      findPropertyById: relProp({
+        relation: { targetSourceId: 'src-target', backRelationPropertyId: 'prop-back' },
+      }),
       findRowWorkspaceIds: vi.fn(async () => new Map([['t-keep', 'w1']])),
       // The forward links currently point at t-keep AND t-drop; t-drop is dropped now.
       findRelationLinks: vi.fn(async (propertyId: string, rowIds: string[]) => {
@@ -1411,10 +2005,15 @@ describe('DatabaseService.setRelationLinks', () => {
       }),
     })
     await makeService(repo).setRelationLinks('u1', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop-rel', targetRowIds: ['t-keep'],
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop-rel',
+      targetRowIds: ['t-keep'],
     })
     // The mirror on t-drop is rewritten WITHOUT row1.
-    const calls = (repo.replaceRelationLinks as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])
+    const calls = (repo.replaceRelationLinks as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => c[0],
+    )
     const dropCall = calls.find((c: { rowId: string }) => c.rowId === 't-drop')
     expect(dropCall).toBeDefined()
     expect(dropCall.targetRowIds).not.toContain('row1')
@@ -1427,12 +2026,17 @@ describe('DatabaseService.listLinkableRows', () => {
   it('returns the target-source rows for the picker', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
-        id: 'prop-rel', sourceId: 'src1', type: 'RELATION', settings: { relation: { targetSourceId: 'src-target' } },
+        id: 'prop-rel',
+        sourceId: 'src1',
+        type: 'RELATION',
+        settings: { relation: { targetSourceId: 'src-target' } },
       })),
       findLinkableRows: vi.fn(async () => [{ id: 't1', pageId: 'p-t1', title: 'Цель' }]),
     })
     const out = await makeService(repo).listLinkableRows('u1', {
-      pageId: 'db-page', propertyId: 'prop-rel', query: 'Це',
+      pageId: 'db-page',
+      propertyId: 'prop-rel',
+      query: 'Це',
     })
     expect(repo.findLinkableRows).toHaveBeenCalledWith('src-target', 'Це')
     expect(out).toEqual([{ id: 't1', pageId: 'p-t1', title: 'Цель' }])
@@ -1440,7 +2044,12 @@ describe('DatabaseService.listLinkableRows', () => {
 
   it('throws BAD_REQUEST when the property is not a configured RELATION', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).listLinkableRows('u1', { pageId: 'db-page', propertyId: 'prop1' }),
@@ -1454,7 +2063,10 @@ describe('DatabaseService.createProperty — settings validation', () => {
   it('accepts a FORMULA that parses', async () => {
     const repo = makeRepo()
     await makeService(repo).createProperty('u1', {
-      pageId: 'db-page', type: 'FORMULA', name: 'F', settings: { formula: 'concat("a","b")' },
+      pageId: 'db-page',
+      type: 'FORMULA',
+      name: 'F',
+      settings: { formula: 'concat("a","b")' },
     })
     expect(repo.createProperty).toHaveBeenCalled()
   })
@@ -1463,7 +2075,10 @@ describe('DatabaseService.createProperty — settings validation', () => {
     const repo = makeRepo()
     await expect(
       makeService(repo).createProperty('u1', {
-        pageId: 'db-page', type: 'FORMULA', name: 'F', settings: { formula: 'concat("a",' },
+        pageId: 'db-page',
+        type: 'FORMULA',
+        name: 'F',
+        settings: { formula: 'concat("a",' },
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1471,7 +2086,10 @@ describe('DatabaseService.createProperty — settings validation', () => {
   it('accepts a RELATION whose targetSourceId is a source in the workspace', async () => {
     const repo = makeRepo({ findSourceWorkspaceId: vi.fn(async () => 'w1') })
     await makeService(repo).createProperty('u1', {
-      pageId: 'db-page', type: 'RELATION', name: 'R', settings: { relation: { targetSourceId: 'src-target' } },
+      pageId: 'db-page',
+      type: 'RELATION',
+      name: 'R',
+      settings: { relation: { targetSourceId: 'src-target' } },
     })
     expect(repo.createProperty).toHaveBeenCalled()
   })
@@ -1480,7 +2098,10 @@ describe('DatabaseService.createProperty — settings validation', () => {
     const repo = makeRepo({ findSourceWorkspaceId: vi.fn(async () => 'other-ws') })
     await expect(
       makeService(repo).createProperty('u1', {
-        pageId: 'db-page', type: 'RELATION', name: 'R', settings: { relation: { targetSourceId: 'src-x' } },
+        pageId: 'db-page',
+        type: 'RELATION',
+        name: 'R',
+        settings: { relation: { targetSourceId: 'src-x' } },
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1489,7 +2110,10 @@ describe('DatabaseService.createProperty — settings validation', () => {
     const repo = makeRepo({ findSourceWorkspaceId: vi.fn(async () => null) })
     await expect(
       makeService(repo).createProperty('u1', {
-        pageId: 'db-page', type: 'RELATION', name: 'R', settings: { relation: { targetSourceId: 'ghost' } },
+        pageId: 'db-page',
+        type: 'RELATION',
+        name: 'R',
+        settings: { relation: { targetSourceId: 'ghost' } },
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1497,7 +2121,13 @@ describe('DatabaseService.createProperty — settings validation', () => {
   it('accepts a ROLLUP referencing a RELATION property + a valid target property', async () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
-        { id: 'prop-rel', type: 'RELATION', name: 'R', position: 0, settings: { relation: { targetSourceId: 'src-target' } } },
+        {
+          id: 'prop-rel',
+          type: 'RELATION',
+          name: 'R',
+          position: 0,
+          settings: { relation: { targetSourceId: 'src-target' } },
+        },
       ]),
       // The target source has property p-amt.
       findLinkableRows: vi.fn(async () => []),
@@ -1505,8 +2135,16 @@ describe('DatabaseService.createProperty — settings validation', () => {
     // Stub the target-source property lookup via listProperties override is not enough;
     // the service uses a dedicated target-properties fetch. We allow '__title__' here.
     await makeService(repo).createProperty('u1', {
-      pageId: 'db-page', type: 'ROLLUP', name: 'Roll',
-      settings: { rollup: { relationPropertyId: 'prop-rel', targetPropertyId: '__title__', aggregation: 'count_all' } },
+      pageId: 'db-page',
+      type: 'ROLLUP',
+      name: 'Roll',
+      settings: {
+        rollup: {
+          relationPropertyId: 'prop-rel',
+          targetPropertyId: '__title__',
+          aggregation: 'count_all',
+        },
+      },
     })
     expect(repo.createProperty).toHaveBeenCalled()
   })
@@ -1519,8 +2157,16 @@ describe('DatabaseService.createProperty — settings validation', () => {
     })
     await expect(
       makeService(repo).createProperty('u1', {
-        pageId: 'db-page', type: 'ROLLUP', name: 'Roll',
-        settings: { rollup: { relationPropertyId: 'prop-text', targetPropertyId: '__title__', aggregation: 'count_all' } },
+        pageId: 'db-page',
+        type: 'ROLLUP',
+        name: 'Roll',
+        settings: {
+          rollup: {
+            relationPropertyId: 'prop-text',
+            targetPropertyId: '__title__',
+            aggregation: 'count_all',
+          },
+        },
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })
@@ -1533,13 +2179,23 @@ describe('DatabaseService.listRows — computed cells', () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
         { id: 'p-name', type: 'TEXT', name: 'Название', position: 0, settings: null },
-        { id: 'p-f', type: 'FORMULA', name: 'Привет', position: 1024, settings: { formula: 'concat(prop("Название"), "!")' } },
+        {
+          id: 'p-f',
+          type: 'FORMULA',
+          name: 'Привет',
+          position: 1024,
+          settings: { formula: 'concat(prop("Название"), "!")' },
+        },
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date('2026-01-01T00:00:00Z'), createdById: 'u1',
-          updatedAt: new Date('2026-01-02T00:00:00Z'), updatedById: 'u1',
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          createdById: 'u1',
+          updatedAt: new Date('2026-01-02T00:00:00Z'),
+          updatedById: 'u1',
           page: { title: 'мир', icon: null },
           cells: [{ propertyId: 'p-name', value: 'мир' }],
         },
@@ -1616,17 +2272,43 @@ describe('DatabaseService.listRows — computed cells', () => {
   it('augments rows with a ROLLUP count over relation links', async () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
-        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
-        { id: 'p-roll', type: 'ROLLUP', name: 'Кол', position: 1024, settings: { rollup: { relationPropertyId: 'p-rel', targetPropertyId: '__title__', aggregation: 'count_all' } } },
+        {
+          id: 'p-rel',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'src-t' } },
+        },
+        {
+          id: 'p-roll',
+          type: 'ROLLUP',
+          name: 'Кол',
+          position: 1024,
+          settings: {
+            rollup: {
+              relationPropertyId: 'p-rel',
+              targetPropertyId: '__title__',
+              aggregation: 'count_all',
+            },
+          },
+        },
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1',
-          page: { title: 'A', icon: null }, cells: [],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'A', icon: null },
+          cells: [],
         },
       ]),
-      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]])),
+      findRelationLinksForProperties: vi.fn(
+        async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]]),
+      ),
       findRowsByIds: vi.fn(async () => [
         { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
         { id: 't2', pageId: 'pt2', title: 'T2', icon: null },
@@ -1727,10 +2409,7 @@ describe('DatabaseService.listRows — computed cells', () => {
     const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 100 })
 
     expect(repo.findCellsForRows).toHaveBeenCalledWith(['target-1', 'target-2'])
-    expect(result.rows[0]!.cells['p-roll-file']).toEqual([
-      ['legacy-file-id'],
-      ['legacy-file-id'],
-    ])
+    expect(result.rows[0]!.cells['p-roll-file']).toEqual([['legacy-file-id'], ['legacy-file-id']])
     expect(result.rows[0]!.cells['p-roll-text']).toEqual(['first', 'second'])
   })
 
@@ -1741,10 +2420,15 @@ describe('DatabaseService.listRows — computed cells', () => {
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date('2026-01-01T00:00:00Z'), createdById: 'author-id',
-          updatedAt: new Date('2026-01-02T00:00:00Z'), updatedById: 'author-id',
-          page: { title: 'A', icon: null }, cells: [],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+          createdById: 'author-id',
+          updatedAt: new Date('2026-01-02T00:00:00Z'),
+          updatedById: 'author-id',
+          page: { title: 'A', icon: null },
+          cells: [],
         },
       ]),
       findUserNames: vi.fn(async () => new Map([['author-id', 'Автор Тест']])),
@@ -1760,9 +2444,15 @@ describe('DatabaseService.listRows — computed cells', () => {
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1',
-          page: { title: 'A', icon: null }, cells: [{ propertyId: 'p-text', value: 'x' }],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'A', icon: null },
+          cells: [{ propertyId: 'p-text', value: 'x' }],
         },
       ]),
     })
@@ -1774,7 +2464,10 @@ describe('DatabaseService.listRows — computed cells', () => {
 
   it.each([
     ['legacy-file-id', ['legacy-file-id']],
-    [['file-b', 'file-a'], ['file-b', 'file-a']],
+    [
+      ['file-b', 'file-a'],
+      ['file-b', 'file-a'],
+    ],
     [null, []],
     [{ bad: true }, []],
   ])('normalizes a persisted FILE value at the read boundary', async (stored, expected) => {
@@ -1784,9 +2477,15 @@ describe('DatabaseService.listRows — computed cells', () => {
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1',
-          page: { title: 'A', icon: null }, cells: [{ propertyId: 'p-file', value: stored }],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'u1',
+          updatedAt: new Date(),
+          updatedById: 'u1',
+          page: { title: 'A', icon: null },
+          cells: [{ propertyId: 'p-file', value: stored }],
         },
       ]),
     })
@@ -1805,7 +2504,11 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'u1',
       })),
     })
     await makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' })
@@ -1816,10 +2519,18 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'OWNER'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
       // assertCanEdit (page-layer) must still pass — OWNER passes by role.
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'OWNER'),
     })
     await makeService(repo).createView('u1', { pageId: 'db-page', type: 'TABLE', title: 'V' })
@@ -1830,10 +2541,18 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
       // page-layer assertCanEdit passes (EDITOR), so the FORBIDDEN comes from the structure guard.
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
     })
     await expect(
@@ -1846,7 +2565,11 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'u1',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: true,
+        pageCreatedById: 'u1',
       })),
     })
     await expect(
@@ -1858,9 +2581,17 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'ADMIN'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: true,
+        pageCreatedById: 'other',
       })),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'ADMIN'),
       // 2 views so deleteView clears the "single view" guard and reaches the delete.
       listViews: vi.fn(async () => [
@@ -1877,9 +2608,17 @@ describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
     const base = {
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
     }
     await expect(
@@ -1904,34 +2643,64 @@ describe('DatabaseService.createAccessRule', () => {
 
   it('creates a rule for a PERSON property', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'src1', type: 'PERSON', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop-person',
+        sourceId: 'src1',
+        type: 'PERSON',
+        settings: null,
+      })),
     })
     const rule = await makeService(repo).createAccessRule('u1', {
-      pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+      pageId: 'db-page',
+      propertyId: 'prop-person',
+      accessLevel: 'CAN_VIEW',
     })
     expect(repo.createAccessRule).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceId: 'src1', propertyId: 'prop-person', accessLevel: 'CAN_VIEW' }),
+      expect.objectContaining({
+        sourceId: 'src1',
+        propertyId: 'prop-person',
+        accessLevel: 'CAN_VIEW',
+      }),
     )
-    expect(rule).toEqual({ id: 'rule1', propertyId: 'prop-person', accessLevel: 'CAN_VIEW', enabled: true })
+    expect(rule).toEqual({
+      id: 'rule1',
+      propertyId: 'prop-person',
+      accessLevel: 'CAN_VIEW',
+      enabled: true,
+    })
   })
 
   it('creates a rule for a CREATED_BY property', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop-cb', sourceId: 'src1', type: 'CREATED_BY', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop-cb',
+        sourceId: 'src1',
+        type: 'CREATED_BY',
+        settings: null,
+      })),
     })
     await makeService(repo).createAccessRule('u1', {
-      pageId: 'db-page', propertyId: 'prop-cb', accessLevel: 'CAN_EDIT_CONTENT',
+      pageId: 'db-page',
+      propertyId: 'prop-cb',
+      accessLevel: 'CAN_EDIT_CONTENT',
     })
     expect(repo.createAccessRule).toHaveBeenCalled()
   })
 
   it('rejects a non-PERSON / non-CREATED_BY property (e.g. TEXT)', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop-text', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop-text',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).createAccessRule('u1', {
-        pageId: 'db-page', propertyId: 'prop-text', accessLevel: 'CAN_VIEW',
+        pageId: 'db-page',
+        propertyId: 'prop-text',
+        accessLevel: 'CAN_VIEW',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
     expect(repo.createAccessRule).not.toHaveBeenCalled()
@@ -1939,28 +2708,50 @@ describe('DatabaseService.createAccessRule', () => {
 
   it('rejects a property that belongs to another source', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'other-src', type: 'PERSON', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop-person',
+        sourceId: 'other-src',
+        type: 'PERSON',
+        settings: null,
+      })),
     })
     await expect(
       makeService(repo).createAccessRule('u1', {
-        pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+        pageId: 'db-page',
+        propertyId: 'prop-person',
+        accessLevel: 'CAN_VIEW',
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('is FORBIDDEN for a non-creator EDITOR (managing rules is a structure op)', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'src1', type: 'PERSON', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop-person',
+        sourceId: 'src1',
+        type: 'PERSON',
+        settings: null,
+      })),
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
     })
     await expect(
       makeService(repo).createAccessRule('u1', {
-        pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+        pageId: 'db-page',
+        propertyId: 'prop-person',
+        accessLevel: 'CAN_VIEW',
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
@@ -1982,7 +2773,11 @@ describe('DatabaseService.listAccessRules / updateAccessRule / deleteAccessRule'
 
   it('updates a rule scoped to the source', async () => {
     const repo = makeRepo()
-    await makeService(repo).updateAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1', enabled: false })
+    await makeService(repo).updateAccessRule('u1', {
+      pageId: 'db-page',
+      ruleId: 'rule1',
+      enabled: false,
+    })
     expect(repo.updateAccessRule).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'rule1', enabled: false }),
     )
@@ -1993,14 +2788,21 @@ describe('DatabaseService.listAccessRules / updateAccessRule / deleteAccessRule'
       findAccessRuleById: vi.fn(async () => ({ id: 'rule1', sourceId: 'other-src' })),
     })
     await expect(
-      makeService(repo).updateAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1', enabled: false }),
+      makeService(repo).updateAccessRule('u1', {
+        pageId: 'db-page',
+        ruleId: 'rule1',
+        enabled: false,
+      }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
     expect(repo.updateAccessRule).not.toHaveBeenCalled()
   })
 
   it('deletes a rule scoped to the source', async () => {
     const repo = makeRepo()
-    const result = await makeService(repo).deleteAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1' })
+    const result = await makeService(repo).deleteAccessRule('u1', {
+      pageId: 'db-page',
+      ruleId: 'rule1',
+    })
     expect(repo.deleteAccessRule).toHaveBeenCalledWith('rule1')
     expect(result).toEqual({ ok: true })
   })
@@ -2013,10 +2815,17 @@ describe('DatabaseService.setStructureLocked', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'OWNER'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
     })
-    const result = await makeService(repo).setStructureLocked('u1', { pageId: 'db-page', locked: true })
+    const result = await makeService(repo).setStructureLocked('u1', {
+      pageId: 'db-page',
+      locked: true,
+    })
     expect(repo.setStructureLocked).toHaveBeenCalledWith('src1', true)
     expect(result).toEqual({ ok: true })
   })
@@ -2025,7 +2834,11 @@ describe('DatabaseService.setStructureLocked', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'u1',
       })),
     })
     await expect(
@@ -2042,7 +2855,11 @@ describe('DatabaseService.getMyAccess', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'OWNER'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
@@ -2058,7 +2875,11 @@ describe('DatabaseService.getMyAccess', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
@@ -2074,7 +2895,11 @@ describe('DatabaseService.getMyAccess', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'u1',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: true,
+        pageCreatedById: 'u1',
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
@@ -2090,7 +2915,11 @@ describe('DatabaseService.getMyAccess', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'VIEWER'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
     })
     const my = await makeService(repo).getMyAccess('u1', 'db-page')
@@ -2106,7 +2935,11 @@ describe('DatabaseService.getMyAccess', () => {
     const repo = makeRepo({
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       findSourceWithLockByPageId: vi.fn(async () => ({
-        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+        id: 'src1',
+        workspaceId: 'w1',
+        pageId: 'db-page',
+        structureLocked: false,
+        pageCreatedById: 'other',
       })),
     })
     const vm = await makeService(repo).getByPage('u1', 'db-page')
@@ -2127,15 +2960,24 @@ describe('DatabaseService.getByPage relation workspace metadata', () => {
         views: [],
         properties: [
           {
-            id: 'relation-1', type: 'RELATION', name: 'Project', position: 0,
+            id: 'relation-1',
+            type: 'RELATION',
+            name: 'Project',
+            position: 0,
             settings: { relation: { targetSourceId: 'target-1' } },
           },
           {
-            id: 'relation-2', type: 'RELATION', name: 'Project copy', position: 1,
+            id: 'relation-2',
+            type: 'RELATION',
+            name: 'Project copy',
+            position: 1,
             settings: { relation: { targetSourceId: 'target-1' } },
           },
           {
-            id: 'relation-missing', type: 'RELATION', name: 'Missing', position: 2,
+            id: 'relation-missing',
+            type: 'RELATION',
+            name: 'Missing',
+            position: 2,
             settings: { relation: { targetSourceId: 'target-missing' } },
           },
         ],
@@ -2174,8 +3016,19 @@ function makeAccessRow(
   }
 }
 
-const PERSON_PROP = { id: 'p-person', type: 'PERSON', name: 'Исполнитель', position: 0, settings: null }
-const PERSON_RULE = { propertyId: 'p-person', propertyType: 'PERSON', accessLevel: 'CAN_VIEW', enabled: true }
+const PERSON_PROP = {
+  id: 'p-person',
+  type: 'PERSON',
+  name: 'Исполнитель',
+  position: 0,
+  settings: null,
+}
+const PERSON_RULE = {
+  propertyId: 'p-person',
+  propertyType: 'PERSON',
+  accessLevel: 'CAN_VIEW',
+  enabled: true,
+}
 
 describe('DatabaseService.listRows — row access', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -2247,19 +3100,29 @@ describe('DatabaseService.updateCellValue — row access', () => {
 
   it('FORBIDDEN when the actor only has CAN_VIEW on the row (PERSON rule, not assigned)', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
       findWorkspaceRole: vi.fn(async () => 'VIEWER'),
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
       // The row is assigned to someone else → resolver returns null (no view, no edit).
       findRowForAccess: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        id: 'row1',
+        sourceId: 'src1',
+        rowCreatedById: 'other',
         cellsByProperty: new Map([['p-person', 'someone-else']]),
       })),
     })
     await expect(
       makeService(repo).updateCellValue('viewer', {
-        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+        pageId: 'db-page',
+        rowId: 'row1',
+        propertyId: 'prop1',
+        value: 'x',
       }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
     expect(repo.upsertCellValue).not.toHaveBeenCalled()
@@ -2267,37 +3130,67 @@ describe('DatabaseService.updateCellValue — row access', () => {
 
   it('allows the assigned user to edit when the rule grants CAN_EDIT_CONTENT', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
       findWorkspaceRole: vi.fn(async () => 'VIEWER'),
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => [
-        { propertyId: 'p-person', propertyType: 'PERSON', accessLevel: 'CAN_EDIT_CONTENT', enabled: true },
+        {
+          propertyId: 'p-person',
+          propertyType: 'PERSON',
+          accessLevel: 'CAN_EDIT_CONTENT',
+          enabled: true,
+        },
       ]),
       findRowForAccess: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        id: 'row1',
+        sourceId: 'src1',
+        rowCreatedById: 'other',
         cellsByProperty: new Map([['p-person', 'viewer']]),
       })),
     })
     await makeService(repo).updateCellValue('viewer', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'x',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'x')
   })
 
   it('no rules → an EDITOR edits any row (unchanged)', async () => {
     const repo = makeRepo({
-      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findPropertyById: vi.fn(async () => ({
+        id: 'prop1',
+        sourceId: 'src1',
+        type: 'TEXT',
+        settings: null,
+      })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
       findWorkspaceRole: vi.fn(async () => 'EDITOR'),
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => []),
       findRowForAccess: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', rowCreatedById: 'other', cellsByProperty: new Map(),
+        id: 'row1',
+        sourceId: 'src1',
+        rowCreatedById: 'other',
+        cellsByProperty: new Map(),
       })),
     })
     await makeService(repo).updateCellValue('editor', {
-      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+      pageId: 'db-page',
+      rowId: 'row1',
+      propertyId: 'prop1',
+      value: 'x',
     })
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'x')
   })
@@ -2311,10 +3204,16 @@ describe('DatabaseService.deleteRow — row access', () => {
       findWorkspaceRole: vi.fn(async () => 'VIEWER'),
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'), // page-layer passes; row-layer blocks
       findRowForAccess: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        id: 'row1',
+        sourceId: 'src1',
+        rowCreatedById: 'other',
         cellsByProperty: new Map([['p-person', 'someone-else']]),
       })),
     })
@@ -2333,10 +3232,16 @@ describe('DatabaseService.updateRowTitle — row access', () => {
       findWorkspaceRole: vi.fn(async () => 'VIEWER'),
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'EDITOR'),
       findRowForAccess: vi.fn(async () => ({
-        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        id: 'row1',
+        sourceId: 'src1',
+        rowCreatedById: 'other',
         cellsByProperty: new Map([['p-person', 'someone-else']]),
       })),
     })
@@ -2352,7 +3257,11 @@ describe('DatabaseService.createRow — source-level edit gate', () => {
 
   it('a non-creator VIEWER cannot create a row (no source-level edit)', async () => {
     const repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findAccessiblePage: vi.fn(async () => ({
+        id: 'db-page',
+        workspaceId: 'w1',
+        createdById: 'other',
+      })),
       findMembershipRole: vi.fn(async () => 'VIEWER'),
     })
     await expect(
@@ -2377,17 +3286,43 @@ describe('DatabaseService.listRows — relation/rollup target access', () => {
       // No rules on the HOST source (so the host rows aren't filtered).
       findEnabledAccessRules: vi.fn(async () => []),
       listProperties: vi.fn(async () => [
-        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
-        { id: 'p-roll', type: 'ROLLUP', name: 'Кол', position: 1024, settings: { rollup: { relationPropertyId: 'p-rel', targetPropertyId: '__title__', aggregation: 'count_all' } } },
+        {
+          id: 'p-rel',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'src-t' } },
+        },
+        {
+          id: 'p-roll',
+          type: 'ROLLUP',
+          name: 'Кол',
+          position: 1024,
+          settings: {
+            rollup: {
+              relationPropertyId: 'p-rel',
+              targetPropertyId: '__title__',
+              aggregation: 'count_all',
+            },
+          },
+        },
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date(), createdById: 'viewer', updatedAt: new Date(), updatedById: 'viewer',
-          page: { title: 'A', icon: null }, cells: [],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'viewer',
+          updatedAt: new Date(),
+          updatedById: 'viewer',
+          page: { title: 'A', icon: null },
+          cells: [],
         },
       ]),
-      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]])),
+      findRelationLinksForProperties: vi.fn(
+        async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]]),
+      ),
       findRowsByIds: vi.fn(async () => [
         { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
         { id: 't2', pageId: 'pt2', title: 'T2', icon: null },
@@ -2395,13 +3330,40 @@ describe('DatabaseService.listRows — relation/rollup target access', () => {
       findCellsForRows: vi.fn(async () => []),
       // The target rows belong to source 'src-t' in workspace 'w1'.
       findRowsAccessMetaByIds: vi.fn(async () => [
-        { id: 't1', sourceId: 'src-t', workspaceId: 'w1', pageId: 'pt1', createdById: 'other', cellsByProperty: new Map([['tp-person', 'viewer']]) },
-        { id: 't2', sourceId: 'src-t', workspaceId: 'w1', pageId: 'pt2', createdById: 'other', cellsByProperty: new Map([['tp-person', 'someone-else']]) },
+        {
+          id: 't1',
+          sourceId: 'src-t',
+          workspaceId: 'w1',
+          pageId: 'pt1',
+          createdById: 'other',
+          cellsByProperty: new Map([['tp-person', 'viewer']]),
+        },
+        {
+          id: 't2',
+          sourceId: 'src-t',
+          workspaceId: 'w1',
+          pageId: 'pt2',
+          createdById: 'other',
+          cellsByProperty: new Map([['tp-person', 'someone-else']]),
+        },
       ]),
       // The target source has a CAN_VIEW PERSON rule on tp-person.
-      findEnabledAccessRulesForSources: vi.fn(async () => new Map([
-        ['src-t', [{ propertyId: 'tp-person', propertyType: 'PERSON', accessLevel: 'CAN_VIEW', enabled: true }]],
-      ])),
+      findEnabledAccessRulesForSources: vi.fn(
+        async () =>
+          new Map([
+            [
+              'src-t',
+              [
+                {
+                  propertyId: 'tp-person',
+                  propertyType: 'PERSON',
+                  accessLevel: 'CAN_VIEW',
+                  enabled: true,
+                },
+              ],
+            ],
+          ]),
+      ),
     })
   }
 
@@ -2425,16 +3387,30 @@ describe('DatabaseService.listRows — relation/rollup target access', () => {
       isSourcePageCreatedBy: vi.fn(async () => false),
       findEnabledAccessRules: vi.fn(async () => []),
       listProperties: vi.fn(async () => [
-        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
+        {
+          id: 'p-rel',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'src-t' } },
+        },
       ]),
       findRowsPaged: vi.fn(async () => [
         {
-          id: 'row1', pageId: 'item-page', position: 0,
-          createdAt: new Date(), createdById: 'viewer', updatedAt: new Date(), updatedById: 'viewer',
-          page: { title: 'A', icon: null }, cells: [],
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          createdAt: new Date(),
+          createdById: 'viewer',
+          updatedAt: new Date(),
+          updatedById: 'viewer',
+          page: { title: 'A', icon: null },
+          cells: [],
         },
       ]),
-      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]])),
+      findRelationLinksForProperties: vi.fn(
+        async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]]),
+      ),
       findRowsByIds: vi.fn(async () => [
         { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
         { id: 't2', pageId: 'pt2', title: 'T2', icon: null },

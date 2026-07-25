@@ -35,6 +35,13 @@ const FORMULA_PROP = {
   position: 2,
   settings: { formula: '1 + 1' },
 }
+const MULTI_SELECT_PROP = {
+  id: 'prop-tags',
+  type: 'MULTI_SELECT',
+  name: 'Теги',
+  position: 3,
+  settings: null,
+}
 
 // Build a RowWithPage with the given NUMBER + STATUS cell values.
 let rowSeq = 0
@@ -75,6 +82,7 @@ function makeRepo(
       id: 'db-page',
       workspaceId: 'w1',
       createdById: 'u1',
+      type: 'DATABASE',
     })),
     findSourceMetaById: vi.fn(async () => ({ ...SRC })),
     findSourceMetaByPageId: vi.fn(async () => ({ ...SRC })),
@@ -472,5 +480,45 @@ describe('WidgetAggregationService.aggregateWidget — global filters', () => {
     expect(r).toMatchObject({ status: 'metric', value: 105 })
     const whereArg = fetchSpy.mock.calls[0]![0].where
     expect(JSON.stringify(whereArg)).not.toContain('NoSuchProp')
+  })
+})
+
+describe('WidgetAggregationService.aggregateWidget — residual filters', () => {
+  it('keeps OR semantics across scalar and MULTI_SELECT leaves', async () => {
+    const rent = row({ id: 'rent', num: 1 })
+    rent.page.title = 'Аренда склада'
+    rent.cells.push({ propertyId: MULTI_SELECT_PROP.id, value: ['business'] })
+    const groceries = row({ id: 'groceries', num: 1 })
+    groceries.page.title = 'Покупки'
+    groceries.cells.push({ propertyId: MULTI_SELECT_PROP.id, value: ['food', 'home'] })
+    const other = row({ id: 'other', num: 1 })
+    other.page.title = 'Заметка'
+    other.cells.push({ propertyId: MULTI_SELECT_PROP.id, value: ['home'] })
+    const rows = [rent, groceries, other]
+    const repo = makeRepo(rows, {
+      listProperties: vi.fn(async () => [NUMBER_PROP, STATUS_PROP, MULTI_SELECT_PROP]),
+      findRowsForGrouping: vi.fn(async () => rows),
+    })
+
+    const result = await makeService(repo).aggregateWidget('u1', {
+      sourceId: SRC.id,
+      type: 'METRIC',
+      config: {
+        metric: { propertyId: '__count__', aggregation: 'count_all' },
+        filters: {
+          conjunction: 'or',
+          conditions: [
+            { propertyId: '__title__', operator: 'starts_with', value: 'Аренда' },
+            {
+              propertyId: MULTI_SELECT_PROP.id,
+              operator: 'contains_all',
+              value: ['food', 'home'],
+            },
+          ],
+        },
+      },
+    })
+
+    expect(result).toMatchObject({ status: 'metric', value: 2, truncated: false })
   })
 })

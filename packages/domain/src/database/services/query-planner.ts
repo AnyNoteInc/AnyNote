@@ -11,9 +11,10 @@
 // (the planner stays a pure value-free object builder).
 //
 // Two documented limitations, both consistent with the spec:
-//  - MULTI_SELECT array containment is not portably expressible in Prisma JSON
-//    filters, so `is_any_of`/`is_none_of` are returned in `multiSelectPostFilters`
-//    and applied in JS by the service after fetch.
+//  - MULTI_SELECT array containment and RELATION membership are not portably
+//    expressible in Prisma. If any leaf needs residual evaluation, the planner
+//    preserves the entire boolean tree and does not push down a partial tree:
+//    partial pushdown would change nested AND/OR semantics.
 //  - Prisma 7 cannot `orderBy` a specific cell's JSON value through the relation
 //    (only `__title__` → `page.title`), so cell-property sorts fall back to the
 //    stable `position` order; only `__title__` sorts reach the DB `orderBy`.
@@ -21,36 +22,13 @@
 import type { Prisma } from '@repo/db'
 
 import { DatabasePropertyType } from '../dto/database.dto.ts'
-import type {
-  FilterCondition,
-  FilterGroup,
-  Sort,
-  ViewSettings,
-} from '../dto/database.dto.ts'
+import type { FilterCondition, FilterGroup, Sort, ViewSettings } from '../dto/database.dto.ts'
 
 const TITLE = '__title__'
 
 export interface PropertyMeta {
   id: string
   type: DatabasePropertyType
-}
-
-export interface MultiSelectPostFilter {
-  propertyId: string
-  op: 'is_any_of' | 'is_none_of'
-  optionIds: string[]
-}
-
-/**
- * RELATION membership filter, applied out-of-band by the service: it resolves the
- * row's linked target ids (DatabaseRelationLink) and keeps/excludes rows whose
- * link set intersects `targetRowIds`. Mirrors the MULTI_SELECT post-filter path
- * but the membership set comes from the relation links, not a stored cell array.
- */
-export interface RelationPostFilter {
-  propertyId: string
-  op: 'is_any_of' | 'is_none_of'
-  targetRowIds: string[]
 }
 
 // Computed-on-read property types are NOT stored and NOT filterable in 4B; a
@@ -67,8 +45,7 @@ const NON_FILTERABLE_TYPES = new Set<DatabasePropertyType>([
 export interface RowQueryPlan {
   where: Prisma.DatabaseRowWhereInput
   orderBy: Prisma.DatabaseRowOrderByWithRelationInput[]
-  multiSelectPostFilters: MultiSelectPostFilter[]
-  relationPostFilters: RelationPostFilter[]
+  residualFilter: FilterGroup | null
 }
 
 type CellValueFilter = Prisma.DatabaseCellValueWhereInput['value']
@@ -84,17 +61,12 @@ function isGroup(node: FilterCondition | FilterGroup): node is FilterGroup {
 }
 
 /** Build a `cells.some({ propertyId, value })` predicate for a cell-backed condition. */
-function cellSome(
-  propertyId: string,
-  value: CellValueFilter,
-): Prisma.DatabaseRowWhereInput {
+function cellSome(propertyId: string, value: CellValueFilter): Prisma.DatabaseRowWhereInput {
   return { cells: { some: { propertyId, value } } }
 }
 
 /** Title (system Page.title) predicate. */
-function titleFilter(
-  filter: Prisma.StringFilter,
-): Prisma.DatabaseRowWhereInput {
+function titleFilter(filter: Prisma.StringFilter): Prisma.DatabaseRowWhereInput {
   return { page: { is: { title: filter } } }
 }
 
@@ -107,8 +79,6 @@ function titleFilter(
 function buildCondition(
   cond: FilterCondition,
   metaById: Map<string, PropertyMeta>,
-  postFilters: MultiSelectPostFilter[],
-  relationPostFilters: RelationPostFilter[],
 ): Prisma.DatabaseRowWhereInput | null {
   const { propertyId, operator } = cond
   const value = cond.value
@@ -120,6 +90,14 @@ function buildCondition(
         return titleFilter({ contains: String(value ?? ''), mode: 'insensitive' })
       case 'not_contains':
         return { NOT: titleFilter({ contains: String(value ?? ''), mode: 'insensitive' }) }
+      case 'starts_with':
+        return titleFilter({ startsWith: String(value ?? ''), mode: 'insensitive' })
+      case 'ends_with':
+        return titleFilter({ endsWith: String(value ?? ''), mode: 'insensitive' })
+      case 'not_starts_with':
+        return { NOT: titleFilter({ startsWith: String(value ?? ''), mode: 'insensitive' }) }
+      case 'not_ends_with':
+        return { NOT: titleFilter({ endsWith: String(value ?? ''), mode: 'insensitive' }) }
       case 'equals':
         return titleFilter({ equals: String(value ?? '') })
       case 'not_equals':
@@ -144,29 +122,14 @@ function buildCondition(
     return null
   }
 
-  // ── RELATION → post-filter over the row's linked target ids ─────────────────
+  // RELATION and MULTI_SELECT are handled by the full-tree residual evaluator.
+  // buildCondition is called only for a fully pushdown-compatible tree.
   if (type === DatabasePropertyType.RELATION) {
-    if (operator === 'is_any_of' || operator === 'is_none_of') {
-      relationPostFilters.push({
-        propertyId,
-        op: operator,
-        targetRowIds: Array.isArray(value) ? (value as string[]) : [],
-      })
-    }
-    // Any other RELATION operator is not filterable; drop it.
     return null
   }
 
-  // ── MULTI_SELECT → post-filter (Prisma can't express array containment) ─────
   if (type === DatabasePropertyType.MULTI_SELECT) {
-    if (operator === 'is_any_of' || operator === 'is_none_of') {
-      postFilters.push({
-        propertyId,
-        op: operator,
-        optionIds: Array.isArray(value) ? (value as string[]) : [],
-      })
-      return null
-    }
+    return null
   }
 
   // ── SELECT / STATUS is_any_of / is_none_of ──────────────────────────────────
@@ -187,10 +150,7 @@ function buildCondition(
   // ── Empty / not-empty (shared across cell types) ────────────────────────────
   if (operator === 'is_empty') {
     return {
-      OR: [
-        { cells: { none: { propertyId } } },
-        cellSome(propertyId, { equals: NULL_VALUE }),
-      ],
+      OR: [{ cells: { none: { propertyId } } }, cellSome(propertyId, { equals: NULL_VALUE })],
     }
   }
   if (operator === 'is_not_empty') {
@@ -211,6 +171,14 @@ function buildCondition(
       return cellSome(propertyId, { string_contains: String(value ?? '') })
     case 'not_contains':
       return { NOT: cellSome(propertyId, { string_contains: String(value ?? '') }) }
+    case 'starts_with':
+      return cellSome(propertyId, { string_starts_with: String(value ?? '') })
+    case 'ends_with':
+      return cellSome(propertyId, { string_ends_with: String(value ?? '') })
+    case 'not_starts_with':
+      return { NOT: cellSome(propertyId, { string_starts_with: String(value ?? '') }) }
+    case 'not_ends_with':
+      return { NOT: cellSome(propertyId, { string_ends_with: String(value ?? '') }) }
     case 'equals':
     case 'on':
       return cellSome(propertyId, { equals: value as Prisma.InputJsonValue })
@@ -235,19 +203,36 @@ function buildCondition(
 function buildGroup(
   group: FilterGroup,
   metaById: Map<string, PropertyMeta>,
-  postFilters: MultiSelectPostFilter[],
-  relationPostFilters: RelationPostFilter[],
 ): Prisma.DatabaseRowWhereInput {
   const parts: Prisma.DatabaseRowWhereInput[] = []
   for (const node of group.conditions) {
     if (isGroup(node)) {
-      parts.push(buildGroup(node, metaById, postFilters, relationPostFilters))
+      parts.push(buildGroup(node, metaById))
     } else {
-      const fragment = buildCondition(node, metaById, postFilters, relationPostFilters)
+      const fragment = buildCondition(node, metaById)
       if (fragment) parts.push(fragment)
     }
   }
   return group.conjunction === 'or' ? { OR: parts } : { AND: parts }
+}
+
+function conditionRequiresResidualEvaluation(
+  condition: FilterCondition,
+  metaById: Map<string, PropertyMeta>,
+): boolean {
+  const type = metaById.get(condition.propertyId)?.type
+  return type === DatabasePropertyType.MULTI_SELECT || type === DatabasePropertyType.RELATION
+}
+
+export function requiresResidualEvaluation(
+  group: FilterGroup,
+  metaById: Map<string, PropertyMeta>,
+): boolean {
+  return group.conditions.some((node) =>
+    isGroup(node)
+      ? requiresResidualEvaluation(node, metaById)
+      : conditionRequiresResidualEvaluation(node, metaById),
+  )
 }
 
 /** Build the `orderBy` chain. Only `__title__` sorts reach Prisma; the stable
@@ -266,25 +251,21 @@ function buildOrderBy(sorts: Sort[] | undefined): Prisma.DatabaseRowOrderByWithR
 
 /**
  * Pure: translate `ViewSettings` + the source's property set into a Prisma
- * `where`/`orderBy` plan plus the MULTI_SELECT + RELATION post-filters the service
- * applies in JS. The caller merges `{ sourceId, deletedAt: null }` into `where`.
+ * `where`/`orderBy` plan plus an optional full-tree residual filter. The caller
+ * merges `{ sourceId, deletedAt: null }` into `where`.
  */
-export function buildRowQuery(
-  settings: ViewSettings,
-  properties: PropertyMeta[],
-): RowQueryPlan {
+export function buildRowQuery(settings: ViewSettings, properties: PropertyMeta[]): RowQueryPlan {
   const metaById = new Map(properties.map((p) => [p.id, p]))
-  const multiSelectPostFilters: MultiSelectPostFilter[] = []
-  const relationPostFilters: RelationPostFilter[] = []
-
-  const where = settings.filters
-    ? buildGroup(settings.filters, metaById, multiSelectPostFilters, relationPostFilters)
-    : {}
+  const residualFilter =
+    settings.filters && requiresResidualEvaluation(settings.filters, metaById)
+      ? settings.filters
+      : null
+  const where =
+    settings.filters && residualFilter === null ? buildGroup(settings.filters, metaById) : {}
 
   return {
     where,
     orderBy: buildOrderBy(settings.sorts),
-    multiSelectPostFilters,
-    relationPostFilters,
+    residualFilter,
   }
 }

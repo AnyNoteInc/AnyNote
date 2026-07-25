@@ -26,12 +26,7 @@ export type {
 
 // Pure query planner: the Prisma where/orderBy + the JS post-filter descriptors.
 export { buildRowQuery } from './services/query-planner.ts'
-export type {
-  MultiSelectPostFilter,
-  PropertyMeta,
-  RelationPostFilter,
-  RowQueryPlan,
-} from './services/query-planner.ts'
+export type { PropertyMeta, RowQueryPlan } from './services/query-planner.ts'
 
 // Row-access resolver: the per-viewer authority (pre-filter where + post-filter).
 export {
@@ -46,8 +41,7 @@ export type { AccessRule, RowAccessContext, RowAccessRow } from './services/row-
 // Shared row post-filter + per-viewer row-access authority (single-sourced;
 // DatabaseService delegates to these too — no copy drift).
 export {
-  applyMultiSelectPostFilters,
-  applyRelationPostFilters,
+  applyResidualFilter,
   buildRowAccessContext,
   filterViewableRows,
   toAccessRow,

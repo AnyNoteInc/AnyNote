@@ -30,13 +30,7 @@ export const selectOptionSchema = z.object({
 })
 export type SelectOption = z.infer<typeof selectOptionSchema>
 
-export const numberFormatSchema = z.enum([
-  'plain',
-  'integer',
-  'decimal',
-  'percent',
-  'currency_rub',
-])
+export const numberFormatSchema = z.enum(['plain', 'integer', 'decimal', 'percent', 'currency_rub'])
 export type NumberFormat = z.infer<typeof numberFormatSchema>
 
 export const rollupAggregationSchema = z.enum([
@@ -95,6 +89,11 @@ export const filterOperatorSchema = z.enum([
   'not_equals',
   'contains',
   'not_contains',
+  'starts_with',
+  'ends_with',
+  // Internal compiler-normal-form operators; MCP does not expose these directly.
+  'not_starts_with',
+  'not_ends_with',
   'is_empty',
   'is_not_empty',
   'gt',
@@ -108,6 +107,7 @@ export const filterOperatorSchema = z.enum([
   'is_not_checked',
   'is_any_of',
   'is_none_of',
+  'contains_all',
 ])
 export type FilterOperator = z.infer<typeof filterOperatorSchema>
 
@@ -255,6 +255,15 @@ export const listRowsInput = z.object({
   limit: z.number().int().min(1).max(200).default(100),
 })
 export type ListRowsInput = z.infer<typeof listRowsInput>
+
+export const queryRowsInput = z.object({
+  pageId: z.string().uuid(),
+  filter: filterGroupSchema.optional(),
+  sorts: z.array(sortSchema).max(20).optional(),
+  cursor: z.string().optional(),
+  limit: z.number().int().min(1).max(200).default(100),
+})
+export type QueryRowsInput = z.infer<typeof queryRowsInput>
 
 export const listGroupedRowsInput = z.object({
   pageId: z.string().uuid(),
