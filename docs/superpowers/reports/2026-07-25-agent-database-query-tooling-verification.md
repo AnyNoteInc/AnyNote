@@ -72,7 +72,7 @@ Every test deletes its workspace and user and verifies both are absent.
 | `pnpm lint`                                                                                                                                                                                    |    0 | 41/41 tasks passed.                                                                                                                                                                                                                        |
 | `pnpm build`                                                                                                                                                                                   |    0 | 25/25 tasks passed; the agents build installed the declared spaCy models.                                                                                                                                                                  |
 | `cd apps/agents && uv run pytest -m "not integration" -q` (fresh rerun)                                                                                                                        |    0 | 207 passed, 6 deselected, 5 warnings.                                                                                                                                                                                                      |
-| `git diff --check`                                                                                                                                                                             |    0 | No whitespace errors.                                                                                                                                                                                                                      |
+| `git diff --cached --check` (before commit)                                                                                                                                                    |    0 | The staged acceptance diff had no whitespace errors.                                                                                                                                                                                       |
 
 ## Live two-turn agent check
 
@@ -136,8 +136,9 @@ changed. The acceptance commit is limited to:
 - `apps/engines/test/integration/database-query.e2e.spec.ts`;
 - `docs/superpowers/reports/2026-07-25-agent-database-query-tooling-verification.md`.
 
-Before staging, this worktree contains only those two untracked files. The main
-checkout's unrelated user changes were preserved and not staged:
+After the acceptance commit, `git status --short` in the feature worktree
+produced no output. The main checkout's unrelated user changes were preserved
+and not staged:
 
 ```text
  M AGENTS.md
