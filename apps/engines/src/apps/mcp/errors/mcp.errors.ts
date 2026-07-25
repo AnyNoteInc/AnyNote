@@ -1,5 +1,110 @@
 import { HttpException } from '@nestjs/common'
 
+export type DatabaseErrorCode =
+  | 'PAGE_IS_NOT_DATABASE'
+  | 'DATABASE_FIELD_NOT_FOUND'
+  | 'DATABASE_FIELD_AMBIGUOUS'
+  | 'DATABASE_FILTER_OPERATOR_INVALID'
+  | 'DATABASE_FILTER_VALUE_INVALID'
+  | 'DATABASE_DATE_INVALID'
+
+type SafeDatabaseField = {
+  id: string
+  name: string
+  type: string
+}
+
+abstract class DatabaseMcpError extends HttpException {
+  abstract readonly code: DatabaseErrorCode
+}
+
+export class PageIsNotDatabaseError extends DatabaseMcpError {
+  readonly code = 'PAGE_IS_NOT_DATABASE' as const
+
+  constructor() {
+    super(
+      {
+        code: 'PAGE_IS_NOT_DATABASE',
+        message: 'PAGE_IS_NOT_DATABASE: the requested page is not a database',
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseFieldNotFoundError extends DatabaseMcpError {
+  readonly code = 'DATABASE_FIELD_NOT_FOUND' as const
+
+  constructor() {
+    super(
+      {
+        code: 'DATABASE_FIELD_NOT_FOUND',
+        message: 'DATABASE_FIELD_NOT_FOUND: no matching database field',
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseFieldAmbiguousError extends DatabaseMcpError {
+  readonly code = 'DATABASE_FIELD_AMBIGUOUS' as const
+
+  constructor(readonly fields: SafeDatabaseField[]) {
+    super(
+      {
+        code: 'DATABASE_FIELD_AMBIGUOUS',
+        message: 'DATABASE_FIELD_AMBIGUOUS: more than one database field matches',
+        fields,
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseFilterOperatorInvalidError extends DatabaseMcpError {
+  readonly code = 'DATABASE_FILTER_OPERATOR_INVALID' as const
+
+  constructor(readonly allowedOperators: string[]) {
+    super(
+      {
+        code: 'DATABASE_FILTER_OPERATOR_INVALID',
+        message: 'DATABASE_FILTER_OPERATOR_INVALID: operator is not supported for this field',
+        allowedOperators,
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseFilterValueInvalidError extends DatabaseMcpError {
+  readonly code = 'DATABASE_FILTER_VALUE_INVALID' as const
+
+  constructor(readonly valueSchema: Record<string, unknown>) {
+    super(
+      {
+        code: 'DATABASE_FILTER_VALUE_INVALID',
+        message: 'DATABASE_FILTER_VALUE_INVALID: filter value does not match the field schema',
+        valueSchema,
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseDateInvalidError extends DatabaseMcpError {
+  readonly code = 'DATABASE_DATE_INVALID' as const
+
+  constructor() {
+    super(
+      {
+        code: 'DATABASE_DATE_INVALID',
+        message: 'DATABASE_DATE_INVALID: expected ISO 8601 date-time with an explicit timezone',
+      },
+      422,
+    )
+  }
+}
+
 export class WorkspaceAccessDeniedError extends HttpException {
   constructor(workspaceId: string, userId: string) {
     super(
@@ -63,7 +168,11 @@ export class ReminderNotFoundError extends HttpException {
 export class DiagramValidationError extends HttpException {
   constructor(kind: string, messages: string[]) {
     super(
-      { code: 'DIAGRAM_VALIDATION_FAILED', message: `DIAGRAM_VALIDATION_FAILED (${kind}): ${messages.join('; ')}`, errors: messages },
+      {
+        code: 'DIAGRAM_VALIDATION_FAILED',
+        message: `DIAGRAM_VALIDATION_FAILED (${kind}): ${messages.join('; ')}`,
+        errors: messages,
+      },
       422,
     )
   }
