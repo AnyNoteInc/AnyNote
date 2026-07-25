@@ -205,8 +205,7 @@ const OPTION_ARRAY_OPERATORS = new Set<AgentDatabaseFilterOperator>([
   'is_none_of',
   'contains_all',
 ])
-const TIMEZONE_DATE_RE =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/i
+const TIMEZONE_DATE_SCHEMA = z.iso.datetime({ offset: true })
 
 function ok(value: unknown): FilterValueNormalization {
   return { success: true, value }
@@ -288,11 +287,7 @@ function normalizeMoney(
 }
 
 function normalizeDateScalar(value: unknown): FilterValueNormalization {
-  if (
-    typeof value !== 'string' ||
-    !TIMEZONE_DATE_RE.test(value) ||
-    Number.isNaN(Date.parse(value))
-  ) {
+  if (typeof value !== 'string' || !TIMEZONE_DATE_SCHEMA.safeParse(value).success) {
     return invalid('date')
   }
   return ok(new Date(value).toISOString())
@@ -366,13 +361,6 @@ function normalizeScalarReference(
 
 function normalizeUnsupported(): FilterValueNormalization {
   return invalid()
-}
-
-function normalizeEmptyOnly(
-  operator: AgentDatabaseFilterOperator,
-  value: unknown,
-): FilterValueNormalization {
-  return normalizeNoValue(operator, value) ?? invalid()
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -457,9 +445,9 @@ export const DATABASE_FIELD_CATALOG: Record<AgentDatabaseFieldType, DatabaseFiel
   },
   [DatabasePropertyType.FILE]: {
     valueSchema: SAFE_REFERENCE_LIST_SCHEMA,
-    filterOperators: EMPTY_OPERATORS,
+    filterOperators: NO_OPERATORS,
     wireMapper: 'file-list',
-    normalizeFilterValue: normalizeEmptyOnly,
+    normalizeFilterValue: normalizeUnsupported,
   },
   [DatabasePropertyType.URL]: {
     valueSchema: STRING_SCHEMA,

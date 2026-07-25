@@ -336,20 +336,31 @@ describe('compileDatabaseQuery field resolution and typed validation', () => {
     expect(error).toMatchObject({ code: 'DATABASE_DATE_INVALID' })
   })
 
-  it('accepts advertised empty checks for FILE fields without a value', () => {
+  it('rejects impossible calendar datetimes before normalizing DATE values', () => {
+    const error = getError(() =>
+      compileDatabaseQuery(fields, {
+        filter: { propertyId: 'date-id', operator: 'on', value: '2026-02-30T00:00:00Z' },
+      }),
+    )
+
+    expect(error).toMatchObject({ code: 'DATABASE_DATE_INVALID' })
+  })
+
+  it('does not advertise or compile FILE filters without a runtime evaluator', () => {
     const fileFields = buildAgentDatabaseFields(
       databaseResult([property('file-id', 'Файлы', DatabasePropertyType.FILE)]),
     )
 
+    expect(fileFields[1]?.filterOperators).toEqual([])
     expect(
-      compileDatabaseQuery(fileFields, {
-        filter: { propertyId: 'file-id', operator: 'is_empty' },
-      }),
-    ).toEqual({
-      filter: {
-        conjunction: 'and',
-        conditions: [{ propertyId: 'file-id', operator: 'is_empty' }],
-      },
+      getError(() =>
+        compileDatabaseQuery(fileFields, {
+          filter: { propertyId: 'file-id', operator: 'is_empty' },
+        }),
+      ),
+    ).toMatchObject({
+      code: 'DATABASE_FILTER_OPERATOR_INVALID',
+      allowedOperators: [],
     })
   })
 })
