@@ -3,7 +3,7 @@ import type { Domain } from '@repo/domain'
 /**
  * Build a fake Domain facade for MCP service unit tests.
  *
- * All 7 sub-facades default to empty stubs; pass `overrides` to wire the
+ * All 8 sub-facades default to empty stubs; pass `overrides` to wire the
  * one(s) the service under test actually calls (typically a small object of
  * `jest.fn()` spies cast to the matching `Domain['<facade>']` type).
  *
@@ -17,6 +17,7 @@ export function makeFakeDomain(overrides: Partial<Domain> = {}): Domain {
     notifications: {},
     reminders: {},
     kanban: {},
+    database: {},
     pages: {},
     billing: {},
     ...overrides,
