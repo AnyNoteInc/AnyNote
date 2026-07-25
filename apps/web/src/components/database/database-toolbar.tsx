@@ -11,6 +11,7 @@ import {
   CalculateIcon,
   CalendarTodayIcon,
   CheckBoxIcon,
+  CurrencyRubleIcon,
   Divider,
   EmailIcon,
   FileDownloadIcon,
@@ -78,6 +79,7 @@ interface PropertyTypeEntry {
 const CREATABLE_PROPERTY_TYPES: ReadonlyArray<PropertyTypeEntry> = [
   { type: 'TEXT', label: 'Текст', icon: <TextFieldsIcon fontSize="small" /> },
   { type: 'NUMBER', label: 'Число', icon: <NumbersIcon fontSize="small" /> },
+  { type: 'MONEY', label: 'Деньги', icon: <CurrencyRubleIcon fontSize="small" /> },
   { type: 'STATUS', label: 'Статус', icon: <LabelIcon fontSize="small" /> },
   { type: 'SELECT', label: 'Выбор', icon: <LabelIcon fontSize="small" /> },
   { type: 'MULTI_SELECT', label: 'Мультивыбор', icon: <LabelIcon fontSize="small" /> },
@@ -106,6 +108,7 @@ const SYSTEM_PROPERTY_TYPES: ReadonlyArray<PropertyTypeEntry> = [
 const PROPERTY_TYPE_DEFAULT_NAME: Partial<Record<DatabasePropertyType, string>> = {
   TEXT: 'Текст',
   NUMBER: 'Число',
+  MONEY: 'Сумма',
   STATUS: 'Статус',
   SELECT: 'Выбор',
   MULTI_SELECT: 'Мультивыбор',

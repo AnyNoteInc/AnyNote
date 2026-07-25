@@ -28,6 +28,7 @@ import type {
 
 import { trpc } from '@/trpc/client'
 
+import { kopecksToRubleText, parseRubleTextToKopecks } from '../money'
 import { TITLE_SENTINEL, optionsOf, parseViewSettings } from '../types'
 import type { DatabasePropertyView, DatabaseSchema, DatabaseViewEntry } from '../types'
 
@@ -43,6 +44,15 @@ interface DatabaseFilterBuilderProps {
 // PHONE, FORMULA, RELATION, ROLLUP, CREATED_*/LAST_EDITED_*) are non-filterable
 // in Phase 4B — `operatorsFor` returns an empty list for them, so they offer no
 // operator (the filter UI for them is deferred to a later phase).
+// MONEY filters like NUMBER (both compare a numeric JSON cell value); only the
+// ValueEditor differs (ruble↔kopeck conversion).
+const NUMERIC_OPERATORS: ReadonlyArray<{ op: FilterOperator; label: string }> = [
+  { op: 'gt', label: 'больше' },
+  { op: 'lt', label: 'меньше' },
+  { op: 'equals', label: 'равно' },
+  { op: 'is_empty', label: 'пусто' },
+]
+
 const OPERATORS_BY_TYPE: Partial<
   Record<DatabasePropertyType, ReadonlyArray<{ op: FilterOperator; label: string }>>
 > = {
@@ -52,12 +62,8 @@ const OPERATORS_BY_TYPE: Partial<
     { op: 'is_empty', label: 'пусто' },
     { op: 'is_not_empty', label: 'не пусто' },
   ],
-  NUMBER: [
-    { op: 'gt', label: 'больше' },
-    { op: 'lt', label: 'меньше' },
-    { op: 'equals', label: 'равно' },
-    { op: 'is_empty', label: 'пусто' },
-  ],
+  NUMBER: NUMERIC_OPERATORS,
+  MONEY: NUMERIC_OPERATORS,
   CHECKBOX: [
     { op: 'is_checked', label: 'отмечено' },
     { op: 'is_not_checked', label: 'не отмечено' },
@@ -426,6 +432,24 @@ function ValueEditor({
         onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
         fullWidth
         slotProps={{ htmlInput: { 'aria-label': 'Значение' } }}
+      />
+    )
+  }
+
+  if (type === 'MONEY') {
+    // MONEY cells store integer kopecks; the user types rubles.
+    return (
+      <TextField
+        size="small"
+        type="number"
+        value={kopecksToRubleText(value)}
+        onChange={(e) =>
+          onChange(
+            e.target.value === '' ? undefined : (parseRubleTextToKopecks(e.target.value) ?? undefined),
+          )
+        }
+        fullWidth
+        slotProps={{ htmlInput: { 'aria-label': 'Значение, ₽' } }}
       />
     )
   }

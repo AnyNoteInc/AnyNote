@@ -22,6 +22,7 @@ import type { RouterOutputs } from '@/trpc/client'
 import { DatabaseToolbar } from '../database-toolbar'
 import { GroupByPicker } from '../view-config/group-by-picker'
 import { positionBetween } from '../../kanban/lib/positions'
+import { formatKopecks } from '../money'
 import { optionsOf, parseViewSettings } from '../types'
 import type { DatabasePropertyView, DatabaseRowView, DatabaseViewProps } from '../types'
 
@@ -419,6 +420,14 @@ function CardPropertyValue({
     return (
       <Typography variant="caption" color="text.secondary">
         {property.name}: {value ? 'да' : 'нет'}
+      </Typography>
+    )
+  }
+
+  if (property.type === 'MONEY' && typeof value === 'number') {
+    return (
+      <Typography variant="caption" color="text.secondary" noWrap>
+        {property.name}: {formatKopecks(value)}
       </Typography>
     )
   }

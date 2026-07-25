@@ -3,6 +3,7 @@
 import type { DatabasePropertyView, DatabaseRowView } from '../types'
 import { TextCell } from './text-cell'
 import { NumberCell } from './number-cell'
+import { MoneyCell } from './money-cell'
 import { CheckboxCell } from './checkbox-cell'
 import { DateCell } from './date-cell'
 import { SelectCell } from './select-cell'
@@ -42,6 +43,16 @@ export function CellEditor({ pageId, row, property, editable }: CellEditorProps)
     case 'NUMBER':
       return (
         <NumberCell
+          pageId={pageId}
+          rowId={row.rowId}
+          propertyId={property.id}
+          value={value}
+          editable={editable}
+        />
+      )
+    case 'MONEY':
+      return (
+        <MoneyCell
           pageId={pageId}
           rowId={row.rowId}
           propertyId={property.id}

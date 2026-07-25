@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react'
+import { useRef, type KeyboardEvent } from 'react'
 
 import { Box } from '@repo/ui/components'
+
+import { useDragResize } from '@/lib/use-drag-resize'
 
 const KEYBOARD_STEP = 16
 
@@ -40,76 +42,25 @@ export function PanelResizeHandle({
   ariaLabel,
   testId,
 }: Props) {
-  const dragRef = useRef<{ startX: number; startWidth: number; current: number } | null>(null)
-  const rafRef = useRef<number | null>(null)
   const widthRef = useRef(width)
   widthRef.current = width
 
-  const cancelPendingFrame = () => {
-    if (rafRef.current != null) {
-      window.cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-    }
-  }
-
-  // A drag can outlive the component (unmount mid-drag) — drop the pending
-  // frame so it can't fire onWidth against a torn-down host.
-  useEffect(() => cancelPendingFrame, [])
-
-  const clamp = (value: number) => Math.min(max, Math.max(min, value))
-
-  const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
-    event.preventDefault()
-    dragRef.current = {
-      startX: event.clientX,
-      startWidth: widthRef.current,
-      current: widthRef.current,
-    }
-    onDragStart?.()
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // No active pointer (synthetic events) — the drag still works while the
-      // pointer stays over the handle.
-    }
-  }
-
-  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
-    const drag = dragRef.current
-    if (!drag) return
-    const delta = event.clientX - drag.startX
-    const next = clamp(edge === 'right' ? drag.startWidth + delta : drag.startWidth - delta)
-    if (next === drag.current) return
-    drag.current = next
-    // Coalesce pointermove bursts (high-rate mice report >60Hz) to one live
-    // width application per frame.
-    rafRef.current ??= window.requestAnimationFrame(() => {
-      rafRef.current = null
-      const live = dragRef.current
-      if (live) onWidth(live.current)
-    })
-  }
-
-  const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
-    const drag = dragRef.current
-    if (!drag) return
-    dragRef.current = null
-    cancelPendingFrame()
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    // Flush the last live value BEFORE committing so the imperative DOM width
-    // can never lag one frame behind the committed state.
-    onWidth(drag.current)
-    onCommit(drag.current)
-  }
+  const drag = useDragResize({
+    min,
+    max,
+    direction: edge === 'right' ? 1 : -1,
+    getBaseWidth: () => widthRef.current,
+    onDragStart,
+    onLiveWidth: onWidth,
+    onCommit,
+  })
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
     // The key that points AWAY from the panel widens it.
     const towardsPanel = event.key === 'ArrowLeft' ? edge === 'right' : edge === 'left'
-    const next = clamp(widthRef.current + (towardsPanel ? -KEYBOARD_STEP : KEYBOARD_STEP))
+    const next = drag.clamp(widthRef.current + (towardsPanel ? -KEYBOARD_STEP : KEYBOARD_STEP))
     onWidth(next)
     onCommit(next)
   }
@@ -124,10 +75,10 @@ export function PanelResizeHandle({
       aria-valuemax={max}
       tabIndex={0}
       data-testid={testId}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerUp}
       onKeyDown={handleKeyDown}
       sx={{
         position: 'absolute',

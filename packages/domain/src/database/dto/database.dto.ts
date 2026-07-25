@@ -144,6 +144,9 @@ export const viewSettingsSchema = z.object({
   groupBy: z.object({ propertyId: z.string() }).nullable().optional(),
   // Display-only column visibility; null/absent = all properties visible.
   visibleProperties: z.array(z.string()).optional(),
+  // TABLE column widths in px, keyed by propertyId (or '__title__' for the system
+  // Title column). A property absent from the map sizes automatically.
+  columnWidths: z.record(z.string(), z.number().int().positive()).optional(),
   layout: z
     .object({
       datePropertyId: z.string().optional(),

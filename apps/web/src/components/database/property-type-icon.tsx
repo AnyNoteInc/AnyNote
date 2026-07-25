@@ -6,6 +6,7 @@ import {
   CalculateIcon,
   CalendarTodayIcon,
   CheckBoxIcon,
+  CurrencyRubleIcon,
   EmailIcon,
   FilterListIcon,
   LabelIcon,
@@ -31,6 +32,7 @@ import type { ComponentType } from 'react'
 const ICON_BY_TYPE: Record<DatabasePropertyType, ComponentType<SvgIconProps>> = {
   TEXT: TextFieldsIcon,
   NUMBER: NumbersIcon,
+  MONEY: CurrencyRubleIcon,
   STATUS: LabelIcon,
   SELECT: LabelIcon,
   MULTI_SELECT: LabelIcon,

@@ -322,6 +322,7 @@ enum DatabaseFormRespondentAccess {
 enum DatabasePropertyType {
   TEXT
   NUMBER
+  MONEY // stored as an integer count of kopecks (minor units)
   STATUS
   SELECT
   MULTI_SELECT

@@ -66,6 +66,7 @@ interface PropertySettingsDialogProps {
 const TYPE_LABELS: ReadonlyArray<{ type: DatabasePropertyType; label: string }> = [
   { type: 'TEXT', label: 'Текст' },
   { type: 'NUMBER', label: 'Число' },
+  { type: 'MONEY', label: 'Деньги' },
   { type: 'STATUS', label: 'Статус' },
   { type: 'SELECT', label: 'Выбор' },
   { type: 'MULTI_SELECT', label: 'Мультивыбор' },

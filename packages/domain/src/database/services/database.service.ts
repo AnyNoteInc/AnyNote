@@ -950,6 +950,16 @@ export class DatabaseService {
         }
         return raw
       }
+      case DatabasePropertyType.MONEY: {
+        // Money is stored as an integer count of kopecks (minor units) so
+        // filters/sorts/rollups compare exact values without float drift; the
+        // client converts to/from rubles at the edges. `isInteger` also rejects
+        // NaN and ±Infinity.
+        if (typeof raw !== 'number' || !Number.isInteger(raw)) {
+          throw badRequest('Ожидалась сумма в копейках (целое число)')
+        }
+        return raw
+      }
       case DatabasePropertyType.CHECKBOX:
         return Boolean(raw)
       case DatabasePropertyType.DATE: {

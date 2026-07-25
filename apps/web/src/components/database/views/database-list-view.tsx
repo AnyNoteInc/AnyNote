@@ -14,6 +14,7 @@ import {
 
 import { DatabaseToolbar } from '../database-toolbar'
 import { useViewRows } from '../use-view-rows'
+import { formatKopecks } from '../money'
 import { optionsOf, parseViewSettings } from '../types'
 import type { DatabasePropertyView, DatabaseRowView, DatabaseViewProps } from '../types'
 
@@ -171,6 +172,14 @@ function ListPropertyValue({
     return (
       <Typography variant="caption" color="text.secondary">
         {property.name}: {value ? 'да' : 'нет'}
+      </Typography>
+    )
+  }
+
+  if (property.type === 'MONEY' && typeof value === 'number') {
+    return (
+      <Typography variant="caption" color="text.secondary" noWrap>
+        {property.name}: {formatKopecks(value)}
       </Typography>
     )
   }
