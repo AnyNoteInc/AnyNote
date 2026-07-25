@@ -4,14 +4,14 @@ import type { AuthContext } from './auth-context.js'
 
 /**
  * Defense-in-depth for page-bound chats: when the auth context carries a
- * boundPageId (HMAC-covered `x-agents-bound-page` header), page write tools
- * may only target that page. Call right after assertMember in every tool
- * handler that writes to an explicit pageId.
+ * boundPageId (HMAC-covered `x-agents-bound-page` header), tools may only
+ * access that page. Call right after assertMember in every tool handler
+ * that targets an explicit pageId.
  */
 export function assertPageBindingAllows(auth: AuthContext, pageId: string): void {
   if (auth.boundPageId && pageId !== auth.boundPageId) {
     throw new ForbiddenException(
-      `Этот чат привязан к другой странице — изменять можно только страницу ${auth.boundPageId}`,
+      `Этот чат привязан к другой странице — доступна только страница ${auth.boundPageId}`,
     )
   }
 }

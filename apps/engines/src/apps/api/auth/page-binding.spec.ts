@@ -19,7 +19,7 @@ describe('assertPageBindingAllows', () => {
   it('throws ForbiddenException on a mismatched page', () => {
     expect(() => assertPageBindingAllows(bound, 'p2')).toThrow(ForbiddenException)
     expect(() => assertPageBindingAllows(bound, 'p2')).toThrow(
-      'Этот чат привязан к другой странице — изменять можно только страницу p1',
+      'Этот чат привязан к другой странице — доступна только страница p1',
     )
   })
 })

@@ -34,6 +34,8 @@ import { KanbanGateway } from './services/kanban-gateway.service.js'
 import { KanbanReadService } from './services/kanban-read.service.js'
 import { KanbanWriteService } from './services/kanban-write.service.js'
 import { KanbanTools } from './tools/kanban.tools.js'
+import { DatabaseReadService } from './services/database-read.service.js'
+import { DatabaseTools } from './tools/database.tools.js'
 
 @Module({
   imports: [
@@ -72,6 +74,8 @@ import { KanbanTools } from './tools/kanban.tools.js'
     KanbanReadService,
     KanbanWriteService,
     KanbanTools,
+    DatabaseReadService,
+    DatabaseTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
@@ -79,6 +83,20 @@ import { KanbanTools } from './tools/kanban.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, PagePdfTools, FileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools, KanbanTools],
+  exports: [
+    PageTools,
+    PageFileTools,
+    PagePdfTools,
+    FileTools,
+    WorkspaceTools,
+    SearchTools,
+    WorkspacesTools,
+    ReminderTools,
+    NotificationTools,
+    FavoriteTools,
+    DiagramTools,
+    KanbanTools,
+    DatabaseTools,
+  ],
 })
 export class McpModule {}
