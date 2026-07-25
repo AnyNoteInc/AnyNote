@@ -1267,7 +1267,7 @@ describe('DatabaseService.queryRows', () => {
   it('without a filter returns every accessible source row and preserves MONEY kopecks', async () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
-        { id: 'money', type: 'NUMBER', name: 'Цена', position: 0, settings: null },
+        { id: 'money', type: 'MONEY', name: 'Цена', position: 0, settings: null },
       ]),
       findRowsPaged: vi.fn(async () => [
         makeAccessRow('mine', { cells: { money: 12_345 } }),

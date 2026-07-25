@@ -12,6 +12,7 @@
 import type { EnabledAccessRule, RowWithPage } from '../repositories/database.repository.ts'
 import type { FilterCondition, FilterGroup } from '../dto/database.dto.ts'
 import { DatabasePropertyType } from '../dto/database.dto.ts'
+import { normalizeFilterGroup } from './query-planner.ts'
 import type { PropertyMeta } from './query-planner.ts'
 import { resolveRowAccessForRows } from './row-access-resolver.ts'
 import type { AccessRule, RowAccessContext, RowAccessRow } from './row-access-resolver.ts'
@@ -200,13 +201,14 @@ export async function applyResidualFilter(
 ): Promise<RowWithPage[]> {
   if (rows.length === 0) return rows
   const metaById = new Map(properties.map((property) => [property.id, property]))
-  const relationPropertyIds = collectRelationPropertyIds(filter, metaById)
+  const normalizedFilter = normalizeFilterGroup(filter, metaById)
+  const relationPropertyIds = collectRelationPropertyIds(normalizedFilter, metaById)
   const linksByProperty = await loadRelationLinks(
     repo,
     relationPropertyIds,
     rows.map((row) => row.id),
   )
-  return rows.filter((row) => evaluateGroup(row, filter, metaById, linksByProperty))
+  return rows.filter((row) => evaluateGroup(row, normalizedFilter, metaById, linksByProperty))
 }
 
 /** Map the enabled access rules (repo shape) to the resolver's `AccessRule` shape. */

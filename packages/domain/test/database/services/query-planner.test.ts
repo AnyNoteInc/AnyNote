@@ -553,4 +553,37 @@ describe('buildRowQuery — computed columns are not filterable', () => {
       expect(plan.residualFilter).toBeNull()
     })
   }
+
+  it('prunes computed leaves before preserving a mixed residual boolean tree', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [
+          { propertyId: 'p-formula', operator: 'equals', value: 'ignored' },
+          {
+            conjunction: 'or',
+            conditions: [
+              { propertyId: 'p-rollup', operator: 'equals', value: 'ignored' },
+              { propertyId: 'p-multi', operator: 'contains_all', value: ['food', 'home'] },
+            ],
+          },
+        ],
+      },
+    }
+
+    const plan = buildRowQuery(settings, props)
+
+    expect(plan.where).toEqual({})
+    expect(plan.residualFilter).toEqual({
+      conjunction: 'and',
+      conditions: [
+        {
+          conjunction: 'or',
+          conditions: [
+            { propertyId: 'p-multi', operator: 'contains_all', value: ['food', 'home'] },
+          ],
+        },
+      ],
+    })
+  })
 })

@@ -9,10 +9,12 @@ import type { PropertyMeta } from '../../../src/database/services/query-planner.
 
 const properties: PropertyMeta[] = [
   { id: 'text', type: DatabasePropertyType.TEXT },
-  { id: 'money', type: DatabasePropertyType.NUMBER },
+  { id: 'money', type: DatabasePropertyType.MONEY },
   { id: 'date', type: DatabasePropertyType.DATE },
   { id: 'tags', type: DatabasePropertyType.MULTI_SELECT },
   { id: 'relation', type: DatabasePropertyType.RELATION },
+  { id: 'formula', type: DatabasePropertyType.FORMULA },
+  { id: 'rollup', type: DatabasePropertyType.ROLLUP },
 ]
 
 function row(id: string, title: string | null, values: Record<string, unknown> = {}): RowWithPage {
@@ -53,6 +55,30 @@ describe('applyResidualFilter', () => {
     const result = await applyResidualFilter(repo(), rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['rent-row', 'groceries-row'])
+  })
+
+  it('prunes computed leaves without changing nested residual group semantics', async () => {
+    const rows = [
+      row('matching', 'Покупки', { tags: ['food', 'home'] }),
+      row('not-matching', 'Заметка', { tags: ['home'] }),
+    ]
+    const filter: FilterGroup = {
+      conjunction: 'and',
+      conditions: [
+        { propertyId: 'formula', operator: 'equals', value: 'ignored' },
+        {
+          conjunction: 'or',
+          conditions: [
+            { propertyId: 'rollup', operator: 'equals', value: 'ignored' },
+            { propertyId: 'tags', operator: 'contains_all', value: ['food', 'home'] },
+          ],
+        },
+      ],
+    }
+
+    const result = await applyResidualFilter(repo(), rows, properties, filter)
+
+    expect(result.map((candidate) => candidate.id)).toEqual(['matching'])
   })
 
   it('preserves nested AND/OR groups', async () => {

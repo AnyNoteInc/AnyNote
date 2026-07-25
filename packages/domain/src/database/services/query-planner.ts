@@ -60,6 +60,29 @@ function isGroup(node: FilterCondition | FilterGroup): node is FilterGroup {
   return 'conjunction' in node && 'conditions' in node
 }
 
+/**
+ * Remove computed-on-read leaves before either Prisma pushdown or residual
+ * evaluation. Empty nested groups are retained: AND [] is true and OR [] is
+ * false, so dropping the group itself would change the original boolean tree.
+ */
+export function normalizeFilterGroup(
+  group: FilterGroup,
+  metaById: Map<string, PropertyMeta>,
+): FilterGroup {
+  const conditions: Array<FilterCondition | FilterGroup> = []
+  for (const node of group.conditions) {
+    if (isGroup(node)) {
+      conditions.push(normalizeFilterGroup(node, metaById))
+      continue
+    }
+    const type = metaById.get(node.propertyId)?.type
+    if (type === undefined || !NON_FILTERABLE_TYPES.has(type)) {
+      conditions.push(node)
+    }
+  }
+  return { conjunction: group.conjunction, conditions }
+}
+
 /** Build a `cells.some({ propertyId, value })` predicate for a cell-backed condition. */
 function cellSome(propertyId: string, value: CellValueFilter): Prisma.DatabaseRowWhereInput {
   return { cells: { some: { propertyId, value } } }
@@ -256,12 +279,9 @@ function buildOrderBy(sorts: Sort[] | undefined): Prisma.DatabaseRowOrderByWithR
  */
 export function buildRowQuery(settings: ViewSettings, properties: PropertyMeta[]): RowQueryPlan {
   const metaById = new Map(properties.map((p) => [p.id, p]))
-  const residualFilter =
-    settings.filters && requiresResidualEvaluation(settings.filters, metaById)
-      ? settings.filters
-      : null
-  const where =
-    settings.filters && residualFilter === null ? buildGroup(settings.filters, metaById) : {}
+  const filters = settings.filters ? normalizeFilterGroup(settings.filters, metaById) : undefined
+  const residualFilter = filters && requiresResidualEvaluation(filters, metaById) ? filters : null
+  const where = filters && residualFilter === null ? buildGroup(filters, metaById) : {}
 
   return {
     where,
