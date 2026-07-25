@@ -17,6 +17,7 @@ import type {
   FormBuilderState,
   FormBuilderSelection,
 } from './form-builder-state'
+import { FORM_SELECTION_ID } from './form-builder-state'
 import type { FormPublishReadinessIssue } from './form-builder-validation'
 import { FormPropertyPicker } from './form-property-picker'
 
@@ -155,6 +156,8 @@ export function FormOutlinePanel({
   const [questionSectionId, setQuestionSectionId] = useState<string | null>(null)
   const issueCount = (entityId: string) =>
     issues.filter((issue) => issue.entityId === entityId).length
+  // Form-wide issues (no entityId) surface on the whole-form outline entry.
+  const globalIssueCount = issues.filter((issue) => issue.entityId === undefined).length
 
   return (
     <Stack
@@ -178,6 +181,22 @@ export function FormOutlinePanel({
         </Typography>
       </Box>
       <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
+        {/* Whole-form entry: selecting it shows the presentation settings in the
+            right pane (every other selection shows only its own element). */}
+        <Box sx={{ mb: 1.25 }}>
+          <OutlineItem
+            selected={selected(state, { kind: 'FORM', id: FORM_SELECTION_ID })}
+            label="Оформление формы"
+            meta={`Заголовок и обложка${globalIssueCount ? ` · ошибок: ${globalIssueCount}` : ''}`}
+            editable={editable}
+            onSelect={() =>
+              dispatch({
+                type: 'ITEM_SELECTED',
+                selection: { kind: 'FORM', id: FORM_SELECTION_ID },
+              })
+            }
+          />
+        </Box>
         {state.document.sections.map((section, sectionIndex) => (
           <Box key={section.id} sx={{ mb: 1.25 }}>
             <OutlineItem

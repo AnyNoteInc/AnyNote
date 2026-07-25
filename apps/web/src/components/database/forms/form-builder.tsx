@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   Alert,
+  Badge,
   Box,
   Button,
   CircularProgress,
@@ -10,11 +11,17 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  FormatListBulletedIcon,
+  IconButton,
   PublishIcon,
+  ShareIcon,
   Stack,
+  Tooltip,
+  TuneIcon,
   Typography,
   useMediaQuery,
   useTheme,
+  VisibilityIcon,
 } from '@repo/ui/components'
 import { parseFormVersionDocument, type FormVersionDocument } from '@repo/domain/database/forms'
 
@@ -265,6 +272,25 @@ function LoadedFormBuilder({
     }
   }
 
+  const settingsToggleLabel = showSettingsPanel ? 'Скрыть настройки' : 'Показать настройки'
+
+  // A published form with a draft that diverged from the published version can
+  // be republished (the server bumps versionNumber and keeps the OPEN/CLOSED
+  // state). Both sides re-parse through the document schema so the compare is
+  // canonical (zod rebuilds objects in schema key order); a parse failure means
+  // the documents differ.
+  const hasUnpublishedChanges = useMemo(() => {
+    if (form.state === 'DRAFT' || !form.publishedVersion) return false
+    try {
+      return (
+        JSON.stringify(parseFormVersionDocument(form.publishedVersion.schema)) !==
+        JSON.stringify(parseFormVersionDocument(state.document))
+      )
+    } catch {
+      return true
+    }
+  }, [form.state, form.publishedVersion, state.document])
+
   if (!desktop) {
     return (
       <Box
@@ -316,17 +342,52 @@ function LoadedFormBuilder({
           </Typography>
         </Box>
         <Box sx={{ flex: 1 }} />
-        <Button onClick={() => setPreviewOpen(true)}>Предпросмотр</Button>
-        <Button onClick={() => setResponsesOpen(true)}>
-          Ответы {form.acceptedResponses > 0 ? `· ${form.acceptedResponses}` : ''}
-        </Button>
-        <Button disabled={!canManageExposure} onClick={() => setShareOpen(true)}>
-          Поделиться
-        </Button>
-        <Button onClick={() => setShowSettingsPanel((value) => !value)}>
-          {showSettingsPanel ? 'Скрыть настройки' : 'Показать настройки'}
-        </Button>
-        {form.state === 'DRAFT' ? (
+        <Tooltip title="Предпросмотр">
+          <IconButton size="small" aria-label="Предпросмотр" onClick={() => setPreviewOpen(true)}>
+            <VisibilityIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip
+          title={
+            form.acceptedResponses > 0 ? `Ответы · ${form.acceptedResponses}` : 'Ответы'
+          }
+        >
+          <IconButton size="small" aria-label="Ответы" onClick={() => setResponsesOpen(true)}>
+            <Badge
+              badgeContent={form.acceptedResponses}
+              max={999}
+              color="primary"
+              invisible={form.acceptedResponses === 0}
+            >
+              <FormatListBulletedIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Поделиться">
+          {/* A disabled IconButton swallows pointer events — the span keeps the
+              tooltip's hover target alive. */}
+          <span>
+            <IconButton
+              size="small"
+              aria-label="Поделиться"
+              disabled={!canManageExposure}
+              onClick={() => setShareOpen(true)}
+            >
+              <ShareIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={settingsToggleLabel}>
+          <IconButton
+            size="small"
+            aria-label={settingsToggleLabel}
+            color={showSettingsPanel ? 'primary' : 'default'}
+            onClick={() => setShowSettingsPanel((value) => !value)}
+          >
+            <TuneIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        {form.state === 'DRAFT' || hasUnpublishedChanges ? (
           <Button
             variant="contained"
             startIcon={<PublishIcon />}
@@ -339,23 +400,27 @@ function LoadedFormBuilder({
             }
             onClick={() => void publishForm()}
           >
-            Опубликовать
+            {form.state === 'DRAFT' ? 'Опубликовать' : 'Опубликовать изменения'}
           </Button>
-        ) : (
-          <Typography
-            variant="body2"
-            color="success.main"
-            sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}
-          >
-            Опубликована
-            {form.publishedVersion ? ` · версия ${form.publishedVersion.versionNumber}` : ''}
-          </Typography>
-        )}
+        ) : null}
       </Stack>
       {!canEditStructure ? <Alert severity="info">Только просмотр</Alert> : null}
       {form.state === 'OPEN' || form.state === 'CLOSED' ? (
-        <Alert severity="success">
-          Форма уже опубликована: {form.state === 'OPEN' ? 'Открыта' : 'Закрыта'}.
+        // The publish status and the version live on ONE line of the info bar:
+        // status text left, «Опубликована · версия N» right-aligned.
+        <Alert severity="success" sx={{ '& .MuiAlert-message': { flex: 1 } }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
+          >
+            <span>Форма уже опубликована: {form.state === 'OPEN' ? 'Открыта' : 'Закрыта'}.</span>
+            <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+              Опубликована
+              {form.publishedVersion ? ` · версия ${form.publishedVersion.versionNumber}` : ''}
+              {hasUnpublishedChanges ? ' · есть неопубликованные изменения' : ''}
+            </Typography>
+          </Stack>
         </Alert>
       ) : null}
       {!readiness.ok ? (

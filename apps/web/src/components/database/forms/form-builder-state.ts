@@ -9,7 +9,11 @@ import type {
   FormVersionDocument,
 } from '@repo/domain/database/forms'
 
+/** Sentinel id for the whole-form (presentation) selection in the outline. */
+export const FORM_SELECTION_ID = '__form__'
+
 export type FormBuilderSelection =
+  | { kind: 'FORM'; id: string }
   | { kind: 'SECTION'; id: string }
   | { kind: 'QUESTION'; id: string }
   | { kind: 'ENDING'; id: string }

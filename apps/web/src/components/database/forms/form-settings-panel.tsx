@@ -128,9 +128,12 @@ export function FormSettingsPanel({
     }
     return false
   })
-  const contextualIssues = issues.filter(
-    ({ entityId }) => entityId === undefined || entityId === selection.id,
-  )
+  // The pane shows ONLY the selected element: element selections list their own
+  // issues; the whole-form selection lists the form-wide (entity-less) ones.
+  const contextualIssues =
+    selection.kind === 'FORM'
+      ? issues.filter(({ entityId }) => entityId === undefined)
+      : issues.filter(({ entityId }) => entityId === selection.id)
   const conditionalTransitions = transitions.filter(({ when }) => when !== null)
   const propertyId =
     question?.property.kind === 'PROPERTY' ? question.property.propertyId : undefined
@@ -141,6 +144,7 @@ export function FormSettingsPanel({
   const [questionDefaultAnswerText, setQuestionDefaultAnswerText] = useState('')
   const [questionIconAnchor, setQuestionIconAnchor] = useState<HTMLElement | null>(null)
   const contextLabel = useMemo(() => {
+    if (selection.kind === 'FORM') return 'Форма'
     if (selection.kind === 'SECTION') return 'Раздел'
     if (selection.kind === 'QUESTION') return 'Вопрос'
     return 'Завершение'
@@ -199,17 +203,19 @@ export function FormSettingsPanel({
           </Alert>
         ) : null}
 
-        <Box>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Оформление формы
-          </Typography>
-          <FormPresentationEditor
-            presentation={state.document.presentation}
-            onChange={(presentation) =>
-              dispatch({ type: 'PRESENTATION_UPDATED', patch: presentation })
-            }
-          />
-        </Box>
+        {selection.kind === 'FORM' ? (
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Оформление формы
+            </Typography>
+            <FormPresentationEditor
+              presentation={state.document.presentation}
+              onChange={(presentation) =>
+                dispatch({ type: 'PRESENTATION_UPDATED', patch: presentation })
+              }
+            />
+          </Box>
+        ) : null}
 
         {section ? (
           <Box>

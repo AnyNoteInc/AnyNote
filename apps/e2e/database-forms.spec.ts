@@ -280,6 +280,23 @@ test('database forms: owner lifecycle, isolated responses, audiences and respons
     expect(current.view?.type).toBe('FORM')
   })
 
+  await test.step('owner republishes after editing the published form', async () => {
+    // While the draft matches the published version there is no publish button.
+    await expect(page.getByRole('button', { name: /Опубликовать/ })).toHaveCount(0)
+
+    // Diverge the draft: the «Оформление формы» outline entry hosts the
+    // presentation editor in the right pane.
+    await page.getByRole('button', { name: /Оформление формы/ }).click()
+    await page.getByLabel('Название формы').fill('Форма v2')
+
+    // Once autosave lands, the republish button appears and bumps the version.
+    const republish = page.getByRole('button', { name: 'Опубликовать изменения' })
+    await expect(republish).toBeEnabled({ timeout: 20_000 })
+    await republish.click()
+    await expect(page.getByText(/версия 2/)).toBeVisible({ timeout: 20_000 })
+    await expect(republish).toHaveCount(0)
+  })
+
   const owner = await prisma.user.findUniqueOrThrow({ where: { email: ownerEmail } })
   const source = await prisma.databaseSource.findFirstOrThrow({ where: { workspaceId } })
   const primaryForm = await prisma.databaseForm.findFirstOrThrow({
