@@ -505,6 +505,63 @@ describe('DatabaseReadService.query', () => {
       })
     },
   )
+
+  it.each([
+    ['string', 'готово', 'готово'],
+    ['finite number', 12.5, 12.5],
+    ['boolean', false, false],
+    ['null', null, null],
+  ] as const)('preserves an ordinary safe FORMULA %s value', async (_case, raw, expected) => {
+    const propertyId = 'formula-safe-value'
+    const { service } = makeService(
+      databaseResult([property(propertyId, DatabasePropertyType.FORMULA, 'Formula')]),
+      [row({ [propertyId]: raw })],
+    )
+
+    const result = await service.query(context)
+
+    expect(result.records[0]!.values).toEqual({ [propertyId]: expected })
+  })
+
+  it('recursively sanitizes ROLLUP show_original values and rejects arbitrary objects', async () => {
+    const propertyId = 'rollup-show-original'
+    const { service } = makeService(
+      databaseResult([property(propertyId, DatabasePropertyType.ROLLUP, 'Original values')]),
+      [
+        row({
+          [propertyId]: [
+            'безопасно',
+            12.5,
+            false,
+            null,
+            new Date('2026-07-02T03:00:00+03:00'),
+            ['вложено', { __error: 'circular reference', stack: 'internal stack' }],
+            { secret: true, accessLevel: 'OWNER' },
+            Number.NaN,
+            Number.POSITIVE_INFINITY,
+            1n,
+          ],
+        }),
+      ],
+    )
+
+    const result = await service.query(context)
+
+    expect(result.records[0]!.values).toEqual({
+      [propertyId]: [
+        'безопасно',
+        12.5,
+        false,
+        null,
+        '2026-07-02T00:00:00.000Z',
+        ['вложено', { __error: 'circular reference' }],
+        null,
+        null,
+        null,
+        null,
+      ],
+    })
+  })
 })
 
 describe('DatabaseReadService domain boundary', () => {

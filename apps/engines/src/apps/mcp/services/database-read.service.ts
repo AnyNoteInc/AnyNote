@@ -190,10 +190,17 @@ function mapPageLinkList(
 }
 
 function mapComputed(value: unknown): unknown {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string' || typeof value === 'boolean') return value
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  }
+  if (Array.isArray(value)) return value.map(mapComputed)
   if (isRecord(value) && typeof value.__error === 'string') {
     return { __error: value.__error }
   }
-  return value
+  return null
 }
 
 function mapWireValue(field: AgentDatabaseField, value: unknown): unknown {
