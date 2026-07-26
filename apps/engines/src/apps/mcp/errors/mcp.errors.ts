@@ -7,6 +7,8 @@ export type DatabaseErrorCode =
   | 'DATABASE_FILTER_OPERATOR_INVALID'
   | 'DATABASE_FILTER_VALUE_INVALID'
   | 'DATABASE_DATE_INVALID'
+  | 'DATABASE_SORT_UNSUPPORTED'
+  | 'DATABASE_CURSOR_INVALID'
 
 type SafeDatabaseField = {
   id: string
@@ -99,6 +101,36 @@ export class DatabaseDateInvalidError extends DatabaseMcpError {
       {
         code: 'DATABASE_DATE_INVALID',
         message: 'DATABASE_DATE_INVALID: expected ISO 8601 date-time with an explicit timezone',
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseSortUnsupportedError extends DatabaseMcpError {
+  readonly code = 'DATABASE_SORT_UNSUPPORTED' as const
+  readonly supportedPropertyIds = ['__title__'] as const
+
+  constructor() {
+    super(
+      {
+        code: 'DATABASE_SORT_UNSUPPORTED',
+        message: 'DATABASE_SORT_UNSUPPORTED: only the TITLE field can be sorted',
+        supportedPropertyIds: ['__title__'],
+      },
+      422,
+    )
+  }
+}
+
+export class DatabaseCursorInvalidError extends DatabaseMcpError {
+  readonly code = 'DATABASE_CURSOR_INVALID' as const
+
+  constructor() {
+    super(
+      {
+        code: 'DATABASE_CURSOR_INVALID',
+        message: 'DATABASE_CURSOR_INVALID: cursor must identify a live row in this database',
       },
       422,
     )

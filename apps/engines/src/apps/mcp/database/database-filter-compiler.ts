@@ -8,6 +8,7 @@ import {
   DatabaseFieldNotFoundError,
   DatabaseFilterOperatorInvalidError,
   DatabaseFilterValueInvalidError,
+  DatabaseSortUnsupportedError,
 } from '../errors/mcp.errors.js'
 import {
   DATABASE_FIELD_CATALOG,
@@ -348,10 +349,11 @@ export function compileDatabaseQuery(
   }
 
   if (input.sorts !== undefined) {
-    compiled.sorts = parseSorts(input.sorts).map((sort) => ({
-      propertyId: resolveField(fields, sort).id,
-      direction: sort.direction,
-    }))
+    compiled.sorts = parseSorts(input.sorts).map((sort) => {
+      const field = resolveField(fields, sort)
+      if (field.id !== '__title__') throw new DatabaseSortUnsupportedError()
+      return { propertyId: field.id, direction: sort.direction }
+    })
   }
 
   return compiled

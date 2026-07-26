@@ -260,7 +260,7 @@ export const queryRowsInput = z.object({
   pageId: z.string().uuid(),
   filter: filterGroupSchema.optional(),
   sorts: z.array(sortSchema).max(20).optional(),
-  cursor: z.string().optional(),
+  cursor: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(200).default(100),
 })
 export type QueryRowsInput = z.infer<typeof queryRowsInput>

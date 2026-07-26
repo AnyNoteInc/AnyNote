@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from '@jest/globals'
+import { HttpException } from '@nestjs/common'
 import { DatabasePropertyType, prisma } from '@repo/db'
 import { createDomain } from '@repo/domain'
 import { rebuildDeliveries, cancelPendingDeliveries } from '@repo/notifications'
@@ -336,5 +337,180 @@ describe('DatabaseReadService → @repo/domain → Postgres (integration)', () =
 
     expect(records.map((record) => record.title)).toEqual(['Аренда', 'Продукты'])
     expect(totalKopecks(records, amountPropertyId)).toBe(3_845_050)
+  })
+
+  it('rejects stale and cross-source UUID cursors with one safe deterministic error', async () => {
+    const otherPage = await prisma.page.create({
+      data: { workspaceId: workspaceId!, title: 'Other database', type: 'DATABASE' },
+    })
+    const otherSource = await prisma.databaseSource.create({
+      data: { workspaceId: workspaceId!, pageId: otherPage.id, title: 'Other database' },
+    })
+    const otherRowPage = await prisma.page.create({
+      data: { workspaceId: workspaceId!, title: 'Other row', type: 'TEXT' },
+    })
+    const otherRow = await prisma.databaseRow.create({
+      data: { sourceId: otherSource.id, pageId: otherRowPage.id, position: 1_000 },
+    })
+
+    for (const cursor of [crypto.randomUUID(), otherRow.id]) {
+      const error = await databaseRead
+        .query({
+          userId: userId!,
+          workspaceId: workspaceId!,
+          pageId,
+          cursor,
+          limit: 10,
+        })
+        .catch((cause) => cause)
+
+      expect(error).toBeInstanceOf(HttpException)
+      expect((error as HttpException).getStatus()).toBe(422)
+      expect((error as HttpException).getResponse()).toEqual({
+        code: 'DATABASE_CURSOR_INVALID',
+        message: 'DATABASE_CURSOR_INVALID',
+      })
+      expect(JSON.stringify((error as HttpException).getResponse())).not.toContain(cursor)
+    }
+  })
+
+  it('filters RELATION values through the same actor-visible live target projection', async () => {
+    const targetPage = await prisma.page.create({
+      data: { workspaceId: workspaceId!, title: 'Relation targets', type: 'DATABASE' },
+    })
+    const targetSource = await prisma.databaseSource.create({
+      data: {
+        workspaceId: workspaceId!,
+        pageId: targetPage.id,
+        title: 'Relation targets',
+      },
+    })
+    const targetOwnerProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId: targetSource.id,
+        type: DatabasePropertyType.PERSON,
+        name: 'Owner',
+        position: 1_000,
+      },
+    })
+    await prisma.databasePageAccessRule.create({
+      data: {
+        sourceId: targetSource.id,
+        propertyId: targetOwnerProperty.id,
+        accessLevel: 'CAN_VIEW',
+      },
+    })
+    const relationProperty = await prisma.databaseProperty.create({
+      data: {
+        sourceId,
+        type: DatabasePropertyType.RELATION,
+        name: 'Связь',
+        position: 4_000,
+        settings: { relation: { targetSourceId: targetSource.id } },
+      },
+    })
+
+    async function createTarget(title: string, ownerId: string, deleted = false) {
+      const targetRowPage = await prisma.page.create({
+        data: { workspaceId: workspaceId!, title, type: 'TEXT' },
+      })
+      const targetRow = await prisma.databaseRow.create({
+        data: {
+          sourceId: targetSource.id,
+          pageId: targetRowPage.id,
+          position: 1_000,
+          ...(deleted ? { deletedAt: new Date('2026-07-25T00:00:00.000Z') } : {}),
+        },
+      })
+      await prisma.databaseCellValue.create({
+        data: {
+          rowId: targetRow.id,
+          propertyId: targetOwnerProperty.id,
+          value: ownerId,
+        },
+      })
+      return targetRow
+    }
+
+    const visibleTarget = await createTarget('Visible target', userId!)
+    const hiddenTarget = await createTarget('Hidden target', crypto.randomUUID())
+    const deletedTarget = await createTarget('Deleted target', userId!, true)
+    const sourceRows = await prisma.databaseRow.findMany({
+      where: { sourceId },
+      select: { id: true, page: { select: { title: true } } },
+    })
+    const rowIdByTitle = new Map(sourceRows.map((row) => [row.page.title, row.id]))
+    await prisma.databaseRelationLink.createMany({
+      data: [
+        {
+          propertyId: relationProperty.id,
+          rowId: rowIdByTitle.get('Аренда')!,
+          targetRowId: hiddenTarget.id,
+        },
+        {
+          propertyId: relationProperty.id,
+          rowId: rowIdByTitle.get('Продукты')!,
+          targetRowId: visibleTarget.id,
+        },
+        {
+          propertyId: relationProperty.id,
+          rowId: rowIdByTitle.get('Зарплата')!,
+          targetRowId: deletedTarget.id,
+        },
+      ],
+    })
+
+    const unfiltered = await queryAll(undefined, 10)
+    const relationIdsByTitle = new Map(
+      unfiltered.records.map((record) => [
+        record.title,
+        (record.values[relationProperty.id] as { rowId: string }[]).map(({ rowId }) => rowId),
+      ]),
+    )
+    expect(relationIdsByTitle).toEqual(
+      new Map([
+        ['Аренда', []],
+        ['Продукты', [visibleTarget.id]],
+        ['Зарплата', []],
+        ['Транспорт', []],
+      ]),
+    )
+
+    const empty = await queryAll({ propertyId: relationProperty.id, operator: 'is_empty' }, 10)
+    expect(empty.records.map(({ title }) => title)).toEqual(['Аренда', 'Зарплата', 'Транспорт'])
+
+    const nonEmpty = await queryAll(
+      { propertyId: relationProperty.id, operator: 'is_not_empty' },
+      10,
+    )
+    expect(nonEmpty.records.map(({ title }) => title)).toEqual(['Продукты'])
+
+    const guessedHidden = await queryAll(
+      {
+        propertyId: relationProperty.id,
+        operator: 'is_any_of',
+        value: [hiddenTarget.id],
+      },
+      10,
+    )
+    expect(guessedHidden.records).toEqual([])
+
+    const nestedNotOr = await queryAll(
+      {
+        not: {
+          conjunction: 'or',
+          conditions: [
+            {
+              propertyId: relationProperty.id,
+              operator: 'is_any_of',
+              value: [hiddenTarget.id],
+            },
+            { propertyId: relationProperty.id, operator: 'is_empty' },
+          ],
+        },
+      },
+      10,
+    )
+    expect(nestedNotOr.records.map(({ title }) => title)).toEqual(['Продукты'])
   })
 })

@@ -650,4 +650,43 @@ describe('DatabaseReadService domain boundary', () => {
     expect(error).toBeInstanceOf(DatabaseFilterOperatorInvalidError)
     expect(queryRows).not.toHaveBeenCalled()
   })
+
+  it('does not call queryRows when a cell-property sort is unsupported', async () => {
+    const { service, queryRows } = makeService(
+      databaseResult([property(datePropertyId, DatabasePropertyType.DATE, 'Дата')]),
+    )
+
+    const error = await service
+      .query({
+        ...context,
+        sorts: [{ propertyId: datePropertyId, direction: 'asc' }],
+      })
+      .catch((cause) => cause)
+
+    expect(getHttpError(error).getStatus()).toBe(422)
+    expect(getHttpError(error).getResponse()).toEqual({
+      code: 'DATABASE_SORT_UNSUPPORTED',
+      message: 'DATABASE_SORT_UNSUPPORTED: only the TITLE field can be sorted',
+      supportedPropertyIds: ['__title__'],
+    })
+    expect(queryRows).not.toHaveBeenCalled()
+  })
+
+  it('rejects a malformed cursor safely before calling Domain.database.queryRows', async () => {
+    const { service, queryRows } = makeService(databaseResult([]))
+
+    const error = await service
+      .query({
+        ...context,
+        cursor: 'not-a-row-id',
+      })
+      .catch((cause) => cause)
+
+    expect(getHttpError(error).getStatus()).toBe(422)
+    expect(getHttpError(error).getResponse()).toEqual({
+      code: 'DATABASE_CURSOR_INVALID',
+      message: 'DATABASE_CURSOR_INVALID: cursor must identify a live row in this database',
+    })
+    expect(queryRows).not.toHaveBeenCalled()
+  })
 })

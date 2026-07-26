@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 import { DatabaseService } from '../../../src/database/services/database.service.ts'
-import { MAX_BOARD_ROWS } from '../../../src/database/dto/database.dto.ts'
+import { MAX_BOARD_ROWS, queryRowsInput } from '../../../src/database/dto/database.dto.ts'
 import type { DatabaseRepository } from '../../../src/database/repositories/database.repository.ts'
 import type { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
@@ -45,6 +45,7 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
       properties: [],
     })),
     findRowsPaged: vi.fn(async () => []),
+    isRowCursorInSource: vi.fn(async () => true),
     findRowsForGrouping: vi.fn(async () => []),
     findSourceMetaByPageId: vi.fn(async () => ({
       id: 'src1',
@@ -164,8 +165,23 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
       rowCreatedById: 'u1',
       cellsByProperty: new Map(),
     })),
-    findRowsAccessMetaByIds: vi.fn(async () => []),
+    findRowsAccessMetaByIds: vi.fn(async (ids: string[]) =>
+      ids.map((id) => ({
+        id,
+        sourceId: 'target-source',
+        workspaceId: 'w1',
+        pageId: `${id}-page`,
+        createdById: 'u1',
+        cellsByProperty: new Map<string, unknown>(),
+      })),
+    ),
     findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
+    findSourceMetasByIds: vi.fn(
+      async (sourceIds: readonly string[]) =>
+        new Map(sourceIds.map((id) => [id, { id, workspaceId: 'w1', pageId: `${id}-page` }])),
+    ),
+    findSourcePageIdsCreatedBy: vi.fn(async () => new Set()),
+    findItemPageShareLevels: vi.fn(async () => new Map()),
     ...overrides,
   } as unknown as DatabaseRepository
 }
@@ -1226,6 +1242,37 @@ describe('DatabaseService.listRows', () => {
 describe('DatabaseService.queryRows', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('requires a UUID row id at the domain DTO boundary', () => {
+    expect(
+      queryRowsInput.safeParse({
+        pageId: '11111111-1111-4111-8111-111111111111',
+        cursor: 'not-a-row-id',
+        limit: 100,
+      }).success,
+    ).toBe(false)
+  })
+
+  it('rejects a well-formed missing or cross-source cursor before fetching rows', async () => {
+    const cursor = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const repo = makeRepo({
+      isRowCursorInSource: vi.fn(async () => false),
+    })
+
+    await expect(
+      makeService(repo).queryRows('u1', {
+        pageId: 'db-page',
+        cursor,
+        limit: 100,
+      }),
+    ).rejects.toMatchObject({
+      code: 'DATABASE_CURSOR_INVALID',
+      message: 'DATABASE_CURSOR_INVALID',
+      httpStatus: 422,
+    })
+    expect(repo.isRowCursorInSource).toHaveBeenCalledWith(cursor, 'src1')
+    expect(repo.findRowsPaged).not.toHaveBeenCalled()
+  })
+
   it('uses the transient source-wide filter and never loads persisted views', async () => {
     const repo = makeRepo({
       listProperties: vi.fn(async () => [
@@ -1333,6 +1380,88 @@ describe('DatabaseService.queryRows', () => {
     })
 
     expect(result.rows.map((candidate) => candidate.rowId)).toEqual(['mine'])
+  })
+
+  it('evaluates and returns RELATION values from the same actor-visible live target projection', async () => {
+    const hostRow = makeAccessRow('host', {})
+    const rawLinks = new Map([['host', ['hidden-target', 'deleted-target']]])
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async (_userId, workspaceId) =>
+        workspaceId === 'w1' ? 'VIEWER' : null,
+      ),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        {
+          id: 'relation',
+          type: 'RELATION',
+          name: 'Связь',
+          position: 0,
+          settings: { relation: { targetSourceId: 'target-source' } },
+        },
+      ]),
+      findRowsPaged: vi.fn(async () => [hostRow]),
+      findRelationLinksForProperties: vi.fn(
+        async () =>
+          new Map([
+            [
+              'relation',
+              new Map([...rawLinks].map(([rowId, targetIds]) => [rowId, [...targetIds]])),
+            ],
+          ]),
+      ),
+      findRowsAccessMetaByIds: vi.fn(async () => [
+        {
+          id: 'hidden-target',
+          sourceId: 'target-source',
+          workspaceId: 'w1',
+          pageId: 'hidden-target-page',
+          createdById: 'other',
+          cellsByProperty: new Map([['target-owner', 'someone-else']]),
+        },
+      ]),
+      findEnabledAccessRulesForSources: vi.fn(
+        async () =>
+          new Map([
+            [
+              'target-source',
+              [
+                {
+                  propertyId: 'target-owner',
+                  propertyType: 'PERSON',
+                  accessLevel: 'CAN_VIEW',
+                  enabled: true,
+                },
+              ],
+            ],
+          ]),
+      ),
+      findSourceMetasByIds: vi.fn(
+        async () =>
+          new Map([
+            [
+              'target-source',
+              { id: 'target-source', workspaceId: 'w1', pageId: 'target-source-page' },
+            ],
+          ]),
+      ),
+      findSourcePageIdsCreatedBy: vi.fn(async () => new Set()),
+      findItemPageShareLevels: vi.fn(async () => new Map()),
+    })
+
+    const result = await makeService(repo).queryRows('viewer', {
+      pageId: 'db-page',
+      filter: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'relation', operator: 'is_empty' }],
+      },
+      limit: 100,
+    })
+
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.cells.relation).toEqual([])
+    expect(repo.findRelationLinksForProperties).toHaveBeenCalledTimes(2)
+    expect(repo.findRowsAccessMetaByIds).toHaveBeenCalledTimes(2)
   })
 })
 

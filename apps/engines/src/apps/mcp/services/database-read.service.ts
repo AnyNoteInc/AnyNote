@@ -1,4 +1,5 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common'
+import { z } from 'zod'
 import {
   DatabasePropertyType,
   isDomainError,
@@ -14,7 +15,7 @@ import {
   type AgentDatabaseField,
 } from '../database/database-query.schema.js'
 import { compileDatabaseQuery } from '../database/database-filter-compiler.js'
-import { PageNotFoundError } from '../errors/mcp.errors.js'
+import { DatabaseCursorInvalidError, PageNotFoundError } from '../errors/mcp.errors.js'
 
 export interface DatabaseReadContext {
   userId: string
@@ -255,6 +256,9 @@ export class DatabaseReadService {
 
   async query(input: DatabaseQueryInput): Promise<AgentDatabaseQueryResult> {
     const loaded = await this.loadContext(input)
+    if (input.cursor !== undefined && !z.string().uuid().safeParse(input.cursor).success) {
+      throw new DatabaseCursorInvalidError()
+    }
     const compiled = compileDatabaseQuery(loaded.resultSchema.fields, {
       filter: input.filter,
       sorts: input.sorts,

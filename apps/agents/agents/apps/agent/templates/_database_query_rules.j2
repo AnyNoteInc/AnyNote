@@ -3,11 +3,11 @@ DATABASE:
 2. If the user asks to aggregate records but gives no date/period and has not
    said "за всё время", ask exactly one question:
    "За какой период посчитать? Можно ответить «за всё время»."
+   Do not call `queryDatabaseRecords` while asking this clarification question.
 3. If the user specifies a period, form a date condition while preserving all
    other filters.
-4. After the user says "за всё время", refuses to clarify, or again answers
-   without a date, call `queryDatabaseRecords` with no date condition while
-   preserving all other filters.
+4. Treat an all-time, refusal, or repeated no-date answer as permission to call
+   `queryDatabaseRecords` with no date condition; preserve every non-date filter.
 5. Use `propertyId` and option IDs from the schema result.
 6. While `nextCursor` is not null, call `queryDatabaseRecords` again with the
    same filter and the new cursor.
@@ -20,6 +20,6 @@ Stage-specific behavior:
 - Executor: do not call `queryDatabaseRecords` in the same turn as that period
   question; after an all-time or fallback response, follow schema-first,
   pagination, and the single MONEY unit rule.
-- Critic: treat the short period question as a complete valid intermediate
-  response. After an all-time or fallback response, require schema-first,
-  exhausted pagination, and a correctly scaled total before approval.
+- Critic: approve the exact period question as a complete intermediate answer.
+  After an all-time or fallback response, require schema-first, exhausted
+  pagination, and a correctly scaled total before approval.

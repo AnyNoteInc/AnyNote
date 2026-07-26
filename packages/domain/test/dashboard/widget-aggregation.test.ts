@@ -42,6 +42,13 @@ const MULTI_SELECT_PROP = {
   position: 3,
   settings: null,
 }
+const RELATION_PROP = {
+  id: 'prop-relation',
+  type: 'RELATION',
+  name: 'Связь',
+  position: 4,
+  settings: { relation: { targetSourceId: 'target-source' } },
+}
 
 // Build a RowWithPage with the given NUMBER + STATUS cell values.
 let rowSeq = 0
@@ -92,6 +99,10 @@ function makeRepo(
     findEnabledAccessRules: vi.fn(async () => []),
     findRowForAccess: vi.fn(async () => null),
     findRowsAccessMetaByIds: vi.fn(async () => []),
+    findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
+    findSourceMetasByIds: vi.fn(async () => new Map()),
+    findSourcePageIdsCreatedBy: vi.fn(async () => new Set()),
+    findItemPageShareLevels: vi.fn(async () => new Map()),
     // ── Schema surface ──────────────────────────────────────────────────────
     listProperties: vi.fn(async () => [NUMBER_PROP, STATUS_PROP]),
     listViews: vi.fn(async () => [
@@ -99,7 +110,7 @@ function makeRepo(
     ]),
     // ── Row fetch + relation links ──────────────────────────────────────────
     findRowsForGrouping: vi.fn(async () => rows),
-    findRelationLinks: vi.fn(async () => new Map()),
+    findRelationLinksForProperties: vi.fn(async () => new Map()),
     ...overrides,
   } as unknown as DatabaseRepository
 }
@@ -520,5 +531,88 @@ describe('WidgetAggregationService.aggregateWidget — residual filters', () => 
     })
 
     expect(result).toMatchObject({ status: 'metric', value: 2, truncated: false })
+  })
+
+  it('does not count a row whose RELATION has only an inaccessible target', async () => {
+    const hiddenOnly = row({ id: 'hidden-only', num: 1 })
+    const visibleOnly = row({ id: 'visible-only', num: 1 })
+    const rows = [hiddenOnly, visibleOnly]
+    const repo = makeRepo(rows, {
+      listProperties: vi.fn(async () => [NUMBER_PROP, STATUS_PROP, RELATION_PROP]),
+      findRowsForGrouping: vi.fn(async () => rows),
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findRelationLinksForProperties: vi.fn(
+        async () =>
+          new Map([
+            [
+              RELATION_PROP.id,
+              new Map([
+                ['hidden-only', ['hidden-target']],
+                ['visible-only', ['visible-target']],
+              ]),
+            ],
+          ]),
+      ),
+      findRowsAccessMetaByIds: vi.fn(async () => [
+        {
+          id: 'hidden-target',
+          sourceId: 'target-source',
+          workspaceId: 'w1',
+          pageId: 'hidden-target-page',
+          createdById: 'other',
+          cellsByProperty: new Map([['target-owner', 'someone-else']]),
+        },
+        {
+          id: 'visible-target',
+          sourceId: 'target-source',
+          workspaceId: 'w1',
+          pageId: 'visible-target-page',
+          createdById: 'other',
+          cellsByProperty: new Map([['target-owner', 'u1']]),
+        },
+      ]),
+      findEnabledAccessRulesForSources: vi.fn(
+        async () =>
+          new Map([
+            [
+              'target-source',
+              [
+                {
+                  propertyId: 'target-owner',
+                  propertyType: 'PERSON',
+                  accessLevel: 'CAN_VIEW',
+                  enabled: true,
+                },
+              ],
+            ],
+          ]),
+      ),
+      findSourceMetasByIds: vi.fn(
+        async () =>
+          new Map([
+            [
+              'target-source',
+              { id: 'target-source', workspaceId: 'w1', pageId: 'target-source-page' },
+            ],
+          ]),
+      ),
+    })
+
+    const result = await makeService(repo).aggregateWidget('u1', {
+      sourceId: SRC.id,
+      type: 'METRIC',
+      config: {
+        metric: { propertyId: '__count__', aggregation: 'count_all' },
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: RELATION_PROP.id, operator: 'is_not_empty' }],
+        },
+      },
+    })
+
+    expect(result).toMatchObject({ status: 'metric', value: 1, truncated: false })
+    expect(repo.findRelationLinksForProperties).toHaveBeenCalledTimes(1)
+    expect(repo.findRowsAccessMetaByIds).toHaveBeenCalledTimes(1)
   })
 })

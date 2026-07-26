@@ -187,6 +187,16 @@ describe('database agent field catalog', () => {
       limit: 100,
     })
   })
+
+  it('rejects a malformed cursor at the outer MCP boundary', () => {
+    expect(
+      QueryDatabaseRecordsInput.safeParse({
+        workspaceId: '31d00f89-0a32-45be-9679-ca7c3e921925',
+        pageId: 'a351cddc-7a31-4f41-910a-492ef69ac07d',
+        cursor: 'not-a-row-id',
+      }).success,
+    ).toBe(false)
+  })
 })
 
 describe('compileDatabaseQuery field resolution and typed validation', () => {
@@ -534,19 +544,63 @@ describe('compileDatabaseQuery normal form', () => {
     })
   })
 
-  it('resolves field-name sorts to property ids', () => {
+  it('resolves the supported TITLE sort by field name', () => {
     expect(
       compileDatabaseQuery(fields, {
-        sorts: [
-          { propertyName: 'дАтА', direction: 'desc' },
-          { propertyId: '__title__', direction: 'asc' },
-        ],
+        sorts: [{ propertyName: 'нАзВаНиЕ', direction: 'desc' }],
       }),
     ).toEqual({
-      sorts: [
-        { propertyId: 'date-id', direction: 'desc' },
-        { propertyId: '__title__', direction: 'asc' },
-      ],
+      sorts: [{ propertyId: '__title__', direction: 'desc' }],
+    })
+  })
+
+  it('rejects a cell-property sort with a structured capability error', () => {
+    const error = getError(() =>
+      compileDatabaseQuery(fields, {
+        sorts: [{ propertyName: 'Дата', direction: 'asc' }],
+      }),
+    )
+
+    expect(error).toMatchObject({
+      code: 'DATABASE_SORT_UNSUPPORTED',
+      supportedPropertyIds: ['__title__'],
+    })
+    expect(JSON.stringify(error)).not.toContain('filter')
+  })
+
+  it('normalizes a nested NOT/OR RELATION filter without exposing guessed target ids in errors', () => {
+    const relationFields = buildAgentDatabaseFields(
+      databaseResult([property('relation-id', 'Связь', DatabasePropertyType.RELATION)]),
+    )
+
+    expect(
+      compileDatabaseQuery(relationFields, {
+        filter: {
+          not: {
+            conjunction: 'or',
+            conditions: [
+              {
+                propertyId: 'relation-id',
+                operator: 'is_any_of',
+                value: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+              },
+              { propertyId: 'relation-id', operator: 'is_empty' },
+            ],
+          },
+        },
+      }),
+    ).toEqual({
+      filter: {
+        conjunction: 'and',
+        conditions: [
+          {
+            propertyId: 'relation-id',
+            operator: 'is_none_of',
+            value: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'],
+          },
+          { propertyId: 'relation-id', operator: 'is_not_empty' },
+        ],
+      },
     })
   })
 

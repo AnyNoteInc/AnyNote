@@ -22,6 +22,7 @@ describe('DatabaseTools', () => {
   const workspaceId = '22222222-2222-4222-8222-222222222222'
   const pageId = '33333333-3333-4333-8333-333333333333'
   const otherPageId = '44444444-4444-4444-8444-444444444444'
+  const cursor = '55555555-5555-4555-8555-555555555555'
   const userId = 'user-1'
 
   const memberFindUnique = jest.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -111,7 +112,7 @@ describe('DatabaseTools', () => {
 
     await expect(
       tools.queryDatabaseRecords(
-        { workspaceId, pageId, filter, sorts, cursor: 'cursor-1', limit: 25 },
+        { workspaceId, pageId, filter, sorts, cursor, limit: 25 },
         {} as never,
         req,
       ),
@@ -127,7 +128,7 @@ describe('DatabaseTools', () => {
       pageId,
       filter,
       sorts,
-      cursor: 'cursor-1',
+      cursor,
       limit: 25,
     })
     expect(memberFindUnique.mock.invocationCallOrder[0]).toBeLessThan(
@@ -173,6 +174,13 @@ describe('DatabaseTools', () => {
       limit: 100,
     })
     expect(GetDatabaseSchemaInput.parse({ workspaceId, pageId })).toEqual({ workspaceId, pageId })
+    expect(
+      QueryDatabaseRecordsInput.safeParse({
+        workspaceId,
+        pageId,
+        cursor: 'not-a-row-id',
+      }).success,
+    ).toBe(false)
   })
 
   it.each([
@@ -210,6 +218,7 @@ describe('DatabaseTools', () => {
     expect(queryMetadata.description).toContain('MONEY')
     expect(queryMetadata.description).toContain('копейках')
     expect(queryMetadata.description).toContain('рублях')
+    expect(queryMetadata.description).toContain('sorts поддерживает только __title__')
   })
 })
 

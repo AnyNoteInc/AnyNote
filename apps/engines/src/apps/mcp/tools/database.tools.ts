@@ -62,8 +62,9 @@ export class DatabaseTools {
       'condition или { conjunction, conditions } или { not }. Фильтр по дате можно ' +
       'опустить, чтобы прочитать все строки источника. Если nextCursor не null, ' +
       'продолжай чтение следующим вызовом, передав nextCursor как cursor. MONEY ' +
-      'возвращается одновременно в копейках и рублях. Параметры: workspaceId, pageId, ' +
-      'filter?, sorts?, cursor?, limit? (по умолчанию 100, максимум 200).',
+      'возвращается одновременно в копейках и рублях. sorts поддерживает только __title__; ' +
+      'сортировки по обычным полям отклоняются. Параметры: workspaceId, pageId, filter?, ' +
+      'sorts?, cursor?, limit? (по умолчанию 100, максимум 200).',
     parameters: QueryDatabaseRecordsInput,
     annotations: { readOnlyHint: true, destructiveHint: false },
   })

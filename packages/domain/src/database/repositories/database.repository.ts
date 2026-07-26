@@ -547,6 +547,14 @@ export class DatabaseRepository {
     }) as Promise<RowWithPage[]>
   }
 
+  async isRowCursorInSource(rowId: string, sourceId: string): Promise<boolean> {
+    const row = await this.uow.client().databaseRow.findFirst({
+      where: { id: rowId, sourceId, deletedAt: null },
+      select: { id: true },
+    })
+    return row !== null
+  }
+
   /**
    * Fetch matching rows + cells for grouping (BOARD) / dashboard-widget
    * aggregation. No keyset pagination — a focused board view is bounded in

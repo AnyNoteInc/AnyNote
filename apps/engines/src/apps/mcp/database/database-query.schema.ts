@@ -571,6 +571,6 @@ export const QueryDatabaseRecordsInput = z.object({
   pageId: mcpUuid(),
   filter: mcpInput(z.record(z.string(), z.unknown()).optional()),
   sorts: mcpInput(z.array(z.record(z.string(), z.unknown())).max(20).optional()),
-  cursor: mcpInput(z.string().optional()),
+  cursor: mcpInput(z.string().uuid().optional()),
   limit: mcpInput(z.number().int().min(1).max(200).default(100)),
 })

@@ -9,23 +9,34 @@
 // dashboard `WidgetAggregationService` both consume these. A future fix to the
 // row-access boundary lands once and reaches both — no byte-for-byte copy drift.
 
-import type { EnabledAccessRule, RowWithPage } from '../repositories/database.repository.ts'
+import type {
+  DatabaseRepository,
+  EnabledAccessRule,
+  RowWithPage,
+} from '../repositories/database.repository.ts'
 import type { FilterCondition, FilterGroup } from '../dto/database.dto.ts'
 import { DatabasePropertyType } from '../dto/database.dto.ts'
 import { normalizeFilterGroup } from './query-planner.ts'
 import type { PropertyMeta } from './query-planner.ts'
-import { resolveRowAccessForRows } from './row-access-resolver.ts'
+import { resolveRowAccess, resolveRowAccessForRows } from './row-access-resolver.ts'
 import type { AccessRule, RowAccessContext, RowAccessRow } from './row-access-resolver.ts'
 
 /**
- * The minimal repository seam the relation post-filter needs: a batched
- * relation-link lookup for a page of fetched rows (no per-row query). Both the
- * concrete `DatabaseRepository` and the database/dashboard services' mocked
- * repos satisfy this structurally.
+ * The minimal repository seam the relation post-filter needs: batched link,
+ * target-row, source, rule, creator and share lookups plus one role lookup per
+ * distinct workspace. Both the concrete `DatabaseRepository` and the
+ * database/dashboard services' mocked repos satisfy this structurally.
  */
-export interface RelationLinkLookup {
-  findRelationLinks(propertyId: string, rowIds: string[]): Promise<Map<string, string[]>>
-}
+export type RelationLinkLookup = Pick<
+  DatabaseRepository,
+  | 'findRelationLinksForProperties'
+  | 'findRowsAccessMetaByIds'
+  | 'findEnabledAccessRulesForSources'
+  | 'findSourceMetasByIds'
+  | 'findWorkspaceRole'
+  | 'findSourcePageIdsCreatedBy'
+  | 'findItemPageShareLevels'
+>
 
 type LinksByProperty = Map<string, Map<string, string[]>>
 
@@ -53,12 +64,79 @@ async function loadRelationLinks(
   propertyIds: Set<string>,
   rowIds: string[],
 ): Promise<LinksByProperty> {
-  const entries = await Promise.all(
-    [...propertyIds].map(
-      async (propertyId) => [propertyId, await repo.findRelationLinks(propertyId, rowIds)] as const,
+  return repo.findRelationLinksForProperties([...propertyIds], rowIds)
+}
+
+/**
+ * Mutate a batched relation-link projection to contain only live target rows
+ * the actor can view, and return the surviving target ids. The same projection
+ * feeds residual RELATION predicates and computed RELATION/ROLLUP values.
+ */
+export async function pruneRelationLinksForActor(
+  repo: RelationLinkLookup,
+  actorUserId: string,
+  linksByProperty: LinksByProperty,
+): Promise<Set<string>> {
+  const linkedTargetIds = new Set<string>()
+  for (const byRow of linksByProperty.values()) {
+    for (const targetIds of byRow.values()) {
+      for (const targetId of targetIds) linkedTargetIds.add(targetId)
+    }
+  }
+  if (linkedTargetIds.size === 0) return linkedTargetIds
+
+  // Missing metadata means the target row is missing or soft-deleted and must
+  // be absent from both predicates and returned computed values.
+  const targetRows = await repo.findRowsAccessMetaByIds([...linkedTargetIds])
+  const targetSourceIds = [...new Set(targetRows.map(({ sourceId }) => sourceId))]
+  const sourceMetas = await repo.findSourceMetasByIds(targetSourceIds)
+  const sourcePageIds = [...sourceMetas.values()].map(({ pageId }) => pageId)
+  const itemPageIds = targetRows.map(({ pageId }) => pageId)
+  const workspaceIds = [...new Set(targetRows.map(({ workspaceId }) => workspaceId))]
+
+  const [rulesBySource, creatorPageIds, shareLevels, roleEntries] = await Promise.all([
+    repo.findEnabledAccessRulesForSources(targetSourceIds),
+    repo.findSourcePageIdsCreatedBy(sourcePageIds, actorUserId),
+    repo.findItemPageShareLevels(itemPageIds, actorUserId),
+    Promise.all(
+      workspaceIds.map(
+        async (workspaceId) =>
+          [workspaceId, await repo.findWorkspaceRole(actorUserId, workspaceId)] as const,
+      ),
     ),
-  )
-  return new Map(entries)
+  ])
+  const roleByWorkspace = new Map(roleEntries)
+  const accessibleTargetIds = new Set<string>()
+
+  for (const targetRow of targetRows) {
+    const source = sourceMetas.get(targetRow.sourceId)
+    if (!source || source.workspaceId !== targetRow.workspaceId) continue
+    const context: RowAccessContext = {
+      viewerId: actorUserId,
+      workspaceRole: roleByWorkspace.get(targetRow.workspaceId) ?? null,
+      isSourcePageCreator: creatorPageIds.has(source.pageId),
+      pageShareLevel: shareLevels.get(targetRow.pageId) ?? null,
+    }
+    const level = resolveRowAccess(
+      context,
+      toResolverRules(rulesBySource.get(targetRow.sourceId) ?? []),
+      {
+        rowCreatedById: targetRow.createdById,
+        cellsByProperty: targetRow.cellsByProperty,
+      },
+    )
+    if (level !== null) accessibleTargetIds.add(targetRow.id)
+  }
+
+  for (const byRow of linksByProperty.values()) {
+    for (const [rowId, targetIds] of byRow) {
+      byRow.set(
+        rowId,
+        targetIds.filter((targetId) => accessibleTargetIds.has(targetId)),
+      )
+    }
+  }
+  return accessibleTargetIds
 }
 
 function cellValue(row: RowWithPage, propertyId: string): unknown {
@@ -195,6 +273,7 @@ function evaluateGroup(
  */
 export async function applyResidualFilter(
   repo: RelationLinkLookup,
+  actorUserId: string,
   rows: RowWithPage[],
   properties: PropertyMeta[],
   filter: FilterGroup,
@@ -208,6 +287,7 @@ export async function applyResidualFilter(
     relationPropertyIds,
     rows.map((row) => row.id),
   )
+  await pruneRelationLinksForActor(repo, actorUserId, linksByProperty)
   return rows.filter((row) => evaluateGroup(row, normalizedFilter, metaById, linksByProperty))
 }
 

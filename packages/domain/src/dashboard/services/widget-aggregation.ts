@@ -190,7 +190,7 @@ export class WidgetAggregationService {
     const afterResidual =
       plan.residualFilter === null
         ? capped
-        : await applyResidualFilter(this.repo, capped, metas, plan.residualFilter)
+        : await applyResidualFilter(this.repo, actorUserId, capped, metas, plan.residualFilter)
     const rows = filterViewableRows(accessCtx, rules, afterResidual)
 
     // Truncation is honest: the over-fetch probe tripped (more rows matched than

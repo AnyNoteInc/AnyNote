@@ -31,9 +31,37 @@ function row(id: string, title: string | null, values: Record<string, unknown> =
   }
 }
 
-function repo(links = new Map<string, string[]>()) {
+function repo(links = new Map<string, string[]>(), overrides: Record<string, unknown> = {}) {
+  const targetIds = [...new Set([...links.values()].flat())]
   return {
-    findRelationLinks: vi.fn(async () => links),
+    findRelationLinksForProperties: vi.fn(
+      async (propertyIds: string[]) =>
+        new Map(propertyIds.map((propertyId) => [propertyId, links])),
+    ),
+    findRowsAccessMetaByIds: vi.fn(async () =>
+      targetIds.map((id) => ({
+        id,
+        sourceId: 'target-source',
+        workspaceId: 'workspace',
+        pageId: `${id}-page`,
+        createdById: 'owner',
+        cellsByProperty: new Map<string, unknown>(),
+      })),
+    ),
+    findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
+    findSourceMetasByIds: vi.fn(
+      async () =>
+        new Map([
+          [
+            'target-source',
+            { id: 'target-source', workspaceId: 'workspace', pageId: 'target-source-page' },
+          ],
+        ]),
+    ),
+    findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+    findSourcePageIdsCreatedBy: vi.fn(async () => new Set<string>()),
+    findItemPageShareLevels: vi.fn(async () => new Map()),
+    ...overrides,
   }
 }
 
@@ -52,7 +80,7 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['rent-row', 'groceries-row'])
   })
@@ -76,7 +104,7 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['matching'])
   })
@@ -102,7 +130,7 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['matching-number'])
   })
@@ -123,7 +151,7 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['keep'])
   })
@@ -149,8 +177,8 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const empty = await applyResidualFilter(repo(), rows, properties, emptyFilter)
-    const nonEmpty = await applyResidualFilter(repo(), rows, properties, nonEmptyFilter)
+    const empty = await applyResidualFilter(repo(), 'viewer', rows, properties, emptyFilter)
+    const nonEmpty = await applyResidualFilter(repo(), 'viewer', rows, properties, nonEmptyFilter)
 
     expect(empty.map((candidate) => candidate.id)).toEqual(['missing', 'null-cell'])
     expect(nonEmpty.map((candidate) => candidate.id)).toEqual(['present'])
@@ -172,7 +200,7 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['inside'])
   })
@@ -188,7 +216,7 @@ describe('applyResidualFilter', () => {
       conditions: [{ propertyId: 'tags', operator: 'contains_all', value: ['food', 'home'] }],
     }
 
-    const result = await applyResidualFilter(repo(), rows, properties, filter)
+    const result = await applyResidualFilter(repo(), 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['all'])
   })
@@ -214,14 +242,109 @@ describe('applyResidualFilter', () => {
       ],
     }
 
-    const result = await applyResidualFilter(relationRepo, rows, properties, filter)
+    const result = await applyResidualFilter(relationRepo, 'viewer', rows, properties, filter)
 
     expect(result.map((candidate) => candidate.id)).toEqual(['linked'])
-    expect(relationRepo.findRelationLinks).toHaveBeenCalledTimes(1)
-    expect(relationRepo.findRelationLinks).toHaveBeenCalledWith('relation', [
-      'linked',
-      'unlinked',
-      'other',
+    expect(relationRepo.findRelationLinksForProperties).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findRelationLinksForProperties).toHaveBeenCalledWith(
+      ['relation'],
+      ['linked', 'unlinked', 'other'],
+    )
+  })
+
+  it.each([
+    [
+      'is_empty treats inaccessible and soft-deleted targets as absent',
+      { propertyId: 'relation', operator: 'is_empty' as const },
+      ['hidden-only', 'deleted-only', 'empty'],
+    ],
+    [
+      'is_not_empty sees only actor-accessible live targets',
+      { propertyId: 'relation', operator: 'is_not_empty' as const },
+      ['visible-only'],
+    ],
+    [
+      'is_any_of cannot match a guessed inaccessible target id',
+      { propertyId: 'relation', operator: 'is_any_of' as const, value: ['hidden-target'] },
+      [],
+    ],
+    [
+      'compiled NOT(OR) keeps nested semantics over the pruned projection',
+      {
+        conjunction: 'and' as const,
+        conditions: [
+          {
+            propertyId: 'relation',
+            operator: 'is_none_of' as const,
+            value: ['hidden-target'],
+          },
+          { propertyId: 'relation', operator: 'is_not_empty' as const },
+        ],
+      },
+      ['visible-only'],
+    ],
+  ])('%s', async (_name, condition, expected) => {
+    const rows = [
+      row('hidden-only', 'Hidden'),
+      row('visible-only', 'Visible'),
+      row('deleted-only', 'Deleted'),
+      row('empty', 'Empty'),
+    ]
+    const links = new Map([
+      ['hidden-only', ['hidden-target']],
+      ['visible-only', ['visible-target']],
+      ['deleted-only', ['deleted-target']],
     ])
+    const relationRepo = repo(links, {
+      findRowsAccessMetaByIds: vi.fn(async () => [
+        {
+          id: 'hidden-target',
+          sourceId: 'target-source',
+          workspaceId: 'workspace',
+          pageId: 'hidden-target-page',
+          createdById: 'owner',
+          cellsByProperty: new Map([['target-owner', 'someone-else']]),
+        },
+        {
+          id: 'visible-target',
+          sourceId: 'target-source',
+          workspaceId: 'workspace',
+          pageId: 'visible-target-page',
+          createdById: 'owner',
+          cellsByProperty: new Map([['target-owner', 'viewer']]),
+        },
+      ]),
+      findEnabledAccessRulesForSources: vi.fn(
+        async () =>
+          new Map([
+            [
+              'target-source',
+              [
+                {
+                  propertyId: 'target-owner',
+                  propertyType: DatabasePropertyType.PERSON,
+                  accessLevel: 'CAN_VIEW',
+                  enabled: true,
+                },
+              ],
+            ],
+          ]),
+      ),
+    })
+    const filter: FilterGroup = {
+      conjunction: 'and',
+      conditions: [condition],
+    }
+
+    const result = await applyResidualFilter(relationRepo, 'viewer', rows, properties, filter)
+
+    expect(result.map((candidate) => candidate.id)).toEqual(expected)
+    expect(relationRepo.findRelationLinksForProperties).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findRowsAccessMetaByIds).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findEnabledAccessRulesForSources).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findSourceMetasByIds).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findSourcePageIdsCreatedBy).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findItemPageShareLevels).toHaveBeenCalledTimes(1)
+    expect(relationRepo.findWorkspaceRole).toHaveBeenCalledTimes(1)
   })
 })

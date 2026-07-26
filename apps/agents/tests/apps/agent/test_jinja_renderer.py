@@ -94,12 +94,14 @@ def test_database_query_rules_render_in_every_agent_stage() -> None:
     )
     for stage in rendered:
         assert 'getDatabaseSchema' in stage
-        assert 'За какой период посчитать?' in stage  # noqa: RUF001
+        assert 'За какой период посчитать? Можно ответить «за всё время».' in stage  # noqa: RUF001
         assert 'nextCursor' in stage
         assert 'kopecks' in stage
         assert 'rubles' in stage
-        assert 'date condition' in stage
-        assert 'specifies a period' in stage
+        assert 'Do not call `queryDatabaseRecords` while asking this clarification question.' in stage
+        assert 'all-time, refusal, or repeated no-date answer' in stage
+        assert 'preserve every non-date filter' in stage
+        assert 'approve the exact period question as a complete intermediate answer' in stage
 
 
 def test_planner_renders_attachments_block() -> None:
