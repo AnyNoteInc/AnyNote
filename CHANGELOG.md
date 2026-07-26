@@ -1,3 +1,22 @@
+# [1.41.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.40.0...v1.41.0) (2026-07-26)
+
+
+### Bug Fixes
+
+* **agents:** harden database query boundaries ([f19da35](https://github.com/AnyNoteInc/AnyNote/commit/f19da353c1fe82fe8c829dacca1633198cedfbfc))
+* **domain:** prune computed row filters ([41cf1ee](https://github.com/AnyNoteInc/AnyNote/commit/41cf1ee3d8f19f105dbe5d864261eb804fd812ea))
+* **engines:** sanitize computed database values ([b6487ba](https://github.com/AnyNoteInc/AnyNote/commit/b6487ba0182a412205bd6555944847c6caf67ea7))
+* **engines:** validate database filter capabilities ([3ce293e](https://github.com/AnyNoteInc/AnyNote/commit/3ce293ebd7d2168c312957ab21c2b93d6acc5e19))
+
+
+### Features
+
+* **agents:** query database pages safely ([e40c405](https://github.com/AnyNoteInc/AnyNote/commit/e40c405c516e065e76da8abf749c6b7e65924818))
+* **domain:** add source-wide database row queries ([05f4642](https://github.com/AnyNoteInc/AnyNote/commit/05f4642ae10bcb032f1e703e999056e08012165d))
+* **engines:** compile typed database filters ([ec25d64](https://github.com/AnyNoteInc/AnyNote/commit/ec25d64231fa91f9f7ffc20782a91a538b84c9bf))
+* **engines:** expose database read tools ([97a4ea7](https://github.com/AnyNoteInc/AnyNote/commit/97a4ea7ebf28e8124405aef5596c75190ef618a3))
+* **engines:** map database schemas and records ([f932e70](https://github.com/AnyNoteInc/AnyNote/commit/f932e70ecc3eef00b6002a5625181d68ead251b2))
+
 # [1.40.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.39.2...v1.40.0) (2026-07-25)
 
 
