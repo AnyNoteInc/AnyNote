@@ -14,6 +14,8 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { trpc } from '@/trpc/client'
+
 type ContactFormState = {
   name: string
   company: string
@@ -33,6 +35,7 @@ const initialState: ContactFormState = {
 const CONTACT_ERROR_MESSAGE = 'Не удалось отправить заявку. Попробуйте ещё раз.'
 
 export function ContactForm() {
+  const contactSubmit = trpc.contact.submit.useMutation()
   const [form, setForm] = useState<ContactFormState>(initialState)
   const [agree, setAgree] = useState(false)
   const [agreeError, setAgreeError] = useState(false)
@@ -65,16 +68,11 @@ export function ContactForm() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          consentPersonalData: agree,
-          consentMarketing: agreeMarketing,
-        }),
+      await contactSubmit.mutateAsync({
+        ...form,
+        consentPersonalData: true,
+        consentMarketing: true,
       })
-      if (!response.ok) throw new Error(CONTACT_ERROR_MESSAGE)
 
       setSubmitted(true)
       setForm(initialState)
