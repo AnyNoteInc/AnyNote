@@ -1,3 +1,16 @@
+# [1.42.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.41.0...v1.42.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* **web:** keep contact route build-compatible ([71cbfc9](https://github.com/AnyNoteInc/AnyNote/commit/71cbfc974e2c3f835e83a49bc2fe6c6e56b9987e))
+
+
+### Features
+
+* **web:** add Telegram contact endpoint ([c4ceac2](https://github.com/AnyNoteInc/AnyNote/commit/c4ceac2399bfaadebccc760a99b03afdf98ccfe2))
+* **web:** submit homepage contact form ([067271b](https://github.com/AnyNoteInc/AnyNote/commit/067271bd2c689b3e31d1d46dc6a4fd1a2aff3982))
+
 # [1.41.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.40.0...v1.41.0) (2026-07-26)
 
 
