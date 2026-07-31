@@ -75,12 +75,6 @@ function renderContactMessage(contact: ContactRequest): string {
   ].join('\n')
 }
 
-export const __testHooks = {
-  resetRateLimit(): void {
-    requestLog.clear()
-  },
-}
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!isSameAppOrigin(req)) {
     return NextResponse.json({ error: 'Недопустимый источник запроса' }, { status: 403 })

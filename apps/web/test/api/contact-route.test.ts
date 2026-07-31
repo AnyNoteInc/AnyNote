@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { POST, __testHooks } from '@/app/api/contact/route'
+import { POST } from '@/app/api/contact/route'
 
 const APP_ORIGIN = 'http://localhost:3000'
 const BOT_TOKEN = 'bot-token'
@@ -28,13 +28,16 @@ const fetchMock = vi.fn<typeof fetch>(async () => successResponse())
 
 vi.stubGlobal('fetch', fetchMock)
 
+let testIp = '203.0.113.1'
+let testIpSequence = 0
+
 function callRoute(
   payload: unknown = validPayload,
   options: { origin?: string | null; ip?: string } = {},
 ) {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
-    'x-forwarded-for': options.ip ?? '198.51.100.1',
+    'x-forwarded-for': options.ip ?? testIp,
   }
   if (options.origin !== null) headers.origin = options.origin ?? APP_ORIGIN
 
@@ -51,7 +54,8 @@ beforeEach(() => {
   vi.stubEnv('TELEGRAM_API_BASE_URL', 'https://api.telegram.org')
   vi.stubEnv('TELEGRAM_BOT_TOKEN', BOT_TOKEN)
   vi.stubEnv('TELEGRAM_CHAT_ID', CHAT_ID)
-  __testHooks.resetRateLimit()
+  testIpSequence += 1
+  testIp = `203.0.113.${testIpSequence}`
   fetchMock.mockClear().mockImplementation(async () => successResponse())
   vi.useFakeTimers()
 })
