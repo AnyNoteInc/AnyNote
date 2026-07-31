@@ -4,6 +4,7 @@ import { PublicHeader } from '@/components/public/public-header'
 import { CookieBanner } from '@/components/public/cookie-banner'
 import { getSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
+import { TRPCReactProvider } from '@/trpc/client'
 import { buildMetadata } from '@/lib/seo/build-metadata'
 import { JsonLd } from '@/lib/seo/json-ld'
 import { organizationSchema } from '@/lib/seo/schemas/organization'
@@ -51,27 +52,29 @@ export default async function HomePage() {
   }
 
   return (
-    <>
-      <JsonLd data={[organizationSchema(), websiteSchema(), softwareAppSchema()]} />
-      <PublicHeader
-        session={session}
-        activeWorkspace={activeWorkspace}
-        hasAnyWorkspace={hasAnyWorkspace}
-      />
-      <main>
-        <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
-        <HomeMarketFit />
-        <HomeModes />
-        <HomeCapabilities />
-        <HomeSearch />
-        <HomeFeatures />
-        <HomeOpenSource />
-        <HomePricing />
-        <HomeContact />
-        <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />
-      </main>
-      <PublicFooter />
-      <CookieBanner />
-    </>
+    <TRPCReactProvider>
+      <>
+        <JsonLd data={[organizationSchema(), websiteSchema(), softwareAppSchema()]} />
+        <PublicHeader
+          session={session}
+          activeWorkspace={activeWorkspace}
+          hasAnyWorkspace={hasAnyWorkspace}
+        />
+        <main>
+          <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
+          <HomeMarketFit />
+          <HomeModes />
+          <HomeCapabilities />
+          <HomeSearch />
+          <HomeFeatures />
+          <HomeOpenSource />
+          <HomePricing />
+          <HomeContact />
+          <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />
+        </main>
+        <PublicFooter />
+        <CookieBanner />
+      </>
+    </TRPCReactProvider>
   )
 }
