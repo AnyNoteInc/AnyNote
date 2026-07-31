@@ -1,3 +1,10 @@
+## [1.42.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.42.0...v1.42.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **web:** provide trpc context on homepage ([fe0730d](https://github.com/AnyNoteInc/AnyNote/commit/fe0730dd6ac156d6e246474ec0c32b98d17c10d5))
+
 # [1.42.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.41.0...v1.42.0) (2026-07-31)
 
 
