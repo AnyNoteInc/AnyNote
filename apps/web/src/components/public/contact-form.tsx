@@ -30,6 +30,8 @@ const initialState: ContactFormState = {
   message: '',
 }
 
+const CONTACT_ERROR_MESSAGE = 'Не удалось отправить заявку. Попробуйте ещё раз.'
+
 export function ContactForm() {
   const [form, setForm] = useState<ContactFormState>(initialState)
   const [agree, setAgree] = useState(false)
@@ -37,15 +39,19 @@ export function ContactForm() {
   const [agreeMarketing, setAgreeMarketing] = useState(false)
   const [agreeMarketingError, setAgreeMarketingError] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleChange =
     (field: keyof ContactFormState) =>
     (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((prev) => ({ ...prev, [field]: event.target.value }))
+      setSubmitError(null)
     }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setSubmitError(null)
     let hasError = false
     if (!agree) {
       setAgreeError(true)
@@ -56,13 +62,32 @@ export function ContactForm() {
       hasError = true
     }
     if (hasError) return
-    console.log('Любые заметки contact request', form)
-    setSubmitted(true)
-    setForm(initialState)
-    setAgree(false)
-    setAgreeError(false)
-    setAgreeMarketing(false)
-    setAgreeMarketingError(false)
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          consentPersonalData: agree,
+          consentMarketing: agreeMarketing,
+        }),
+      })
+      if (!response.ok) throw new Error(CONTACT_ERROR_MESSAGE)
+
+      setSubmitted(true)
+      setForm(initialState)
+      setAgree(false)
+      setAgreeError(false)
+      setAgreeMarketing(false)
+      setAgreeMarketingError(false)
+    } catch {
+      setSubmitted(false)
+      setSubmitError(CONTACT_ERROR_MESSAGE)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -200,12 +225,13 @@ export function ContactForm() {
           ) : null}
         </Box>
         <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
-          <Button type="submit" size="large">
-            Отправить запрос
+          <Button type="submit" size="large" disabled={isSubmitting}>
+            {isSubmitting ? 'Отправка...' : 'Отправить запрос'}
           </Button>
         </Box>
       </Box>
 
+      {submitError ? <Alert severity="error">{submitError}</Alert> : null}
       {submitted ? (
         <Alert severity="success">Заявка отправлена. Мы свяжемся в течение дня.</Alert>
       ) : null}
