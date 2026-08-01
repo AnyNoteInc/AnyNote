@@ -1,6 +1,6 @@
 # Telegram WARP Proxy Design
 
-**Date:** 2026-08-01  
+**Date:** 2026-08-01
 **Status:** Approved for implementation planning
 
 ## Context

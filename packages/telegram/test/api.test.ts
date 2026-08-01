@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const { proxyAgentConstructor } = vi.hoisted(() => ({
+  proxyAgentConstructor: vi.fn(function ProxyAgent() {}),
+}))
+
+vi.mock('undici', () => ({
+  ProxyAgent: proxyAgentConstructor,
+}))
 
 import { TelegramApi } from '../src/api.ts'
 
@@ -6,7 +14,10 @@ const TOKEN = '123456789:AAFakeTokenForTests_abcdefghij'
 
 type Captured = { url: string; init: RequestInit | undefined }
 
-function capturingFetch(response: { ok: boolean; result?: unknown; description?: string }, status = 200) {
+function capturingFetch(
+  response: { ok: boolean; result?: unknown; description?: string },
+  status = 200,
+) {
   const calls: Captured[] = []
   const fetchFn: typeof fetch = (input, init) => {
     calls.push({ url: String(input), init })
@@ -19,6 +30,71 @@ function capturingFetch(response: { ok: boolean; result?: unknown; description?:
   }
   return { calls, fetchFn }
 }
+
+describe('TelegramApi proxy routing', () => {
+  beforeEach(() => {
+    proxyAgentConstructor.mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the default fetch path direct when TELEGRAM_PROXY_URL is unset', async () => {
+    vi.stubEnv('TELEGRAM_PROXY_URL', '')
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: { id: 1 } }), {
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await new TelegramApi(TOKEN).getMe()
+
+    const init = fetchMock.mock.calls[0]![1] as RequestInit & { dispatcher?: unknown }
+    expect(init.dispatcher).toBeUndefined()
+    expect(proxyAgentConstructor).not.toHaveBeenCalled()
+  })
+
+  it('attaches one dedicated dispatcher when TELEGRAM_PROXY_URL is configured', async () => {
+    vi.stubEnv('TELEGRAM_PROXY_URL', 'http://host.docker.internal:40001')
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: { id: 1 } }), {
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await new TelegramApi(TOKEN).getMe()
+
+    expect(proxyAgentConstructor).toHaveBeenCalledWith('http://host.docker.internal:40001/')
+    const init = fetchMock.mock.calls[0]![1] as RequestInit & { dispatcher?: unknown }
+    expect(init.dispatcher).toBe(proxyAgentConstructor.mock.instances[0])
+  })
+
+  it('does not create or attach a dispatcher when fetchFn is injected', async () => {
+    vi.stubEnv('TELEGRAM_PROXY_URL', 'http://host.docker.internal:40001')
+    const { calls, fetchFn } = capturingFetch({ ok: true, result: { id: 1 } })
+
+    await new TelegramApi(TOKEN, { fetchFn }).getMe()
+
+    expect(proxyAgentConstructor).not.toHaveBeenCalled()
+    expect(calls[0]!.init).not.toHaveProperty('dispatcher')
+  })
+
+  it('rejects unsupported proxy schemes without contacting Telegram', async () => {
+    vi.stubEnv('TELEGRAM_PROXY_URL', 'socks5h://127.0.0.1:9050')
+    const fetchMock = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await new TelegramApi(TOKEN).getMe()
+
+    expect(result).toEqual({ ok: false, description: 'TypeError' })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(JSON.stringify(result)).not.toContain(TOKEN)
+  })
+})
 
 describe('TelegramApi URL composition', () => {
   it('builds {base}/bot{token}/{method} from an explicit baseUrl', async () => {

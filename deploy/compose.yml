@@ -3,8 +3,8 @@ services:
     image: traefik:v3.5
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
@@ -22,12 +22,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: anynote
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anynote -d anynote"]
+      test: ['CMD-SHELL', 'pg_isready -U anynote -d anynote']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -42,7 +42,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,14 +57,14 @@ services:
       mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY} &&
       mc mb --ignore-existing local/${S3_BUCKET}
       "
-    restart: "no"
+    restart: 'no'
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
     restart: unless-stopped
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT__AUTH__BEARER_TOKEN}
-      QDRANT__TELEMETRY_DISABLED: "true"
+      QDRANT__TELEMETRY_DISABLED: 'true'
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -75,14 +75,14 @@ services:
     # internal compose network. Reached by `web` at http://gotenberg:3000.
     # api-timeout must be >= GOTENBERG_TIMEOUT_MS used by the web client.
     command:
-      - "gotenberg"
-      - "--api-port=3000"
-      - "--api-timeout=60s"
-      - "--chromium-disable-javascript=true"
-      - "--chromium-incognito=true"
-      - "--log-level=warn"
+      - 'gotenberg'
+      - '--api-port=3000'
+      - '--api-timeout=60s'
+      - '--chromium-disable-javascript=true'
+      - '--chromium-incognito=true'
+      - '--log-level=warn'
     healthcheck:
-      test: ["CMD", "curl", "-fsSL", "http://localhost:3000/health"]
+      test: ['CMD', 'curl', '-fsSL', 'http://localhost:3000/health']
       interval: 10s
       timeout: 3s
       retries: 5
@@ -96,15 +96,15 @@ services:
     environment:
       PLANTUML_SECURITY_PROFILE: SANDBOX
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1']
       interval: 10s
       timeout: 3s
       retries: 5
 
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
-    restart: "no"
-    env_file: .env
+    restart: 'no'
+    env_file: .app.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -114,14 +114,17 @@ services:
     command:
       - sh
       - -c
-      - "export PATH=/app/packages/db/node_modules/.bin:$$PATH && prisma migrate deploy && prisma db seed"
+      - 'export PATH=/app/packages/db/node_modules/.bin:$$PATH && prisma migrate deploy && prisma db seed'
 
   web:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -138,7 +141,7 @@ services:
   yjs:
     image: ghcr.io/anynoteinc/anynote-yjs:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -147,9 +150,12 @@ services:
   engines:
     image: ghcr.io/anynoteinc/anynote-engines:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -161,7 +167,7 @@ services:
   agents:
     image: ghcr.io/anynoteinc/anynote-agents:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     depends_on:
       migrate:
         condition: service_completed_successfully

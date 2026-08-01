@@ -1,3 +1,9 @@
+import type { Dispatcher } from 'undici'
+
+import { telegramProxyDispatcher } from './proxy.ts'
+
+type TelegramRequestInit = RequestInit & { dispatcher?: Dispatcher }
+
 export type TelegramApiResult<T> = { ok: true; result: T } | { ok: false; description: string }
 
 /**
@@ -36,12 +42,17 @@ export class TelegramApi {
     const fetchFn = this.opts.fetchFn ?? fetch
     const timeoutMs = this.opts.timeoutMs ?? Number(process.env.TELEGRAM_TIMEOUT_MS ?? 10_000)
     try {
-      const res = await fetchFn(`${this.baseUrl}/bot${this.token}/${method}`, {
+      const init: TelegramRequestInit = {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
-      })
+      }
+      if (!this.opts.fetchFn) {
+        init.dispatcher = telegramProxyDispatcher()
+      }
+
+      const res = await fetchFn(`${this.baseUrl}/bot${this.token}/${method}`, init)
       let json: { ok: boolean; result?: T; description?: string }
       try {
         json = (await res.json()) as { ok: boolean; result?: T; description?: string }
