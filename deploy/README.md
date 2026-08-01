@@ -128,18 +128,22 @@ in `warp-cli settings`, then correlates it with exactly one
 `127.0.0.1:N` listener owned by `warp-svc`. Compare `ip route show default`
 before and after installation; the default route must remain unchanged.
 
-The Docker host-gateway must be an RFC1918 address assigned to a local
-`dockerN` or `br-*` interface. Port `40001` must have exactly one listener,
-bound only to that current Docker host-gateway address—never a wildcard,
-public/LAN interface, wrong address, duplicate socket, or IPv6 wildcard.
+The Docker host-gateway must be an RFC1918 address assigned exactly once across
+all host interfaces, and that sole assignment must belong to a local `dockerN`
+or `br-*` interface. Port `40001` must have exactly one listener, bound only to
+that current Docker host-gateway address—never a wildcard, public/LAN
+interface, wrong address, duplicate socket, or IPv6 wildcard.
 
 `status` is a fail-closed invariant check, not just a diagnostic printout. It
 cross-checks active services, `Connected` state, WARP settings, the safely
 parsed bridge environment, the current Docker host-gateway, and both exact
 listeners. A nonzero result means application routing must not be enabled.
 
-On every post-connect installation failure, the installer attempts both bridge
-shutdown and WARP disconnect. A rerun stops the old bridge before package or
-mode changes, then explicitly restarts it after installing the new environment
-and unit. `disable` is the infrastructure rollback: it always attempts both
-operations and does not uninstall packages or remove configuration.
+Before package or mode changes, installation queries systemd `LoadState`
+fail-closed: only `not-found` means absent; every known existing state requires
+the old bridge to stop and an inactive `ActiveState` confirmation. On every
+post-connect installation failure, the installer attempts both bridge shutdown
+and WARP disconnect. A rerun then explicitly restarts the bridge after
+installing the new environment and unit. `disable` is the infrastructure
+rollback: it always attempts both operations and does not uninstall packages or
+remove configuration.

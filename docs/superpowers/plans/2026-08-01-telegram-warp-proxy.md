@@ -729,8 +729,11 @@ main "$@"
 
 Security correction after behavioral review (normative):
 
-- Stop any existing `anynote-warp-bridge.service` before package installation
-  or WARP reconfiguration. If the stop fails, abort without continuing.
+- Query `anynote-warp-bridge.service` through fail-closed systemd `LoadState`
+  inspection before package installation or WARP reconfiguration. Exactly
+  `not-found` means absent; empty, unknown, or failed queries abort. Every known
+  non-`not-found` state requires `disable --now` plus an inactive/failed
+  `ActiveState` confirmation before continuing.
 - Arm a scoped transaction cleanup before invoking `warp-cli connect`. Until
   final invariant verification succeeds, every exit must attempt both
   `systemctl disable --now anynote-warp-bridge.service` and
@@ -740,10 +743,11 @@ Security correction after behavioral review (normative):
   `Mode: WarpProxy on port N`, with a restricted parenthesized provenance
   prefix. Validate `N` in `1..65535`, then require exactly one
   `127.0.0.1:N` socket total and require that socket to belong to `warp-svc`.
-- Validate Docker host-gateway output as strict canonical IPv4, accept only
-  RFC1918 space, and prove the exact address is assigned once to a local
-  `dockerN` or `br-*` interface. Never write untrusted output to the bridge
-  environment or unit.
+- Validate Docker host-gateway output as strict canonical IPv4 and accept only
+  RFC1918 space. Count every exact-address assignment across all interfaces and
+  count Docker assignments separately; require total assignments `== 1` and
+  `dockerN`/`br-*` assignments `== 1`. Never write untrusted output to the
+  bridge environment or unit.
 - Parse `/etc/default/anynote-warp-bridge` without `source` or `eval`; require
   exactly the three known keys and validate every value. `status` must compare
   the environment gateway with a fresh Docker host-gateway discovery, require

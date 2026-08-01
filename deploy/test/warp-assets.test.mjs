@@ -79,6 +79,27 @@ case \${name} in
     action=\${1:-}
     service=\${*: -1}
     case \${action} in
+      show)
+        if [[ \${2:-} == --property=LoadState ]]; then
+          if fails systemctl-show; then exit 85; fi
+          load_state=\${FAKE_SYSTEMD_LOAD_STATE:-auto}
+          if [[ \${load_state} == auto ]]; then
+            read_state "\${FAKE_BRIDGE_STATE}" inactive
+            if [[ \${REPLY} == active || -f \${ANYNOTE_WARP_BRIDGE_UNIT} ]]; then
+              load_state=loaded
+            else
+              load_state=not-found
+            fi
+          fi
+          [[ \${load_state} == empty ]] || printf '%s\\n' "\${load_state}"
+        elif [[ \${2:-} == --property=ActiveState ]]; then
+          if fails active-state-show; then exit 86; fi
+          read_state "\${FAKE_BRIDGE_STATE}" inactive
+          printf '%s\\n' "\${REPLY}"
+        else
+          exit 87
+        fi
+        ;;
       cat)
         [[ \${service} != anynote-warp-bridge.service || -f \${ANYNOTE_WARP_BRIDGE_UNIT} ]]
         ;;
@@ -196,10 +217,11 @@ case \${name} in
         printf '%s\\n' 'default via 192.0.2.1 dev eth0'
       fi
     elif [[ \${1:-} == -o && \${2:-} == -4 && \${3:-} == addr && \${4:-} == show ]]; then
-      IFS=',' read -r -a gateways <<< "\${FAKE_ASSIGNED_GATEWAYS-172.17.0.1}"
+      IFS=',' read -r -a assignments <<< "\${FAKE_ASSIGNED_ASSIGNMENTS-172.17.0.1@docker0}"
       index=2
-      for gateway in "\${gateways[@]}"; do
-        interface=\${FAKE_ASSIGNED_INTERFACE:-docker0}
+      for assignment in "\${assignments[@]}"; do
+        gateway=\${assignment%%@*}
+        interface=\${assignment#*@}
         [[ -z \${gateway} ]] || printf '%s: %s    inet %s/16 brd 172.17.255.255 scope global %s\\n' "\${index}" "\${interface}" "\${gateway}" "\${interface}"
         index=\$((index + 1))
       done
@@ -336,6 +358,18 @@ async function fakeHost(options, assertion) {
       await writeFile(paths['bridge-listener'], '172.17.0.1:40001\n')
       await writeFile(paths['bridge-upstream'], '40000\n')
     }
+    if (options.activeBridgeWithoutFragment) {
+      await writeFile(paths['bridge-state'], 'active\n')
+      await writeFile(paths['bridge-listener'], '172.17.0.1:40001\n')
+    }
+
+    const assignedAssignments =
+      options.assignedAssignments ??
+      (options.assignedGateways ?? '172.17.0.1')
+        .split(',')
+        .filter(Boolean)
+        .map((gateway) => `${gateway}@${options.assignedInterface ?? 'docker0'}`)
+        .join(',')
 
     const env = {
       ...process.env,
@@ -358,8 +392,8 @@ async function fakeHost(options, assertion) {
       FAKE_WARP_PROXY_CAPABILITY: options.proxyCapability ?? 'present',
       FAKE_ROUTE_CHANGE: options.routeChange ? 'yes' : 'no',
       FAKE_DOCKER_GATEWAY: options.gateway ?? '172.17.0.1',
-      FAKE_ASSIGNED_GATEWAYS: options.assignedGateways ?? '172.17.0.1',
-      FAKE_ASSIGNED_INTERFACE: options.assignedInterface ?? 'docker0',
+      FAKE_ASSIGNED_ASSIGNMENTS: assignedAssignments,
+      FAKE_SYSTEMD_LOAD_STATE: options.systemdLoadState ?? 'auto',
       FAKE_WARP_PORTS: options.warpPorts ?? '40000',
       FAKE_SETTINGS_MODE: options.settingsMode ?? 'normal',
       FAKE_WARP_LISTENER_MODE: options.warpListenerMode ?? 'normal',
@@ -657,6 +691,96 @@ test('gateway must belong to a Docker bridge interface, not a private LAN interf
     async ({ code, paths }) => {
       assert.notEqual(code, 0)
       assert.equal(await exists(paths['bridge-env']), false)
+    },
+  )
+})
+
+test('gateway duplicated across Docker and LAN interfaces is rejected by install and status', async () => {
+  const assignedAssignments = '172.17.0.1@docker0,172.17.0.1@eth0'
+  await fakeHost({ command: 'install', assignedAssignments }, async ({ code, trace, paths }) => {
+    assert.notEqual(code, 0)
+    assert.equal(await exists(paths['bridge-env']), false)
+    assert.equal(await exists(paths['bridge-unit']), false)
+    assert.equal(hasCall(trace, 'systemctl', 'restart', 'anynote-warp-bridge.service'), false)
+  })
+  await fakeHost(
+    { command: 'status', healthyStatus: true, assignedAssignments },
+    async ({ code }) => assert.notEqual(code, 0),
+  )
+})
+
+test('systemd LoadState inspection fails closed before packages or WARP changes', async () => {
+  for (const scenario of [
+    { name: 'query failure', failPoints: 'systemctl-show' },
+    { name: 'empty state', systemdLoadState: 'empty' },
+    { name: 'unexpected state', systemdLoadState: 'mystery' },
+  ]) {
+    await fakeHost({ command: 'install', ...scenario }, async ({ code, trace }) => {
+      assert.notEqual(code, 0, scenario.name)
+      assert.equal(
+        hasCall(
+          trace,
+          'systemctl',
+          'show',
+          '--property=LoadState',
+          '--value',
+          'anynote-warp-bridge.service',
+        ),
+        true,
+        scenario.name,
+      )
+      assert.equal(
+        trace.some(([command]) => command === 'apt-get'),
+        false,
+        scenario.name,
+      )
+      assert.equal(
+        hasCall(trace, 'warp-cli', '--accept-tos', 'mode', 'proxy'),
+        false,
+        scenario.name,
+      )
+      assert.equal(hasCall(trace, 'warp-cli', '--accept-tos', 'connect'), false, scenario.name)
+    })
+  }
+})
+
+test('a loaded active bridge without a readable fragment stops before packages', async () => {
+  await fakeHost(
+    { command: 'install', activeBridgeWithoutFragment: true, failPoints: 'apt-get' },
+    async ({ code, trace, bridgeState }) => {
+      assert.notEqual(code, 0)
+      const inspectionIndex = trace.findIndex((entry) =>
+        hasCall(
+          [entry],
+          'systemctl',
+          'show',
+          '--property=LoadState',
+          '--value',
+          'anynote-warp-bridge.service',
+        ),
+      )
+      const stopIndex = trace.findIndex((entry) =>
+        hasCall([entry], 'systemctl', 'disable', '--now', 'anynote-warp-bridge.service'),
+      )
+      const activeStateIndex = trace.findIndex((entry) =>
+        hasCall(
+          [entry],
+          'systemctl',
+          'show',
+          '--property=ActiveState',
+          '--value',
+          'anynote-warp-bridge.service',
+        ),
+      )
+      const aptIndex = trace.findIndex(([command]) => command === 'apt-get')
+      assert.ok(
+        inspectionIndex >= 0 &&
+          stopIndex > inspectionIndex &&
+          activeStateIndex > stopIndex &&
+          aptIndex > activeStateIndex,
+      )
+      assert.equal(bridgeState, 'inactive')
+      assert.equal(hasCall(trace, 'warp-cli', '--accept-tos', 'connect'), false)
     },
   )
 })

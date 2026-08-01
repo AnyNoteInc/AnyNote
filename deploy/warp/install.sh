@@ -38,16 +38,19 @@ is_private_ipv4() {
 }
 
 is_assigned_host_ipv4() {
-  local address=$1 output index interface family cidr remainder matches=0
+  local address=$1 output index interface family cidr remainder
+  local total_matches=0 docker_matches=0
   output=$(ip -o -4 addr show) || return 1
 
   while read -r index interface family cidr remainder; do
     [[ ${family} == inet && ${cidr%%/*} == "${address}" ]] || continue
-    [[ ${interface} =~ ^docker[0-9]+$ || ${interface} =~ ^br-[[:alnum:]_.-]+$ ]] || continue
-    matches=$((matches + 1))
+    total_matches=$((total_matches + 1))
+    if [[ ${interface} =~ ^docker[0-9]+$ || ${interface} =~ ^br-[[:alnum:]_.-]+$ ]]; then
+      docker_matches=$((docker_matches + 1))
+    fi
   done <<< "${output}"
 
-  ((matches == 1))
+  ((total_matches == 1 && docker_matches == 1))
 }
 
 require_supported_host() {
@@ -74,9 +77,22 @@ install_packages() {
 }
 
 stop_existing_bridge() {
-  if systemctl cat anynote-warp-bridge.service >/dev/null 2>&1; then
-    systemctl disable --now anynote-warp-bridge.service
-  fi
+  local load_state active_state
+  load_state=$(systemctl show --property=LoadState --value anynote-warp-bridge.service) \
+    || die 'cannot inspect existing bridge LoadState'
+  case ${load_state} in
+    not-found) return 0 ;;
+    loaded | error | masked | bad-setting | stub | merged) ;;
+    '') die 'existing bridge LoadState is empty' ;;
+    *) die 'existing bridge LoadState is unexpected' ;;
+  esac
+
+  systemctl disable --now anynote-warp-bridge.service \
+    || die 'cannot stop existing bridge service'
+  active_state=$(systemctl show --property=ActiveState --value anynote-warp-bridge.service) \
+    || die 'cannot verify existing bridge ActiveState'
+  [[ ${active_state} == inactive || ${active_state} == failed ]] \
+    || die 'existing bridge service is still active'
 }
 
 prepare_local_proxy() {
