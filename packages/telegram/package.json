@@ -25,6 +25,7 @@
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/webhooks": "workspace:*",
+    "undici": "7.28.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
