@@ -108,8 +108,25 @@ prepare_local_proxy() {
 }
 
 is_connected_status() {
-  local output=$1
-  [[ ${output} == 'Status update: Connected' || ${output} == Connected ]]
+  local output=$1 line
+  local status_lines=0 connected_status_lines=0 legacy_status_lines=0
+
+  while IFS= read -r line; do
+    case ${line} in
+      'Status update: '*)
+        status_lines=$((status_lines + 1))
+        [[ ${line} != 'Status update: Connected' ]] \
+          || connected_status_lines=$((connected_status_lines + 1))
+        ;;
+      Connected | Disconnected) legacy_status_lines=$((legacy_status_lines + 1)) ;;
+    esac
+  done <<< "${output}"
+
+  if ((status_lines > 0)); then
+    ((status_lines == 1 && connected_status_lines == 1 && legacy_status_lines == 0))
+  else
+    [[ ${output} == Connected ]]
+  fi
 }
 
 wait_for_connection() {

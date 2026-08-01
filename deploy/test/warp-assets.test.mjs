@@ -541,6 +541,19 @@ test('install writes and activates a hardened private bridge', async () => {
   })
 })
 
+test('install accepts the current WARP client multiline connected status', async () => {
+  await fakeHost(
+    {
+      command: 'install',
+      warpStatusOutput: 'Status update: Connected\nNetwork: healthy',
+    },
+    async ({ code, stderr, trace, bridgeState }) => {
+      assert.equal(code, 0, `${stderr}\n${JSON.stringify(trace)}`)
+      assert.equal(bridgeState, 'active')
+    },
+  )
+})
+
 test('disable stops the bridge and disconnects without deleting configuration', async () => {
   await fakeHost(
     { command: 'disable', healthyStatus: true },
@@ -645,6 +658,24 @@ test('status rejects every disconnected, non-proxy, or mismatched listener state
   await Promise.all(
     [
       { name: 'disconnected', warpStatusOutput: 'Status update: Disconnected' },
+      {
+        name: 'connected only in metadata',
+        warpStatusOutput: 'Status update: Disconnected\nReason: Previously Connected',
+      },
+      { name: 'connected suffix', warpStatusOutput: 'Status update: ConnectedExtra' },
+      {
+        name: 'prefixed connected status',
+        warpStatusOutput: 'Diagnostic: Status update: Connected',
+      },
+      {
+        name: 'conflicting statuses',
+        warpStatusOutput: 'Status update: Connected\nStatus update: Disconnected',
+      },
+      {
+        name: 'mixed canonical and legacy statuses',
+        warpStatusOutput: 'Status update: Connected\nDisconnected',
+      },
+      { name: 'conflicting legacy status', warpStatusOutput: 'Connected\nDisconnected' },
       { name: 'non-proxy', settingsMode: 'nonproxy' },
       { name: 'wrong settings port', settingsMode: 'wrong-port' },
       { name: 'missing WARP listener', warpListenerMode: 'missing' },
