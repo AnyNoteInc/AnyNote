@@ -122,6 +122,9 @@ services:
     env_file: .env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -150,6 +153,9 @@ services:
     env_file: .env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       migrate:
         condition: service_completed_successfully
