@@ -14,7 +14,10 @@ const TOKEN = '123456789:AAFakeTokenForTests_abcdefghij'
 
 type Captured = { url: string; init: RequestInit | undefined }
 
-function capturingFetch(response: { ok: boolean; result?: unknown; description?: string }, status = 200) {
+function capturingFetch(
+  response: { ok: boolean; result?: unknown; description?: string },
+  status = 200,
+) {
   const calls: Captured[] = []
   const fetchFn: typeof fetch = (input, init) => {
     calls.push({ url: String(input), init })
