@@ -286,8 +286,15 @@ git commit -m "feat(telegram): support dedicated outbound proxy"
 **Interfaces:**
 
 - Consumes: GitHub production variable `TELEGRAM_PROXY_URL`.
-- Produces: `TELEGRAM_PROXY_URL` in rendered production `.env`, plus `host.docker.internal` resolution in `web` and `engines`.
+- Produces: `TELEGRAM_PROXY_URL` in rendered production `.env` for Compose interpolation; a derived `.app.env` without that key for application runtime; plus `host.docker.internal` resolution in `web` and `engines`.
 - Preserves: empty or unset proxy configuration leaves direct Telegram behavior unchanged.
+
+**Scoped environment contract:**
+
+- Production `.env` retains `TELEGRAM_PROXY_URL` only as a stable Compose interpolation source.
+- The workflow creates `/tmp/.app.env` by filtering exactly `^TELEGRAM_PROXY_URL=` from `/tmp/.env`, and uploads both files to `/opt/anynote`.
+- Every application service (`migrate`, `web`, `yjs`, `engines`, `agents`) uses `.app.env` as `env_file`.
+- Only `web` and `engines` receive `TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}` explicitly and receive the Docker host-gateway mapping. Every other resolved service must lack the key entirely, including when the proxy value is empty.
 
 - [ ] **Step 1: Write a failing behavioral deployment contract test**
 
@@ -311,6 +318,7 @@ async function resolvedCompose(telegramProxyUrl) {
   const directory = await mkdtemp(join(tmpdir(), 'anynote-compose-'))
   const composePath = join(directory, 'compose.yml')
   const envPath = join(directory, '.env')
+  const appEnvPath = join(directory, '.app.env')
 
   try {
     await writeFile(composePath, await readFile(join(root, 'deploy/compose.yml')))
@@ -324,12 +332,25 @@ async function resolvedCompose(telegramProxyUrl) {
         'S3_SECRET_KEY=test',
         'S3_BUCKET=test',
         'QDRANT__AUTH__BEARER_TOKEN=test',
+        `TELEGRAM_PROXY_URL=${telegramProxyUrl}`,
+      ].join('\n'),
+    )
+    await writeFile(
+      appEnvPath,
+      [
+        'FORM_TOKEN_SECRET=01234567890123456789012345678901',
+        'ACME_EMAIL=ops@anynote.ru',
+        'POSTGRES_PASSWORD=test',
+        'S3_ACCESS_KEY=test',
+        'S3_SECRET_KEY=test',
+        'S3_BUCKET=test',
+        'QDRANT__AUTH__BEARER_TOKEN=test',
       ].join('\n'),
     )
     const { stdout } = await execFileAsync(
       'docker',
       ['compose', '--env-file', envPath, '-f', composePath, 'config', '--format', 'json'],
-      { env: { ...process.env, TELEGRAM_PROXY_URL: telegramProxyUrl } },
+      { env: process.env },
     )
     return JSON.parse(stdout)
   } finally {
@@ -339,15 +360,17 @@ async function resolvedCompose(telegramProxyUrl) {
 
 test('resolved Compose routes only Telegram-capable services to the host bridge', async () => {
   const compose = await resolvedCompose(proxyUrl)
+  const proxyServiceNames = new Set(['web', 'engines'])
 
-  for (const serviceName of ['web', 'engines']) {
-    const service = compose.services[serviceName]
-    assert.equal(service.environment.TELEGRAM_PROXY_URL, proxyUrl)
-    assert.deepEqual(service.extra_hosts, ['host.docker.internal=host-gateway'])
-  }
+  for (const [serviceName, service] of Object.entries(compose.services)) {
+    if (proxyServiceNames.has(serviceName)) {
+      assert.equal(service.environment.TELEGRAM_PROXY_URL, proxyUrl)
+      assert.deepEqual(service.extra_hosts, ['host.docker.internal=host-gateway'])
+      continue
+    }
 
-  for (const serviceName of ['migrate', 'yjs', 'agents']) {
-    assert.equal(compose.services[serviceName].extra_hosts, undefined)
+    assert.equal(Object.hasOwn(service.environment ?? {}, 'TELEGRAM_PROXY_URL'), false)
+    assert.equal(service.extra_hosts, undefined)
   }
 })
 
@@ -355,6 +378,12 @@ test('resolved Compose preserves an explicitly disabled Telegram proxy', async (
   const compose = await resolvedCompose('')
   assert.equal(compose.services.web.environment.TELEGRAM_PROXY_URL, '')
   assert.equal(compose.services.engines.environment.TELEGRAM_PROXY_URL, '')
+
+  for (const [serviceName, service] of Object.entries(compose.services)) {
+    if (serviceName === 'web' || serviceName === 'engines') continue
+
+    assert.equal(Object.hasOwn(service.environment ?? {}, 'TELEGRAM_PROXY_URL'), false)
+  }
 })
 ```
 
@@ -366,7 +395,7 @@ Run:
 node --test deploy/test/telegram-proxy-config.test.mjs
 ```
 
-Expected: both tests fail because the resolved `web` and `engines` services do not yet expose the dedicated proxy setting and Docker host mapping.
+Expected: both tests fail because the current shared `env_file: .env` leaks `TELEGRAM_PROXY_URL` to non-target services. The fixture creates an isolated production-shaped `.env` containing the configured or empty proxy value and a corresponding `.app.env` without the key.
 
 - [ ] **Step 3: Add the environment contract**
 
@@ -391,7 +420,27 @@ Add the GitHub production variable to the `Render .env from template` environmen
 TELEGRAM_PROXY_URL: ${{ vars.TELEGRAM_PROXY_URL }}
 ```
 
+Immediately after rendering `/tmp/.env`, derive the application runtime file and upload both artifacts:
+
+```bash
+grep -v '^TELEGRAM_PROXY_URL=' /tmp/.env > /tmp/.app.env
+chmod 600 /tmp/.app.env
+```
+
+```bash
+scp -P "$DEPLOY_PORT" /tmp/.env \
+  "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.env"
+scp -P "$DEPLOY_PORT" /tmp/.app.env \
+  "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.app.env"
+```
+
 - [ ] **Step 4: Add scoped Docker host mappings**
+
+Change every application service (`migrate`, `web`, `yjs`, `engines`, and `agents`) to use the derived runtime file:
+
+```yaml
+env_file: .app.env
+```
 
 Add the explicit proxy value and host mapping to `web` and `engines` only, preserving their existing `FORM_TOKEN_SECRET` entries:
 
@@ -402,7 +451,7 @@ extra_hosts:
   - 'host.docker.internal:host-gateway'
 ```
 
-Do not add it to `migrate`, `yjs`, `agents`, Traefik, databases, or storage services.
+Do not add the explicit proxy setting or mapping to `migrate`, `yjs`, `agents`, Traefik, databases, or storage services. The resulting environments of every non-target service must omit `TELEGRAM_PROXY_URL`, not merely set it to an empty string.
 
 - [ ] **Step 5: Run deployment contract and Compose validation**
 
@@ -419,7 +468,7 @@ FORM_TOKEN_SECRET=01234567890123456789012345678901 \
   docker compose -f deploy/compose.yml config --quiet
 ```
 
-Expected: the Node test passes and Compose exits zero. The test itself executes the configured and disabled proxy cases through Compose's parser; warnings for unrelated optional empty variables are acceptable, interpolation errors are not.
+Expected: the Node test passes and Compose exits zero. The Node verifier creates both temporary `.env` and `.app.env` files, executes configured and disabled proxy cases through Compose's parser, and checks every resolved service; warnings for unrelated optional empty variables are acceptable, interpolation errors are not.
 
 - [ ] **Step 6: Confirm the proxy is not global**
 
