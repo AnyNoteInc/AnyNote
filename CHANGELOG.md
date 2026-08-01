@@ -1,3 +1,10 @@
+## [1.43.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.43.1...v1.43.2) (2026-08-01)
+
+
+### Bug Fixes
+
+* **deploy:** normalize synced artifact ownership ([5db0f0d](https://github.com/AnyNoteInc/AnyNote/commit/5db0f0d3536765cc86f5dd24995a4a8d87ce1233))
+
 ## [1.43.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.43.0...v1.43.1) (2026-08-01)
 
 
