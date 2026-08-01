@@ -21,6 +21,7 @@
 - Preserve end-to-end TLS to `api.telegram.org`; do not install TLS inspection certificates.
 - Never log bot tokens, chat IDs, proxy credentials, Telegram request URLs, or lead payloads.
 - Do not add automatic `sendMessage` retries because an ambiguous retry can duplicate a lead.
+- Configuration and shell-script tests must execute the artifact and assert observable output, exit status, or filesystem effects; do not use source-text assertions. This requirement supersedes the original static-test wording by user decision on 2026-08-01.
 - Land code with `TELEGRAM_PROXY_URL` unset first; enable production routing only after WARP and the bridge pass independent probes.
 - On any failed production gate, stop and execute the scoped rollback steps for that task.
 
@@ -40,13 +41,13 @@
 - Modify `.env.example`, `deploy/.env.template`, and `turbo.json`: document and propagate `TELEGRAM_PROXY_URL`.
 - Modify `deploy/compose.yml`: add `host.docker.internal:host-gateway` only to `web` and `engines`.
 - Modify `.github/workflows/deploy.yml`: render the production variable and sync versioned WARP assets.
-- Create `deploy/test/telegram-proxy-config.test.mjs`: assert the deployment contract without contacting production.
+- Create `deploy/test/telegram-proxy-config.test.mjs`: execute `docker compose config --format json` and assert the resolved deployment contract without contacting production.
 
 ### Host operations boundary
 
 - Create `deploy/warp/install.sh`: idempotent `check`, `install`, `status`, and `disable` commands for WARP and the bridge.
 - Create `deploy/warp/anynote-warp-bridge.service`: hardened systemd service for the Docker-only TCP bridge.
-- Create `deploy/test/warp-assets.test.mjs`: static safety contract for installer and unit files.
+- Create `deploy/test/warp-assets.test.mjs`: execute the installer in a temporary stubbed host harness and assert fail-closed behavior and generated bridge artifacts.
 - Modify `deploy/README.md`: operator runbook, health checks, enablement, and rollback.
 
 ---
@@ -288,49 +289,72 @@ git commit -m "feat(telegram): support dedicated outbound proxy"
 - Produces: `TELEGRAM_PROXY_URL` in rendered production `.env`, plus `host.docker.internal` resolution in `web` and `engines`.
 - Preserves: empty or unset proxy configuration leaves direct Telegram behavior unchanged.
 
-- [ ] **Step 1: Write a failing deployment contract test**
+- [ ] **Step 1: Write a failing behavioral deployment contract test**
 
 Create `deploy/test/telegram-proxy-config.test.mjs`:
 
 ```js
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 
-const root = new URL('../../', import.meta.url)
-const read = (path) => readFile(new URL(path, root), 'utf8')
+const execFileAsync = promisify(execFile)
+const root = fileURLToPath(new URL('../../', import.meta.url))
+const proxyUrl = 'http://host.docker.internal:40001'
 
-function serviceBlock(compose, name, nextName) {
-  const start = compose.indexOf(`  ${name}:\n`)
-  const end = compose.indexOf(`\n  ${nextName}:\n`, start)
-  assert.notEqual(start, -1, `missing ${name} service`)
-  assert.notEqual(end, -1, `missing ${nextName} boundary`)
-  return compose.slice(start, end)
+async function resolvedCompose(telegramProxyUrl) {
+  const directory = await mkdtemp(join(tmpdir(), 'anynote-compose-'))
+  const composePath = join(directory, 'compose.yml')
+  const envPath = join(directory, '.env')
+
+  try {
+    await writeFile(composePath, await readFile(join(root, 'deploy/compose.yml')))
+    await writeFile(
+      envPath,
+      [
+        'FORM_TOKEN_SECRET=01234567890123456789012345678901',
+        'ACME_EMAIL=ops@anynote.ru',
+        'POSTGRES_PASSWORD=test',
+        'S3_ACCESS_KEY=test',
+        'S3_SECRET_KEY=test',
+        'S3_BUCKET=test',
+        'QDRANT__AUTH__BEARER_TOKEN=test',
+      ].join('\n'),
+    )
+    const { stdout } = await execFileAsync(
+      'docker',
+      ['compose', '--env-file', envPath, '-f', composePath, 'config', '--format', 'json'],
+      { env: { ...process.env, TELEGRAM_PROXY_URL: telegramProxyUrl } },
+    )
+    return JSON.parse(stdout)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
 }
 
-test('Telegram proxy variable is documented and rendered', async () => {
-  const [example, template, turbo, workflow] = await Promise.all([
-    read('.env.example'),
-    read('deploy/.env.template'),
-    read('turbo.json').then(JSON.parse),
-    read('.github/workflows/deploy.yml'),
-  ])
+test('resolved Compose routes only Telegram-capable services to the host bridge', async () => {
+  const compose = await resolvedCompose(proxyUrl)
 
-  assert.match(example, /^TELEGRAM_PROXY_URL=$/m)
-  assert.match(template, /^TELEGRAM_PROXY_URL=\$\{TELEGRAM_PROXY_URL\}$/m)
-  assert.ok(turbo.globalEnv.includes('TELEGRAM_PROXY_URL'))
-  assert.match(workflow, /TELEGRAM_PROXY_URL: \$\{\{ vars\.TELEGRAM_PROXY_URL \}\}/)
+  for (const serviceName of ['web', 'engines']) {
+    const service = compose.services[serviceName]
+    assert.equal(service.environment.TELEGRAM_PROXY_URL, proxyUrl)
+    assert.deepEqual(service.extra_hosts, ['host.docker.internal=host-gateway'])
+  }
+
+  for (const serviceName of ['migrate', 'yjs', 'agents']) {
+    assert.equal(compose.services[serviceName].extra_hosts, undefined)
+  }
 })
 
-test('only Telegram-capable services receive the Docker host gateway', async () => {
-  const compose = await read('deploy/compose.yml')
-  const web = serviceBlock(compose, 'web', 'yjs')
-  const engines = serviceBlock(compose, 'engines', 'agents')
-  const yjs = serviceBlock(compose, 'yjs', 'engines')
-
-  assert.match(web, /host\.docker\.internal:host-gateway/)
-  assert.match(engines, /host\.docker\.internal:host-gateway/)
-  assert.doesNotMatch(yjs, /host\.docker\.internal:host-gateway/)
+test('resolved Compose preserves an explicitly disabled Telegram proxy', async () => {
+  const compose = await resolvedCompose('')
+  assert.equal(compose.services.web.environment.TELEGRAM_PROXY_URL, '')
+  assert.equal(compose.services.engines.environment.TELEGRAM_PROXY_URL, '')
 })
 ```
 
@@ -342,7 +366,7 @@ Run:
 node --test deploy/test/telegram-proxy-config.test.mjs
 ```
 
-Expected: both tests fail because the variable and host mappings are absent.
+Expected: both tests fail because the resolved `web` and `engines` services do not yet expose the dedicated proxy setting and Docker host mapping.
 
 - [ ] **Step 3: Add the environment contract**
 
@@ -369,9 +393,11 @@ TELEGRAM_PROXY_URL: ${{ vars.TELEGRAM_PROXY_URL }}
 
 - [ ] **Step 4: Add scoped Docker host mappings**
 
-Add this block to `web` and `engines` only:
+Add the explicit proxy value and host mapping to `web` and `engines` only, preserving their existing `FORM_TOKEN_SECRET` entries:
 
 ```yaml
+environment:
+  TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
 extra_hosts:
   - 'host.docker.internal:host-gateway'
 ```
@@ -393,7 +419,7 @@ FORM_TOKEN_SECRET=01234567890123456789012345678901 \
   docker compose -f deploy/compose.yml config --quiet
 ```
 
-Expected: the Node test passes and Compose exits zero. Warnings for optional empty variables are acceptable; interpolation errors are not.
+Expected: the Node test passes and Compose exits zero. The test itself executes the configured and disabled proxy cases through Compose's parser; warnings for unrelated optional empty variables are acceptable, interpolation errors are not.
 
 - [ ] **Step 6: Confirm the proxy is not global**
 
@@ -430,49 +456,22 @@ git commit -m "chore(deploy): wire Telegram proxy endpoint"
 - Produces: `/etc/default/anynote-warp-bridge`, `anynote-warp-bridge.service`, and an HTTP CONNECT endpoint at `host.docker.internal:40001` reachable only through Docker host networking.
 - Commands: `deploy/warp/install.sh check|install|status|disable`.
 
-- [ ] **Step 1: Write failing static safety tests**
+- [ ] **Step 1: Write failing behavioral installer tests**
 
-Create `deploy/test/warp-assets.test.mjs`:
+Create `deploy/test/warp-assets.test.mjs` as a temporary fake-host harness. It must execute `deploy/warp/install.sh` with `PATH`-injected stubs for `id`, `dpkg`, `docker`, `systemctl`, `apt-get`, `curl`, `gpg`, `warp-cli`, `ip`, `ss`, and `sleep`. Every stub appends its invocation to a trace file and returns scenario-controlled output. Use temporary paths for the OS release file, apt keyring/list, bridge environment file, and installed unit; do not read or regex-match the installer or unit source as the assertion.
 
-```js
-import assert from 'node:assert/strict'
-import { readFile, stat } from 'node:fs/promises'
-import test from 'node:test'
+Cover these observable behaviors:
 
-const root = new URL('../../', import.meta.url)
-const read = (path) => readFile(new URL(path, root), 'utf8')
+1. `check` exits zero on a fake Ubuntu 22.04 `amd64` host and probes only the official Cloudflare package endpoint.
+2. `install` exits nonzero when `warp-cli mode --help` omits `proxy:`; the trace proves `mode proxy` and bridge activation never occurred.
+3. `install` disconnects and exits nonzero when the default route differs after connection; the bridge files are not installed.
+4. A successful `install` writes `BRIDGE_PORT=40001`, the discovered Docker host gateway, and the discovered WARP loopback port to the temporary bridge environment file; installs the unit; and enables both services. The trace proves capability inspection occurred before `mode proxy` and that neither full-tunnel mode nor a public bind was selected.
+5. `disable` stops the bridge and disconnects WARP without removing packages or generated configuration.
+6. The checked-in installer mode is `0755` so `rsync -a` preserves executability.
 
-test('bridge binds only to the discovered Docker host gateway', async () => {
-  const unit = await read('deploy/warp/anynote-warp-bridge.service')
-  assert.match(unit, /bind=\$\{DOCKER_HOST_GATEWAY\}/)
-  assert.match(unit, /TCP:127\.0\.0\.1:\$\{WARP_PROXY_PORT\}/)
-  assert.doesNotMatch(unit, /0\.0\.0\.0/)
-})
+The tests may parse generated temporary files because those are runtime effects. They must not assert that the source contains or omits a string.
 
-test('installer fails closed before selecting WARP proxy mode', async () => {
-  const installer = await read('deploy/warp/install.sh')
-  const capability = installer.indexOf('mode --help')
-  const activation = installer.indexOf('mode proxy')
-  assert.ok(capability >= 0)
-  assert.ok(activation > capability)
-  assert.match(installer, /ip route show default/)
-  assert.match(installer, /warp-cli --accept-tos disconnect/)
-  assert.doesNotMatch(installer, /mode (warp|warp\+doh|tunnel-only)/)
-})
-
-test('installer exposes only explicit operational commands', async () => {
-  const installer = await read('deploy/warp/install.sh')
-  assert.match(installer, /check\|install\|status\|disable/)
-  assert.doesNotMatch(installer, /TELEGRAM_BOT_TOKEN|TELEGRAM_CHAT_ID/)
-})
-
-test('installer remains executable after deployment sync', async () => {
-  const info = await stat(new URL('deploy/warp/install.sh', root))
-  assert.equal(info.mode & 0o777, 0o755)
-})
-```
-
-- [ ] **Step 2: Run static tests and confirm RED**
+- [ ] **Step 2: Run behavioral tests and confirm RED**
 
 Run:
 
@@ -480,7 +479,7 @@ Run:
 node --test deploy/test/warp-assets.test.mjs
 ```
 
-Expected: failure because the installer and unit do not exist.
+Expected: failure because the executable installer and its fake-host interfaces do not exist.
 
 - [ ] **Step 3: Add the hardened systemd unit**
 
@@ -519,8 +518,11 @@ Create `deploy/warp/install.sh` with these exact operational boundaries:
 set -euo pipefail
 
 readonly BRIDGE_PORT=40001
-readonly BRIDGE_ENV=/etc/default/anynote-warp-bridge
-readonly BRIDGE_UNIT=/etc/systemd/system/anynote-warp-bridge.service
+readonly BRIDGE_ENV="${ANYNOTE_WARP_BRIDGE_ENV:-/etc/default/anynote-warp-bridge}"
+readonly BRIDGE_UNIT="${ANYNOTE_WARP_BRIDGE_UNIT:-/etc/systemd/system/anynote-warp-bridge.service}"
+readonly OS_RELEASE_FILE="${ANYNOTE_WARP_OS_RELEASE_FILE:-/etc/os-release}"
+readonly WARP_KEYRING="${ANYNOTE_WARP_KEYRING:-/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg}"
+readonly WARP_APT_LIST="${ANYNOTE_WARP_APT_LIST:-/etc/apt/sources.list.d/cloudflare-client.list}"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() {
@@ -529,9 +531,10 @@ die() {
 }
 
 require_supported_host() {
-  [[ ${EUID} -eq 0 ]] || die 'run as root'
+  [[ $(id -u) -eq 0 ]] || die 'run as root'
+  [[ -r ${OS_RELEASE_FILE} ]] || die 'cannot read OS release metadata'
   # shellcheck disable=SC1091
-  . /etc/os-release
+  . "${OS_RELEASE_FILE}"
   [[ ${ID} == ubuntu && ${VERSION_ID} == 22.04 ]] || die 'expected Ubuntu 22.04'
   [[ $(dpkg --print-architecture) == amd64 ]] || die 'expected amd64'
   command -v docker >/dev/null || die 'docker is required'
@@ -542,9 +545,9 @@ install_packages() {
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg lsb-release socat
   curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg \
-    | gpg --batch --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-  printf 'deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ jammy main\n' \
-    > /etc/apt/sources.list.d/cloudflare-client.list
+    | gpg --batch --yes --dearmor --output "${WARP_KEYRING}"
+  printf 'deb [signed-by=%s] https://pkg.cloudflareclient.com/ jammy main\n' "${WARP_KEYRING}" \
+    > "${WARP_APT_LIST}"
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y cloudflare-warp
   systemctl enable --now warp-svc.service
@@ -710,7 +713,7 @@ bash -n deploy/warp/install.sh
 pnpm exec prettier --check deploy/README.md .github/workflows/deploy.yml
 ```
 
-Expected: all commands pass. The static test proves no public bind or full-tunnel mode was introduced.
+Expected: all commands pass. The behavioral harness proves fail-closed mode selection, unchanged routing, private generated bridge configuration, and reversible disable behavior.
 
 - [ ] **Step 8: Commit operations assets**
 
