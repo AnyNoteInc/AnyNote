@@ -1,3 +1,10 @@
+## [1.43.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.43.0...v1.43.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **deploy:** accept multiline WARP connected status ([d5b3768](https://github.com/AnyNoteInc/AnyNote/commit/d5b37682e297b8be1406d45fa6b6052c4c49a2b2))
+
 # [1.43.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.42.1...v1.43.0) (2026-08-01)
 
 
