@@ -4,7 +4,6 @@ let cachedProxy: { url: string; dispatcher: Dispatcher } | undefined
 
 export function telegramProxyDispatcher(
   // This package intentionally reads the deployment-only proxy boundary directly.
-  // eslint-disable-next-line turbo/no-undeclared-env-vars
   raw = process.env['TELEGRAM_PROXY_URL'],
 ): Dispatcher | undefined {
   const value = raw?.trim()
