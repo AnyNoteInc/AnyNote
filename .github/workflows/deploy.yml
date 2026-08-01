@@ -152,6 +152,8 @@ jobs:
           fi
           envsubst < deploy/.env.template > /tmp/.env
           chmod 600 /tmp/.env
+          grep -v '^TELEGRAM_PROXY_URL=' /tmp/.env > /tmp/.app.env
+          chmod 600 /tmp/.app.env
           # Materialise the dashboard-users file for traefik basicAuth.usersFile.
           # Bcrypt $-chars in the secret are unsafe in compose .env (compose
           # would interpolate them), so we write this one outside .env.
@@ -194,6 +196,8 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/postgres-init/"
           scp -P "$DEPLOY_PORT" /tmp/.env \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.env"
+          scp -P "$DEPLOY_PORT" /tmp/.app.env \
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.app.env"
           scp -P "$DEPLOY_PORT" /tmp/dashboard-users \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/traefik/dynamic/dashboard-users"
 

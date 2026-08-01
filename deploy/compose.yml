@@ -104,7 +104,7 @@ services:
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: "no"
-    env_file: .env
+    env_file: .app.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,7 +119,7 @@ services:
   web:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
       TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
@@ -141,7 +141,7 @@ services:
   yjs:
     image: ghcr.io/anynoteinc/anynote-yjs:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -150,7 +150,7 @@ services:
   engines:
     image: ghcr.io/anynoteinc/anynote-engines:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     environment:
       FORM_TOKEN_SECRET: ${FORM_TOKEN_SECRET:?FORM_TOKEN_SECRET is required}
       TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
@@ -167,7 +167,7 @@ services:
   agents:
     image: ghcr.io/anynoteinc/anynote-agents:latest
     restart: unless-stopped
-    env_file: .env
+    env_file: .app.env
     depends_on:
       migrate:
         condition: service_completed_successfully
