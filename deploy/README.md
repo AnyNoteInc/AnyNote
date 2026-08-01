@@ -5,9 +5,14 @@ Encrypt). The stack is defined in [`compose.yml`](compose.yml); Traefik routing
 lives in [`traefik/`](traefik/). Deploys are driven by
 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml), which renders
 `.env.template` with `envsubst`, syncs `deploy/traefik/`, and runs the versioned
-`/opt/anynote/compose.sh` wrapper over SSH. The wrapper always changes to the
-managed project directory and removes an ambient `TELEGRAM_PROXY_URL` before
-Compose interpolation, so `/opt/anynote/.env` is the only source for that value.
+`/opt/anynote/deploy-stack.sh` helper over SSH. That helper reads the registry
+token from standard input, logs out as cleanup, propagates login, pull, up, and
+logout failures, and treats only image pruning after a successful bring-up as
+best-effort. It delegates Compose operations to `/opt/anynote/compose.sh`, which
+always changes to the managed project directory and removes an ambient
+`TELEGRAM_PROXY_URL` before interpolation, so `/opt/anynote/.env` is the only
+source for that value. The registry token is never placed in an argument or
+printed by either helper.
 
 ## TLS certificates
 
@@ -119,8 +124,18 @@ Compose interpolation source and contains exactly one `TELEGRAM_PROXY_URL=`
 line; `.app.env` is derived from it with that line removed and is the common
 application `env_file`. It streams both to unique mode-`0600` temporary files
 under `/opt/anynote`, then `/opt/anynote/activate-env.sh` validates ownership,
-content, filesystem, and mode before atomically renaming them to the live
-names. Do not copy either file directly onto a live path.
+content, filesystem, mode, and live destination type before replacing the live
+pair. Existing regular files are preserved as same-filesystem hard-link
+snapshots. Each rename is atomic individually, but the pair is not an OS-atomic
+operation; the helper rolls the complete prior pair back if the second rename
+or a post-activation check fails. Do not copy either file directly onto a live
+path.
+
+Shell rollback cannot run after `SIGKILL`, power loss, or a host crash. Inspect
+any retained `/opt/anynote/.env.backup.*` recovery snapshot before rerunning an
+interrupted activation. A failure that occurs only while deleting a recovery
+snapshot leaves the already verified new pair committed and reports a nonzero
+result without rolling it back.
 
 For every manual Compose operation, use the synced wrapper:
 
@@ -186,9 +201,10 @@ gh variable set TELEGRAM_PROXY_URL --env production \
 gh workflow run deploy.yml --ref main
 ```
 
-The workflow rematerializes and atomically activates both environment files,
-then recreates the stack through `compose.sh`. Never export the proxy variable
-in the host shell and never set `HTTP_PROXY`, `HTTPS_PROXY`, or `ALL_PROXY`.
+The workflow rematerializes and transactionally activates both environment
+files, then recreates the stack through `deploy-stack.sh` and `compose.sh`.
+Never export the proxy variable in the host shell and never set `HTTP_PROXY`,
+`HTTPS_PROXY`, or `ALL_PROXY`.
 
 ### Health checks
 

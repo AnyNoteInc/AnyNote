@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
-import { chmod, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import { tmpdir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -11,18 +21,15 @@ const execFileAsync = promisify(execFile)
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const activationHelperPath = join(root, 'deploy/activate-env.sh')
 
-async function invokeActivation(
-  directory,
-  envTemp,
-  appEnvTemp,
-  expectedOwner = userInfo().username,
-) {
+async function invokeActivation(directory, envTemp, appEnvTemp, options = {}) {
   try {
     const output = await execFileAsync(activationHelperPath, [envTemp, appEnvTemp], {
       env: {
         ...process.env,
         ANYNOTE_PROJECT_DIR: directory,
-        ANYNOTE_EXPECTED_OWNER: expectedOwner,
+        ANYNOTE_EXPECTED_OWNER: options.expectedOwner ?? userInfo().username,
+        ANYNOTE_ACTIVATION_FAIL_STEP: options.failStep ?? '',
+        ANYNOTE_ACTIVATION_FAIL_ROLLBACK: options.failRollback ?? '',
       },
     })
     return { ...output, code: 0 }
@@ -39,7 +46,7 @@ async function mode(path) {
   return (await stat(path)).mode & 0o777
 }
 
-test('activation repairs upload modes and atomically replaces both live env files', async () => {
+test('activation repairs upload modes and transactionally replaces both live env files', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'anynote-env-activation-'))
   const liveEnv = join(directory, '.env')
   const liveAppEnv = join(directory, '.app.env')
@@ -137,12 +144,9 @@ test('invalid upload pairs never alter the prior live env pair', async (t) => {
         await writeFile(envTemp, scenario.env)
         if (scenario.appEnv !== undefined) await writeFile(appEnvTemp, scenario.appEnv)
 
-        const result = await invokeActivation(
-          directory,
-          envTemp,
-          appEnvTemp,
-          scenario.expectedOwner,
-        )
+        const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+          expectedOwner: scenario.expectedOwner,
+        })
 
         assert.notEqual(result.code, 0)
         assert.notEqual(
@@ -169,4 +173,187 @@ test('invalid upload pairs never alter the prior live env pair', async (t) => {
 test('deployment helpers are executable versioned artifacts', async () => {
   assert.equal((await stat(activationHelperPath)).mode & 0o777, 0o755)
   assert.equal((await stat(join(root, 'deploy/compose.sh'))).mode & 0o777, 0o755)
+  assert.equal((await stat(join(root, 'deploy/deploy-stack.sh'))).mode & 0o777, 0o755)
+})
+
+async function backupArtifacts(directory) {
+  return (await readdir(directory)).filter((name) => name.startsWith('.env.backup.'))
+}
+
+test('second rename failure restores prior files by inode and leaves no transaction artifacts', async (t) => {
+  for (const priorFiles of [true, false]) {
+    await t.test(priorFiles ? 'prior pair present' : 'prior pair absent', async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'anynote-env-rollback-'))
+      const liveEnv = join(directory, '.env')
+      const liveAppEnv = join(directory, '.app.env')
+      const envTemp = join(directory, '.env.upload.rollback')
+      const appEnvTemp = join(directory, '.app.env.upload.rollback')
+
+      try {
+        let oldEnvStat
+        let oldAppEnvStat
+        if (priorFiles) {
+          await writeFile(liveEnv, 'LIVE_ENV=old\n')
+          await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+          await chmod(liveEnv, 0o600)
+          await chmod(liveAppEnv, 0o600)
+          oldEnvStat = await stat(liveEnv)
+          oldAppEnvStat = await stat(liveAppEnv)
+        }
+        await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+        await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+
+        const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+          failStep: 'second-move',
+        })
+
+        assert.notEqual(result.code, 0)
+        if (priorFiles) {
+          assert.equal(await readFile(liveEnv, 'utf8'), 'LIVE_ENV=old\n')
+          assert.equal(await readFile(liveAppEnv, 'utf8'), 'LIVE_APP_ENV=old\n')
+          assert.equal((await stat(liveEnv)).ino, oldEnvStat.ino)
+          assert.equal((await stat(liveAppEnv)).ino, oldAppEnvStat.ino)
+        } else {
+          await assert.rejects(stat(liveEnv), { code: 'ENOENT' })
+          await assert.rejects(stat(liveAppEnv), { code: 'ENOENT' })
+        }
+        await assert.rejects(stat(envTemp), { code: 'ENOENT' })
+        await assert.rejects(stat(appEnvTemp), { code: 'ENOENT' })
+        assert.deepEqual(await backupArtifacts(directory), [])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    })
+  }
+})
+
+test('snapshot-stage and post-verification failures roll the complete prior pair back', async (t) => {
+  for (const failStep of ['between-snapshots-and-replace', 'post-verify']) {
+    await t.test(failStep, async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'anynote-env-postcheck-'))
+      const liveEnv = join(directory, '.env')
+      const liveAppEnv = join(directory, '.app.env')
+      const envTemp = join(directory, '.env.upload.postcheck')
+      const appEnvTemp = join(directory, '.app.env.upload.postcheck')
+
+      try {
+        await writeFile(liveEnv, 'LIVE_ENV=old\n')
+        await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+        const oldEnvStat = await stat(liveEnv)
+        const oldAppEnvStat = await stat(liveAppEnv)
+        await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+        await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+
+        const result = await invokeActivation(directory, envTemp, appEnvTemp, { failStep })
+
+        assert.notEqual(result.code, 0)
+        assert.equal((await stat(liveEnv)).ino, oldEnvStat.ino)
+        assert.equal((await stat(liveAppEnv)).ino, oldAppEnvStat.ino)
+        assert.equal(await readFile(liveEnv, 'utf8'), 'LIVE_ENV=old\n')
+        assert.equal(await readFile(liveAppEnv, 'utf8'), 'LIVE_APP_ENV=old\n')
+        assert.deepEqual(await backupArtifacts(directory), [])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    })
+  }
+})
+
+test('rollback reports its own failure while preserving the original activation exit code', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'anynote-env-rollback-failure-'))
+  const liveEnv = join(directory, '.env')
+  const liveAppEnv = join(directory, '.app.env')
+  const envTemp = join(directory, '.env.upload.rollback-failure')
+  const appEnvTemp = join(directory, '.app.env.upload.rollback-failure')
+
+  try {
+    await writeFile(liveEnv, 'LIVE_ENV=old\n')
+    await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+    await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+    await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+
+    const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+      failStep: 'second-move',
+      failRollback: 'restore-env',
+    })
+
+    assert.equal(result.code, 42)
+    assert.match(result.stderr, /rollback failed; recovery snapshot retained/)
+    assert.equal((await backupArtifacts(directory)).length, 1)
+    assert.equal(await readFile(liveAppEnv, 'utf8'), 'LIVE_APP_ENV=old\n')
+    assert.doesNotMatch(result.stderr, /postgresql:\/\/new/)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('snapshot cleanup failure retains the committed new pair without attempting rollback', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'anynote-env-cleanup-failure-'))
+  const liveEnv = join(directory, '.env')
+  const liveAppEnv = join(directory, '.app.env')
+  const envTemp = join(directory, '.env.upload.cleanup-failure')
+  const appEnvTemp = join(directory, '.app.env.upload.cleanup-failure')
+
+  try {
+    await writeFile(liveEnv, 'LIVE_ENV=old\n')
+    await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+    const oldEnvStat = await stat(liveEnv)
+    const oldAppEnvStat = await stat(liveAppEnv)
+    await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+    await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+
+    const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+      failStep: 'cleanup-snapshot',
+    })
+
+    assert.notEqual(result.code, 0)
+    assert.match(result.stderr, /transaction committed but recovery snapshot cleanup failed/)
+    assert.equal(
+      await readFile(liveEnv, 'utf8'),
+      'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n',
+    )
+    assert.equal(await readFile(liveAppEnv, 'utf8'), 'DATABASE_URL=postgresql://new\n')
+    assert.notEqual((await stat(liveEnv)).ino, oldEnvStat.ino)
+    assert.notEqual((await stat(liveAppEnv)).ino, oldAppEnvStat.ino)
+    assert.equal((await backupArtifacts(directory)).length, 1)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('directory and symlink live destinations are rejected before live mutation', async (t) => {
+  for (const destinationType of ['directory', 'symlink']) {
+    await t.test(destinationType, async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'anynote-env-preflight-'))
+      const liveEnv = join(directory, '.env')
+      const liveAppEnv = join(directory, '.app.env')
+      const envTemp = join(directory, '.env.upload.preflight')
+      const appEnvTemp = join(directory, '.app.env.upload.preflight')
+      const symlinkTarget = join(directory, 'app-env-target')
+
+      try {
+        if (destinationType === 'directory') {
+          await mkdir(liveEnv)
+          await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+        } else {
+          await writeFile(liveEnv, 'LIVE_ENV=old\n')
+          await writeFile(symlinkTarget, 'LIVE_APP_ENV=target\n')
+          await symlink(symlinkTarget, liveAppEnv)
+        }
+        await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+        await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+        const liveEnvStat = await stat(liveEnv)
+        const liveAppEnvStat = await stat(liveAppEnv)
+
+        const result = await invokeActivation(directory, envTemp, appEnvTemp)
+
+        assert.notEqual(result.code, 0)
+        assert.equal((await stat(liveEnv)).ino, liveEnvStat.ino)
+        assert.equal((await stat(liveAppEnv)).ino, liveAppEnvStat.ino)
+        assert.deepEqual(await backupArtifacts(directory), [])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    })
+  }
 })

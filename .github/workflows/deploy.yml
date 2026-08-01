@@ -184,7 +184,7 @@ jobs:
             "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init /opt/anynote/warp"
           rsync -avz \
             -e "ssh -p $DEPLOY_PORT" \
-            deploy/compose.yml deploy/compose.sh deploy/activate-env.sh \
+            deploy/compose.yml deploy/compose.sh deploy/activate-env.sh deploy/deploy-stack.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/"
           rsync -avz --delete \
             -e "ssh -p $DEPLOY_PORT" \
@@ -240,8 +240,8 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
-        # compose.sh changes to /opt/anynote, so Compose picks up project name
-        # "anynote" automatically — no --project-name needed.
+        # deploy-stack.sh delegates to compose.sh, so Compose picks up project
+        # name "anynote" automatically — no --project-name needed.
         # traefik hot-reloads dynamic/*.yml via watch: true; static config
         # changes (rare) need a manual restart.
         #
@@ -250,16 +250,11 @@ jobs:
         # only the now-superseded tagged images from prior releases. Without it,
         # old per-release tags accumulate until the host disk fills and the next
         # `compose pull` dies with "no space left on device" (happened on
-        # v1.31.0). It only runs on a successful bring-up (chained with &&), and
-        # `|| true` keeps a prune hiccup from failing an otherwise-good deploy.
+        # v1.31.0). The helper propagates login/pull/up/logout failures and makes
+        # only the post-up prune best-effort.
         run: |
-          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -e; cd /opt/anynote && \
-             echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
-             /opt/anynote/compose.sh pull && \
-             /opt/anynote/compose.sh up -d --remove-orphans && \
-             docker logout ghcr.io && \
-             docker image prune -af || true"
+          printf '%s' "$GHCR_TOKEN" | ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "/opt/anynote/deploy-stack.sh '$GHCR_USER'"
 
       - name: Show container status on failure
         if: failure()

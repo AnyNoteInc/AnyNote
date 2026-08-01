@@ -28,8 +28,13 @@
   interpolation source.
 - Production environment activation must stream `.env` and `.app.env` to
   unique mode-`0600` files on the managed filesystem and execute the versioned
-  `deploy/activate-env.sh` validation/atomic-rename gate. Never upload directly
-  to either live path.
+  `deploy/activate-env.sh` validation and rollback transaction. Each live-file
+  rename is atomic, but the pair is not OS-atomic. Never upload directly to
+  either live path.
+- Production image rollout must execute the versioned `deploy/deploy-stack.sh`
+  helper. The registry token is supplied only through standard input; login,
+  pull, up, and logout fail closed, while only post-up image pruning is
+  best-effort.
 - Land code with `TELEGRAM_PROXY_URL` unset first; enable production routing only after WARP and the bridge pass independent probes.
 - On any failed production gate, stop and execute the scoped rollback steps for that task.
 
@@ -51,12 +56,16 @@
 - Modify `.github/workflows/deploy.yml`: render the production variable and sync versioned WARP assets.
 - Create `deploy/compose.sh`: ambient-safe production Compose entrypoint.
 - Create `deploy/activate-env.sh`: owner/content/mode/same-filesystem validation
-  and atomic activation for the production environment pair.
+  plus hard-link snapshots and rollback for the production environment pair.
+- Create `deploy/deploy-stack.sh`: fail-closed registry login and Compose
+  rollout with logout cleanup and best-effort post-up image pruning.
 - Create `deploy/test/telegram-proxy-config.test.mjs`: execute the checked-in
   Compose wrapper with `config --format json` and assert the resolved deployment
   contract without contacting production.
 - Create `deploy/test/deploy-env-activation.test.mjs`: execute the activation
   helper against temporary live/upload pairs and assert filesystem effects.
+- Create `deploy/test/deploy-stack.test.mjs`: execute the rollout helper with
+  fake Docker and Compose commands and assert status propagation and cleanup.
 
 ### Host operations boundary
 
@@ -475,8 +484,13 @@ The checked-in workflow supplies the concrete SSH arguments, validates both
 returned paths before reuse, and traps cleanup of failed uploads. The activator
 requires two nonempty regular files owned by the deploy user on the managed
 filesystem, exactly one `TELEGRAM_PROXY_URL=` line in `.env`, no such line in
-`.app.env`, repairs and verifies mode `0600`, atomically renames both files, and
-post-checks owner/mode/content without printing file contents.
+`.app.env`, repairs and verifies mode `0600`, preflights both live destinations,
+and hard-links existing files into a same-filesystem recovery snapshot. It then
+renames each upload individually and post-checks owner, mode, and content
+without printing file contents. If the second rename or a post-check fails, it
+restores the complete prior pair, including the original inodes. The pair is
+not OS-atomic, and shell rollback cannot run after `SIGKILL`, power loss, or a
+host crash; retained snapshots require operator inspection.
 
 - [ ] **Step 4: Add scoped Docker host mappings**
 
@@ -509,8 +523,9 @@ node --test deploy/test/deploy-env-activation.test.mjs
 Expected: both Node suites pass. The Compose verifier creates temporary `.env`
 and `.app.env`, executes the real wrapper with a hostile ambient proxy value,
 and checks configured and disabled cases through Compose's parser. The
-activation verifier checks successful mode repair/atomic replacement and
-failure preservation of the prior live pair.
+activation verifier checks successful mode repair, transactional replacement,
+preflight rejection, inode-preserving rollback, and post-commit cleanup failure
+without claiming pair-level OS atomicity.
 
 - [ ] **Step 6: Confirm the proxy is not global**
 
@@ -864,7 +879,7 @@ git commit -m "chore(deploy): add WARP proxy bootstrap"
 
 **Files:**
 
-- Review and repair the complete branch, including the two versioned deploy
+- Review and repair the complete branch, including the three versioned deploy
   helpers, workflow, installer, service, behavioral tests, runbook, and this
   canonical plan.
 
@@ -879,17 +894,17 @@ git commit -m "chore(deploy): add WARP proxy bootstrap"
 pnpm --filter @repo/telegram test
 pnpm --filter @repo/telegram check-types
 pnpm --filter @repo/telegram lint
-node --test deploy/test/deploy-env-activation.test.mjs deploy/test/telegram-proxy-config.test.mjs deploy/test/warp-assets.test.mjs
-bash -n deploy/activate-env.sh deploy/compose.sh deploy/warp/install.sh
+node --test deploy/test/deploy-stack.test.mjs deploy/test/deploy-env-activation.test.mjs deploy/test/telegram-proxy-config.test.mjs deploy/test/warp-assets.test.mjs
+bash -n deploy/activate-env.sh deploy/compose.sh deploy/deploy-stack.sh deploy/warp/install.sh
 ```
 
 Expected: every command passes.
 
-The expanded deploy suite contains **35 tests**: all 23 pre-review behavioral
-tests remain, and 12 new test results cover the registry-free gateway/status
-path plus activation success, rejection, cleanup, ownership, mode, atomic
-replacement, and executable helper contracts. The full Telegram package suite
-remains **82 tests**.
+The expanded deploy suite contains **52 tests**. It covers registry-free
+gateway/status behavior; activation success, rejection, cleanup, ownership,
+mode, live-destination preflight, rollback, and executable helper contracts;
+plus fail-closed rollout status propagation and logout cleanup. The full
+Telegram package suite remains **82 tests**.
 
 - [ ] **Step 2: Validate formatting and whitespace**
 
@@ -898,6 +913,7 @@ pnpm exec prettier --check \
   .github/workflows/deploy.yml \
   deploy/README.md \
   deploy/compose.yml \
+  deploy/test/deploy-stack.test.mjs \
   deploy/test/deploy-env-activation.test.mjs \
   deploy/test/telegram-proxy-config.test.mjs \
   deploy/test/warp-assets.test.mjs \
