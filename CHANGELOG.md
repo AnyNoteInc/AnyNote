@@ -1,3 +1,10 @@
+## [1.43.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.43.2...v1.43.3) (2026-08-01)
+
+
+### Bug Fixes
+
+* **deploy:** allow GitHub Actions registry actor ([a36dab8](https://github.com/AnyNoteInc/AnyNote/commit/a36dab8cac3b768bcfb114838d8a654550a331ca))
+
 ## [1.43.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.43.1...v1.43.2) (2026-08-01)
 
 
