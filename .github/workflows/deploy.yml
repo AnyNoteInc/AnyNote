@@ -213,7 +213,7 @@ jobs:
           trap cleanup_env_uploads EXIT
 
           remote_env_tmp=$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            'set -e; umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' \
+            'set -e; umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); trap '\''rm -f -- "$temp"'\'' EXIT; cat > "$temp"; trap - EXIT; printf "%s\n" "$temp"' \
             < /tmp/.env)
           case "$remote_env_tmp" in
             /opt/anynote/.env.upload.*) ;;
@@ -221,7 +221,7 @@ jobs:
           esac
 
           remote_app_env_tmp=$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            'set -e; umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' \
+            'set -e; umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); trap '\''rm -f -- "$temp"'\'' EXIT; cat > "$temp"; trap - EXIT; printf "%s\n" "$temp"' \
             < /tmp/.app.env)
           case "$remote_app_env_tmp" in
             /opt/anynote/.app.env.upload.*) ;;

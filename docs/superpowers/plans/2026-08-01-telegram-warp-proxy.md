@@ -466,8 +466,8 @@ chmod 600 /tmp/.app.env
 ```
 
 ```bash
-remote_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' < /tmp/.env)
-remote_app_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' < /tmp/.app.env)
+remote_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); trap '\''rm -f -- "$temp"'\'' EXIT; cat > "$temp"; trap - EXIT; printf "%s\n" "$temp"' < /tmp/.env)
+remote_app_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); trap '\''rm -f -- "$temp"'\'' EXIT; cat > "$temp"; trap - EXIT; printf "%s\n" "$temp"' < /tmp/.app.env)
 ssh ... /opt/anynote/activate-env.sh "$remote_env_tmp" "$remote_app_env_tmp"
 ```
 
