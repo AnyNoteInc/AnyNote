@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const deployHelperPath = join(root, 'deploy/deploy-stack.sh')
 
-async function runDeploy({ failPoint = '' } = {}) {
+async function runDeploy({ failPoint = '', registryUser = 'release-actor' } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'anynote-deploy-stack-'))
   const bin = join(directory, 'bin')
   const trace = join(directory, 'trace')
@@ -46,7 +46,7 @@ printf '\\n' >> "$DEPLOY_TRACE"
     await chmod(compose, 0o755)
 
     const result = await new Promise((resolve) => {
-      const child = spawn(deployHelperPath, ['release-actor'], {
+      const child = spawn(deployHelperPath, [registryUser], {
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
@@ -98,6 +98,32 @@ test('successful deployment runs pull and up, treats only prune as best effort, 
     ['docker', 'logout', 'ghcr.io'],
   ])
   assert.doesNotMatch(`${result.stdout}${result.stderr}`, /registry-token/)
+})
+
+test('GitHub Actions bot actor is accepted as registry user', async () => {
+  const result = await runDeploy({ registryUser: 'github-actions[bot]' })
+
+  assert.equal(result.code, 0, result.stderr)
+  assert.equal(
+    hasCall(
+      result.trace,
+      'docker',
+      'login',
+      'ghcr.io',
+      '-u',
+      'github-actions[bot]',
+      '--password-stdin',
+    ),
+    true,
+  )
+})
+
+test('other bracketed registry users remain invalid', async () => {
+  const result = await runDeploy({ registryUser: 'release[bot]' })
+
+  assert.equal(result.code, 2)
+  assert.deepEqual(result.trace, [])
+  assert.match(result.stderr, /usage: deploy-stack\.sh <registry-user>/)
 })
 
 test('login, pull, and up failures propagate while logout remains cleanup', async (t) => {

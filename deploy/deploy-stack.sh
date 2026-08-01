@@ -17,7 +17,9 @@ finish() {
 }
 trap finish EXIT
 
-if (($# != 1)) || [[ ! $1 =~ ^[[:alnum:]][[:alnum:]_.-]{0,63}$ ]]; then
+if (($# != 1)) || {
+  [[ ! $1 =~ ^[[:alnum:]][[:alnum:]_.-]{0,63}$ ]] && [[ $1 != 'github-actions[bot]' ]]
+}; then
   printf 'ERROR: usage: deploy-stack.sh <registry-user>\n' >&2
   exit 2
 fi
