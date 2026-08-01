@@ -22,6 +22,14 @@
 - Never log bot tokens, chat IDs, proxy credentials, Telegram request URLs, or lead payloads.
 - Do not add automatic `sendMessage` retries because an ambiguous retry can duplicate a lead.
 - Configuration and shell-script tests must execute the artifact and assert observable output, exit status, or filesystem effects; do not use source-text assertions. This requirement supersedes the original static-test wording by user decision on 2026-08-01.
+- Every production and manual Compose command must execute the versioned
+  `deploy/compose.sh` wrapper. The wrapper changes to the managed project
+  directory and unsets ambient `TELEGRAM_PROXY_URL`, leaving `.env` as the only
+  interpolation source.
+- Production environment activation must stream `.env` and `.app.env` to
+  unique mode-`0600` files on the managed filesystem and execute the versioned
+  `deploy/activate-env.sh` validation/atomic-rename gate. Never upload directly
+  to either live path.
 - Land code with `TELEGRAM_PROXY_URL` unset first; enable production routing only after WARP and the bridge pass independent probes.
 - On any failed production gate, stop and execute the scoped rollback steps for that task.
 
@@ -41,7 +49,14 @@
 - Modify `.env.example`, `deploy/.env.template`, and `turbo.json`: document and propagate `TELEGRAM_PROXY_URL`.
 - Modify `deploy/compose.yml`: add `host.docker.internal:host-gateway` only to `web` and `engines`.
 - Modify `.github/workflows/deploy.yml`: render the production variable and sync versioned WARP assets.
-- Create `deploy/test/telegram-proxy-config.test.mjs`: execute `docker compose config --format json` and assert the resolved deployment contract without contacting production.
+- Create `deploy/compose.sh`: ambient-safe production Compose entrypoint.
+- Create `deploy/activate-env.sh`: owner/content/mode/same-filesystem validation
+  and atomic activation for the production environment pair.
+- Create `deploy/test/telegram-proxy-config.test.mjs`: execute the checked-in
+  Compose wrapper with `config --format json` and assert the resolved deployment
+  contract without contacting production.
+- Create `deploy/test/deploy-env-activation.test.mjs`: execute the activation
+  helper against temporary live/upload pairs and assert filesystem effects.
 
 ### Host operations boundary
 
@@ -292,7 +307,7 @@ git commit -m "feat(telegram): support dedicated outbound proxy"
 **Scoped environment contract:**
 
 - Production `.env` retains `TELEGRAM_PROXY_URL` only as a stable Compose interpolation source.
-- The workflow creates `/tmp/.app.env` by filtering exactly `^TELEGRAM_PROXY_URL=` from `/tmp/.env`, and uploads both files to `/opt/anynote`.
+- The workflow creates `/tmp/.app.env` by filtering exactly `^TELEGRAM_PROXY_URL=` from `/tmp/.env`, streams both files to unique remote temporary paths under `umask 077`, and activates them with `deploy/activate-env.sh`.
 - Every application service (`migrate`, `web`, `yjs`, `engines`, `agents`) uses `.app.env` as `env_file`.
 - Only `web` and `engines` receive `TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}` explicitly and receive the Docker host-gateway mapping. Every other resolved service must lack the key entirely, including when the proxy value is empty.
 
@@ -347,12 +362,16 @@ async function resolvedCompose(telegramProxyUrl) {
         'QDRANT__AUTH__BEARER_TOKEN=test',
       ].join('\n'),
     )
-    const composeEnv = { ...process.env }
-    delete composeEnv.TELEGRAM_PROXY_URL
     const { stdout } = await execFileAsync(
-      'docker',
-      ['compose', '--env-file', envPath, '-f', composePath, 'config', '--format', 'json'],
-      { env: composeEnv },
+      join(root, 'deploy/compose.sh'),
+      ['config', '--format', 'json'],
+      {
+        env: {
+          ...process.env,
+          ANYNOTE_PROJECT_DIR: directory,
+          TELEGRAM_PROXY_URL: 'http://hostile-ambient.invalid:49999',
+        },
+      },
     )
     return JSON.parse(stdout)
   } finally {
@@ -439,7 +458,7 @@ Add the GitHub production variable to the `Render .env from template` environmen
 TELEGRAM_PROXY_URL: ${{ vars.TELEGRAM_PROXY_URL }}
 ```
 
-Immediately after rendering `/tmp/.env`, derive the application runtime file and upload both artifacts:
+Immediately after rendering `/tmp/.env`, derive the application runtime file:
 
 ```bash
 grep -v '^TELEGRAM_PROXY_URL=' /tmp/.env > /tmp/.app.env
@@ -447,11 +466,17 @@ chmod 600 /tmp/.app.env
 ```
 
 ```bash
-scp -P "$DEPLOY_PORT" /tmp/.env \
-  "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.env"
-scp -P "$DEPLOY_PORT" /tmp/.app.env \
-  "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.app.env"
+remote_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' < /tmp/.env)
+remote_app_env_tmp=$(ssh ... 'umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' < /tmp/.app.env)
+ssh ... /opt/anynote/activate-env.sh "$remote_env_tmp" "$remote_app_env_tmp"
 ```
+
+The checked-in workflow supplies the concrete SSH arguments, validates both
+returned paths before reuse, and traps cleanup of failed uploads. The activator
+requires two nonempty regular files owned by the deploy user on the managed
+filesystem, exactly one `TELEGRAM_PROXY_URL=` line in `.env`, no such line in
+`.app.env`, repairs and verifies mode `0600`, atomically renames both files, and
+post-checks owner/mode/content without printing file contents.
 
 - [ ] **Step 4: Add scoped Docker host mappings**
 
@@ -478,16 +503,14 @@ Run:
 
 ```bash
 node --test deploy/test/telegram-proxy-config.test.mjs
-FORM_TOKEN_SECRET=01234567890123456789012345678901 \
-  ACME_EMAIL=ops@anynote.ru \
-  POSTGRES_PASSWORD=test \
-  S3_ACCESS_KEY=test \
-  S3_SECRET_KEY=test \
-  S3_BUCKET=test \
-  docker compose -f deploy/compose.yml config --quiet
+node --test deploy/test/deploy-env-activation.test.mjs
 ```
 
-Expected: the Node test passes and Compose exits zero. The Node verifier creates both temporary `.env` and `.app.env` files, executes configured and disabled proxy cases through Compose's parser, and checks every resolved service; warnings for unrelated optional empty variables are acceptable, interpolation errors are not.
+Expected: both Node suites pass. The Compose verifier creates temporary `.env`
+and `.app.env`, executes the real wrapper with a hostile ambient proxy value,
+and checks configured and disabled cases through Compose's parser. The
+activation verifier checks successful mode repair/atomic replacement and
+failure preservation of the prior live pair.
 
 - [ ] **Step 6: Confirm the proxy is not global**
 
@@ -565,8 +588,7 @@ EnvironmentFile=/etc/default/anynote-warp-bridge
 ExecStart=/usr/bin/socat TCP-LISTEN:${BRIDGE_PORT},bind=${DOCKER_HOST_GATEWAY},reuseaddr,fork TCP:127.0.0.1:${WARP_PROXY_PORT}
 Restart=always
 RestartSec=2
-User=nobody
-Group=nogroup
+DynamicUser=yes
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
@@ -661,11 +683,18 @@ detect_warp_proxy_port() {
 }
 
 detect_docker_host_gateway() {
-  local gateway
-  gateway=$(docker run --rm --add-host=host.docker.internal:host-gateway busybox:1.36 \
-    getent hosts host.docker.internal | awk 'NR == 1 {print $1}')
-  [[ ${gateway} =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] \
-    || die 'cannot discover Docker host-gateway address'
+  local output line gateway='' lines=0
+  output=$(docker network inspect \
+    --format '{{range .IPAM.Config}}{{println .Gateway}}{{end}}' bridge) \
+    || die 'cannot inspect the default Docker bridge gateway'
+  while IFS= read -r line; do
+    [[ -n ${line} ]] || die 'malformed Docker bridge gateway output'
+    lines=$((lines + 1))
+    gateway=${line}
+  done <<< "${output}"
+  ((lines == 1)) || die 'expected exactly one Docker bridge gateway'
+  is_private_ipv4 "${gateway}" || die 'gateway is not RFC1918 IPv4'
+  is_assigned_host_ipv4 "${gateway}" || die 'gateway assignment is invalid'
   printf '%s\n' "${gateway}"
 }
 
@@ -759,6 +788,10 @@ Security correction after behavioral review (normative):
   `status` check. Disarm transaction cleanup only after that check passes.
 - `disable` must always attempt bridge stop/disable and WARP disconnect, return
   nonzero if either action fails, and never remove packages or configuration.
+- The relay unit must use `DynamicUser=yes`, not the shared
+  `nobody:nogroup` identity. This is compatible because `socat` binds an
+  unprivileged high port and writes no persistent state; retain every existing
+  hardening directive.
 
 Make the versioned installer executable so `rsync -a` preserves the mode:
 
@@ -831,7 +864,9 @@ git commit -m "chore(deploy): add WARP proxy bootstrap"
 
 **Files:**
 
-- Verify only; no new files.
+- Review and repair the complete branch, including the two versioned deploy
+  helpers, workflow, installer, service, behavioral tests, runbook, and this
+  canonical plan.
 
 **Interfaces:**
 
@@ -844,30 +879,41 @@ git commit -m "chore(deploy): add WARP proxy bootstrap"
 pnpm --filter @repo/telegram test
 pnpm --filter @repo/telegram check-types
 pnpm --filter @repo/telegram lint
-node --test deploy/test/telegram-proxy-config.test.mjs deploy/test/warp-assets.test.mjs
-bash -n deploy/warp/install.sh
+node --test deploy/test/deploy-env-activation.test.mjs deploy/test/telegram-proxy-config.test.mjs deploy/test/warp-assets.test.mjs
+bash -n deploy/activate-env.sh deploy/compose.sh deploy/warp/install.sh
 ```
 
 Expected: every command passes.
+
+The expanded deploy suite contains **35 tests**: all 23 pre-review behavioral
+tests remain, and 12 new test results cover the registry-free gateway/status
+path plus activation success, rejection, cleanup, ownership, mode, atomic
+replacement, and executable helper contracts. The full Telegram package suite
+remains **82 tests**.
 
 - [ ] **Step 2: Validate formatting and whitespace**
 
 ```bash
 pnpm exec prettier --check \
+  .github/workflows/deploy.yml \
+  deploy/README.md \
+  deploy/compose.yml \
+  deploy/test/deploy-env-activation.test.mjs \
+  deploy/test/telegram-proxy-config.test.mjs \
+  deploy/test/warp-assets.test.mjs \
+  docs/superpowers/plans/2026-08-01-telegram-warp-proxy.md \
+  packages/telegram/package.json \
   packages/telegram/src/api.ts \
   packages/telegram/src/proxy.ts \
   packages/telegram/test/api.test.ts \
-  packages/telegram/package.json \
-  .env.example \
-  deploy/.env.template \
-  deploy/compose.yml \
-  deploy/README.md \
-  .github/workflows/deploy.yml \
+  pnpm-lock.yaml \
   turbo.json
-git diff --check HEAD~3..HEAD
+git diff --check 5daa8acac8ddd1cad3766f2b9019a49a62ae12e2..HEAD
 ```
 
-Expected: formatting and whitespace checks pass.
+Expected: formatting and whitespace checks pass. Dotenv files, shell scripts,
+and the systemd unit are intentionally excluded because Prettier has no parser
+for them; shell scripts are covered by `bash -n` and behavioral execution.
 
 - [ ] **Step 3: Review the complete branch diff**
 
@@ -970,7 +1016,7 @@ Expected: build and deploy jobs succeed.
 
 ```bash
 ssh -p 2222 root@77.105.170.20 \
-  "cd /opt/anynote && docker compose ps && \
+  "/opt/anynote/compose.sh ps && \
    docker exec anynote-web-1 node -e \"console.log(process.env.TELEGRAM_PROXY_URL ? 'set' : 'unset')\" && \
    docker exec anynote-engines-1 node -e \"console.log(process.env.TELEGRAM_PROXY_URL ? 'set' : 'unset')\""
 ```
@@ -1030,15 +1076,13 @@ If local proxy mode is absent or the default route changes, the installer must d
 ```bash
 ssh -p 2222 root@77.105.170.20 <<'REMOTE'
 set -euo pipefail
-. /etc/default/anynote-warp-bridge
 /opt/anynote/warp/install.sh status
-BRIDGE_LISTENERS=$(ss -lntH "sport = :${BRIDGE_PORT}")
-test "$(printf '%s\n' "${BRIDGE_LISTENERS}" | wc -l)" -eq 1
-printf '%s\n' "${BRIDGE_LISTENERS}" | grep -Fq "${DOCKER_HOST_GATEWAY}:${BRIDGE_PORT}"
 REMOTE
 ```
 
-Expected: `40001` is bound exactly once to the discovered Docker host-gateway address.
+Expected: the fail-closed status command locally inspects the default Docker
+bridge gateway without running or pulling an image, and proves `40001` is bound
+exactly once to that gateway address.
 
 - [ ] **Step 5: Probe HTTPS through the bridge without a bot token**
 
@@ -1205,9 +1249,8 @@ Expected: HTTP 200 with an `ok: true` tRPC result. That response is returned onl
 ```bash
 ssh -p 2222 root@77.105.170.20 <<'REMOTE'
 set -euo pipefail
-cd /opt/anynote
-docker compose ps
-if docker compose logs --since=10m web engines 2>&1 \
+/opt/anynote/compose.sh ps
+if /opt/anynote/compose.sh logs --since=10m web engines 2>&1 \
   | grep -Eq 'TELEGRAM_BOT_TOKEN|bot[0-9]+:|test\+warp-20260801@anynote.ru'; then
   printf 'ERROR: sensitive Telegram pattern found in logs\n' >&2
   exit 1
@@ -1252,10 +1295,17 @@ done
 [[ -n ${DEPLOY_RUN_ID} ]] || { printf 'ERROR: rollback deploy run was not found\n' >&2; exit 1; }
 gh run watch "${DEPLOY_RUN_ID}" --exit-status
 ssh -p 2222 root@77.105.170.20 \
-  "/opt/anynote/warp/install.sh disable"
+  "/opt/anynote/compose.sh up -d --force-recreate web engines && \
+   docker exec anynote-web-1 node -e \"process.exit(process.env.TELEGRAM_PROXY_URL ? 1 : 0)\" && \
+   docker exec anynote-engines-1 node -e \"process.exit(process.env.TELEGRAM_PROXY_URL ? 1 : 0)\" && \
+   /opt/anynote/compose.sh ps web engines && \
+   /opt/anynote/warp/install.sh disable"
 ```
 
-Expected: `web` and `engines` return to direct Telegram behavior; all unrelated AnyNote services stay online.
+Expected: the variable is cleared first, the direct-path deployment and explicit
+recreation succeed, both containers prove they no longer depend on the proxy,
+and only then is WARP infrastructure disabled. All unrelated AnyNote services
+stay online.
 
 - [ ] **Step 8: Record final evidence**
 

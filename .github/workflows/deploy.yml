@@ -182,10 +182,10 @@ jobs:
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init /opt/anynote/warp"
-          rsync -avz --delete \
+          rsync -avz \
             -e "ssh -p $DEPLOY_PORT" \
-            deploy/compose.yml \
-            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/compose.yml"
+            deploy/compose.yml deploy/compose.sh deploy/activate-env.sh \
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/"
           rsync -avz --delete \
             -e "ssh -p $DEPLOY_PORT" \
             deploy/traefik/ \
@@ -198,10 +198,41 @@ jobs:
             -e "ssh -p $DEPLOY_PORT" \
             deploy/warp/ \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/warp/"
-          scp -P "$DEPLOY_PORT" /tmp/.env \
-            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.env"
-          scp -P "$DEPLOY_PORT" /tmp/.app.env \
-            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.app.env"
+          remote_env_tmp=''
+          remote_app_env_tmp=''
+          cleanup_env_uploads() {
+            if [ -n "$remote_env_tmp" ]; then
+              ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+                "rm -f -- '$remote_env_tmp'" >/dev/null 2>&1 || true
+            fi
+            if [ -n "$remote_app_env_tmp" ]; then
+              ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+                "rm -f -- '$remote_app_env_tmp'" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup_env_uploads EXIT
+
+          remote_env_tmp=$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            'set -e; umask 077; temp=$(mktemp /opt/anynote/.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' \
+            < /tmp/.env)
+          case "$remote_env_tmp" in
+            /opt/anynote/.env.upload.*) ;;
+            *) echo 'ERROR: remote .env upload path is invalid' >&2; exit 1 ;;
+          esac
+
+          remote_app_env_tmp=$(ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            'set -e; umask 077; temp=$(mktemp /opt/anynote/.app.env.upload.XXXXXX); cat > "$temp"; printf "%s\n" "$temp"' \
+            < /tmp/.app.env)
+          case "$remote_app_env_tmp" in
+            /opt/anynote/.app.env.upload.*) ;;
+            *) echo 'ERROR: remote .app.env upload path is invalid' >&2; exit 1 ;;
+          esac
+
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "/opt/anynote/activate-env.sh '$remote_env_tmp' '$remote_app_env_tmp'"
+          remote_env_tmp=''
+          remote_app_env_tmp=''
+          trap - EXIT
           scp -P "$DEPLOY_PORT" /tmp/dashboard-users \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/traefik/dynamic/dashboard-users"
 
@@ -209,8 +240,8 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
-        # /opt/anynote is the compose project dir, so docker compose picks
-        # up project name "anynote" automatically — no --project-name needed.
+        # compose.sh changes to /opt/anynote, so Compose picks up project name
+        # "anynote" automatically — no --project-name needed.
         # traefik hot-reloads dynamic/*.yml via watch: true; static config
         # changes (rare) need a manual restart.
         #
@@ -225,8 +256,8 @@ jobs:
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; cd /opt/anynote && \
              echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
-             docker compose pull && \
-             docker compose up -d --remove-orphans && \
+             /opt/anynote/compose.sh pull && \
+             /opt/anynote/compose.sh up -d --remove-orphans && \
              docker logout ghcr.io && \
              docker image prune -af || true"
 
@@ -234,8 +265,7 @@ jobs:
         if: failure()
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd /opt/anynote && \
-             docker compose ps -a && \
-             docker compose logs --tail=50 migrate 2>&1 || true; \
-             docker compose logs --tail=80 traefik 2>&1 || true; \
-             docker compose logs --tail=30 web 2>&1 || true"
+            "/opt/anynote/compose.sh ps -a && \
+             /opt/anynote/compose.sh logs --tail=50 migrate 2>&1 || true; \
+             /opt/anynote/compose.sh logs --tail=80 traefik 2>&1 || true; \
+             /opt/anynote/compose.sh logs --tail=30 web 2>&1 || true"

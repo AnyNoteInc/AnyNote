@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 const root = fileURLToPath(new URL('../../', import.meta.url))
+const composeHelperPath = join(root, 'deploy/compose.sh')
 const proxyUrl = 'http://host.docker.internal:40001'
 
 async function resolvedCompose(telegramProxyUrl) {
@@ -44,13 +45,13 @@ async function resolvedCompose(telegramProxyUrl) {
         'QDRANT__AUTH__BEARER_TOKEN=test',
       ].join('\n'),
     )
-    const composeEnv = { ...process.env }
-    delete composeEnv.TELEGRAM_PROXY_URL
-    const { stdout } = await execFileAsync(
-      'docker',
-      ['compose', '--env-file', envPath, '-f', composePath, 'config', '--format', 'json'],
-      { env: composeEnv },
-    )
+    const { stdout } = await execFileAsync(composeHelperPath, ['config', '--format', 'json'], {
+      env: {
+        ...process.env,
+        ANYNOTE_PROJECT_DIR: directory,
+        TELEGRAM_PROXY_URL: 'http://hostile-ambient.invalid:49999',
+      },
+    })
     return JSON.parse(stdout)
   } finally {
     await rm(directory, { recursive: true, force: true })

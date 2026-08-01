@@ -163,10 +163,16 @@ detect_warp_proxy_port() {
 }
 
 detect_docker_host_gateway() {
-  local gateway
-  gateway=$(docker run --rm --add-host=host.docker.internal:host-gateway busybox:1.36 \
-    getent hosts host.docker.internal | awk 'NR == 1 && NF == 2 && $2 == "host.docker.internal" {print $1}') \
-    || die 'cannot query Docker host-gateway address'
+  local output line gateway='' lines=0
+  output=$(docker network inspect \
+    --format '{{range .IPAM.Config}}{{println .Gateway}}{{end}}' bridge) \
+    || die 'cannot inspect the default Docker bridge gateway'
+  while IFS= read -r line; do
+    [[ -n ${line} ]] || die 'Docker bridge gateway inspection returned malformed output'
+    lines=$((lines + 1))
+    gateway=${line}
+  done <<< "${output}"
+  ((lines == 1)) || die 'Docker bridge gateway inspection did not return exactly one gateway'
   is_private_ipv4 "${gateway}" || die 'Docker host-gateway is not a private IPv4 address'
   is_assigned_host_ipv4 "${gateway}" \
     || die 'Docker host-gateway is not assigned to one local host interface'

@@ -73,6 +73,14 @@ case \${name} in
     if [[ \${1:-} == run ]]; then
       fails docker-run && exit 71
       printf '%s\\n' "\${FAKE_DOCKER_GATEWAY:-172.17.0.1} host.docker.internal"
+    elif [[ \${1:-} == network && \${2:-} == inspect ]]; then
+      fails docker-inspect && exit 88
+      case \${FAKE_DOCKER_INSPECT_MODE:-normal} in
+        normal) printf '%s\\n' "\${FAKE_DOCKER_GATEWAY:-172.17.0.1}" ;;
+        missing) ;;
+        malformed) printf '%s\\n' 'not-an-ip' ;;
+        multiple) printf '%s\\n' '172.17.0.1' '172.18.0.1' ;;
+      esac
     fi
     ;;
   systemctl)
@@ -392,6 +400,7 @@ async function fakeHost(options, assertion) {
       FAKE_WARP_PROXY_CAPABILITY: options.proxyCapability ?? 'present',
       FAKE_ROUTE_CHANGE: options.routeChange ? 'yes' : 'no',
       FAKE_DOCKER_GATEWAY: options.gateway ?? '172.17.0.1',
+      FAKE_DOCKER_INSPECT_MODE: options.dockerInspectMode ?? 'normal',
       FAKE_ASSIGNED_ASSIGNMENTS: assignedAssignments,
       FAKE_SYSTEMD_LOAD_STATE: options.systemdLoadState ?? 'auto',
       FAKE_WARP_PORTS: options.warpPorts ?? '40000',
@@ -498,8 +507,7 @@ test('install writes and activates a hardened private bridge', async () => {
       'Requires=docker.service warp-svc.service',
       'EnvironmentFile=/etc/default/anynote-warp-bridge',
       'ExecStart=/usr/bin/socat TCP-LISTEN:${BRIDGE_PORT},bind=${DOCKER_HOST_GATEWAY},reuseaddr,fork TCP:127.0.0.1:${WARP_PROXY_PORT}',
-      'User=nobody',
-      'Group=nogroup',
+      'DynamicUser=yes',
       'NoNewPrivileges=true',
       'PrivateTmp=true',
       'ProtectHome=true',
@@ -516,6 +524,17 @@ test('install writes and activates a hardened private bridge', async () => {
     )
     assert.ok(proxyIndex > helpIndex && helpIndex >= 0)
     assert.equal(hasCall(trace, 'warp-cli', '--accept-tos', 'settings'), true)
+    assert.equal(
+      trace.some(([command, action]) => command === 'docker' && action === 'run'),
+      false,
+    )
+    assert.equal(
+      trace.some(
+        ([command, action, subject]) =>
+          command === 'docker' && action === 'network' && subject === 'inspect',
+      ),
+      true,
+    )
     assert.equal(hasCall(trace, 'systemctl', 'enable', 'anynote-warp-bridge.service'), true)
     assert.equal(hasCall(trace, 'systemctl', 'restart', 'anynote-warp-bridge.service'), true)
     assert.equal(bridgeState, 'active')
@@ -566,6 +585,40 @@ test('gateway discovery rejects unsafe or unassigned addresses before writing ar
         assert.equal(warpState, 'Disconnected', scenario.name)
       }),
     ),
+  )
+})
+
+test('gateway inspection rejects missing, malformed, multiple, or failed bridge output', async () => {
+  await Promise.all(
+    [
+      { name: 'missing', dockerInspectMode: 'missing' },
+      { name: 'malformed', dockerInspectMode: 'malformed' },
+      { name: 'multiple', dockerInspectMode: 'multiple' },
+      { name: 'failed', failPoints: 'docker-inspect' },
+    ].map((scenario) =>
+      fakeHost({ command: 'install', ...scenario }, async ({ code, trace, paths }) => {
+        assert.notEqual(code, 0, scenario.name)
+        assert.equal(await exists(paths['bridge-env']), false, scenario.name)
+        assert.equal(
+          trace.some(([command, action]) => command === 'docker' && action === 'run'),
+          false,
+          scenario.name,
+        )
+      }),
+    ),
+  )
+})
+
+test('status remains registry-independent when container execution is unavailable', async () => {
+  await fakeHost(
+    { command: 'status', healthyStatus: true, failPoints: 'docker-run' },
+    async ({ code, stderr, trace }) => {
+      assert.equal(code, 0, stderr)
+      assert.equal(
+        trace.some(([command, action]) => command === 'docker' && action === 'run'),
+        false,
+      )
+    },
   )
 })
 
@@ -622,7 +675,7 @@ test('every post-connect failure rolls back bridge and WARP state', async () => 
       { name: 'status command', failPoints: 'warp-status-command' },
       { name: 'route read', failPoints: 'route-after' },
       { name: 'port discovery', warpListenerMode: 'missing' },
-      { name: 'gateway discovery', failPoints: 'docker-run' },
+      { name: 'gateway discovery', failPoints: 'docker-inspect' },
       { name: 'environment install', failPoints: 'install-env' },
       { name: 'unit install', failPoints: 'install-unit' },
       { name: 'daemon reload', failPoints: 'daemon-reload' },
