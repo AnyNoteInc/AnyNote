@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  realpath,
   rm,
   stat,
   symlink,
@@ -30,12 +31,14 @@ async function invokeActivation(directory, envTemp, appEnvTemp, options = {}) {
         ANYNOTE_EXPECTED_OWNER: options.expectedOwner ?? userInfo().username,
         ANYNOTE_ACTIVATION_FAIL_STEP: options.failStep ?? '',
         ANYNOTE_ACTIVATION_FAIL_ROLLBACK: options.failRollback ?? '',
+        ...options.environment,
       },
     })
     return { ...output, code: 0 }
   } catch (error) {
     return {
       code: error.code,
+      signal: error.signal,
       stdout: error.stdout ?? '',
       stderr: error.stderr ?? '',
     }
@@ -179,6 +182,133 @@ test('deployment helpers are executable versioned artifacts', async () => {
 async function backupArtifacts(directory) {
   return (await readdir(directory)).filter((name) => name.startsWith('.env.backup.'))
 }
+
+async function installMvWrapper(directory) {
+  const bin = join(directory, 'bin')
+  const trace = join(directory, 'mv-trace')
+  await mkdir(bin)
+  await writeFile(trace, '')
+  await writeFile(
+    join(bin, 'mv'),
+    `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\t%s\n' "\${3:-}" "\${4:-}" >> "$ANYNOTE_MV_TRACE"
+if [[ \${3:-} == "$ANYNOTE_MV_TARGET_SOURCE" ]]; then
+  case "$ANYNOTE_MV_ACTION" in
+    signal)
+      "$ANYNOTE_REAL_MV" "$@"
+      kill "-$ANYNOTE_MV_SIGNAL" "$PPID"
+      exit 0
+      ;;
+    fail)
+      exit 73
+      ;;
+  esac
+fi
+if [[ -e \${3:-} && -e \${4:-} && \${3:-} -ef \${4:-} ]]; then
+  printf 'same-inode move attempted\n' >&2
+  exit 74
+fi
+exec "$ANYNOTE_REAL_MV" "$@"
+`,
+  )
+  await chmod(join(bin, 'mv'), 0o755)
+  return { bin, trace }
+}
+
+function mvWrapperEnvironment(wrapper, targetSource, action) {
+  return {
+    PATH: `${wrapper.bin}:${process.env.PATH}`,
+    ANYNOTE_REAL_MV: '/bin/mv',
+    ANYNOTE_MV_TRACE: wrapper.trace,
+    ANYNOTE_MV_TARGET_SOURCE: targetSource,
+    ANYNOTE_MV_ACTION: action,
+    ANYNOTE_MV_SIGNAL: 'TERM',
+  }
+}
+
+test('SIGTERM after each completed rename restores the complete prior pair', async (t) => {
+  for (const renamedFile of ['first', 'second']) {
+    await t.test(`${renamedFile} rename`, async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'anynote-env-signal-'))
+      const liveEnv = join(directory, '.env')
+      const liveAppEnv = join(directory, '.app.env')
+      const envTemp = join(directory, '.env.upload.signal')
+      const appEnvTemp = join(directory, '.app.env.upload.signal')
+
+      try {
+        await writeFile(liveEnv, 'LIVE_ENV=old\n')
+        await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+        await chmod(liveEnv, 0o600)
+        await chmod(liveAppEnv, 0o600)
+        const oldEnvStat = await stat(liveEnv)
+        const oldAppEnvStat = await stat(liveAppEnv)
+        await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+        await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+        const wrapper = await installMvWrapper(directory)
+        const targetSource = await realpath(renamedFile === 'first' ? envTemp : appEnvTemp)
+
+        const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+          environment: mvWrapperEnvironment(wrapper, targetSource, 'signal'),
+        })
+        const trace = await readFile(wrapper.trace, 'utf8')
+
+        assert.ok(result.code === 143 || result.signal === 'SIGTERM', `${result.stderr}\n${trace}`)
+        assert.equal(await readFile(liveEnv, 'utf8'), 'LIVE_ENV=old\n')
+        assert.equal(await readFile(liveAppEnv, 'utf8'), 'LIVE_APP_ENV=old\n')
+        assert.equal((await stat(liveEnv)).ino, oldEnvStat.ino)
+        assert.equal((await stat(liveAppEnv)).ino, oldAppEnvStat.ino)
+        await assert.rejects(stat(envTemp), { code: 'ENOENT' })
+        await assert.rejects(stat(appEnvTemp), { code: 'ENOENT' })
+        assert.deepEqual(await backupArtifacts(directory), [])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    })
+  }
+})
+
+test('pre-rename failures leave same-inode snapshots in place without false rollback errors', async (t) => {
+  for (const failedRename of ['first', 'second']) {
+    await t.test(`${failedRename} rename`, async () => {
+      const directory = await mkdtemp(join(tmpdir(), 'anynote-env-mv-failure-'))
+      const liveEnv = join(directory, '.env')
+      const liveAppEnv = join(directory, '.app.env')
+      const envTemp = join(directory, '.env.upload.mv-failure')
+      const appEnvTemp = join(directory, '.app.env.upload.mv-failure')
+
+      try {
+        await writeFile(liveEnv, 'LIVE_ENV=old\n')
+        await writeFile(liveAppEnv, 'LIVE_APP_ENV=old\n')
+        await chmod(liveEnv, 0o600)
+        await chmod(liveAppEnv, 0o600)
+        const oldEnvStat = await stat(liveEnv)
+        const oldAppEnvStat = await stat(liveAppEnv)
+        await writeFile(envTemp, 'DATABASE_URL=postgresql://new\nTELEGRAM_PROXY_URL=\n')
+        await writeFile(appEnvTemp, 'DATABASE_URL=postgresql://new\n')
+        const wrapper = await installMvWrapper(directory)
+        const targetSource = await realpath(failedRename === 'first' ? envTemp : appEnvTemp)
+
+        const result = await invokeActivation(directory, envTemp, appEnvTemp, {
+          environment: mvWrapperEnvironment(wrapper, targetSource, 'fail'),
+        })
+        const trace = await readFile(wrapper.trace, 'utf8')
+
+        assert.equal(result.code, 73, `${result.stderr}\n${trace}`)
+        assert.doesNotMatch(result.stderr, /rollback failed|same-inode move attempted/)
+        assert.equal(await readFile(liveEnv, 'utf8'), 'LIVE_ENV=old\n')
+        assert.equal(await readFile(liveAppEnv, 'utf8'), 'LIVE_APP_ENV=old\n')
+        assert.equal((await stat(liveEnv)).ino, oldEnvStat.ino)
+        assert.equal((await stat(liveAppEnv)).ino, oldAppEnvStat.ino)
+        await assert.rejects(stat(envTemp), { code: 'ENOENT' })
+        await assert.rejects(stat(appEnvTemp), { code: 'ENOENT' })
+        assert.deepEqual(await backupArtifacts(directory), [])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    })
+  }
+})
 
 test('second rename failure restores prior files by inode and leaves no transaction artifacts', async (t) => {
   for (const priorFiles of [true, false]) {

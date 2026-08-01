@@ -58,6 +58,11 @@ preflight_live_destination() {
   [[ ! -e ${path} || -f ${path} ]] || die 'live environment destination must be a regular file'
 }
 
+live_matches_snapshot() {
+  local snapshot=$1 live=$2
+  [[ -f ${snapshot} && ! -L ${snapshot} && -f ${live} && ! -L ${live} && ${snapshot} -ef ${live} ]]
+}
+
 inject_test_failure() {
   local step=$1
   [[ ${TEST_FAIL_STEP} != "${step}" ]] || return 42
@@ -124,7 +129,9 @@ rollback_activation() {
 
   if ((NEW_ENV_INSTALLED == 1)); then
     if ((HAD_LIVE_ENV == 1)); then
-      if [[ ${TEST_FAIL_ROLLBACK} == restore-env ]]; then
+      if live_matches_snapshot "${BACKUP_DIR}/.env" "${LIVE_ENV}"; then
+        :
+      elif [[ ${TEST_FAIL_ROLLBACK} == restore-env ]]; then
         rollback_failed=1
       else
         mv -f -- "${BACKUP_DIR}/.env" "${LIVE_ENV}" || rollback_failed=1
@@ -135,7 +142,11 @@ rollback_activation() {
   fi
   if ((NEW_APP_ENV_INSTALLED == 1)); then
     if ((HAD_LIVE_APP_ENV == 1)); then
-      mv -f -- "${BACKUP_DIR}/.app.env" "${LIVE_APP_ENV}" || rollback_failed=1
+      if live_matches_snapshot "${BACKUP_DIR}/.app.env" "${LIVE_APP_ENV}"; then
+        :
+      else
+        mv -f -- "${BACKUP_DIR}/.app.env" "${LIVE_APP_ENV}" || rollback_failed=1
+      fi
     else
       rm -f -- "${LIVE_APP_ENV}" || rollback_failed=1
     fi
@@ -163,11 +174,11 @@ if [[ -e ${LIVE_APP_ENV} ]]; then
   HAD_LIVE_APP_ENV=1
 fi
 inject_test_failure between-snapshots-and-replace
-mv -f -- "${ENV_UPLOAD}" "${LIVE_ENV}"
 NEW_ENV_INSTALLED=1
+mv -f -- "${ENV_UPLOAD}" "${LIVE_ENV}"
+NEW_APP_ENV_INSTALLED=1
 inject_test_failure second-move
 mv -f -- "${APP_ENV_UPLOAD}" "${LIVE_APP_ENV}"
-NEW_APP_ENV_INSTALLED=1
 
 require_live_invariants "${LIVE_ENV}"
 require_live_invariants "${LIVE_APP_ENV}"

@@ -489,8 +489,12 @@ and hard-links existing files into a same-filesystem recovery snapshot. It then
 renames each upload individually and post-checks owner, mode, and content
 without printing file contents. If the second rename or a post-check fails, it
 restores the complete prior pair, including the original inodes. The pair is
-not OS-atomic, and shell rollback cannot run after `SIGKILL`, power loss, or a
-host crash; retained snapshots require operator inspection.
+not OS-atomic. Rollback state is armed before each rename, so catchable
+`SIGTERM` and `SIGHUP` interruptions restore any completed replacement. If a
+rename has not happened, the live file and hard-link snapshot still share an
+inode and no same-file restore is attempted. Shell rollback cannot run after
+`SIGKILL`, power loss, or a host crash; retained snapshots require operator
+inspection.
 
 - [ ] **Step 4: Add scoped Docker host mappings**
 
@@ -900,11 +904,12 @@ bash -n deploy/activate-env.sh deploy/compose.sh deploy/deploy-stack.sh deploy/w
 
 Expected: every command passes.
 
-The expanded deploy suite contains **52 tests**. It covers registry-free
+The expanded deploy suite contains **58 tests**. It covers registry-free
 gateway/status behavior; activation success, rejection, cleanup, ownership,
-mode, live-destination preflight, rollback, and executable helper contracts;
-plus fail-closed rollout status propagation and logout cleanup. The full
-Telegram package suite remains **82 tests**.
+mode, live-destination preflight, rollback, catchable signal interruption, and
+pre-rename failures; plus executable helper contracts, fail-closed rollout
+status propagation, and logout cleanup. The full Telegram package suite remains
+**82 tests**.
 
 - [ ] **Step 2: Validate formatting and whitespace**
 

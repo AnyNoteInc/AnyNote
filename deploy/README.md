@@ -131,11 +131,14 @@ operation; the helper rolls the complete prior pair back if the second rename
 or a post-activation check fails. Do not copy either file directly onto a live
 path.
 
-Shell rollback cannot run after `SIGKILL`, power loss, or a host crash. Inspect
-any retained `/opt/anynote/.env.backup.*` recovery snapshot before rerunning an
-interrupted activation. A failure that occurs only while deleting a recovery
-snapshot leaves the already verified new pair committed and reports a nonzero
-result without rolling it back.
+Rollback is armed before each rename. If `SIGTERM` or `SIGHUP` arrives after an
+individual rename, the exit trap restores the prior pair; if the rename never
+happened, inode comparison avoids moving a hard-link snapshot over the same
+live file. Shell rollback cannot run after `SIGKILL`, power loss, or a host
+crash. Inspect any retained `/opt/anynote/.env.backup.*` recovery snapshot
+before rerunning an interrupted activation. A failure that occurs only while
+deleting a recovery snapshot leaves the already verified new pair committed
+and reports a nonzero result without rolling it back.
 
 For every manual Compose operation, use the synced wrapper:
 
