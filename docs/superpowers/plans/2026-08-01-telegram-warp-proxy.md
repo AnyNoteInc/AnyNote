@@ -667,12 +667,12 @@ detect_docker_host_gateway() {
   printf '%s\n' "${gateway}"
 }
 
-install_bridge() {
+install_bridge() (
   local warp_proxy_port docker_host_gateway env_tmp
   warp_proxy_port=$(detect_warp_proxy_port)
   docker_host_gateway=$(detect_docker_host_gateway)
   env_tmp=$(mktemp)
-  trap 'rm -f "${env_tmp}"' RETURN
+  trap 'rm -f "${env_tmp}"' EXIT
 
   {
     printf 'BRIDGE_PORT=%s\n' "${BRIDGE_PORT}"
@@ -684,7 +684,7 @@ install_bridge() {
   install -m 0644 "${SCRIPT_DIR}/anynote-warp-bridge.service" "${BRIDGE_UNIT}"
   systemctl daemon-reload
   systemctl enable --now anynote-warp-bridge.service
-}
+)
 
 status() {
   systemctl is-active warp-svc.service

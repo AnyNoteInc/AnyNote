@@ -18,7 +18,7 @@ certificatesResolvers:
     acme:
       storage: /letsencrypt/acme.json
       httpChallenge:
-        entryPoint: web        # HTTP-01 on :80
+        entryPoint: web # HTTP-01 on :80
 ```
 
 Every router that sets `tls.certResolver: le` (in
@@ -44,7 +44,7 @@ exactly like the working `anynote.ru` router — `entryPoints: [websecure]`,
 
 ```yaml
 api:
-  rule: "Host(`api.anynote.ru`)"
+  rule: 'Host(`api.anynote.ru`)'
   entryPoints:
     - websecure
   tls:
@@ -108,3 +108,23 @@ the host and a running deploy. To issue it:
 - `engines` service is part of the production compose stack.
 - `NEXT_PUBLIC_API_BASE_URL=https://api.anynote.ru` is set in
   `.env.template`.
+
+## Telegram WARP egress
+
+The WARP bootstrap is an explicit operator action; deployment only syncs the
+versioned assets to `/opt/anynote/warp`. Run the commands on the production
+host in order:
+
+```bash
+sudo /opt/anynote/warp/install.sh check
+sudo /opt/anynote/warp/install.sh install
+sudo /opt/anynote/warp/install.sh status
+sudo /opt/anynote/warp/install.sh disable
+```
+
+`install` must report WARP as `Connected` in local proxy mode. Compare
+`ip route show default` before and after installation; the default route must
+remain unchanged. Port `40001` must listen only on the discovered Docker
+host-gateway address, never on `0.0.0.0` or a public interface. `disable` is
+the infrastructure rollback: it stops the bridge and disconnects WARP without
+uninstalling packages or removing configuration.

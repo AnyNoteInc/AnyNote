@@ -1,0 +1,21 @@
+[Unit]
+Description=AnyNote Docker bridge to Cloudflare WARP local proxy
+After=docker.service warp-svc.service
+Requires=docker.service warp-svc.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/anynote-warp-bridge
+ExecStart=/usr/bin/socat TCP-LISTEN:${BRIDGE_PORT},bind=${DOCKER_HOST_GATEWAY},reuseaddr,fork TCP:127.0.0.1:${WARP_PROXY_PORT}
+Restart=always
+RestartSec=2
+User=nobody
+Group=nogroup
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
