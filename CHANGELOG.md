@@ -1,3 +1,22 @@
+# [1.43.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.42.1...v1.43.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **deploy:** clean failed env uploads ([d205091](https://github.com/AnyNoteInc/AnyNote/commit/d20509194d8d974d5276414bf9850b25fbf1c376))
+* **deploy:** close bridge preflight gaps ([4153e77](https://github.com/AnyNoteInc/AnyNote/commit/4153e77ba73c5e43da2365579b830d2b36ed83f9))
+* **deploy:** close env rename signal window ([08d4d94](https://github.com/AnyNoteInc/AnyNote/commit/08d4d94476666047590634968bff772e9ff4ea70))
+* **deploy:** fail closed on rollout and env activation ([0d990dc](https://github.com/AnyNoteInc/AnyNote/commit/0d990dcd367f4708df8ffe8fc32d75ce86ddf045))
+* **deploy:** harden WARP bridge fail-closed ([808035b](https://github.com/AnyNoteInc/AnyNote/commit/808035b5c55ba3d8cdfbd6ba7af4f6ef2646e10c))
+* **deploy:** make proxy rollout deterministic ([21d9c25](https://github.com/AnyNoteInc/AnyNote/commit/21d9c25614eaa363be15d5e4ef5096e14fdbddc8))
+* **deploy:** scope Telegram proxy environment ([1ce2b5d](https://github.com/AnyNoteInc/AnyNote/commit/1ce2b5dbea9367fb011c16580a898346db63db5d))
+
+
+### Features
+
+* **deploy:** add WARP proxy bridge operations ([817f14e](https://github.com/AnyNoteInc/AnyNote/commit/817f14eb3fd6bbc883feabdbdc676180679b714f))
+* **telegram:** support dedicated outbound proxy ([5f3a598](https://github.com/AnyNoteInc/AnyNote/commit/5f3a5980f2b34bf1e9d6e8a72cb07a5ed4a9978f))
+
 ## [1.42.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.42.0...v1.42.1) (2026-07-31)
 
 
