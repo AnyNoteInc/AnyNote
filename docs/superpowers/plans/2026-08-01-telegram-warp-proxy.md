@@ -579,7 +579,9 @@ WantedBy=multi-user.target
 
 - [ ] **Step 4: Implement the idempotent installer**
 
-Create `deploy/warp/install.sh` with these exact operational boundaries:
+The code block below records the original pre-review pseudocode. It is
+superseded by the security correction immediately after it; the checked-in
+`deploy/warp/install.sh` and behavioral harness are the normative implementation.
 
 ```bash
 #!/usr/bin/env bash
@@ -724,6 +726,35 @@ main() {
 
 main "$@"
 ```
+
+Security correction after behavioral review (normative):
+
+- Stop any existing `anynote-warp-bridge.service` before package installation
+  or WARP reconfiguration. If the stop fails, abort without continuing.
+- Arm a scoped transaction cleanup before invoking `warp-cli connect`. Until
+  final invariant verification succeeds, every exit must attempt both
+  `systemctl disable --now anynote-warp-bridge.service` and
+  `warp-cli --accept-tos disconnect`, preserving a nonzero result without
+  short-circuiting either cleanup action.
+- Parse exactly one realistic `warp-cli --accept-tos settings` field ending in
+  `Mode: WarpProxy on port N`, with a restricted parenthesized provenance
+  prefix. Validate `N` in `1..65535`, then require exactly one
+  `127.0.0.1:N` socket total and require that socket to belong to `warp-svc`.
+- Validate Docker host-gateway output as strict canonical IPv4, accept only
+  RFC1918 space, and prove the exact address is assigned once to a local
+  `dockerN` or `br-*` interface. Never write untrusted output to the bridge
+  environment or unit.
+- Parse `/etc/default/anynote-warp-bridge` without `source` or `eval`; require
+  exactly the three known keys and validate every value. `status` must compare
+  the environment gateway with a fresh Docker host-gateway discovery, require
+  active services and exact `Connected`/WarpProxy state, correlate the exact
+  WARP socket, and require exactly one bridge-port listener bound to the
+  configured gateway (no wildcard, wrong address, duplicate, or IPv6 socket).
+- After installing the environment and unit, run `systemctl daemon-reload`,
+  explicitly enable the bridge, explicitly restart it, and run the invariant
+  `status` check. Disarm transaction cleanup only after that check passes.
+- `disable` must always attempt bridge stop/disable and WARP disconnect, return
+  nonzero if either action fails, and never remove packages or configuration.
 
 Make the versioned installer executable so `rsync -a` preserves the mode:
 
