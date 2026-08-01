@@ -347,10 +347,12 @@ async function resolvedCompose(telegramProxyUrl) {
         'QDRANT__AUTH__BEARER_TOKEN=test',
       ].join('\n'),
     )
+    const composeEnv = { ...process.env }
+    delete composeEnv.TELEGRAM_PROXY_URL
     const { stdout } = await execFileAsync(
       'docker',
       ['compose', '--env-file', envPath, '-f', composePath, 'config', '--format', 'json'],
-      { env: process.env },
+      { env: composeEnv },
     )
     return JSON.parse(stdout)
   } finally {
@@ -383,6 +385,23 @@ test('resolved Compose preserves an explicitly disabled Telegram proxy', async (
     if (serviceName === 'web' || serviceName === 'engines') continue
 
     assert.equal(Object.hasOwn(service.environment ?? {}, 'TELEGRAM_PROXY_URL'), false)
+  }
+})
+
+test('resolved Compose ignores an ambient Telegram proxy URL', async () => {
+  const previousProxyUrl = process.env.TELEGRAM_PROXY_URL
+  process.env.TELEGRAM_PROXY_URL = 'http://external.invalid:49999'
+
+  try {
+    const compose = await resolvedCompose(proxyUrl)
+    assert.equal(compose.services.web.environment.TELEGRAM_PROXY_URL, proxyUrl)
+    assert.equal(compose.services.engines.environment.TELEGRAM_PROXY_URL, proxyUrl)
+  } finally {
+    if (previousProxyUrl === undefined) {
+      delete process.env.TELEGRAM_PROXY_URL
+    } else {
+      process.env.TELEGRAM_PROXY_URL = previousProxyUrl
+    }
   }
 })
 ```
