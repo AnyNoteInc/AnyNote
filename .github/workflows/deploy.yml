@@ -182,19 +182,19 @@ jobs:
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init /opt/anynote/warp"
-          rsync -avz \
+          rsync -avz --chown=root:root \
             -e "ssh -p $DEPLOY_PORT" \
             deploy/compose.yml deploy/compose.sh deploy/activate-env.sh deploy/deploy-stack.sh \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/"
-          rsync -avz --delete \
+          rsync -avz --delete --chown=root:root \
             -e "ssh -p $DEPLOY_PORT" \
             deploy/traefik/ \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/traefik/"
-          rsync -avz --delete \
+          rsync -avz --delete --chown=root:root \
             -e "ssh -p $DEPLOY_PORT" \
             deploy/postgres-init/ \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/postgres-init/"
-          rsync -avz --delete \
+          rsync -avz --delete --chown=root:root \
             -e "ssh -p $DEPLOY_PORT" \
             deploy/warp/ \
             "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/warp/"
